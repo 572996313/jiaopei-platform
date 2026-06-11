@@ -1,0 +1,2 @@
+-- Placeholder migration.
+-- The first real schema migration will be added after core entities are finalized.

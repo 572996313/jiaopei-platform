@@ -1,0 +1,1105 @@
+<template>
+  <section class="education-page">
+    <div class="education-hero">
+      <div>
+        <div class="page-kicker">SYSTEM / SECURITY / DICTIONARY</div>
+        <h2 class="panel-headline">系统管理</h2>
+        <p class="panel-subtitle">
+          当前页面承接用户、角色、菜单和字典的最小可用链，并接入真实改密与菜单可见性能力。
+        </p>
+      </div>
+
+      <div class="education-hero-actions">
+        <el-button :loading="pageLoading" @click="refreshAll">刷新数据</el-button>
+        <el-button v-if="activeTab === 'users'" type="primary" @click="openCreateUserDialog">新增用户</el-button>
+        <el-button v-else-if="activeTab === 'roles'" type="primary" @click="openCreateRoleDialog">新增角色</el-button>
+      </div>
+    </div>
+
+    <article v-if="pageError" class="panel-card">
+      <el-alert :title="pageError" type="error" show-icon :closable="false" />
+    </article>
+
+    <div class="dashboard-grid education-stat-grid">
+      <article class="stat-card">
+        <div class="stat-label">用户数</div>
+        <div class="stat-value">{{ users.length }}</div>
+        <div class="stat-hint">来自 /api/system/users</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">角色数</div>
+        <div class="stat-value">{{ roles.length }}</div>
+        <div class="stat-hint">来自 /api/system/roles</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">菜单节点</div>
+        <div class="stat-value">{{ flattenedMenus.length }}</div>
+        <div class="stat-hint">来自 /api/auth/current/menus 与 /api/system/menus/tree</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">字典类型</div>
+        <div class="stat-value">{{ dictTypes.length }}</div>
+        <div class="stat-hint">当前已接 common_status 最小使用链</div>
+      </article>
+    </div>
+
+    <article class="panel-card education-panel">
+      <div class="panel-title">当前用户态</div>
+      <div class="system-summary-grid">
+        <div class="system-summary-item">
+          <strong>当前账号：</strong>{{ auth.currentUser?.username || '未登录' }}
+        </div>
+        <div class="system-summary-item">
+          <strong>显示名称：</strong>{{ auth.currentUser?.displayName || '-' }}
+        </div>
+        <div class="system-summary-item">
+          <strong>机构：</strong>{{ formatInstitution(auth.currentUser?.institutionId) }}
+        </div>
+        <div class="system-summary-item">
+          <strong>角色：</strong>{{ auth.currentUser?.roles?.join(' / ') || '-' }}
+        </div>
+      </div>
+      <div class="education-context-text">
+        {{
+          auth.mustChangePassword
+            ? '当前账号已被 forceChangePassword 锁定，只能先完成改密流程。'
+            : '菜单显示由 /api/auth/current/menus 驱动，状态枚举优先读取 common_status 字典。'
+        }}
+      </div>
+    </article>
+
+    <article class="panel-card education-panel">
+      <el-tabs v-model="activeTab" class="system-tabs">
+        <el-tab-pane
+          v-for="tab in availableTabs"
+          :key="tab.name"
+          :label="tab.label"
+          :name="tab.name"
+        >
+          <template v-if="tab.name === 'users'">
+            <div class="education-table-head">
+              <div class="panel-title">用户列表</div>
+              <div class="education-context-text">支持创建、编辑、启停、重置密码、分配角色。</div>
+            </div>
+
+            <el-table :data="users" border v-loading="pageLoading">
+              <el-table-column prop="username" label="账号" width="150" />
+              <el-table-column prop="displayName" label="显示名称" min-width="140" />
+              <el-table-column label="机构" min-width="140">
+                <template #default="{ row }">{{ formatInstitution(row.institutionId) }}</template>
+              </el-table-column>
+              <el-table-column label="默认校区" min-width="160">
+                <template #default="{ row }">{{ formatCampus(row.defaultCampusId) }}</template>
+              </el-table-column>
+              <el-table-column prop="phone" label="手机号" width="140" />
+              <el-table-column label="角色" min-width="160">
+                <template #default="{ row }">
+                  <div class="system-chip-list">
+                    <el-tag v-for="code in row.roleCodes" :key="code" size="small">{{ code }}</el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="120">
+                <template #default="{ row }">
+                  <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="密码状态" width="140">
+                <template #default="{ row }">
+                  <el-tag :type="row.forceChangePassword || row.passwordResetRequired ? 'warning' : 'success'">
+                    {{ row.forceChangePassword || row.passwordResetRequired ? '需强制改密' : '正常' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastLoginAt" label="最近登录" width="180" />
+              <el-table-column prop="remark" label="备注" min-width="180" />
+              <el-table-column label="操作" width="320" fixed="right">
+                <template #default="{ row }">
+                  <div class="system-operation-group">
+                    <el-button text type="primary" @click="openEditUserDialog(row)">编辑</el-button>
+                    <el-button text @click="toggleUserStatus(row)">
+                      {{ row.status === 'active' ? '停用' : '启用' }}
+                    </el-button>
+                    <el-button text @click="handleResetPassword(row)">重置密码</el-button>
+                    <el-button text @click="openRoleAssignDialog(row)">分配角色</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+
+          <template v-else-if="tab.name === 'roles'">
+            <div class="education-table-head">
+              <div class="panel-title">角色列表</div>
+              <div class="education-context-text">支持角色维护，并可进一步分配菜单树。</div>
+            </div>
+
+            <el-table :data="roles" border v-loading="pageLoading">
+              <el-table-column prop="roleCode" label="角色编码" width="180" />
+              <el-table-column prop="roleName" label="角色名称" min-width="180" />
+              <el-table-column label="权限码" min-width="300">
+                <template #default="{ row }">
+                  <div class="system-chip-list">
+                    <el-tag v-for="code in row.permissionCodes" :key="code" size="small">{{ code }}</el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="120">
+                <template #default="{ row }">
+                  <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="remark" label="备注" min-width="200" />
+              <el-table-column label="操作" width="260" fixed="right">
+                <template #default="{ row }">
+                  <div class="system-operation-group">
+                    <el-button text type="primary" @click="openEditRoleDialog(row)">编辑</el-button>
+                    <el-button v-if="canManageMenus" text @click="openRoleMenuDialog(row)">分配菜单</el-button>
+                    <el-button text @click="toggleRoleStatus(row)">
+                      {{ row.status === 'active' ? '停用' : '启用' }}
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+
+          <template v-else-if="tab.name === 'menus'">
+            <article v-if="menuSectionError" class="education-empty">
+              {{ menuSectionError }}
+            </article>
+            <template v-else>
+              <div class="education-table-head">
+                <div class="panel-title">菜单树</div>
+                <div class="education-context-text">当前为只读视图，角色菜单分配入口放在角色管理 tab。</div>
+              </div>
+
+              <el-table
+                :data="flattenedMenus"
+                border
+                row-key="id"
+                :tree-props="{ children: 'children' }"
+                v-loading="pageLoading"
+              >
+                <el-table-column prop="menuName" label="菜单名称" min-width="180" />
+                <el-table-column prop="menuCode" label="菜单编码" width="180" />
+                <el-table-column label="类型" width="100">
+                  <template #default="{ row }">{{ menuTypeLabel(row.menuType) }}</template>
+                </el-table-column>
+                <el-table-column prop="path" label="路径" min-width="180" />
+                <el-table-column prop="permissionCode" label="权限码" min-width="180" />
+                <el-table-column label="可见" width="90">
+                  <template #default="{ row }">{{ row.visible === false ? '否' : '是' }}</template>
+                </el-table-column>
+                <el-table-column label="状态" width="110">
+                  <template #default="{ row }">
+                    <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="180" />
+              </el-table>
+            </template>
+          </template>
+
+          <template v-else-if="tab.name === 'dicts'">
+            <article v-if="dictSectionError" class="education-empty">
+              {{ dictSectionError }}
+            </article>
+            <template v-else>
+              <div class="education-table-head">
+                <div class="panel-title">字典最小接入</div>
+                <div class="education-context-text">当前页面只读展示字典类型与条目，并让状态下拉/标签改为 dict 驱动。</div>
+              </div>
+
+              <div class="system-dict-grid">
+                <div class="panel-card">
+                  <div class="panel-title">字典类型</div>
+                  <el-table :data="dictTypes" border highlight-current-row @current-change="handleDictTypeChange">
+                    <el-table-column prop="typeCode" label="typeCode" min-width="160" />
+                    <el-table-column prop="typeName" label="类型名称" min-width="180" />
+                    <el-table-column label="状态" width="110">
+                      <template #default="{ row }">
+                        <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+
+                <div class="panel-card">
+                  <div class="panel-title">字典条目</div>
+                  <div class="education-context-text system-dict-current">
+                    当前类型：{{ selectedDictTypeCode || '未选择' }}
+                  </div>
+                  <el-table :data="selectedDictItems" border>
+                    <el-table-column prop="itemCode" label="编码" width="140" />
+                    <el-table-column prop="itemName" label="名称" min-width="140" />
+                    <el-table-column prop="itemValue" label="值" min-width="140" />
+                    <el-table-column label="前端显示" width="120">
+                      <template #default="{ row }">{{ localizedDictLabel(row.itemValue, row.itemName) }}</template>
+                    </el-table-column>
+                    <el-table-column label="状态" width="110">
+                      <template #default="{ row }">
+                        <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </div>
+            </template>
+          </template>
+        </el-tab-pane>
+      </el-tabs>
+    </article>
+
+    <el-dialog v-model="userDialogVisible" :title="userDialogMode === 'create' ? '新增用户' : '编辑用户'" width="620px">
+      <el-alert v-if="userFormError" :title="userFormError" type="error" show-icon :closable="false" class="education-alert" />
+
+      <el-form label-position="top" class="education-form">
+        <div class="system-form-grid">
+          <el-form-item label="机构">
+            <el-select v-model="userForm.institutionId" filterable @change="handleUserInstitutionChange">
+              <el-option
+                v-for="item in institutions"
+                :key="item.id"
+                :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="默认校区">
+            <el-select v-model="userForm.defaultCampusId" clearable filterable>
+              <el-option
+                v-for="item in userDialogCampuses"
+                :key="item.id"
+                :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="账号">
+            <el-input v-model="userForm.username" :disabled="userDialogMode === 'edit'" placeholder="请输入账号" />
+          </el-form-item>
+          <el-form-item label="显示名称">
+            <el-input v-model="userForm.displayName" placeholder="请输入显示名称" />
+          </el-form-item>
+          <el-form-item label="手机号">
+            <el-input v-model="userForm.phone" placeholder="请输入手机号" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="userForm.status">
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <el-form-item v-if="userDialogMode === 'create'" label="初始化密码">
+          <el-input v-model="userForm.initialPassword" type="password" show-password placeholder="留空则使用 Init@123456" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="userForm.remark" type="textarea" :rows="3" placeholder="补充用户说明" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="userDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="userSubmitting" @click="submitUser">
+          {{ userDialogMode === 'create' ? '创建用户' : '保存编辑' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="roleDialogVisible" :title="roleDialogMode === 'create' ? '新增角色' : '编辑角色'" width="640px">
+      <el-alert v-if="roleFormError" :title="roleFormError" type="error" show-icon :closable="false" class="education-alert" />
+
+      <el-form label-position="top" class="education-form">
+        <div class="system-form-grid">
+          <el-form-item label="角色编码">
+            <el-input v-model="roleForm.roleCode" :disabled="roleDialogMode === 'edit'" placeholder="请输入角色编码" />
+          </el-form-item>
+          <el-form-item label="角色名称">
+            <el-input v-model="roleForm.roleName" placeholder="请输入角色名称" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="roleForm.status">
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <el-form-item label="预设权限">
+          <el-checkbox-group v-model="roleForm.permissionCodes">
+            <div class="system-permission-grid">
+              <el-checkbox v-for="item in permissionOptions" :key="item.value" :label="item.value">
+                {{ item.label }}
+              </el-checkbox>
+            </div>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="补充权限码">
+          <el-input
+            v-model="roleForm.customPermissionCodes"
+            type="textarea"
+            :rows="3"
+            placeholder="可输入额外权限码，使用逗号或换行分隔"
+          />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="roleForm.remark" type="textarea" :rows="3" placeholder="补充角色说明" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="roleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="roleSubmitting" @click="submitRole">
+          {{ roleDialogMode === 'create' ? '创建角色' : '保存编辑' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="roleAssignDialogVisible" title="分配角色" width="520px">
+      <div class="education-dialog-context">
+        <div><strong>账号：</strong>{{ selectedUser?.username || '-' }}</div>
+        <div><strong>显示名称：</strong>{{ selectedUser?.displayName || '-' }}</div>
+      </div>
+
+      <el-alert v-if="roleAssignError" :title="roleAssignError" type="error" show-icon :closable="false" class="education-alert" />
+
+      <el-checkbox-group v-model="selectedRoleIds" class="system-role-checks">
+        <el-checkbox v-for="item in roles" :key="item.id" :label="item.id">
+          {{ item.roleName }}（{{ item.roleCode }}）
+        </el-checkbox>
+      </el-checkbox-group>
+
+      <template #footer>
+        <el-button @click="roleAssignDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="roleAssignSubmitting" @click="submitRoleAssignment">保存角色</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="roleMenuDialogVisible" title="分配菜单" width="620px">
+      <div class="education-dialog-context">
+        <div><strong>角色：</strong>{{ selectedMenuRole?.roleName || '-' }}</div>
+        <div><strong>角色编码：</strong>{{ selectedMenuRole?.roleCode || '-' }}</div>
+      </div>
+
+      <el-alert v-if="roleMenuError" :title="roleMenuError" type="error" show-icon :closable="false" class="education-alert" />
+
+      <el-tree
+        ref="roleMenuTreeRef"
+        node-key="id"
+        show-checkbox
+        check-on-click-node
+        default-expand-all
+        :data="menuTree"
+        :props="{ label: 'menuName', children: 'children' }"
+        class="system-menu-tree"
+      />
+
+      <template #footer>
+        <el-button @click="roleMenuDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="roleMenuSubmitting" @click="submitRoleMenus">保存菜单</el-button>
+      </template>
+    </el-dialog>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { fetchCampuses, fetchInstitutions, type CampusSummary, type InstitutionSummary } from '@/api/organization'
+import {
+  createSystemRole,
+  createSystemUser,
+  fetchSystemDictItems,
+  fetchSystemDictTypes,
+  fetchSystemMenusTree,
+  fetchSystemRoleMenuIds,
+  fetchSystemRoles,
+  fetchSystemUsers,
+  resetSystemUserPassword,
+  updateSystemRole,
+  updateSystemRoleMenus,
+  updateSystemUser,
+  updateSystemUserRoles,
+  type DictItemSummary,
+  type DictTypeSummary,
+  type SystemMenuTreeNode,
+  type SystemRoleSummary,
+  type SystemUserSummary,
+} from '@/api/system'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+
+const pageLoading = ref(false)
+const pageError = ref('')
+const menuSectionError = ref('')
+const dictSectionError = ref('')
+
+const institutions = ref<InstitutionSummary[]>([])
+const campusDirectory = ref<CampusSummary[]>([])
+const users = ref<SystemUserSummary[]>([])
+const roles = ref<SystemRoleSummary[]>([])
+const menuTree = ref<SystemMenuTreeNode[]>([])
+const dictTypes = ref<DictTypeSummary[]>([])
+const dictItemsMap = ref<Record<string, DictItemSummary[]>>({})
+const selectedDictTypeCode = ref('common_status')
+
+const userDialogVisible = ref(false)
+const userDialogMode = ref<'create' | 'edit'>('create')
+const userSubmitting = ref(false)
+const userFormError = ref('')
+const userDialogCampuses = ref<CampusSummary[]>([])
+const selectedUser = ref<SystemUserSummary | null>(null)
+
+const roleDialogVisible = ref(false)
+const roleDialogMode = ref<'create' | 'edit'>('create')
+const roleSubmitting = ref(false)
+const roleFormError = ref('')
+const selectedRole = ref<SystemRoleSummary | null>(null)
+
+const roleAssignDialogVisible = ref(false)
+const roleAssignSubmitting = ref(false)
+const roleAssignError = ref('')
+const selectedRoleIds = ref<string[]>([])
+
+const roleMenuDialogVisible = ref(false)
+const roleMenuSubmitting = ref(false)
+const roleMenuError = ref('')
+const selectedMenuRole = ref<SystemRoleSummary | null>(null)
+const roleMenuTreeRef = ref<any>(null)
+
+const permissionOptions = [
+  { value: 'system:user:manage', label: '用户管理' },
+  { value: 'system:role:manage', label: '角色管理' },
+  { value: 'system:menu:manage', label: '菜单管理' },
+  { value: 'system:dict:manage', label: '字典管理' },
+  { value: 'organization:read', label: '组织只读' },
+  { value: 'organization:write', label: '组织维护' },
+  { value: 'education:read', label: '教务只读' },
+  { value: 'education:write', label: '教务维护' },
+]
+
+const systemTabs = [
+  {
+    name: 'users',
+    label: '用户管理',
+    routePath: '/system/users',
+    menuSignals: ['system_users', '/system/users'],
+    permissionSignals: ['system:user:manage'],
+  },
+  {
+    name: 'roles',
+    label: '角色管理',
+    routePath: '/system/roles',
+    menuSignals: ['system_roles', '/system/roles'],
+    permissionSignals: ['system:role:manage'],
+  },
+  {
+    name: 'menus',
+    label: '菜单管理',
+    routePath: '/system/menus',
+    menuSignals: ['system_menus', '/system/menus'],
+    permissionSignals: ['system:menu:manage'],
+  },
+  {
+    name: 'dicts',
+    label: '字典使用',
+    routePath: '/system/dicts',
+    menuSignals: ['system_dicts', '/system/dicts'],
+    permissionSignals: ['system:dict:manage'],
+  },
+] as const
+
+const fallbackStatusOptions = [
+  { value: 'active', label: '启用' },
+  { value: 'disabled', label: '停用' },
+]
+
+const userForm = reactive({
+  institutionId: '',
+  defaultCampusId: '' as string | null,
+  username: '',
+  displayName: '',
+  phone: '',
+  initialPassword: '',
+  status: 'active',
+  remark: '',
+})
+
+const roleForm = reactive({
+  roleCode: '',
+  roleName: '',
+  permissionCodes: [] as string[],
+  customPermissionCodes: '',
+  status: 'active',
+  remark: '',
+})
+
+const activeTab = computed({
+  get: () => {
+    const matched = systemTabs.find((item) => item.routePath === route.path)
+    return matched?.name || availableTabs.value[0]?.name || 'users'
+  },
+  set: (value) => {
+    const matched = systemTabs.find((item) => item.name === value)
+    if (matched && matched.routePath !== route.path) {
+      router.push(matched.routePath)
+    }
+  },
+})
+
+const availableTabs = computed(() => {
+  return systemTabs.filter((item) => {
+    return auth.hasMenuAccess([...item.menuSignals]) || item.permissionSignals.some((permission) => auth.hasPermission(permission))
+  })
+})
+
+const canManageMenus = computed(() => {
+  return availableTabs.value.some((item) => item.name === 'menus')
+})
+
+const commonStatusItems = computed(() => dictItemsMap.value.common_status || [])
+
+const statusOptions = computed(() => {
+  if (!commonStatusItems.value.length) {
+    return fallbackStatusOptions
+  }
+  return commonStatusItems.value
+    .filter((item) => item.status !== 'disabled')
+    .map((item) => ({
+      value: item.itemValue,
+      label: localizedDictLabel(item.itemValue, item.itemName),
+    }))
+})
+
+const statusLabelMap = computed(() => {
+  return new Map(statusOptions.value.map((item) => [item.value, item.label]))
+})
+
+const institutionMap = computed(() => {
+  return new Map(
+    institutions.value.map((item) => [item.id, item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`]),
+  )
+})
+
+const campusMap = computed(() => {
+  return new Map(
+    campusDirectory.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]),
+  )
+})
+
+const flattenedMenus = computed(() => flattenMenuTree(menuTree.value))
+const selectedDictItems = computed(() => dictItemsMap.value[selectedDictTypeCode.value] || [])
+
+function flattenMenuTree(items: SystemMenuTreeNode[]): SystemMenuTreeNode[] {
+  return items.map((item) => ({
+    ...item,
+    children: item.children ? flattenMenuTree(item.children) : [],
+  }))
+}
+
+function normalizeRoleMenuKeys(nodes: SystemMenuTreeNode[], selectedIds: string[]): string[] {
+  const selectedSet = new Set(selectedIds)
+
+  const visit = (node: SystemMenuTreeNode): string[] => {
+    const childResults: string[] = (node.children || []).flatMap((child) => visit(child))
+    const nodeId = String(node.id)
+
+    if (!selectedSet.has(nodeId)) {
+      return childResults
+    }
+
+    if (!node.children?.length) {
+      return [nodeId]
+    }
+
+    const childIds = node.children.map((child) => String(child.id))
+    const allChildrenSelected = childIds.every((childId) => selectedSet.has(childId))
+
+    if (allChildrenSelected) {
+      return [nodeId]
+    }
+
+    return childResults
+  }
+
+  const normalized: string[] = []
+  for (const node of nodes) {
+    normalized.push(...visit(node))
+  }
+  return [...new Set(normalized)]
+}
+
+function toMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+function trimToUndefined(value: string) {
+  const normalized = value.trim()
+  return normalized ? normalized : undefined
+}
+
+function localizedDictLabel(value?: string | null, fallback?: string | null) {
+  if (value === 'active') {
+    return '启用'
+  }
+  if (value === 'disabled') {
+    return '停用'
+  }
+  return fallback || value || '-'
+}
+
+function formatInstitution(id?: string | null) {
+  if (!id) {
+    return '未设置'
+  }
+  return institutionMap.value.get(id) || `机构 #${id}`
+}
+
+function formatCampus(id?: string | null) {
+  if (!id) {
+    return '未设置'
+  }
+  return campusMap.value.get(id) || `校区 #${id}`
+}
+
+function statusLabel(status?: string | null) {
+  if (!status) {
+    return '未设置'
+  }
+  return statusLabelMap.value.get(status) || localizedDictLabel(status, status)
+}
+
+function statusTagType(status?: string | null) {
+  return status === 'active' ? 'success' : 'info'
+}
+
+function menuTypeLabel(type?: string | null) {
+  if (type === 'catalog') {
+    return '目录'
+  }
+  if (type === 'button') {
+    return '按钮'
+  }
+  return '菜单'
+}
+
+function parseCustomPermissionCodes(raw: string) {
+  return raw
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+}
+
+async function loadCampusDirectory() {
+  const allCampuses = await Promise.all(institutions.value.map((item) => fetchCampuses(item.id)))
+  campusDirectory.value = allCampuses.flat()
+}
+
+async function loadDictItems(typeCode: string) {
+  dictItemsMap.value = {
+    ...dictItemsMap.value,
+    [typeCode]: await fetchSystemDictItems(typeCode),
+  }
+}
+
+async function loadPageData() {
+  pageLoading.value = true
+  pageError.value = ''
+  menuSectionError.value = ''
+  dictSectionError.value = ''
+
+  try {
+    const [institutionList, userList, roleList] = await Promise.all([
+      fetchInstitutions(),
+      fetchSystemUsers(),
+      fetchSystemRoles(),
+    ])
+    institutions.value = institutionList
+    users.value = userList
+    roles.value = roleList
+    await loadCampusDirectory()
+
+    if (canManageMenus.value) {
+      try {
+        menuTree.value = await fetchSystemMenusTree()
+      } catch (error) {
+        menuTree.value = []
+        menuSectionError.value = toMessage(error, '菜单树加载失败')
+      }
+    } else {
+      menuTree.value = []
+    }
+
+    if (availableTabs.value.some((item) => item.name === 'dicts')) {
+      try {
+        dictTypes.value = await fetchSystemDictTypes()
+        await loadDictItems('common_status')
+        if (selectedDictTypeCode.value && !dictItemsMap.value[selectedDictTypeCode.value]) {
+          await loadDictItems(selectedDictTypeCode.value)
+        }
+      } catch (error) {
+        dictTypes.value = []
+        dictSectionError.value = toMessage(error, '字典数据加载失败')
+      }
+    } else {
+      dictTypes.value = []
+      dictItemsMap.value = {}
+    }
+  } catch (error) {
+    pageError.value = toMessage(error, '系统管理数据加载失败')
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+async function refreshAll() {
+  await auth.loadCurrentMenus()
+  await loadPageData()
+}
+
+function resetUserForm() {
+  userForm.institutionId = auth.currentUser?.institutionId || institutions.value[0]?.id || ''
+  userForm.defaultCampusId = auth.currentUser?.defaultCampusId || null
+  userForm.username = ''
+  userForm.displayName = ''
+  userForm.phone = ''
+  userForm.initialPassword = ''
+  userForm.status = statusOptions.value[0]?.value || 'active'
+  userForm.remark = ''
+  userFormError.value = ''
+}
+
+function resetRoleForm() {
+  roleForm.roleCode = ''
+  roleForm.roleName = ''
+  roleForm.permissionCodes = []
+  roleForm.customPermissionCodes = ''
+  roleForm.status = statusOptions.value[0]?.value || 'active'
+  roleForm.remark = ''
+  roleFormError.value = ''
+}
+
+async function syncUserDialogCampuses() {
+  if (!userForm.institutionId) {
+    userDialogCampuses.value = []
+    userForm.defaultCampusId = null
+    return
+  }
+  try {
+    userDialogCampuses.value = await fetchCampuses(userForm.institutionId)
+    if (userForm.defaultCampusId && !userDialogCampuses.value.some((item) => item.id === userForm.defaultCampusId)) {
+      userForm.defaultCampusId = null
+    }
+  } catch (error) {
+    userDialogCampuses.value = []
+    userFormError.value = toMessage(error, '校区选项加载失败')
+  }
+}
+
+async function handleUserInstitutionChange() {
+  await syncUserDialogCampuses()
+}
+
+async function openCreateUserDialog() {
+  userDialogMode.value = 'create'
+  selectedUser.value = null
+  resetUserForm()
+  await syncUserDialogCampuses()
+  userDialogVisible.value = true
+}
+
+async function openEditUserDialog(user: SystemUserSummary) {
+  userDialogMode.value = 'edit'
+  selectedUser.value = user
+  userForm.institutionId = user.institutionId
+  userForm.defaultCampusId = user.defaultCampusId || null
+  userForm.username = user.username
+  userForm.displayName = user.displayName
+  userForm.phone = user.phone || ''
+  userForm.initialPassword = ''
+  userForm.status = user.status || 'active'
+  userForm.remark = user.remark || ''
+  userFormError.value = ''
+  await syncUserDialogCampuses()
+  userDialogVisible.value = true
+}
+
+async function submitUser() {
+  if (!userForm.institutionId) {
+    userFormError.value = '请选择机构'
+    return
+  }
+  if (!trimToUndefined(userForm.username) && userDialogMode.value === 'create') {
+    userFormError.value = '请填写账号'
+    return
+  }
+  if (!trimToUndefined(userForm.displayName)) {
+    userFormError.value = '请填写显示名称'
+    return
+  }
+
+  userSubmitting.value = true
+  userFormError.value = ''
+  try {
+    if (userDialogMode.value === 'create') {
+      await createSystemUser({
+        institutionId: userForm.institutionId,
+        defaultCampusId: userForm.defaultCampusId || null,
+        username: userForm.username.trim(),
+        displayName: userForm.displayName.trim(),
+        phone: trimToUndefined(userForm.phone),
+        initialPassword: trimToUndefined(userForm.initialPassword),
+        status: userForm.status,
+        remark: trimToUndefined(userForm.remark),
+      })
+      ElMessage.success('用户已创建')
+    } else if (selectedUser.value) {
+      await updateSystemUser(selectedUser.value.id, {
+        institutionId: userForm.institutionId,
+        defaultCampusId: userForm.defaultCampusId || null,
+        displayName: userForm.displayName.trim(),
+        phone: trimToUndefined(userForm.phone),
+        status: userForm.status,
+        remark: trimToUndefined(userForm.remark),
+      })
+      ElMessage.success('用户已更新')
+    }
+    userDialogVisible.value = false
+    await loadPageData()
+  } catch (error) {
+    userFormError.value = toMessage(error, userDialogMode.value === 'create' ? '创建用户失败' : '编辑用户失败')
+  } finally {
+    userSubmitting.value = false
+  }
+}
+
+async function toggleUserStatus(user: SystemUserSummary) {
+  try {
+    await updateSystemUser(user.id, {
+      institutionId: user.institutionId,
+      defaultCampusId: user.defaultCampusId || null,
+      displayName: user.displayName,
+      phone: user.phone || undefined,
+      status: user.status === 'active' ? 'disabled' : 'active',
+      remark: user.remark || undefined,
+    })
+    ElMessage.success(user.status === 'active' ? '用户已停用' : '用户已启用')
+    await loadPageData()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '用户状态更新失败'))
+  }
+}
+
+async function handleResetPassword(user: SystemUserSummary) {
+  try {
+    const result = await resetSystemUserPassword(user.id)
+    await ElMessageBox.alert(
+      `初始密码：${result.initialPassword}\n登录后请尽快修改密码。`,
+      '密码已重置',
+      {
+        confirmButtonText: '知道了',
+      },
+    )
+    await loadPageData()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '重置密码失败'))
+  }
+}
+
+function openRoleAssignDialog(user: SystemUserSummary) {
+  selectedUser.value = user
+  selectedRoleIds.value = [...user.roleIds]
+  roleAssignError.value = ''
+  roleAssignDialogVisible.value = true
+}
+
+async function submitRoleAssignment() {
+  if (!selectedUser.value) {
+    return
+  }
+
+  roleAssignSubmitting.value = true
+  roleAssignError.value = ''
+  try {
+    await updateSystemUserRoles(selectedUser.value.id, {
+      roleIds: selectedRoleIds.value,
+    })
+    ElMessage.success('用户角色已更新')
+    roleAssignDialogVisible.value = false
+    await loadPageData()
+  } catch (error) {
+    roleAssignError.value = toMessage(error, '分配角色失败')
+  } finally {
+    roleAssignSubmitting.value = false
+  }
+}
+
+function openCreateRoleDialog() {
+  roleDialogMode.value = 'create'
+  selectedRole.value = null
+  resetRoleForm()
+  roleDialogVisible.value = true
+}
+
+function openEditRoleDialog(role: SystemRoleSummary) {
+  roleDialogMode.value = 'edit'
+  selectedRole.value = role
+  const knownPermissions = new Set(permissionOptions.map((item) => item.value))
+  roleForm.roleCode = role.roleCode
+  roleForm.roleName = role.roleName
+  roleForm.permissionCodes = role.permissionCodes.filter((item) => knownPermissions.has(item))
+  roleForm.customPermissionCodes = role.permissionCodes.filter((item) => !knownPermissions.has(item)).join(', ')
+  roleForm.status = role.status || 'active'
+  roleForm.remark = role.remark || ''
+  roleFormError.value = ''
+  roleDialogVisible.value = true
+}
+
+function collectRolePermissionCodes() {
+  return [...new Set([...roleForm.permissionCodes, ...parseCustomPermissionCodes(roleForm.customPermissionCodes)])]
+}
+
+async function submitRole() {
+  if (!trimToUndefined(roleForm.roleCode) && roleDialogMode.value === 'create') {
+    roleFormError.value = '请填写角色编码'
+    return
+  }
+  if (!trimToUndefined(roleForm.roleName)) {
+    roleFormError.value = '请填写角色名称'
+    return
+  }
+
+  const permissionCodes = collectRolePermissionCodes()
+  if (permissionCodes.length === 0) {
+    roleFormError.value = '请至少选择或输入一个权限码'
+    return
+  }
+
+  roleSubmitting.value = true
+  roleFormError.value = ''
+  try {
+    if (roleDialogMode.value === 'create') {
+      await createSystemRole({
+        roleCode: roleForm.roleCode.trim(),
+        roleName: roleForm.roleName.trim(),
+        permissionCodes,
+        status: roleForm.status,
+        remark: trimToUndefined(roleForm.remark),
+      })
+      ElMessage.success('角色已创建')
+    } else if (selectedRole.value) {
+      await updateSystemRole(selectedRole.value.id, {
+        roleName: roleForm.roleName.trim(),
+        permissionCodes,
+        status: roleForm.status,
+        remark: trimToUndefined(roleForm.remark),
+      })
+      ElMessage.success('角色已更新')
+    }
+    roleDialogVisible.value = false
+    await loadPageData()
+  } catch (error) {
+    roleFormError.value = toMessage(error, roleDialogMode.value === 'create' ? '创建角色失败' : '编辑角色失败')
+  } finally {
+    roleSubmitting.value = false
+  }
+}
+
+async function toggleRoleStatus(role: SystemRoleSummary) {
+  try {
+    await updateSystemRole(role.id, {
+      roleName: role.roleName,
+      permissionCodes: role.permissionCodes,
+      status: role.status === 'active' ? 'disabled' : 'active',
+      remark: role.remark || undefined,
+    })
+    ElMessage.success(role.status === 'active' ? '角色已停用' : '角色已启用')
+    await loadPageData()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '角色状态更新失败'))
+  }
+}
+
+async function openRoleMenuDialog(role: SystemRoleSummary) {
+  selectedMenuRole.value = role
+  roleMenuError.value = ''
+  roleMenuSubmitting.value = false
+
+  try {
+    if (!menuTree.value.length) {
+      menuTree.value = await fetchSystemMenusTree()
+    }
+    const menuIds = await fetchSystemRoleMenuIds(role.id)
+    roleMenuDialogVisible.value = true
+    await nextTick()
+    roleMenuTreeRef.value?.setCheckedKeys(normalizeRoleMenuKeys(menuTree.value, menuIds))
+  } catch (error) {
+    roleMenuError.value = toMessage(error, '角色菜单加载失败')
+    roleMenuDialogVisible.value = true
+  }
+}
+
+function collectCheckedMenuIds(): string[] {
+  const checked: Array<string | number> = roleMenuTreeRef.value?.getCheckedKeys?.() || []
+  return [...new Set(checked.map((item: string | number) => String(item)))]
+}
+
+async function submitRoleMenus() {
+  if (!selectedMenuRole.value) {
+    return
+  }
+
+  roleMenuSubmitting.value = true
+  roleMenuError.value = ''
+  try {
+    await updateSystemRoleMenus(selectedMenuRole.value.id, {
+      menuIds: collectCheckedMenuIds(),
+    })
+    ElMessage.success('角色菜单已更新')
+    roleMenuDialogVisible.value = false
+  } catch (error) {
+    roleMenuError.value = toMessage(error, '保存角色菜单失败')
+  } finally {
+    roleMenuSubmitting.value = false
+  }
+}
+
+async function handleDictTypeChange(row?: DictTypeSummary | null) {
+  if (!row?.typeCode) {
+    return
+  }
+  selectedDictTypeCode.value = row.typeCode
+  if (!dictItemsMap.value[row.typeCode]) {
+    try {
+      await loadDictItems(row.typeCode)
+    } catch (error) {
+      dictSectionError.value = toMessage(error, '字典条目加载失败')
+    }
+  }
+}
+
+watch(
+  availableTabs,
+  (tabs) => {
+    if (!tabs.length) {
+      if (route.path.startsWith('/system')) {
+        router.replace('/dashboard')
+      }
+      return
+    }
+    if (!tabs.some((item) => item.name === activeTab.value)) {
+      router.replace(tabs[0].routePath)
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  loadPageData()
+})
+</script>
