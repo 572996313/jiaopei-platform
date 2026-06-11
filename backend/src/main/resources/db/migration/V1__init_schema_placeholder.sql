@@ -1,0 +1,2 @@
+-- Placeholder migration for backend Flyway bootstrap.
+-- Business tables will be added after the first round of entity design.
