@@ -4,7 +4,7 @@
       <div class="login-kicker">JIAOPEI PLATFORM</div>
       <h1 class="login-title">线下班课教务中台</h1>
       <p class="login-copy">
-        聚焦校区、课程、班级、排课与考勤，先把教务执行主链路跑通。
+        聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。
       </p>
 
       <div class="login-feature-list">

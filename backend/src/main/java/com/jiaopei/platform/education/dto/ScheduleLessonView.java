@@ -18,6 +18,9 @@ public record ScheduleLessonView(
     LocalTime endTime,
     String lessonTitle,
     String lessonStatus,
+    String changeType,
+    Long relatedLessonId,
+    Boolean pendingMakeup,
     List<Long> teacherIds,
     String remark
 ) {

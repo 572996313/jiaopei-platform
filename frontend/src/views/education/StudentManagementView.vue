@@ -2,16 +2,17 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">STUDENT / ENROLLMENT</div>
-        <h2 class="panel-headline">学员管理</h2>
+        <div class="page-kicker">DAILY / ENROLLMENT</div>
+        <h2 class="panel-headline">报名与入班</h2>
         <p class="panel-subtitle">
-          当前页面先承接报名主链路。先选机构范围，再用正式 enrollment 接口完成查询与新增。
+          当前页面先承接报名主链路。先选机构范围，再用正式 enrollment 接口完成查询与新增，作为后续入班与排课执行的前置动作。
         </p>
       </div>
 
       <div class="education-hero-actions">
         <el-button @click="refreshAll" :loading="lookupLoading || tableLoading">刷新数据</el-button>
         <el-button type="primary" @click="openDialog">新增报名</el-button>
+        <el-button @click="openParentDialog">新增家长联系人</el-button>
       </div>
     </div>
 
@@ -128,6 +129,50 @@
       </div>
     </article>
 
+    <article class="panel-card education-panel">
+      <div class="education-table-head">
+        <div class="panel-title">家长联系人</div>
+        <div class="education-context-text">
+          当前学员：{{ formatStudent(studentId) }}，当前机构：{{ formatInstitution(institutionId) }}。
+          主联系人会兼容同步到学员旧字段，方便前后链路逐步过渡。
+        </div>
+      </div>
+
+      <el-table :data="studentParents" border v-loading="tableLoading">
+        <el-table-column label="学员" min-width="180">
+          <template #default="{ row }">
+            {{ formatStudent(row.studentId) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="parentName" label="联系人" min-width="140" />
+        <el-table-column prop="relationType" label="关系" width="120" />
+        <el-table-column prop="parentPhone" label="联系电话" width="160" />
+        <el-table-column prop="wechatNo" label="微信号" width="160" />
+        <el-table-column label="主联系人" width="100">
+          <template #default="{ row }">
+            {{ row.primaryContact ? '是' : '否' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="紧急联系" width="100">
+          <template #default="{ row }">
+            {{ row.emergencyContact ? '是' : '否' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="studentParentTagType(row.status)">
+              {{ studentParentStatusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="220" />
+      </el-table>
+
+      <div v-if="!tableLoading && studentParents.length === 0" class="education-empty">
+        当前筛选范围下暂无家长联系人。
+      </div>
+    </article>
+
     <el-dialog v-model="dialogVisible" title="新增报名" width="540px">
       <div class="education-dialog-context">
         <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
@@ -175,13 +220,76 @@
         <el-button type="primary" :loading="submitting" @click="submitEnrollment">提交报名</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="parentDialogVisible" title="新增家长联系人" width="560px">
+      <div class="education-dialog-context">
+        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
+        <div><strong>学员：</strong>{{ formatStudent(studentId) }}</div>
+      </div>
+
+      <el-alert
+        v-if="parentFormError"
+        :title="parentFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
+
+      <el-form label-position="top" class="education-form">
+        <el-form-item label="联系人姓名">
+          <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
+        </el-form-item>
+        <el-form-item label="关系">
+          <el-select v-model="parentForm.relationType" clearable placeholder="选择关系">
+            <el-option label="母亲" value="mother" />
+            <el-option label="父亲" value="father" />
+            <el-option label="监护人" value="guardian" />
+            <el-option label="其他亲属" value="relative" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="联系电话">
+          <el-input v-model="parentForm.parentPhone" placeholder="填写家长手机号" />
+        </el-form-item>
+        <el-form-item label="微信号">
+          <el-input v-model="parentForm.wechatNo" placeholder="可选" />
+        </el-form-item>
+        <el-form-item label="联系人状态">
+          <el-select v-model="parentForm.status">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="主联系人">
+          <el-switch v-model="parentForm.isPrimary" />
+        </el-form-item>
+        <el-form-item label="紧急联系人">
+          <el-switch v-model="parentForm.isEmergencyContact" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="parentForm.remark" type="textarea" :rows="3" placeholder="补充联系人说明" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="parentDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="parentSubmitting" @click="submitStudentParent">提交联系人</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
-import { createEnrollment, fetchEnrollments, type EnrollmentRecord } from '@/api/education'
+import {
+  createEnrollment,
+  createStudentParent,
+  fetchEnrollments,
+  fetchStudentParents,
+  type EnrollmentRecord,
+  type StudentParentRecord,
+} from '@/api/education'
 import { useEducationScope } from '@/composables/useEducationScope'
 
 const { institutions, campuses, terms, classes, students, loadInstitutions, loadScope } = useEducationScope()
@@ -193,18 +301,33 @@ const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
 
 const records = ref<EnrollmentRecord[]>([])
+const studentParents = ref<StudentParentRecord[]>([])
 const pageError = ref('')
 const formError = ref('')
+const parentFormError = ref('')
 const dialogVisible = ref(false)
+const parentDialogVisible = ref(false)
 const lookupLoading = ref(false)
 const tableLoading = ref(false)
 const submitting = ref(false)
+const parentSubmitting = ref(false)
 
 const form = reactive({
   enrollmentNo: '',
   status: 'submitted',
   channel: 'front_desk',
   enrolledAt: todayValue(),
+  remark: '',
+})
+
+const parentForm = reactive({
+  parentName: '',
+  relationType: 'mother',
+  parentPhone: '',
+  wechatNo: '',
+  isPrimary: true,
+  isEmergencyContact: false,
+  status: 'active',
   remark: '',
 })
 
@@ -282,6 +405,26 @@ function enrollmentTagType(status?: string | null) {
   }
 }
 
+function studentParentStatusLabel(status?: string | null) {
+  switch (status) {
+    case 'inactive':
+      return '停用'
+    case 'active':
+    default:
+      return '启用'
+  }
+}
+
+function studentParentTagType(status?: string | null) {
+  switch (status) {
+    case 'inactive':
+      return 'info'
+    case 'active':
+    default:
+      return 'success'
+  }
+}
+
 function validateContext() {
   if (!institutionId.value) {
     return '请先选择机构范围'
@@ -302,6 +445,18 @@ function resetForm() {
   form.enrolledAt = todayValue()
   form.remark = ''
   formError.value = ''
+}
+
+function resetParentForm() {
+  parentForm.parentName = ''
+  parentForm.relationType = 'mother'
+  parentForm.parentPhone = ''
+  parentForm.wechatNo = ''
+  parentForm.isPrimary = true
+  parentForm.isEmergencyContact = false
+  parentForm.status = 'active'
+  parentForm.remark = ''
+  parentFormError.value = ''
 }
 
 async function refreshScopeData() {
@@ -338,14 +493,23 @@ async function loadRecords() {
   tableLoading.value = true
   pageError.value = ''
   try {
-    records.value = await fetchEnrollments({
-      institutionId: institutionId.value,
-      classId: classId.value,
-      studentId: studentId.value,
-    })
+    const [enrollments, parents] = await Promise.all([
+      fetchEnrollments({
+        institutionId: institutionId.value,
+        classId: classId.value,
+        studentId: studentId.value,
+      }),
+      fetchStudentParents({
+        institutionId: institutionId.value,
+        studentId: studentId.value,
+      }),
+    ])
+    records.value = enrollments
+    studentParents.value = parents
   } catch (error) {
     records.value = []
-    pageError.value = toMessage(error, '报名记录加载失败')
+    studentParents.value = []
+    pageError.value = toMessage(error, '报名与联系人数据加载失败')
   } finally {
     tableLoading.value = false
   }
@@ -383,6 +547,19 @@ function openDialog() {
   dialogVisible.value = true
 }
 
+function openParentDialog() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  if (!studentId.value) {
+    ElMessage.warning('请先选择学员')
+    return
+  }
+  resetParentForm()
+  parentDialogVisible.value = true
+}
+
 async function submitEnrollment() {
   const contextError = validateContext()
   if (contextError) {
@@ -416,6 +593,46 @@ async function submitEnrollment() {
     formError.value = toMessage(error, '新增报名失败')
   } finally {
     submitting.value = false
+  }
+}
+
+async function submitStudentParent() {
+  if (!institutionId.value) {
+    parentFormError.value = '请先选择机构范围'
+    return
+  }
+  if (!studentId.value) {
+    parentFormError.value = '请先选择学员'
+    return
+  }
+  if (!trimToUndefined(parentForm.parentName)) {
+    parentFormError.value = '请填写联系人姓名'
+    return
+  }
+
+  parentSubmitting.value = true
+  parentFormError.value = ''
+  try {
+    await createStudentParent({
+      institutionId: institutionId.value,
+      studentId: studentId.value,
+      parentName: parentForm.parentName.trim(),
+      relationType: trimToUndefined(parentForm.relationType),
+      parentPhone: trimToUndefined(parentForm.parentPhone),
+      wechatNo: trimToUndefined(parentForm.wechatNo),
+      isPrimary: parentForm.isPrimary,
+      isEmergencyContact: parentForm.isEmergencyContact,
+      status: trimToUndefined(parentForm.status),
+      remark: trimToUndefined(parentForm.remark),
+    })
+    ElMessage.success('家长联系人已新增')
+    parentDialogVisible.value = false
+    resetParentForm()
+    await loadRecords()
+  } catch (error) {
+    parentFormError.value = toMessage(error, '新增家长联系人失败')
+  } finally {
+    parentSubmitting.value = false
   }
 }
 

@@ -10,6 +10,9 @@ public record AttendanceCreateRequest(
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long institutionId,
+    @JsonAlias("lesson_id")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long lessonId,
     @JsonAlias({"class_id", "teachingClassId"})
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "classId is required")

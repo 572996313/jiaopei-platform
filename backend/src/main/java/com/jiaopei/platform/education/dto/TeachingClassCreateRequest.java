@@ -20,6 +20,12 @@ public record TeachingClassCreateRequest(
     @JsonAlias("term_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long termId,
+    @JsonAlias("course_id")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long courseId,
+    @JsonAlias("class_type_id")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long classTypeId,
     @JsonAlias({"code", "class_code"})
     @NotBlank(message = "classCode is required")
     String classCode,

@@ -42,6 +42,14 @@ const routes = [
         component: () => import('@/views/system/SystemManagementView.vue'),
       },
       {
+        path: 'system/institution',
+        name: 'system-institution',
+        meta: {
+          systemTab: 'institution',
+        },
+        component: () => import('@/views/system/SystemManagementView.vue'),
+      },
+      {
         path: 'system/roles',
         name: 'system-roles',
         meta: {

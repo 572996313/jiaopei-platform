@@ -2,10 +2,10 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">TEACHER</div>
-        <h2 class="panel-headline">教师管理</h2>
+        <div class="page-kicker">ARCHIVE / TEACHER</div>
+        <h2 class="panel-headline">教师档案</h2>
         <p class="panel-subtitle">
-          当前页面承接教师列表与新增。真实联机构、校区与教师接口，不扩课程关系。
+          当前页面承接教师档案列表与新增。真实联机构、校区与教师接口，先做基础档案，再为后续授课能力与成班规则差异预留空间。
         </p>
       </div>
 

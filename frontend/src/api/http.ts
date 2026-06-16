@@ -17,13 +17,31 @@ const LARGE_ID_FIELDS = [
   'updatedBy',
 ]
 
+const LARGE_ID_ARRAY_FIELDS = [
+  'teacherIds',
+]
+
 function preserveLargeIds(raw: unknown) {
   if (typeof raw !== 'string' || raw.trim().length === 0) {
     return raw
   }
 
-  const pattern = new RegExp(`"(${LARGE_ID_FIELDS.join('|')})"\\s*:\\s*(\\d{16,})`, 'g')
-  return JSON.parse(raw.replace(pattern, '"$1":"$2"'))
+  const singleIdPattern = new RegExp(`"(${LARGE_ID_FIELDS.join('|')})"\\s*:\\s*(\\d{16,})`, 'g')
+  const arrayIdPattern = new RegExp(`"(${LARGE_ID_ARRAY_FIELDS.join('|')})"\\s*:\\s*\\[([^\\]]*)\\]`, 'g')
+  const normalized = raw
+    .replace(singleIdPattern, '"$1":"$2"')
+    .replace(arrayIdPattern, (_match, field: string, items: string) => {
+      const safeItems = items
+        .split(',')
+        .map((item) => {
+          const value = item.trim()
+          return /^\d{16,}$/.test(value) ? `"${value}"` : item
+        })
+        .join(',')
+      return `"${field}":[${safeItems}]`
+    })
+
+  return JSON.parse(normalized)
 }
 
 export const http = axios.create({

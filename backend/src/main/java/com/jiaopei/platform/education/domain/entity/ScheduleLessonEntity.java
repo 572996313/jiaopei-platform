@@ -24,5 +24,7 @@ public class ScheduleLessonEntity extends BaseEntity {
     private LocalTime endTime;
     private String lessonTitle;
     private String lessonStatus;
+    private String changeType;
+    private Long relatedLessonId;
     private String remark;
 }

@@ -15,6 +15,8 @@ public record ScheduleLessonRequest(
     @NotNull LocalDate lessonDate,
     @Size(max = 128) String lessonTitle,
     @Size(max = 32) String lessonStatus,
+    @Size(max = 32) String changeType,
+    Long relatedLessonId,
     @NotNull List<Long> teacherIds,
     @Size(max = 500) String remark
 ) {

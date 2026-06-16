@@ -21,3 +21,5 @@ Thumbs.db
 # local config
 .env
 .env.*
+/backend/.gitignore
+/.tmp-edge-profile/**

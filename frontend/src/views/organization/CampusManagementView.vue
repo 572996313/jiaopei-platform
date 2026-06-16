@@ -2,10 +2,10 @@
   <section class="campus-page">
     <div class="campus-hero">
       <div>
-        <div class="page-kicker">组织与校区</div>
-        <h2 class="panel-headline">校区管理</h2>
+        <div class="page-kicker">ARCHIVE / RESOURCE</div>
+        <h2 class="panel-headline">机构与教学资源</h2>
         <p class="panel-subtitle">
-          当前入口统一承接机构、校区、教室、学期和时间段。保持现有导航，不再拆复杂子路由。
+          当前入口统一承接机构、校区、教室、学期和时间段，作为排课、成班和课次执行的基础档案中心。
         </p>
       </div>
 
@@ -167,6 +167,63 @@
           </el-table-column>
         </el-table>
       </article>
+
+      <article class="panel-card resource-card">
+        <div class="resource-head">
+          <div>
+            <div class="panel-title">课程分类</div>
+            <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
+          </div>
+          <el-button type="primary" @click="openCourseCategoryDialog">新增分类</el-button>
+        </div>
+        <el-table :data="courseCategories" border>
+          <el-table-column prop="categoryCode" label="分类编码" width="150" />
+          <el-table-column prop="categoryName" label="分类名称" min-width="180" />
+          <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column prop="sortOrder" label="排序" width="100" />
+          <el-table-column prop="remark" label="备注" min-width="180" />
+        </el-table>
+      </article>
+
+      <article class="panel-card resource-card">
+        <div class="resource-head">
+          <div>
+            <div class="panel-title">课程列表</div>
+            <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
+          </div>
+          <el-button type="primary" @click="openCourseDialog">新增课程</el-button>
+        </div>
+        <el-table :data="courses" border>
+          <el-table-column prop="courseCode" label="课程编码" width="150" />
+          <el-table-column prop="courseName" label="课程名称" min-width="180" />
+          <el-table-column label="课程分类" min-width="160">
+            <template #default="{ row }">
+              {{ courseCategories.find((item) => item.id === row.categoryId)?.categoryName || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="subjectName" label="学科" width="120" />
+          <el-table-column prop="teachingMethod" label="授课方式" width="160" />
+          <el-table-column prop="status" label="状态" width="120" />
+        </el-table>
+      </article>
+
+      <article class="panel-card resource-card">
+        <div class="resource-head">
+          <div>
+            <div class="panel-title">班型列表</div>
+            <div class="education-context-text">后续用于成班规则和班级主档承接</div>
+          </div>
+          <el-button type="primary" @click="openClassTypeDialog">新增班型</el-button>
+        </div>
+        <el-table :data="classTypes" border>
+          <el-table-column prop="typeCode" label="班型编码" width="150" />
+          <el-table-column prop="typeName" label="班型名称" min-width="180" />
+          <el-table-column prop="teachingMethod" label="授课方式" width="160" />
+          <el-table-column prop="minStudents" label="最少人数" width="100" />
+          <el-table-column prop="maxStudents" label="最多人数" width="100" />
+          <el-table-column prop="status" label="状态" width="120" />
+        </el-table>
+      </article>
     </div>
 
     <article class="panel-card campus-panel">
@@ -182,6 +239,15 @@
           <div class="schema-label">表结构</div>
           <div class="schema-chips">
             <span v-for="item in schemaTables" :key="item" class="schema-chip is-secondary">{{ item }}</span>
+          </div>
+        </div>
+        <div class="schema-block">
+          <div class="schema-label">下一步入口</div>
+          <div class="schema-chips">
+            <span class="schema-chip is-secondary">班级教师</span>
+            <span class="schema-chip is-secondary">家长联系人</span>
+            <span class="schema-chip is-secondary">成班规则</span>
+            <span class="schema-chip is-secondary">变动提示</span>
           </div>
         </div>
       </div>
@@ -311,12 +377,91 @@
         <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">提交时间段</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="courseCategoryDialogVisible" title="新增课程分类" width="560px">
+      <el-alert v-if="courseCategoryFormError" :title="courseCategoryFormError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-form label-position="top" class="education-form">
+        <el-form-item label="分类编码"><el-input v-model="courseCategoryForm.categoryCode" /></el-form-item>
+        <el-form-item label="分类名称"><el-input v-model="courseCategoryForm.categoryName" /></el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="courseCategoryForm.status">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="排序"><el-input-number v-model="courseCategoryForm.sortOrder" :min="0" style="width: 100%" /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="courseCategoryForm.remark" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="courseCategoryDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="courseCategorySubmitting" @click="submitCourseCategory">提交分类</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="courseDialogVisible" title="新增课程" width="560px">
+      <el-alert v-if="courseFormError" :title="courseFormError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-form label-position="top" class="education-form">
+        <el-form-item label="课程分类">
+          <el-select v-model="courseForm.categoryId" clearable filterable>
+            <el-option v-for="item in courseCategories" :key="item.id" :label="item.categoryName || item.categoryCode || `分类 #${item.id}`" :value="item.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="课程编码"><el-input v-model="courseForm.courseCode" /></el-form-item>
+        <el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item>
+        <el-form-item label="学科"><el-input v-model="courseForm.subjectName" /></el-form-item>
+        <el-form-item label="授课方式"><el-input v-model="courseForm.teachingMethod" placeholder="例如 offline_small_class" /></el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="courseForm.status">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="courseForm.remark" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="courseDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="courseSubmitting" @click="submitCourse">提交课程</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="classTypeDialogVisible" title="新增班型" width="560px">
+      <el-alert v-if="classTypeFormError" :title="classTypeFormError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-form label-position="top" class="education-form">
+        <el-form-item label="班型编码"><el-input v-model="classTypeForm.typeCode" /></el-form-item>
+        <el-form-item label="班型名称"><el-input v-model="classTypeForm.typeName" /></el-form-item>
+        <el-form-item label="授课方式"><el-input v-model="classTypeForm.teachingMethod" placeholder="例如 offline_small_class" /></el-form-item>
+        <el-form-item label="最少人数"><el-input-number v-model="classTypeForm.minStudents" :min="0" style="width: 100%" /></el-form-item>
+        <el-form-item label="最多人数"><el-input-number v-model="classTypeForm.maxStudents" :min="0" style="width: 100%" /></el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="classTypeForm.status">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="classTypeForm.remark" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="classTypeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">提交班型</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
+import {
+  createClassType,
+  createCourse,
+  createCourseCategory,
+  fetchClassTypes,
+  fetchCourses,
+  fetchCourseCategories,
+  type ClassTypeRecord,
+  type CourseCategoryRecord,
+  type CourseRecord,
+} from '@/api/education'
 import {
   createCampus,
   createClassroom,
@@ -340,6 +485,9 @@ const campuses = ref<CampusSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
 const terms = ref<TermSummary[]>([])
 const timeSlots = ref<TimeSlotSummary[]>([])
+const courseCategories = ref<CourseCategoryRecord[]>([])
+const courses = ref<CourseRecord[]>([])
+const classTypes = ref<ClassTypeRecord[]>([])
 
 const institutionId = ref<string | null>(null)
 const campusId = ref<string | null>(null)
@@ -354,16 +502,25 @@ const campusDialogVisible = ref(false)
 const classroomDialogVisible = ref(false)
 const termDialogVisible = ref(false)
 const timeSlotDialogVisible = ref(false)
+const courseCategoryDialogVisible = ref(false)
+const courseDialogVisible = ref(false)
+const classTypeDialogVisible = ref(false)
 
 const campusSubmitting = ref(false)
 const classroomSubmitting = ref(false)
 const termSubmitting = ref(false)
 const timeSlotSubmitting = ref(false)
+const courseCategorySubmitting = ref(false)
+const courseSubmitting = ref(false)
+const classTypeSubmitting = ref(false)
 
 const campusFormError = ref('')
 const classroomFormError = ref('')
 const termFormError = ref('')
 const timeSlotFormError = ref('')
+const courseCategoryFormError = ref('')
+const courseFormError = ref('')
+const classTypeFormError = ref('')
 
 const campusForm = reactive({
   campusCode: '',
@@ -405,6 +562,34 @@ const timeSlotForm = reactive({
   endTime: '09:30:00',
   durationMinutes: 90,
   status: 'active',
+})
+
+const courseCategoryForm = reactive({
+  categoryCode: '',
+  categoryName: '',
+  status: 'active',
+  sortOrder: 10,
+  remark: '',
+})
+
+const courseForm = reactive({
+  categoryId: '' as string | null,
+  courseCode: '',
+  courseName: '',
+  subjectName: '',
+  teachingMethod: 'offline_small_class',
+  status: 'active',
+  remark: '',
+})
+
+const classTypeForm = reactive({
+  typeCode: '',
+  typeName: '',
+  teachingMethod: 'offline_small_class',
+  minStudents: 1,
+  maxStudents: 12,
+  status: 'active',
+  remark: '',
 })
 
 const weekdays = [
@@ -565,6 +750,37 @@ function resetTimeSlotForm() {
   timeSlotFormError.value = ''
 }
 
+function resetCourseCategoryForm() {
+  courseCategoryForm.categoryCode = ''
+  courseCategoryForm.categoryName = ''
+  courseCategoryForm.status = 'active'
+  courseCategoryForm.sortOrder = 10
+  courseCategoryForm.remark = ''
+  courseCategoryFormError.value = ''
+}
+
+function resetCourseForm() {
+  courseForm.categoryId = courseCategories.value[0]?.id || null
+  courseForm.courseCode = ''
+  courseForm.courseName = ''
+  courseForm.subjectName = ''
+  courseForm.teachingMethod = 'offline_small_class'
+  courseForm.status = 'active'
+  courseForm.remark = ''
+  courseFormError.value = ''
+}
+
+function resetClassTypeForm() {
+  classTypeForm.typeCode = ''
+  classTypeForm.typeName = ''
+  classTypeForm.teachingMethod = 'offline_small_class'
+  classTypeForm.minStudents = 1
+  classTypeForm.maxStudents = 12
+  classTypeForm.status = 'active'
+  classTypeForm.remark = ''
+  classTypeFormError.value = ''
+}
+
 async function reloadSchema() {
   try {
     const { data } = await getOrganizationSchema()
@@ -603,15 +819,21 @@ async function loadResources() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    const [campusList, termList, timeSlotList] = await Promise.all([
+    const [campusList, termList, timeSlotList, categoryList, courseList, classTypeList] = await Promise.all([
       fetchCampuses(institutionId.value),
       fetchTerms(institutionId.value),
       fetchTimeSlots(institutionId.value),
+      fetchCourseCategories({ institutionId: institutionId.value }),
+      fetchCourses({ institutionId: institutionId.value }),
+      fetchClassTypes({ institutionId: institutionId.value }),
     ])
 
     campuses.value = campusList
     terms.value = termList
     timeSlots.value = timeSlotList
+    courseCategories.value = categoryList
+    courses.value = courseList
+    classTypes.value = classTypeList
 
     if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
       campusId.value = campusList[0]?.id || null
@@ -668,6 +890,33 @@ function openTimeSlotDialog() {
   }
   resetTimeSlotForm()
   timeSlotDialogVisible.value = true
+}
+
+function openCourseCategoryDialog() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  resetCourseCategoryForm()
+  courseCategoryDialogVisible.value = true
+}
+
+function openCourseDialog() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  resetCourseForm()
+  courseDialogVisible.value = true
+}
+
+function openClassTypeDialog() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  resetClassTypeForm()
+  classTypeDialogVisible.value = true
 }
 
 async function submitCampus() {
@@ -815,6 +1064,100 @@ async function submitTimeSlot() {
     timeSlotFormError.value = toMessage(error, '新增时间段失败')
   } finally {
     timeSlotSubmitting.value = false
+  }
+}
+
+async function submitCourseCategory() {
+  if (!institutionId.value) {
+    courseCategoryFormError.value = '请先选择机构范围'
+    return
+  }
+  if (!trimToUndefined(courseCategoryForm.categoryCode) || !trimToUndefined(courseCategoryForm.categoryName)) {
+    courseCategoryFormError.value = '请完整填写分类编码和名称'
+    return
+  }
+  courseCategorySubmitting.value = true
+  courseCategoryFormError.value = ''
+  try {
+    await createCourseCategory({
+      institutionId: institutionId.value,
+      categoryCode: courseCategoryForm.categoryCode.trim(),
+      categoryName: courseCategoryForm.categoryName.trim(),
+      status: courseCategoryForm.status,
+      sortOrder: courseCategoryForm.sortOrder,
+      remark: trimToUndefined(courseCategoryForm.remark),
+    })
+    ElMessage.success('课程分类已新增')
+    courseCategoryDialogVisible.value = false
+    courseCategories.value = await fetchCourseCategories({ institutionId: institutionId.value })
+  } catch (error) {
+    courseCategoryFormError.value = toMessage(error, '新增课程分类失败')
+  } finally {
+    courseCategorySubmitting.value = false
+  }
+}
+
+async function submitCourse() {
+  if (!institutionId.value) {
+    courseFormError.value = '请先选择机构范围'
+    return
+  }
+  if (!trimToUndefined(courseForm.courseCode) || !trimToUndefined(courseForm.courseName)) {
+    courseFormError.value = '请完整填写课程编码和名称'
+    return
+  }
+  courseSubmitting.value = true
+  courseFormError.value = ''
+  try {
+    await createCourse({
+      institutionId: institutionId.value,
+      categoryId: courseForm.categoryId || null,
+      courseCode: courseForm.courseCode.trim(),
+      courseName: courseForm.courseName.trim(),
+      subjectName: trimToUndefined(courseForm.subjectName),
+      teachingMethod: trimToUndefined(courseForm.teachingMethod),
+      status: courseForm.status,
+      remark: trimToUndefined(courseForm.remark),
+    })
+    ElMessage.success('课程已新增')
+    courseDialogVisible.value = false
+    courses.value = await fetchCourses({ institutionId: institutionId.value })
+  } catch (error) {
+    courseFormError.value = toMessage(error, '新增课程失败')
+  } finally {
+    courseSubmitting.value = false
+  }
+}
+
+async function submitClassType() {
+  if (!institutionId.value) {
+    classTypeFormError.value = '请先选择机构范围'
+    return
+  }
+  if (!trimToUndefined(classTypeForm.typeCode) || !trimToUndefined(classTypeForm.typeName)) {
+    classTypeFormError.value = '请完整填写班型编码和名称'
+    return
+  }
+  classTypeSubmitting.value = true
+  classTypeFormError.value = ''
+  try {
+    await createClassType({
+      institutionId: institutionId.value,
+      typeCode: classTypeForm.typeCode.trim(),
+      typeName: classTypeForm.typeName.trim(),
+      teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
+      minStudents: classTypeForm.minStudents,
+      maxStudents: classTypeForm.maxStudents,
+      status: classTypeForm.status,
+      remark: trimToUndefined(classTypeForm.remark),
+    })
+    ElMessage.success('班型已新增')
+    classTypeDialogVisible.value = false
+    classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
+  } catch (error) {
+    classTypeFormError.value = toMessage(error, '新增班型失败')
+  } finally {
+    classTypeSubmitting.value = false
   }
 }
 

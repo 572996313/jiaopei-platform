@@ -13,6 +13,7 @@ public class AttendanceEntity extends BaseEntity {
 
     private Long institutionId;
     private Long classId;
+    private Long lessonId;
     private Long studentId;
     private LocalDate attendanceDate;
     private String attendanceStatus;

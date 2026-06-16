@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -75,6 +76,85 @@ class ScheduleLessonServiceImplTest {
         assertThrows(BusinessException.class, () -> service.createLesson(request()));
     }
 
+    @Test
+    void createCancelledLessonSkipsConflictChecks() {
+        stubValidMaterial();
+        doAnswer(invocation -> {
+            ScheduleLessonEntity entity = invocation.getArgument(0);
+            entity.setId(901L);
+            return 1;
+        }).when(lessonMapper).insert(any(ScheduleLessonEntity.class));
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        service.createLesson(new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "停课",
+            "cancelled",
+            null,
+            null,
+            List.of(400L),
+            "天气原因停课"
+        ));
+
+        verify(lessonMapper).insert(any(ScheduleLessonEntity.class));
+    }
+
+    @Test
+    void updateMakeupLessonChecksConflictsWithExcludeId() {
+        stubValidMaterial();
+        ScheduleLessonEntity existing = new ScheduleLessonEntity();
+        existing.setId(900L);
+        when(lessonMapper.selectById(900L)).thenReturn(existing);
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L, 0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), eq(LocalDate.of(2026, 6, 15)), eq(500L), eq(900L))).thenReturn(0L);
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        service.updateLesson(900L, new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "补课",
+            "makeup",
+            null,
+            null,
+            List.of(400L),
+            "周末补课"
+        ));
+
+        verify(teacherRelMapper).countTeacherConflicts(400L, LocalDate.of(2026, 6, 15), 500L, 900L);
+    }
+
+    @Test
+    void createLessonRejectsUnsupportedStatus() {
+        stubValidMaterial();
+
+        assertThrows(BusinessException.class, () -> service.createLesson(new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "异常状态",
+            "paused",
+            null,
+            null,
+            List.of(400L),
+            "invalid"
+        )));
+    }
+
     private void stubValidMaterial() {
         TeachingClassEntity teachingClass = new TeachingClassEntity();
         teachingClass.setId(100L);
@@ -115,8 +195,170 @@ class ScheduleLessonServiceImplTest {
             LocalDate.of(2026, 6, 15),
             "Math",
             "scheduled",
+            null,
+            null,
             List.of(400L),
             "test"
         );
+    }
+
+    @Test
+    void createMakeupLessonRequiresCancelledRelatedLesson() {
+        stubValidMaterial();
+        ScheduleLessonEntity relatedLesson = new ScheduleLessonEntity();
+        relatedLesson.setId(880L);
+        relatedLesson.setInstitutionId(1L);
+        relatedLesson.setCampusId(2L);
+        relatedLesson.setTermId(3L);
+        relatedLesson.setClassId(100L);
+        relatedLesson.setLessonStatus("cancelled");
+        when(lessonMapper.selectById(880L)).thenReturn(relatedLesson);
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L, 0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), eq(LocalDate.of(2026, 6, 15)), eq(500L), any())).thenReturn(0L);
+        doAnswer(invocation -> {
+            ScheduleLessonEntity entity = invocation.getArgument(0);
+            entity.setId(902L);
+            return 1;
+        }).when(lessonMapper).insert(any(ScheduleLessonEntity.class));
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        var lesson = service.createLesson(new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "补课",
+            "makeup",
+            "cancelled_makeup",
+            880L,
+            List.of(400L),
+            "关联停课补课"
+        ));
+
+        assertEquals("cancelled_makeup", lesson.changeType());
+        assertEquals(880L, lesson.relatedLessonId());
+    }
+
+    @Test
+    void createMakeupLessonRejectsNonCancelledRelatedLesson() {
+        stubValidMaterial();
+        ScheduleLessonEntity relatedLesson = new ScheduleLessonEntity();
+        relatedLesson.setId(881L);
+        relatedLesson.setInstitutionId(1L);
+        relatedLesson.setCampusId(2L);
+        relatedLesson.setTermId(3L);
+        relatedLesson.setClassId(100L);
+        relatedLesson.setLessonStatus("scheduled");
+        when(lessonMapper.selectById(881L)).thenReturn(relatedLesson);
+
+        assertThrows(BusinessException.class, () -> service.createLesson(new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "补课",
+            "makeup",
+            "cancelled_makeup",
+            881L,
+            List.of(400L),
+            "非法来源"
+        )));
+    }
+
+    @Test
+    void createMakeupLessonRejectsRelatedLessonWithoutCancelledMakeupChangeType() {
+        stubValidMaterial();
+
+        assertThrows(BusinessException.class, () -> service.createLesson(new ScheduleLessonRequest(
+            1L,
+            2L,
+            3L,
+            100L,
+            200L,
+            500L,
+            LocalDate.of(2026, 6, 15),
+            "补课",
+            "makeup",
+            "manual_adjust",
+            881L,
+            List.of(400L),
+            "非法变更类型"
+        )));
+    }
+
+    @Test
+    void listLessonsMarksCancelledLessonWithoutMakeupAsPendingMakeup() {
+        ScheduleLessonEntity cancelledLesson = new ScheduleLessonEntity();
+        cancelledLesson.setId(910L);
+        cancelledLesson.setInstitutionId(1L);
+        cancelledLesson.setCampusId(2L);
+        cancelledLesson.setTermId(3L);
+        cancelledLesson.setClassId(100L);
+        cancelledLesson.setClassroomId(200L);
+        cancelledLesson.setTimeSlotId(500L);
+        cancelledLesson.setLessonDate(LocalDate.of(2026, 6, 15));
+        cancelledLesson.setLessonWeekday(1);
+        cancelledLesson.setStartTime(LocalTime.of(9, 0));
+        cancelledLesson.setEndTime(LocalTime.of(10, 0));
+        cancelledLesson.setLessonTitle("停课");
+        cancelledLesson.setLessonStatus("cancelled");
+
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(cancelledLesson));
+        when(lessonMapper.selectLinkedCancelledLessonIds(List.of(910L))).thenReturn(List.of());
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        var lessons = service.listLessons(1L, 2L, 100L, LocalDate.of(2026, 6, 15), false);
+
+        assertEquals(1, lessons.size());
+        assertTrue(Boolean.TRUE.equals(lessons.getFirst().pendingMakeup()));
+    }
+
+    @Test
+    void listLessonsCanFilterPendingMakeupOnly() {
+        ScheduleLessonEntity cancelledPending = new ScheduleLessonEntity();
+        cancelledPending.setId(910L);
+        cancelledPending.setInstitutionId(1L);
+        cancelledPending.setCampusId(2L);
+        cancelledPending.setTermId(3L);
+        cancelledPending.setClassId(100L);
+        cancelledPending.setClassroomId(200L);
+        cancelledPending.setTimeSlotId(500L);
+        cancelledPending.setLessonDate(LocalDate.of(2026, 6, 15));
+        cancelledPending.setLessonWeekday(1);
+        cancelledPending.setStartTime(LocalTime.of(9, 0));
+        cancelledPending.setEndTime(LocalTime.of(10, 0));
+        cancelledPending.setLessonTitle("待补停课");
+        cancelledPending.setLessonStatus("cancelled");
+
+        ScheduleLessonEntity cancelledLinked = new ScheduleLessonEntity();
+        cancelledLinked.setId(911L);
+        cancelledLinked.setInstitutionId(1L);
+        cancelledLinked.setCampusId(2L);
+        cancelledLinked.setTermId(3L);
+        cancelledLinked.setClassId(100L);
+        cancelledLinked.setClassroomId(200L);
+        cancelledLinked.setTimeSlotId(501L);
+        cancelledLinked.setLessonDate(LocalDate.of(2026, 6, 16));
+        cancelledLinked.setLessonWeekday(2);
+        cancelledLinked.setStartTime(LocalTime.of(10, 0));
+        cancelledLinked.setEndTime(LocalTime.of(11, 0));
+        cancelledLinked.setLessonTitle("已补停课");
+        cancelledLinked.setLessonStatus("cancelled");
+
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(cancelledPending, cancelledLinked));
+        when(lessonMapper.selectLinkedCancelledLessonIds(List.of(910L, 911L))).thenReturn(List.of(911L));
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        var lessons = service.listLessons(1L, 2L, 100L, null, true);
+
+        assertEquals(1, lessons.size());
+        assertEquals(910L, lessons.getFirst().id());
+        assertTrue(Boolean.TRUE.equals(lessons.getFirst().pendingMakeup()));
     }
 }

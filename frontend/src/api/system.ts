@@ -61,6 +61,28 @@ export interface DictItemSummary {
   remark?: string | null
 }
 
+export interface CurrentInstitutionProfile {
+  id: string
+  orgCode?: string | null
+  name?: string | null
+  shortName?: string | null
+  contactName?: string | null
+  contactPhone?: string | null
+  address?: string | null
+  status?: string | null
+  remark?: string | null
+}
+
+export interface CurrentInstitutionUpdatePayload {
+  name: string
+  shortName?: string
+  contactName?: string
+  contactPhone?: string
+  address?: string
+  status?: string
+  remark?: string
+}
+
 export interface SystemUserCreatePayload {
   institutionId: string
   defaultCampusId?: string | null
@@ -140,6 +162,21 @@ function normalizeDictItem(item: DictItemSummary): DictItemSummary {
     id: String(item.id),
     typeId: String(item.typeId),
   }
+}
+
+function normalizeCurrentInstitution(item: CurrentInstitutionProfile): CurrentInstitutionProfile {
+  return {
+    ...item,
+    id: String(item.id),
+  }
+}
+
+export function fetchCurrentInstitution() {
+  return requestGet<CurrentInstitutionProfile>('/system/institution/current').then(normalizeCurrentInstitution)
+}
+
+export function updateCurrentInstitution(payload: CurrentInstitutionUpdatePayload) {
+  return requestPut<CurrentInstitutionProfile>('/system/institution/current', payload).then(normalizeCurrentInstitution)
 }
 
 export function fetchSystemUsers() {

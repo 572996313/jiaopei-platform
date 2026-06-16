@@ -14,6 +14,8 @@ public class TeachingClassEntity extends BaseEntity {
     private Long institutionId;
     private Long campusId;
     private Long termId;
+    private Long courseId;
+    private Long classTypeId;
     private String classCode;
     private String className;
     private Long teacherId;

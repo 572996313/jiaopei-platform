@@ -23,6 +23,7 @@ import com.jiaopei.platform.organization.mapper.TimeSlotMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -34,6 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
     private static final String SCHEDULED = "scheduled";
+    private static final String RESCHEDULED = "rescheduled";
+    private static final String CANCELLED = "cancelled";
+    private static final String MAKEUP = "makeup";
+    private static final String CANCELLED_MAKEUP = "cancelled_makeup";
 
     private final ScheduleLessonMapper lessonMapper;
     private final ScheduleTeacherRelMapper teacherRelMapper;
@@ -54,7 +59,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     @Override
-    public List<ScheduleLessonView> listLessons(Long institutionId, Long campusId, Long classId, LocalDate lessonDate) {
+    public List<ScheduleLessonView> listLessons(Long institutionId, Long campusId, Long classId, LocalDate lessonDate,
+                                                Boolean pendingMakeupOnly) {
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder();
         if (institutionId != null) {
             wrapper.eq(ScheduleLessonEntity::getInstitutionId, institutionId);
@@ -68,37 +74,37 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (lessonDate != null) {
             wrapper.eq(ScheduleLessonEntity::getLessonDate, lessonDate);
         }
-        return lessonMapper.selectList(wrapper).stream().map(this::toView).toList();
+        return toViews(lessonMapper.selectList(wrapper), pendingMakeupOnly);
     }
 
     @Override
     public ScheduleLessonView getLesson(Long id) {
-        return toView(requireLesson(id));
+        return toViews(List.of(requireLesson(id)), Boolean.FALSE).getFirst();
     }
 
     @Override
     @Transactional
     public ScheduleLessonView createLesson(ScheduleLessonRequest request) {
-        ScheduleMaterial material = validateMaterial(request);
+        ScheduleMaterial material = validateMaterial(request, null);
         assertNoConflicts(request, null);
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setDeleted(Boolean.FALSE);
         lessonMapper.insert(entity);
         replaceTeachers(entity.getId(), request.teacherIds());
-        return toView(entity);
+        return toViews(List.of(entity), Boolean.FALSE).getFirst();
     }
 
     @Override
     @Transactional
     public ScheduleLessonView updateLesson(Long id, ScheduleLessonRequest request) {
         requireLesson(id);
-        ScheduleMaterial material = validateMaterial(request);
+        ScheduleMaterial material = validateMaterial(request, id);
         assertNoConflicts(request, id);
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setId(id);
         lessonMapper.updateById(entity);
         replaceTeachers(id, request.teacherIds());
-        return toView(requireLesson(id));
+        return toViews(List.of(requireLesson(id)), Boolean.FALSE).getFirst();
     }
 
     @Override
@@ -110,15 +116,17 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     @Override
-    public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate) {
+    public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate,
+                                                 Boolean pendingMakeupOnly) {
         if (lessonDate == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "lessonDate is required");
         }
-        return listLessons(institutionId, campusId, null, lessonDate);
+        return listLessons(institutionId, campusId, null, lessonDate, pendingMakeupOnly);
     }
 
     @Override
-    public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart, LocalDate weekEnd) {
+    public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart,
+                                                  LocalDate weekEnd, Boolean pendingMakeupOnly) {
         if (weekStart == null || weekEnd == null || weekStart.isAfter(weekEnd)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Valid weekStart and weekEnd are required");
         }
@@ -130,7 +138,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (campusId != null) {
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
         }
-        return lessonMapper.selectList(wrapper).stream().map(this::toView).toList();
+        return toViews(lessonMapper.selectList(wrapper), pendingMakeupOnly);
     }
 
     @Override
@@ -145,14 +153,16 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             request.lessonDate(),
             null,
             SCHEDULED,
+            null,
+            null,
             request.teacherIds(),
             null
         );
-        validateMaterial(lessonRequest);
+        validateMaterial(lessonRequest, null);
         return detectConflicts(lessonRequest, request.excludeLessonId());
     }
 
-    private ScheduleMaterial validateMaterial(ScheduleLessonRequest request) {
+    private ScheduleMaterial validateMaterial(ScheduleLessonRequest request, Long currentLessonId) {
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + request.classId());
@@ -195,11 +205,52 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher does not match lesson institution/campus");
             }
         }
+        validateLessonLinkage(request, teachingClass, currentLessonId);
         return new ScheduleMaterial(weekday, timeSlot.getStartTime(), timeSlot.getEndTime());
     }
 
+    private void validateLessonLinkage(ScheduleLessonRequest request, TeachingClassEntity teachingClass, Long currentLessonId) {
+        String lessonStatus = defaultStatus(request.lessonStatus());
+        String changeType = normalizeChangeType(request.changeType());
+        Long relatedLessonId = request.relatedLessonId();
+
+        if (!MAKEUP.equalsIgnoreCase(lessonStatus)) {
+            if (changeType != null || relatedLessonId != null) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    "changeType and relatedLessonId are only allowed when lessonStatus is makeup");
+            }
+            return;
+        }
+
+        if (changeType == null && relatedLessonId == null) {
+            return;
+        }
+
+        if (!Objects.equals(changeType, CANCELLED_MAKEUP) || relatedLessonId == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "makeup linkage requires changeType=cancelled_makeup and relatedLessonId");
+        }
+        if (currentLessonId != null && Objects.equals(currentLessonId, relatedLessonId)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "relatedLessonId cannot reference the current lesson itself");
+        }
+
+        ScheduleLessonEntity relatedLesson = requireLesson(relatedLessonId);
+        if (!Objects.equals(relatedLesson.getInstitutionId(), request.institutionId())
+            || !Objects.equals(relatedLesson.getCampusId(), request.campusId())
+            || !Objects.equals(relatedLesson.getTermId(), request.termId())
+            || !Objects.equals(relatedLesson.getClassId(), teachingClass.getId())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "relatedLesson does not belong to the same class scope");
+        }
+        if (!CANCELLED.equalsIgnoreCase(relatedLesson.getLessonStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "relatedLesson must be a cancelled lesson before linking a makeup lesson");
+        }
+    }
+
     private void assertNoConflicts(ScheduleLessonRequest request, Long excludeLessonId) {
-        if (!SCHEDULED.equalsIgnoreCase(defaultStatus(request.lessonStatus()))) {
+        if (!occupiesSchedulingSlot(defaultStatus(request.lessonStatus()))) {
             return;
         }
         ScheduleConflictCheckResponse response = detectConflicts(request, excludeLessonId);
@@ -244,7 +295,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
     private LambdaQueryWrapper<ScheduleLessonEntity> conflictWrapper(Long excludeLessonId) {
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<ScheduleLessonEntity>()
-            .eq(ScheduleLessonEntity::getLessonStatus, SCHEDULED);
+            .in(ScheduleLessonEntity::getLessonStatus, SCHEDULED, RESCHEDULED, MAKEUP);
         if (excludeLessonId != null) {
             wrapper.ne(ScheduleLessonEntity::getId, excludeLessonId);
         }
@@ -265,6 +316,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         entity.setEndTime(material.endTime());
         entity.setLessonTitle(normalize(request.lessonTitle()));
         entity.setLessonStatus(defaultStatus(request.lessonStatus()));
+        entity.setChangeType(normalizeChangeType(request.changeType()));
+        entity.setRelatedLessonId(request.relatedLessonId());
         entity.setRemark(request.remark());
         return entity;
     }
@@ -280,12 +333,33 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         }
     }
 
-    private ScheduleLessonView toView(ScheduleLessonEntity entity) {
+    private List<ScheduleLessonView> toViews(List<ScheduleLessonEntity> entities, Boolean pendingMakeupOnly) {
+        Set<Long> cancelledLessonIds = entities.stream()
+            .filter(entity -> CANCELLED.equalsIgnoreCase(entity.getLessonStatus()))
+            .map(ScheduleLessonEntity::getId)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<Long> linkedLessonIds = cancelledLessonIds.isEmpty()
+            ? List.of()
+            : lessonMapper.selectLinkedCancelledLessonIds(List.copyOf(cancelledLessonIds));
+        Set<Long> linkedCancelledLessonIds = linkedLessonIds == null
+            ? Set.of()
+            : new HashSet<>(linkedLessonIds);
+
+        return entities.stream()
+            .map(entity -> toView(entity, linkedCancelledLessonIds))
+            .filter(view -> !Boolean.TRUE.equals(pendingMakeupOnly) || Boolean.TRUE.equals(view.pendingMakeup()))
+            .toList();
+    }
+
+    private ScheduleLessonView toView(ScheduleLessonEntity entity, Set<Long> linkedCancelledLessonIds) {
         List<Long> teacherIds = teacherRelMapper.selectList(new LambdaQueryWrapper<ScheduleTeacherRelEntity>()
                 .eq(ScheduleTeacherRelEntity::getLessonId, entity.getId()))
             .stream()
             .map(ScheduleTeacherRelEntity::getTeacherId)
             .toList();
+        boolean pendingMakeup = CANCELLED.equalsIgnoreCase(entity.getLessonStatus())
+            && !linkedCancelledLessonIds.contains(entity.getId());
         return new ScheduleLessonView(
             entity.getId(),
             entity.getInstitutionId(),
@@ -300,6 +374,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             entity.getEndTime(),
             entity.getLessonTitle(),
             entity.getLessonStatus(),
+            entity.getChangeType(),
+            entity.getRelatedLessonId(),
+            pendingMakeup,
             teacherIds,
             entity.getRemark()
         );
@@ -325,7 +402,34 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
     private String defaultStatus(String status) {
         String normalized = normalize(status);
-        return normalized == null || normalized.isBlank() ? SCHEDULED : normalized;
+        if (normalized == null || normalized.isBlank()) {
+            return SCHEDULED;
+        }
+        String canonical = normalized.toLowerCase();
+        if (!List.of(SCHEDULED, RESCHEDULED, CANCELLED, MAKEUP).contains(canonical)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "lessonStatus must be one of scheduled, rescheduled, cancelled, makeup");
+        }
+        return canonical;
+    }
+
+    private String normalizeChangeType(String changeType) {
+        String normalized = normalize(changeType);
+        if (normalized == null || normalized.isBlank()) {
+            return null;
+        }
+        String canonical = normalized.toLowerCase();
+        if (!CANCELLED_MAKEUP.equals(canonical)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "changeType must be cancelled_makeup when provided");
+        }
+        return canonical;
+    }
+
+    private boolean occupiesSchedulingSlot(String lessonStatus) {
+        return SCHEDULED.equalsIgnoreCase(lessonStatus)
+            || RESCHEDULED.equalsIgnoreCase(lessonStatus)
+            || MAKEUP.equalsIgnoreCase(lessonStatus);
     }
 
     private String normalize(String value) {

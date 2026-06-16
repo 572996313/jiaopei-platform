@@ -9,4 +9,6 @@ public interface TeachingClassService {
     List<TeachingClassEntity> listClasses(Long institutionId, Long campusId, Long termId);
 
     TeachingClassEntity createClass(TeachingClassCreateRequest request);
+
+    TeachingClassEntity updateClass(Long id, TeachingClassCreateRequest request);
 }

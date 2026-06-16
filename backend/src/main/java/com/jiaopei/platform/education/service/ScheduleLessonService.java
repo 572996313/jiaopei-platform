@@ -9,7 +9,8 @@ import java.util.List;
 
 public interface ScheduleLessonService {
 
-    List<ScheduleLessonView> listLessons(Long institutionId, Long campusId, Long classId, LocalDate lessonDate);
+    List<ScheduleLessonView> listLessons(Long institutionId, Long campusId, Long classId, LocalDate lessonDate,
+                                         Boolean pendingMakeupOnly);
 
     ScheduleLessonView getLesson(Long id);
 
@@ -19,9 +20,11 @@ public interface ScheduleLessonService {
 
     void deleteLesson(Long id);
 
-    List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate);
+    List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate,
+                                          Boolean pendingMakeupOnly);
 
-    List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart, LocalDate weekEnd);
+    List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart, LocalDate weekEnd,
+                                           Boolean pendingMakeupOnly);
 
     ScheduleConflictCheckResponse checkConflicts(ScheduleConflictCheckRequest request);
 }

@@ -40,9 +40,10 @@ public class ScheduleLessonController {
                                                        @RequestParam(required = false) Long classId,
                                                        @RequestParam(required = false)
                                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                                                       LocalDate lessonDate) {
+                                                       LocalDate lessonDate,
+                                                       @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("Schedule lessons loaded",
-            scheduleLessonService.listLessons(institutionId, campusId, classId, lessonDate));
+            scheduleLessonService.listLessons(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
     }
 
     @GetMapping("/lessons/{id}")
@@ -76,9 +77,10 @@ public class ScheduleLessonController {
                                                      @RequestParam(required = false) Long campusId,
                                                      @RequestParam
                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                                                     LocalDate lessonDate) {
+                                                     LocalDate lessonDate,
+                                                     @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("Day timetable loaded",
-            scheduleLessonService.dayTimetable(institutionId, campusId, lessonDate));
+            scheduleLessonService.dayTimetable(institutionId, campusId, lessonDate, pendingMakeupOnly));
     }
 
     @GetMapping("/timetable/week")
@@ -90,9 +92,10 @@ public class ScheduleLessonController {
                                                       LocalDate weekStart,
                                                       @RequestParam
                                                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                                                      LocalDate weekEnd) {
+                                                      LocalDate weekEnd,
+                                                      @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("Week timetable loaded",
-            scheduleLessonService.weekTimetable(institutionId, campusId, weekStart, weekEnd));
+            scheduleLessonService.weekTimetable(institutionId, campusId, weekStart, weekEnd, pendingMakeupOnly));
     }
 
     @PostMapping("/conflicts/check")

@@ -38,7 +38,7 @@ body {
 }
 
 .brand-block {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .brand-kicker,
@@ -59,24 +59,73 @@ body {
   font-weight: 700;
 }
 
-.nav-list {
+.sidebar-summary {
+  margin-bottom: 22px;
+  padding: 14px 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-summary-title,
+.nav-group-title,
+.nav-item-hint {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sidebar-summary-title,
+.nav-group-title {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.sidebar-summary-text {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+}
+
+.nav-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.nav-group {
   display: grid;
   gap: 10px;
 }
 
+.nav-list {
+  display: grid;
+  gap: 8px;
+}
+
 .nav-item {
-  display: block;
-  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px 13px;
   border-radius: 14px;
   color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
   background: rgba(255, 255, 255, 0.06);
 }
 
+.nav-item-label {
+  font-weight: 600;
+}
+
+.nav-item-hint {
+  color: rgba(255, 255, 255, 0.52);
+}
+
 .nav-item.is-active {
   color: #14213d;
   font-weight: 700;
   background: #f9c74f;
+}
+
+.nav-item.is-active .nav-item-hint {
+  color: rgba(20, 33, 61, 0.64);
 }
 
 .app-main {
@@ -348,6 +397,62 @@ body {
 
 .panel-list li + li {
   margin-top: 10px;
+}
+
+.workbench-grid {
+  align-items: start;
+}
+
+.workbench-list,
+.quick-link-list {
+  display: grid;
+  gap: 12px;
+}
+
+.workbench-item,
+.quick-link-card {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workbench-item:hover,
+.quick-link-card:hover {
+  border-color: rgba(35, 76, 119, 0.24);
+  background: #ffffff;
+}
+
+.workbench-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.workbench-item-title,
+.quick-link-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #14213d;
+}
+
+.workbench-item-text,
+.quick-link-text,
+.workbench-item-meta {
+  margin-top: 6px;
+  color: #5c6b82;
+  font-size: 13px;
+}
+
+.workbench-item-meta {
+  margin-top: 0;
+  white-space: nowrap;
+  align-self: center;
+  font-weight: 700;
+  color: #234c77;
 }
 
 .placeholder-card,

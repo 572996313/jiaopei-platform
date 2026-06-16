@@ -5,6 +5,8 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.AttendanceEntity;
 import com.jiaopei.platform.education.dto.AttendanceCreateRequest;
+import com.jiaopei.platform.education.dto.AttendanceLessonBatchSaveRequest;
+import com.jiaopei.platform.education.dto.AttendanceLessonPageView;
 import com.jiaopei.platform.education.service.AttendanceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,21 +33,36 @@ public class AttendanceController {
 
     @GetMapping
     @RequiresPermission("education:read")
-    public ApiResponse<List<AttendanceEntity>> list(@RequestParam(required = false) String classId,
+    public ApiResponse<List<AttendanceEntity>> list(@RequestParam(required = false) String lessonId,
+                                                    @RequestParam(required = false) String classId,
                                                     @RequestParam(required = false) String studentId,
                                                     @RequestParam(required = false)
                                                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                     LocalDate attendanceDate) {
         return ApiResponse.success("Attendance list loaded", attendanceService.listAttendances(
+            ExternalIdParser.parseOptional(lessonId, "lessonId"),
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(studentId, "studentId"),
             attendanceDate
         ));
     }
 
+    @GetMapping("/lesson-page")
+    @RequiresPermission("education:read")
+    public ApiResponse<AttendanceLessonPageView> lessonPage(@RequestParam String lessonId) {
+        return ApiResponse.success("Attendance lesson page loaded",
+            attendanceService.getLessonAttendancePage(ExternalIdParser.parseRequired(lessonId, "lessonId")));
+    }
+
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<AttendanceEntity> create(@Valid @RequestBody AttendanceCreateRequest request) {
         return ApiResponse.success("Attendance created", attendanceService.createAttendance(request));
+    }
+
+    @PostMapping("/lesson-batch")
+    @RequiresPermission("education:write")
+    public ApiResponse<AttendanceLessonPageView> saveLessonAttendance(@Valid @RequestBody AttendanceLessonBatchSaveRequest request) {
+        return ApiResponse.success("Attendance lesson saved", attendanceService.saveLessonAttendance(request));
     }
 }

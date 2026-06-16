@@ -19,7 +19,7 @@ public interface ScheduleTeacherRelMapper extends BaseMapper<ScheduleTeacherRelE
         WHERE rel.teacher_id = #{teacherId}
           AND lesson.lesson_date = #{lessonDate}
           AND lesson.time_slot_id = #{timeSlotId}
-          AND lesson.lesson_status = 'scheduled'
+          AND lesson.lesson_status IN ('scheduled', 'rescheduled', 'makeup')
           AND lesson.deleted = 0
           AND rel.deleted = 0
           AND (#{excludeLessonId} IS NULL OR lesson.id <> #{excludeLessonId})
