@@ -3,6 +3,8 @@ services:
     image: mysql:8.4
     container_name: jiaopei-prod-mysql
     restart: unless-stopped
+    env_file:
+      - prod.env
     environment:
       MYSQL_DATABASE: ${DB_NAME:-jiaopei_platform}
       MYSQL_USER: ${DB_USERNAME:-jiaopei}
@@ -52,6 +54,8 @@ services:
     image: jiaopei-platform-backend:prod
     container_name: jiaopei-prod-backend
     restart: unless-stopped
+    env_file:
+      - prod.env
     environment:
       SERVER_PORT: 8080
       DB_HOST: mysql
