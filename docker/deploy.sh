@@ -257,8 +257,20 @@ else
 fi
 
 # ---------- 4. 构建并启动 ----------
+# 启用 BuildKit 后,backend/Dockerfile 与 frontend/Dockerfile 里的
+# --mount=type=cache 才会生效,这是把构建从 553s 降到几十秒的关键
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+# BUILDKIT_INLINE_CACHE=0 表示不把缓存元数据写入镜像 tag,纯靠 BuildKit 本地缓存
+# 如果你的 docker 版本较旧(< 23),需要改成 export DOCKER_BUILDKIT=1 写到 /etc/docker/daemon.json
 log_info "[4/8] 构建并启动服务..."
-docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" up -d --build
+# --parallel:       后端和前端同时构建(总耗时取较慢的那一个)
+# --pull=missing:   基础镜像(mysql/redis/nginx)本地有就不重拉,首次会拉,之后秒过
+# backend frontend: 只构建我们自己写的两个镜像,不动 mysql/redis(它们用 image: 直接拉)
+docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" \
+    build --parallel --pull=missing backend frontend
+
+docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" up -d
 
 # ---------- 5. 等待健康 ----------
 log_info "[5/8] 等待服务健康..."
