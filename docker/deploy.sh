@@ -12,7 +12,7 @@ set -euo pipefail
 # ---------- 配置区 ----------
 PROJECT_DIR="/mnt/software/jiaopei"
 COMPOSE_FILE="docker/docker-compose.prod.yml"
-BRANCH="main"
+BRANCH="master"
 REMOTE_URL="https://gitee.com/liu-xiaofei001/educational-training-gateway.git"
 BACKUP_DIR="/mnt/software/jiaopei/backups"
 DB_BACKUP_DIR="/mnt/software/jiaopei/backups/db"
@@ -68,6 +68,31 @@ cd "${PROJECT_DIR}"
 # ---------- 0. 预检 ----------
 log_info "[0/8] 预检..."
 
+# 0.0 项目目录存在性 + 是否为 git 仓库
+if [ ! -d "${PROJECT_DIR}" ]; then
+    log_err "项目目录 ${PROJECT_DIR} 不存在,请先创建(例如: sudo mkdir -p ${PROJECT_DIR} && sudo chown \$USER:\$USER ${PROJECT_DIR})"
+    exit 1
+fi
+cd "${PROJECT_DIR}"
+
+# 若目录不是 git 仓库,自动 clone 远程仓库
+if [ ! -d ".git" ]; then
+    if [ "${SKIP_PULL}" = "true" ]; then
+        log_err "当前目录不是 git 仓库,但指定了 --skip-pull。请先手动 git clone ${REMOTE_URL} ${PROJECT_DIR}"
+        exit 1
+    fi
+    log_warn "当前目录不是 git 仓库,自动执行 git clone ${REMOTE_URL} ${PROJECT_DIR}"
+    # 仅当目录为空时才直接 clone 到当前目录,避免误覆盖已有文件
+    if [ -z "$(ls -A "${PROJECT_DIR}" 2>/dev/null)" ]; then
+        git clone "${REMOTE_URL}" "${PROJECT_DIR}"
+    else
+        log_err "${PROJECT_DIR} 已存在但不是 git 仓库,且目录非空。请手动处理:"
+        echo "  - 若想保留现有文件: cd ${PROJECT_DIR} && git init && git remote add origin ${REMOTE_URL} && git pull origin ${BRANCH}"
+        echo "  - 若目录是历史残留: rm -rf ${PROJECT_DIR}/* ${PROJECT_DIR}/.[!.]* 2>/dev/null; 然后重新执行本脚本"
+        exit 1
+    fi
+fi
+
 # 0.1 目录与持久化数据目录
 mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}" "${DATA_DIR}/mysql" "${DATA_DIR}/redis"
 if [ ! -w "${DATA_DIR}" ]; then
@@ -100,10 +125,6 @@ if [ "${SKIP_PULL}" != "true" ]; then
     CURRENT_REMOTE=$(git remote get-url origin)
     log_ok "git remote origin = ${CURRENT_REMOTE}"
 fi
-
-# ---------- 1. 记录当前版本 ----------
-CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-log_info "[1/8] 当前版本: ${CURRENT_COMMIT}"
 
 # ---------- 2. 拉取最新代码 ----------
 if [ "${SKIP_PULL}" = "true" ]; then
