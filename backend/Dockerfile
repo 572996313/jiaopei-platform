@@ -17,7 +17,7 @@ COPY backend/pom.xml ./
 # -q 安静输出,省 IO
 # -fae 失败时继续构建其他模块(Fail At End),不会因一个插件问题卡死
 # -T 1C 每核一个项目线程,后端单模块收益不大但能省一点 plugin 解析时间
-RUN --mount=type=cache,target=/root/.m2,id=jiaopei-m2-cache \
+RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
     mvn -B -ntp -q -s /root/.m2/settings.xml -DskipTests \
         -Dmaven.wagon.http.retryHandler.count=5 \
         -Dmaven.wagon.httpconnectionManager.ttlSeconds=60 \
@@ -29,7 +29,7 @@ COPY backend/src ./src
 
 # 第二层:编译(同时缓存 m2 和 target,源码变更只触发这一步)
 # -Dmaven.test.skip=true 同时跳过测试编译(比 -DskipTests 更彻底)
-RUN --mount=type=cache,target=/root/.m2,id=jiaopei-m2-cache \
+RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
     --mount=type=cache,target=/workspace/backend/target,id=jiaopei-target-cache \
     mvn -B -ntp -q -s /root/.m2/settings.xml \
         -Dmaven.test.skip=true \
