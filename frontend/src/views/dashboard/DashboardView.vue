@@ -182,12 +182,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchDayTimetable, fetchLessonAttendancePage, fetchTeachers, type AttendanceLessonPage, type ScheduleLessonRecord, type TeacherSummary } from '@/api/education'
 import { fetchClassrooms, type ClassroomSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
 import { useAuthStore } from '@/stores/auth'
+import { useInstitutionStore } from '@/stores/institution'
 
 interface QueueItem {
   key: string
@@ -206,9 +207,9 @@ interface ReminderItem {
 
 const router = useRouter()
 const auth = useAuthStore()
-const { institutions, campuses, classes, students, loadInstitutions, loadScope } = useEducationScope()
+const institutionStore = useInstitutionStore()
+const { institutions, institutionId, campuses, classes, students, loadScope } = useEducationScope()
 
-const institutionId = ref<string | null>(null)
 const campusId = ref<string | null>(null)
 const today = ref(todayValue())
 const boardLoading = ref(false)
@@ -546,7 +547,7 @@ async function refreshBoard() {
   boardLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(institutionId.value, campusId.value, null)
+    await loadScope(campusId.value, null)
     await loadSupportingResources()
     const lessons = sortedLessons(
       await fetchDayTimetable({
@@ -570,15 +571,14 @@ async function initializeBoard() {
   boardLoading.value = true
   pageError.value = ''
   try {
-    await loadInstitutions()
-    institutionId.value = auth.currentUser?.institutionId || institutions.value[0]?.id || null
+    await institutionStore.loadInstitutions()
     campusId.value = auth.currentUser?.defaultCampusId || null
 
     if (institutionId.value) {
-      await loadScope(institutionId.value, campusId.value, null)
+      await loadScope(campusId.value, null)
       if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
         campusId.value = null
-        await loadScope(institutionId.value, campusId.value, null)
+        await loadScope(campusId.value, null)
       }
       await loadSupportingResources()
       const lessons = sortedLessons(
@@ -600,6 +600,11 @@ async function initializeBoard() {
 
 onMounted(() => {
   initializeBoard()
+})
+
+watch(() => institutionStore.currentInstitutionId, async () => {
+  campusId.value = null
+  await refreshBoard()
 })
 </script>
 

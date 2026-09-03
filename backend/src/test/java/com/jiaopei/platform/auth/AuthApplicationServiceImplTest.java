@@ -44,6 +44,7 @@ class AuthApplicationServiceImplTest {
 
     @Test
     void changePasswordRejectsMismatchAndSamePassword() {
+        System.out.println(passwordEncoder.encode("Admin@123456"));
         authenticate();
         UserAccountEntity user = user();
         when(userAccountMapper.selectById(1L)).thenReturn(user);

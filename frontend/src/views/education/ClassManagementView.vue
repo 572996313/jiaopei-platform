@@ -11,6 +11,7 @@
 
       <div class="education-hero-actions">
         <el-button @click="refreshAll" :loading="lookupLoading || tableLoading || parentLoading">刷新数据</el-button>
+        <el-button type="primary" :disabled="!institutionId || !campusId" @click="openClassCreateDialog">新增班级</el-button>
         <el-button type="primary" @click="openDialog">新增入班</el-button>
         <el-button @click="openTeacherDialog('create')">新增班级教师</el-button>
         <el-button :disabled="!contactStudentId" @click="openParentDialog('create')">新增家长联系人</el-button>
@@ -47,14 +48,6 @@
     <article class="panel-card education-panel">
       <div class="panel-title">当前范围</div>
       <div class="education-toolbar" v-loading="lookupLoading">
-        <el-select v-model="institutionId" placeholder="选择机构" clearable filterable @change="handleInstitutionChange">
-          <el-option
-            v-for="item in institutions"
-            :key="item.id"
-            :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
         <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="handleCampusChange">
           <el-option
             v-for="item in campuses"
@@ -356,12 +349,30 @@
       <div class="education-dialog-context">
         <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
-        <div><strong>学员：</strong>{{ formatStudent(studentId) }}</div>
       </div>
 
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="学员" required>
+          <el-select
+            v-model="form.studentId"
+            placeholder="输入姓名或学号搜索学员"
+            filterable
+            remote
+            :remote-method="searchStudents"
+            :loading="studentSearchLoading"
+            @focus="onStudentSelectFocus"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in studentSearchResults"
+              :key="item.id"
+              :label="`${item.studentName || ''}（${item.studentNo || ''}）`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">
             <el-option label="在班" value="active" />
@@ -511,6 +522,93 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="classCreateDialogVisible" title="新增班级主档" width="560px">
+      <div class="education-dialog-context">
+        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
+        <div><strong>校区：</strong>{{ formatCampus(campusId) }}</div>
+      </div>
+
+      <el-alert
+        v-if="classCreateFormError"
+        :title="classCreateFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
+
+      <el-form label-position="top" class="education-form">
+        <el-form-item label="班级编码" required>
+          <el-input v-model="classCreateForm.classCode" placeholder="例如 2026S-MATH-A1" />
+        </el-form-item>
+        <el-form-item label="班级名称" required>
+          <el-input v-model="classCreateForm.className" placeholder="例如 周六上午数学A1班" />
+        </el-form-item>
+        <el-form-item label="学期（可选）">
+          <el-select v-model="classCreateForm.termId" clearable filterable placeholder="选择学期">
+            <el-option
+              v-for="item in terms"
+              :key="item.id"
+              :label="item.termName || item.termCode || `学期 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="课程">
+          <el-select v-model="classCreateForm.courseId" clearable filterable placeholder="选择课程">
+            <el-option
+              v-for="item in courses"
+              :key="item.id"
+              :label="item.courseName || item.courseCode || `课程 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="班型">
+          <el-select v-model="classCreateForm.classTypeId" clearable filterable placeholder="选择班型">
+            <el-option
+              v-for="item in classTypes"
+              :key="item.id"
+              :label="item.typeName || item.typeCode || `班型 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="主讲教师">
+          <el-select v-model="classCreateForm.teacherId" clearable filterable placeholder="选择主讲教师">
+            <el-option
+              v-for="item in teachers"
+              :key="item.id"
+              :label="item.teacherName || item.teacherCode || `教师 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="容量上限">
+          <el-input-number v-model="classCreateForm.capacityLimit" :min="0" :step="1" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="班级状态">
+          <el-select v-model="classCreateForm.status">
+            <el-option label="规划中" value="planning" />
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+            <el-option label="已结班" value="closed" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="开班日期">
+          <el-date-picker v-model="classCreateForm.openedAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="classCreateForm.remark" type="textarea" :rows="3" placeholder="补充班级主档说明" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="classCreateDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="classCreateSubmitting" @click="submitClassCreate">新增班级</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="parentDialogVisible" :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'" width="560px">
       <div class="education-dialog-context">
         <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
@@ -573,12 +671,13 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   createClassStudent,
   fetchClassChangeNotices,
   createClassTeacher,
   createStudentParent,
+  createTeachingClass,
   deleteClassTeacher,
   deleteStudentParent,
   fetchClassStudents,
@@ -586,6 +685,7 @@ import {
   fetchClassTypes,
   fetchCourses,
   fetchStudentParents,
+  fetchStudents,
   fetchTeachers,
   type ClassChangeNoticeRecord,
   type TeachingClassSummary,
@@ -600,9 +700,12 @@ import {
   type CourseRecord,
   type StudentParentCreatePayload,
   type StudentParentRecord,
+  type StudentSummary,
   type TeacherSummary,
+  type TeachingClassCreatePayload,
 } from '@/api/education'
 import { useEducationScope } from '@/composables/useEducationScope'
+import { useInstitutionStore } from '@/stores/institution'
 
 interface ReminderItem {
   key: string
@@ -618,12 +721,12 @@ interface NoticeItem {
   action?: string | null
 }
 
-const { institutions, campuses, classes, students, loadInstitutions, loadScope } = useEducationScope()
+const institutionStore = useInstitutionStore()
+const { institutions, institutionId, campuses, classes, students, terms, loadScope } = useEducationScope()
 const teachers = ref<TeacherSummary[]>([])
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
 
-const institutionId = ref<string | null>(null)
 const campusId = ref<string | null>(null)
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
@@ -655,13 +758,21 @@ const parentSubmitting = ref(false)
 const teacherFormError = ref('')
 const classProfileFormError = ref('')
 const parentFormError = ref('')
+const classCreateDialogVisible = ref(false)
+const classCreateSubmitting = ref(false)
+const classCreateFormError = ref('')
 
 const form = reactive({
+  studentId: '' as string,
   status: 'active',
   joinedAt: todayValue(),
   leftAt: '',
   remark: '',
 })
+
+const studentSearchResults = ref<StudentSummary[]>([])
+const studentSearchLoading = ref(false)
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const teacherForm = reactive({
   teacherId: '',
@@ -678,6 +789,19 @@ const classProfileForm = reactive({
   classTypeId: '',
   capacityLimit: 0,
   status: 'planning',
+  remark: '',
+})
+
+const classCreateForm = reactive({
+  classCode: '',
+  className: '',
+  termId: '',
+  courseId: '',
+  classTypeId: '',
+  teacherId: '',
+  capacityLimit: 0,
+  status: 'planning',
+  openedAt: '',
   remark: '',
 })
 
@@ -700,6 +824,10 @@ const institutionMap = computed(() => {
 
 const classMap = computed(() => {
   return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
+})
+
+const campusMap = computed(() => {
+  return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
 })
 
 const studentMap = computed(() => {
@@ -843,6 +971,13 @@ function formatClass(id?: string | null) {
   return classMap.value.get(id) || `班级 #${id}`
 }
 
+function formatCampus(id?: string | null) {
+  if (!id) {
+    return '未选择'
+  }
+  return campusMap.value.get(id) || `校区 #${id}`
+}
+
 function formatStudent(id?: string | null) {
   if (!id) {
     return '未选择'
@@ -982,9 +1117,6 @@ function validateContext() {
   if (!classId.value) {
     return '请先选择班级'
   }
-  if (!studentId.value) {
-    return '请先选择学员'
-  }
   if (form.leftAt && form.joinedAt && form.leftAt < form.joinedAt) {
     return '离班日期不能早于入班日期'
   }
@@ -992,11 +1124,43 @@ function validateContext() {
 }
 
 function resetForm() {
+  form.studentId = studentId.value || ''
   form.status = 'active'
   form.joinedAt = todayValue()
   form.leftAt = ''
   form.remark = ''
   formError.value = ''
+  studentSearchResults.value = students.value
+}
+
+async function searchStudents(query: string) {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  const trimmed = query.trim()
+  if (!trimmed || !institutionId.value) {
+    studentSearchResults.value = students.value
+    return
+  }
+  searchDebounceTimer = setTimeout(async () => {
+    studentSearchLoading.value = true
+    try {
+      studentSearchResults.value = await fetchStudents({
+        institutionId: institutionId.value,
+        keyword: trimmed,
+      })
+    } catch {
+      studentSearchResults.value = []
+    } finally {
+      studentSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onStudentSelectFocus() {
+  if (studentSearchResults.value.length === 0) {
+    studentSearchResults.value = students.value
+  }
 }
 
 function resetTeacherForm() {
@@ -1018,6 +1182,84 @@ function resetClassProfileForm(target?: TeachingClassSummary | null) {
   classProfileForm.status = target?.status || 'planning'
   classProfileForm.remark = target?.remark || ''
   classProfileFormError.value = ''
+}
+
+function resetClassCreateForm() {
+  classCreateForm.classCode = ''
+  classCreateForm.className = ''
+  classCreateForm.termId = ''
+  classCreateForm.courseId = ''
+  classCreateForm.classTypeId = ''
+  classCreateForm.teacherId = ''
+  classCreateForm.capacityLimit = 0
+  classCreateForm.status = 'planning'
+  classCreateForm.openedAt = ''
+  classCreateForm.remark = ''
+  classCreateFormError.value = ''
+}
+
+function openClassCreateDialog() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  if (!campusId.value) {
+    ElMessage.warning('请先选择校区')
+    return
+  }
+
+  resetClassCreateForm()
+  classCreateDialogVisible.value = true
+}
+
+function buildClassCreatePayload(): TeachingClassCreatePayload {
+  return {
+    institutionId: institutionId.value as string,
+    campusId: campusId.value as string,
+    termId: classCreateForm.termId || null,
+    courseId: classCreateForm.courseId || null,
+    classTypeId: classCreateForm.classTypeId || null,
+    classCode: classCreateForm.classCode.trim(),
+    className: classCreateForm.className.trim(),
+    teacherId: classCreateForm.teacherId || null,
+    capacityLimit: Number.isFinite(classCreateForm.capacityLimit) ? classCreateForm.capacityLimit : 0,
+    status: classCreateForm.status || 'planning',
+    openedAt: classCreateForm.openedAt || null,
+    remark: trimToUndefined(classCreateForm.remark),
+  }
+}
+
+async function submitClassCreate() {
+  if (!institutionId.value || !campusId.value) {
+    classCreateFormError.value = '请先选择机构与校区范围'
+    return
+  }
+  if (!classCreateForm.classCode.trim()) {
+    classCreateFormError.value = '请填写班级编码'
+    return
+  }
+  if (!classCreateForm.className.trim()) {
+    classCreateFormError.value = '请填写班级名称'
+    return
+  }
+
+  classCreateSubmitting.value = true
+  classCreateFormError.value = ''
+  try {
+    const created = await createTeachingClass(buildClassCreatePayload())
+    ElMessage.success('班级主档已新增')
+    classCreateDialogVisible.value = false
+    resetClassCreateForm()
+    await refreshScopeData()
+    if (created?.id) {
+      classId.value = created.id
+    }
+    await loadRecords()
+  } catch (error) {
+    classCreateFormError.value = toMessage(error, '新增班级失败')
+  } finally {
+    classCreateSubmitting.value = false
+  }
 }
 
 function resetParentForm() {
@@ -1094,7 +1336,7 @@ async function refreshScopeData() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(institutionId.value, campusId.value, null)
+    await loadScope(campusId.value, null)
     const [teacherList, courseList, classTypeList] = await Promise.all([
       fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
       fetchCourses({ institutionId: institutionId.value }),
@@ -1201,15 +1443,6 @@ async function loadRecords() {
   }
 }
 
-async function handleInstitutionChange() {
-  campusId.value = null
-  classId.value = null
-  studentId.value = null
-  activeParentStudentId.value = null
-  await refreshScopeData()
-  await loadRecords()
-}
-
 async function handleCampusChange() {
   classId.value = null
   studentId.value = null
@@ -1309,6 +1542,10 @@ async function submitClassStudent() {
     formError.value = contextError
     return
   }
+  if (!form.studentId) {
+    formError.value = '请选择学员'
+    return
+  }
 
   submitting.value = true
   formError.value = ''
@@ -1316,7 +1553,7 @@ async function submitClassStudent() {
     await createClassStudent({
       institutionId: institutionId.value as string,
       classId: classId.value as string,
-      studentId: studentId.value as string,
+      studentId: form.studentId,
       status: form.status,
       joinedAt: form.joinedAt,
       leftAt: form.leftAt || null,
@@ -1522,9 +1759,8 @@ async function initializePage() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadInstitutions()
-    if (institutions.value.length > 0) {
-      institutionId.value = institutions.value[0].id
+    await institutionStore.loadInstitutions()
+    if (institutionId.value) {
       await refreshScopeData()
     }
     await loadRecords()
@@ -1535,8 +1771,24 @@ async function initializePage() {
   }
 }
 
+watch(() => institutionStore.currentInstitutionId, async () => {
+  campusId.value = null
+  classId.value = null
+  studentId.value = null
+  activeParentStudentId.value = null
+  await refreshScopeData()
+  await loadRecords()
+})
+
 onMounted(() => {
   initializePage()
+})
+
+onUnmounted(() => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
 })
 </script>
 

@@ -164,6 +164,15 @@ body {
   gap: 12px;
 }
 
+.header-institution-block {
+  display: flex;
+  align-items: center;
+}
+
+.header-institution-select {
+  width: 200px;
+}
+
 .header-user-block {
   display: grid;
   gap: 4px;

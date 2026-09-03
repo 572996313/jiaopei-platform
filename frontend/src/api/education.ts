@@ -6,9 +6,13 @@ export interface StudentSummary {
   campusId?: string | null
   studentNo?: string | null
   studentName?: string | null
+  gender?: string | null
+  birthday?: string | null
   guardianName?: string | null
   guardianPhone?: string | null
   status?: string | null
+  enrolledAt?: string | null
+  remark?: string | null
 }
 
 export interface TeacherSummary {
@@ -319,6 +323,21 @@ export interface ClassStudentCreatePayload {
   remark?: string
 }
 
+export interface TeachingClassCreatePayload {
+  institutionId: string
+  campusId: string
+  termId?: string | null
+  courseId?: string | null
+  classTypeId?: string | null
+  classCode: string
+  className: string
+  teacherId?: string | null
+  capacityLimit?: number
+  status?: string
+  openedAt?: string | null
+  remark?: string
+}
+
 export interface TeachingClassUpdatePayload {
   institutionId: string
   campusId: string
@@ -360,6 +379,33 @@ export interface StudentParentCreatePayload {
   remark?: string
 }
 
+export interface StudentCreatePayload {
+  institutionId: string
+  campusId?: string | null
+  studentNo: string
+  studentName: string
+  gender?: string
+  birthday?: string | null
+  guardianName?: string
+  guardianPhone?: string
+  status?: string
+  enrolledAt?: string | null
+  remark?: string
+}
+
+export interface StudentUpdatePayload {
+  campusId?: string | null
+  studentNo?: string
+  studentName?: string
+  gender?: string
+  birthday?: string | null
+  guardianName?: string
+  guardianPhone?: string
+  status?: string
+  enrolledAt?: string | null
+  remark?: string
+}
+
 export interface AttendanceCreatePayload {
   institutionId: string
   classId: string
@@ -383,8 +429,20 @@ export interface AttendanceLessonBatchSavePayload {
   items: AttendanceLessonBatchItemPayload[]
 }
 
-export function fetchStudents(params?: { institutionId?: string | null; campusId?: string | null }) {
+export function fetchStudents(params?: { institutionId?: string | null; campusId?: string | null; keyword?: string | null }) {
   return requestGet<StudentSummary[]>('/education/students', params ?? undefined)
+}
+
+export function createStudent(payload: StudentCreatePayload) {
+  return requestPost<StudentSummary>('/education/students', payload)
+}
+
+export function updateStudent(id: string, payload: StudentUpdatePayload) {
+  return requestPut<StudentSummary>(`/education/students/${id}`, payload)
+}
+
+export function deleteStudent(id: string) {
+  return requestDelete<null>(`/education/students/${id}`)
 }
 
 export function fetchCourseCategories(params?: { institutionId?: string | null }) {
@@ -429,6 +487,10 @@ export function fetchTeachingClasses(params?: {
 
 export function updateTeachingClass(id: string, payload: TeachingClassUpdatePayload) {
   return requestPut<TeachingClassSummary>(`/education/classes/${id}`, payload)
+}
+
+export function createTeachingClass(payload: TeachingClassCreatePayload) {
+  return requestPost<TeachingClassSummary>('/education/classes', payload)
 }
 
 export function fetchEnrollments(params?: {

@@ -22,7 +22,7 @@
     <div class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">机构数</div>
-        <div class="stat-value">{{ institutions.length }}</div>
+        <div class="stat-value">{{ institutionStore.institutions.length }}</div>
         <div class="stat-hint">来自 /api/organizations/institutions</div>
       </article>
       <article class="stat-card">
@@ -45,14 +45,6 @@
     <article class="panel-card education-panel">
       <div class="panel-title">当前范围</div>
       <div class="education-toolbar education-toolbar-compact" v-loading="lookupLoading">
-        <el-select v-model="institutionId" placeholder="选择机构" clearable filterable @change="handleInstitutionChange">
-          <el-option
-            v-for="item in institutions"
-            :key="item.id"
-            :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
         <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="loadTeachers">
           <el-option
             v-for="item in campuses"
@@ -166,15 +158,16 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { createTeacher, fetchTeachers, type TeacherSummary } from '@/api/education'
-import { fetchCampuses, fetchInstitutions, type CampusSummary, type InstitutionSummary } from '@/api/organization'
+import { fetchCampuses, type CampusSummary } from '@/api/organization'
+import { useInstitutionStore } from '@/stores/institution'
 
-const institutions = ref<InstitutionSummary[]>([])
+const institutionStore = useInstitutionStore()
+const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
 const teachers = ref<TeacherSummary[]>([])
 
-const institutionId = ref<string | null>(null)
 const campusId = ref<string | null>(null)
 
 const dialogVisible = ref(false)
@@ -205,8 +198,7 @@ function trimToUndefined(value: string) {
 }
 
 function formatInstitution(id?: string | null) {
-  const target = institutions.value.find((item) => item.id === id)
-  return target ? target.orgName || target.shortName || target.orgCode || `机构 #${id}` : id ? `机构 #${id}` : '未选择'
+  return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')
 }
 
 function formatCampus(id?: string | null) {
@@ -312,11 +304,6 @@ async function loadTeachers() {
   }
 }
 
-async function handleInstitutionChange() {
-  campusId.value = null
-  await loadCampusesAndTeachers()
-}
-
 function openDialog() {
   const contextError = validateContext()
   if (contextError) {
@@ -377,10 +364,7 @@ async function initializePage() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    institutions.value = await fetchInstitutions()
-    if (institutions.value.length > 0) {
-      institutionId.value = institutions.value[0].id
-    }
+    await institutionStore.loadInstitutions()
   } catch (error) {
     pageError.value = toMessage(error, '页面初始化失败')
   } finally {
@@ -388,6 +372,11 @@ async function initializePage() {
   }
   await loadCampusesAndTeachers()
 }
+
+watch(() => institutionStore.currentInstitutionId, async () => {
+  campusId.value = null
+  await loadCampusesAndTeachers()
+})
 
 onMounted(() => {
   initializePage()

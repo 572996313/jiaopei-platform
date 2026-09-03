@@ -53,14 +53,6 @@
     <article class="panel-card education-panel">
       <div class="panel-title">当前范围</div>
       <div class="education-toolbar" v-loading="lookupLoading">
-        <el-select v-model="institutionId" placeholder="选择机构" clearable filterable @change="handleInstitutionChange">
-          <el-option
-            v-for="item in institutions"
-            :key="item.id"
-            :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
         <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="handleCampusChange">
           <el-option
             v-for="item in campuses"
@@ -542,6 +534,7 @@
                 :value="item.id"
               />
             </el-select>
+            <div class="education-form-tip">排课必须关联学期，请先在上方范围栏选择学期。</div>
           </el-form-item>
           <el-form-item label="班级">
             <el-select v-model="form.classId" placeholder="选择班级" filterable>
@@ -884,7 +877,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   checkScheduleConflicts,
@@ -907,6 +900,7 @@ import {
 } from '@/api/education'
 import { fetchClassrooms, fetchTimeSlots, type ClassroomSummary, type TimeSlotSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
+import { useInstitutionStore } from '@/stores/institution'
 
 interface ScheduleReminderItem {
   key: string
@@ -915,7 +909,8 @@ interface ScheduleReminderItem {
   lessonId: string
 }
 
-const { institutions, campuses, terms, classes, loadInstitutions, loadScope } = useEducationScope()
+const institutionStore = useInstitutionStore()
+const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
 const route = useRoute()
 
 interface AttendanceEditorRow extends AttendanceLessonStudent {
@@ -927,7 +922,6 @@ const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
 const timeSlots = ref<TimeSlotSummary[]>([])
 
-const institutionId = ref<string | null>(null)
 const campusId = ref<string | null>(null)
 const termId = ref<string | null>(null)
 const classId = ref<string | null>(null)
@@ -1822,7 +1816,7 @@ async function refreshScopeData() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(institutionId.value, campusId.value, termId.value)
+    await loadScope(campusId.value, termId.value)
     await loadSupportingOptions()
 
     if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
@@ -1831,7 +1825,7 @@ async function refreshScopeData() {
     }
     if (termId.value && !terms.value.some((item) => item.id === termId.value)) {
       termId.value = null
-      await loadScope(institutionId.value, campusId.value, termId.value)
+      await loadScope(campusId.value, termId.value)
     }
     if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
       classId.value = null
@@ -1948,14 +1942,6 @@ async function refreshLessonsAndDay() {
 
 async function refreshAll() {
   await Promise.all([refreshLessons(), refreshDayTimetable(), refreshWeekTimetable(), refreshPendingMakeupLessons()])
-}
-
-async function handleInstitutionChange() {
-  campusId.value = null
-  termId.value = null
-  classId.value = null
-  await refreshScopeData()
-  await refreshAll()
 }
 
 async function handleCampusChange() {
@@ -2361,9 +2347,8 @@ async function initializePage() {
   pageError.value = ''
   try {
     applyRoutePreferences()
-    await loadInstitutions()
-    if (institutions.value.length > 0) {
-      institutionId.value = institutions.value[0].id
+    await institutionStore.loadInstitutions()
+    if (institutionId.value) {
       await refreshScopeData()
     }
     await refreshAll()
@@ -2373,6 +2358,14 @@ async function initializePage() {
     lookupLoading.value = false
   }
 }
+
+watch(() => institutionStore.currentInstitutionId, async () => {
+  campusId.value = null
+  termId.value = null
+  classId.value = null
+  await refreshScopeData()
+  await refreshAll()
+})
 
 onMounted(() => {
   initializePage()

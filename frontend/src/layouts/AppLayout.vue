@@ -46,6 +46,27 @@
           <h1 class="page-title">{{ currentTitle }}</h1>
         </div>
         <div class="header-actions">
+          <div class="header-institution-block">
+            <el-tag v-if="institutionStore.isSingleInstitution" type="info" effect="plain" size="large">
+              {{ institutionStore.currentInstitutionName }}
+            </el-tag>
+            <el-select
+              v-else-if="institutionStore.hasInstitutions"
+              :model-value="institutionStore.currentInstitutionId"
+              placeholder="选择机构"
+              filterable
+              class="header-institution-select"
+              @change="institutionStore.setInstitution($event as string)"
+            >
+              <el-option
+                v-for="item in institutionStore.institutions"
+                :key="item.id"
+                :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
+                :value="item.id"
+              />
+            </el-select>
+            <el-tag v-else type="warning" effect="plain" size="large">未选择机构</el-tag>
+          </div>
           <div class="header-user-block">
             <div class="header-user-name">{{ auth.displayName }}</div>
             <div class="header-user-meta">
@@ -65,13 +86,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useInstitutionStore } from '@/stores/institution'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const institutionStore = useInstitutionStore()
+
+onMounted(() => {
+  institutionStore.loadInstitutions()
+})
 
 interface SidebarDefinition {
   key: string
@@ -198,6 +225,7 @@ function isNavItemActive(item: SidebarDefinition) {
 
 async function handleLogout() {
   await auth.logout()
+  institutionStore.reset()
   router.push('/login')
 }
 </script>
