@@ -23,3 +23,5 @@ Thumbs.db
 .env.*
 /backend/.gitignore
 /.tmp-edge-profile/**
+/.tmp-chrome-schedule-walk/**
+/.kilo/**
