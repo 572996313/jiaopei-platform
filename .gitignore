@@ -25,3 +25,9 @@ Thumbs.db
 /.tmp-edge-profile/**
 /.tmp-chrome-schedule-walk/**
 /.kilo/**
+
+# docker prod secrets & runtime data
+docker/prod.env
+docker/data/
+docker/backups/
+docker/deploy.log

@@ -13,16 +13,17 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=caching_sha2_password
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${MYSQL_BIND:-0.0.0.0}:${MYSQL_PORT:-3306}:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ${MYSQL_DATA_DIR:-/mnt/software/jiaopei/data/mysql}:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
   redis:
     image: redis:7.4-alpine
@@ -30,9 +31,9 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_BIND:-0.0.0.0}:${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - ${REDIS_DATA_DIR:-/mnt/software/jiaopei/data/redis}:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -59,7 +60,7 @@ services:
       REDIS_PORT: 6379
       REDIS_DATABASE: ${REDIS_DATABASE:-0}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      JAVA_OPTS: ${BACKEND_JAVA_OPTS:-}
+      JAVA_TOOL_OPTIONS: ${BACKEND_JAVA_OPTS:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -67,14 +68,12 @@ services:
         condition: service_healthy
     expose:
       - "8080"
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 60s
+      start_period: 90s
 
   frontend:
     build:
@@ -91,11 +90,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-80}:80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
-
-volumes:
-  mysql_data:
-  redis_data:
