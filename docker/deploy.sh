@@ -265,25 +265,15 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 # 如果你的 docker 版本较旧(< 23),需要改成 export DOCKER_BUILDKIT=1 写到 /etc/docker/daemon.json
 log_info "[4/8] 构建并启动服务..."
 # --parallel:                 后端和前端同时构建(总耗时取较慢的那一个)
-# --pull=missing(>= 23.0):   基础镜像(mysql/redis/nginx)本地有就不重拉,首次会拉,之后秒过
-# 不带 --pull(老版本):        Compose 默认行为 —— 基础镜像本地有就用本地,没有才拉
+# 不传 --pull:                Compose 默认行为 —— 基础镜像本地有就用本地 tag,没有才拉
+#                            这同时兼容老版本(< 23.0)的 docker compose,新版本仍然按预期工作
 # backend frontend:           只构建我们自己写的两个镜像,不动 mysql/redis(它们用 image: 直接拉)
 #
-# 检测 Docker 版本,>= 23.0 才使用 --pull=missing
-# 老版本(< 23.0)的 docker compose 不支持 --pull=missing,会报
+# 说明:曾经用 --pull=missing,但 Docker < 23.0 的 compose 不支持该值,会报
 #   "invalid argument \"missing\" for \"--pull\" flag: strconv.ParseBool: parsing \"missing\": invalid syntax"
-DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0.0.0")
-DOCKER_MAJOR=$(echo "${DOCKER_VERSION}" | cut -d. -f1)
-PULL_FLAG=""
-if [ "${DOCKER_MAJOR}" -ge 23 ] 2>/dev/null; then
-    PULL_FLAG="--pull=missing"
-    log_ok "检测到 Docker ${DOCKER_VERSION},使用 ${PULL_FLAG}"
-else
-    log_warn "检测到 Docker ${DOCKER_VERSION}(< 23.0),降级为不带 --pull(Compose 默认行为)"
-fi
-# shellcheck disable=SC2086
+# 改为不传该参数后,所有版本都走默认行为,行为一致。
 docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" \
-    build --parallel ${PULL_FLAG} backend frontend
+    build --parallel backend frontend
 
 docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" up -d
 
