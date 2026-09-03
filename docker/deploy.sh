@@ -68,6 +68,23 @@ cd "${PROJECT_DIR}"
 # ---------- 0. 预检 ----------
 log_info "[0/8] 预检..."
 
+# 0.0 自我保护:检测本地有未提交的 deploy.sh 改动
+# 服务器上 chmod +x 后会触发 "modified" 标记,导致 git pull 失败。
+# 这里把 deploy.sh / prod.env 之类的"部署机器本地"改动 stash 起来,
+# pull 之后再 pop 回来。如果没冲突(通常不会有)就静默恢复。
+if [ -d ".git" ] && [ "${SKIP_PULL}" != "true" ]; then
+    DEPLOY_LOCAL_STASHED=0
+    for LOCAL_FILE in docker/deploy.sh docker/prod.env docker/prod.env.example; do
+        if [ -f "${LOCAL_FILE}" ] && ! git diff --quiet -- "${LOCAL_FILE}" 2>/dev/null; then
+            if [ "${DEPLOY_LOCAL_STASHED}" -eq 0 ]; then
+                log_warn "检测到本地有未提交的部署相关改动,先 stash 起来以免 git pull 失败"
+                git stash push -m "deploy-local-$(date '+%Y%m%d_%H%M%S')" -- docker/deploy.sh docker/prod.env docker/prod.env.example
+                DEPLOY_LOCAL_STASHED=1
+            fi
+        fi
+    done
+fi
+
 # 0.0 项目目录存在性 + 是否为 git 仓库
 if [ ! -d "${PROJECT_DIR}" ]; then
     log_err "项目目录 ${PROJECT_DIR} 不存在,请先创建(例如: sudo mkdir -p ${PROJECT_DIR} && sudo chown \$USER:\$USER ${PROJECT_DIR})"
