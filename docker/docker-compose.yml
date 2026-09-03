@@ -10,7 +10,9 @@ services:
     ports:
       - "3306:3306"
     command:
-      - --default-authentication-plugin=mysql_native_password
+      # MySQL 8.4 已移除 --default-authentication-plugin(8.0 deprecated / 8.4 移除),
+      # 改用 authentication_policy。本地开发兼容老客户端,显式走 mysql_native_password。
+      - --authentication_policy=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     volumes:
