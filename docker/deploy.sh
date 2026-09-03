@@ -106,7 +106,13 @@ if [ ! -d ".git" ]; then
     log_warn "当前目录不是 git 仓库,自动执行 git clone ${REMOTE_URL} ${PROJECT_DIR}"
     # 仅当目录为空时才直接 clone 到当前目录,避免误覆盖已有文件
     if [ -z "$(ls -A "${PROJECT_DIR}" 2>/dev/null)" ]; then
-        git clone "${REMOTE_URL}" "${PROJECT_DIR}"
+        CLONE_URL="${REMOTE_URL}"
+        # 内嵌凭据:把 https://x-access-token:<token>@gitee.com/... 转成 git 可识别的形式
+        if [ -n "${GIT_CREDENTIALS}" ]; then
+            CLONE_URL="${GIT_CREDENTIALS}"
+            log_warn "使用 GIT_CREDENTIALS 克隆(token 不会写入日志)"
+        fi
+        git clone "${CLONE_URL}" "${PROJECT_DIR}"
     else
         log_err "${PROJECT_DIR} 已存在但不是 git 仓库,且目录非空。请手动处理:"
         echo "  - 若想保留现有文件: cd ${PROJECT_DIR} && git init && git remote add origin ${REMOTE_URL} && git pull origin ${BRANCH}"
@@ -142,10 +148,49 @@ fi
 if [ "${SKIP_PULL}" != "true" ]; then
     if ! git remote get-url origin >/dev/null 2>&1; then
         log_warn "未配置 git remote origin,自动添加 ${REMOTE_URL}"
-        git remote add origin "${REMOTE_URL}"
+        ADD_URL="${REMOTE_URL}"
+        if [ -n "${GIT_CREDENTIALS}" ]; then
+            ADD_URL="${GIT_CREDENTIALS}"
+        fi
+        git remote add origin "${ADD_URL}"
+    fi
+    # 凭据切换:如果 origin 已经是公开地址,但配置了凭据,则临时切到含凭据地址进行 fetch/pull
+    NEEDS_AUTH_URL=""
+    if [ -n "${GIT_CREDENTIALS}" ]; then
+        CURRENT_ORIGIN=$(git remote get-url origin)
+        # 如果当前 origin 不含凭据但配置了 GIT_CREDENTIALS,临时切到含凭据地址
+        if [[ "${CURRENT_ORIGIN}" != *"@${REMOTE_URL#*://}"* ]] && [[ "${CURRENT_ORIGIN}" != *"@"* || "${CURRENT_ORIGIN}" != *"gitee"* ]]; then
+            NEEDS_AUTH_URL="${GIT_CREDENTIALS}"
+            log_warn "已为本次操作临时注入 git 凭据(不会持久化到 .git/config)"
+        fi
     fi
     CURRENT_REMOTE=$(git remote get-url origin)
     log_ok "git remote origin = ${CURRENT_REMOTE}"
+
+    # 把临时的 credential helper 装上,只对本次脚本生效
+    # 用 GIT_ASKPASS 把 token 通过环境传给 git,比写 URL 更安全
+    if [ -n "${GIT_CREDENTIALS}" ]; then
+        GIT_ASKPASS_SCRIPT=$(mktemp)
+        cat > "${GIT_ASKPASS_SCRIPT}" <<'ASKPASS_EOF'
+#!/bin/sh
+case "$1" in
+    Username*) echo "x-access-token" ;;
+    Password*) echo "$GIT_CREDENTIALS_TOKEN" ;;
+    *) echo "" ;;
+esac
+ASKPASS_EOF
+        chmod +x "${GIT_ASKPASS_SCRIPT}"
+        # 提取 token 部分(去掉 https://x-access-token: 前缀)
+        export GIT_ASKPASS="${GIT_ASKPASS_SCRIPT}"
+        # 从 GIT_CREDENTIALS 里提取 token(GIT_CREDENTIALS 形如 https://x-access-token:<token>@gitee.com/...)
+        if [[ "${GIT_CREDENTIALS}" == *"x-access-token:"* ]]; then
+            export GIT_CREDENTIALS_TOKEN="${GIT_CREDENTIALS#*x-access-token:}"
+            export GIT_CREDENTIALS_TOKEN="${GIT_CREDENTIALS_TOKEN%%@*}"
+        else
+            export GIT_CREDENTIALS_TOKEN=""
+        fi
+        export GIT_TERMINAL_PROMPT=0
+    fi
 fi
 
 # ---------- 2. 拉取最新代码 ----------
@@ -278,7 +323,7 @@ if [ "${ALL_HEALTHY}" != "true" ]; then
     exit 2
 fi
 
-# ---------- 9. 恢复本地 stash ----------
+# ---------- 9. 恢复本地 stash + 清理临时凭据 ----------
 # 部署完成后再 pop 回来,这样 deploy.sh 的 chmod / 临时改动不会丢。
 # 冲突几乎不会发生(因为我们是在 pull 之后才 pop,deploy.sh 内容只会更新一次)。
 if [ "${DEPLOY_LOCAL_STASHED:-0}" -eq 1 ]; then
@@ -290,3 +335,9 @@ if [ "${DEPLOY_LOCAL_STASHED:-0}" -eq 1 ]; then
         git stash list
     fi
 fi
+
+# 清理临时 askpass 脚本(避免 token 留在 /tmp)
+if [ -n "${GIT_ASKPASS:-}" ] && [ -f "${GIT_ASKPASS}" ]; then
+    rm -f "${GIT_ASKPASS}"
+fi
+unset GIT_ASKPASS GIT_ASKPASS_SCRIPT GIT_CREDENTIALS_TOKEN GIT_TERMINAL_PROMPT 2>/dev/null || true
