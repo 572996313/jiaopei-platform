@@ -266,12 +266,10 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 log_info "[4/8] 构建并启动服务..."
 # --parallel:                 后端和前端同时构建(总耗时取较慢的那一个)
 # 不传 --pull:                Compose 默认行为 —— 基础镜像本地有就用本地 tag,没有才拉
-#                            这同时兼容老版本(< 23.0)的 docker compose,新版本仍然按预期工作
+#                            注意:--pull=missing 在某些 compose 插件版本上会报
+#                              "invalid argument \"missing\" for \"--pull\" flag: strconv.ParseBool..."
+#                            不传该参数后所有版本都按预期走默认行为,行为一致。
 # backend frontend:           只构建我们自己写的两个镜像,不动 mysql/redis(它们用 image: 直接拉)
-#
-# 说明:曾经用 --pull=missing,但 Docker < 23.0 的 compose 不支持该值,会报
-#   "invalid argument \"missing\" for \"--pull\" flag: strconv.ParseBool: parsing \"missing\": invalid syntax"
-# 改为不传该参数后,所有版本都走默认行为,行为一致。
 docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" \
     build --parallel backend frontend
 
