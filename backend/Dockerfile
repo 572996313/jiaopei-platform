@@ -30,7 +30,6 @@ COPY backend/src ./src
 # 第二层:编译(同时缓存 m2 和 target,源码变更只触发这一步)
 # -Dmaven.test.skip=true 同时跳过测试编译(比 -DskipTests 更彻底)
 RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
-    --mount=type=cache,target=/workspace/backend/target,id=jiaopei-target-cache \
     mvn -B -ntp -q -s /root/.m2/settings.xml \
         -Dmaven.test.skip=true \
         -Dmaven.wagon.http.retryHandler.count=5 \
