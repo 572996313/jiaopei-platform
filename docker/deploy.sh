@@ -14,6 +14,11 @@ PROJECT_DIR="/mnt/software/jiaopei"
 COMPOSE_FILE="docker/docker-compose.prod.yml"
 BRANCH="master"
 REMOTE_URL="https://gitee.com/liu-xiaofei001/educational-training-gateway.git"
+# 私有仓库需要凭据时使用 HTTPS 内嵌账号(可选)
+# 留空表示仓库公开,git 直接匿名拉取;填写后脚本会自动注入,无需交互输入
+# 推荐用 Gitee 私人令牌而不是账号密码(账号密码在 Gitee 已不推荐)
+# GIT_CREDENTIALS="https://<your-token>:x-oauth-basic@gitee.com/liu-xiaofei001/educational-training-gateway.git"
+GIT_CREDENTIALS="${GIT_CREDENTIALS:-}"
 BACKUP_DIR="/mnt/software/jiaopei/backups"
 DB_BACKUP_DIR="/mnt/software/jiaopei/backups/db"
 LOG_FILE="/mnt/software/jiaopei/deploy.log"
@@ -271,4 +276,17 @@ echo "========================================"
 # 健康失败时返回非零,便于 CI/外部调度感知
 if [ "${ALL_HEALTHY}" != "true" ]; then
     exit 2
+fi
+
+# ---------- 9. 恢复本地 stash ----------
+# 部署完成后再 pop 回来,这样 deploy.sh 的 chmod / 临时改动不会丢。
+# 冲突几乎不会发生(因为我们是在 pull 之后才 pop,deploy.sh 内容只会更新一次)。
+if [ "${DEPLOY_LOCAL_STASHED:-0}" -eq 1 ]; then
+    log_info "[9/9] 恢复本地暂存的部署改动..."
+    if git stash pop >/dev/null 2>&1; then
+        log_ok "本地改动已恢复"
+    else
+        log_warn "stash pop 有冲突,你的本地改动暂存在 git stash list 里。可手动 git stash pop 解决"
+        git stash list
+    fi
 fi
