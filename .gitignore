@@ -31,3 +31,4 @@ docker/prod.env
 docker/data/
 docker/backups/
 docker/deploy.log
+.claude/settings.local.json
