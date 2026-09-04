@@ -31,6 +31,7 @@ import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
 import com.jiaopei.platform.education.dto.CourseCreateRequest;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
 import com.jiaopei.platform.education.dto.TeacherCreateRequest;
+import com.jiaopei.platform.education.dto.TeacherUpdateRequest;
 import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;
 import com.jiaopei.platform.education.service.ClassTeacherService;
 import com.jiaopei.platform.education.service.ClassTypeService;
@@ -275,6 +276,50 @@ class SecondThirdMainlineApiCompatibilityWebTest {
             .andExpect(jsonPath("$.data.institutionId").value(1))
             .andExpect(jsonPath("$.data.campusId").value(1))
             .andExpect(jsonPath("$.data.phone").value("13800000009"));
+    }
+
+    @Test
+    void updateTeacherAcceptsSnakeCaseFrontendPayload() throws Exception {
+        given(teacherService.updateTeacher(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            TeacherUpdateRequest request = invocation.getArgument(1);
+            TeacherEntity entity = new TeacherEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setCampusId(request.campusId());
+            entity.setTeacherCode(request.teacherCode());
+            entity.setTeacherName(request.teacherName());
+            entity.setPhone(request.phone());
+            return entity;
+        });
+
+        mockMvc.perform(put("/api/education/teachers/401")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "campus_id": "CMP-001",
+                      "teacher_code": "TC-010",
+                      "teacher_name": "李老师",
+                      "mobile": "13800000010",
+                      "employment_type": "兼职",
+                      "status": "active"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(401))
+            .andExpect(jsonPath("$.data.campusId").value(1))
+            .andExpect(jsonPath("$.data.phone").value("13800000010"));
+        verify(teacherService).updateTeacher(401L, any());
+    }
+
+    @Test
+    void deleteTeacherDeletesById() throws Exception {
+        mockMvc.perform(delete("/api/education/teachers/401")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Teacher deleted"));
+        verify(teacherService).deleteTeacher(401L);
     }
 
     @Test

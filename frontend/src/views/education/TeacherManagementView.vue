@@ -11,7 +11,7 @@
 
       <div class="education-hero-actions">
         <el-button @click="refreshAll" :loading="lookupLoading || tableLoading">刷新数据</el-button>
-        <el-button type="primary" @click="openDialog">新增教师</el-button>
+        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
       </div>
     </div>
 
@@ -85,6 +85,12 @@
         </el-table-column>
         <el-table-column prop="hiredAt" label="入职日期" width="140" />
         <el-table-column prop="remark" label="备注" min-width="200" />
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openTeacherDialog('edit', row)">编辑</el-button>
+            <el-button link type="danger" @click="confirmDeleteTeacher(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div v-if="!tableLoading && teachers.length === 0" class="education-empty">
@@ -92,7 +98,7 @@
       </div>
     </article>
 
-    <el-dialog v-model="dialogVisible" title="新增教师" width="560px">
+    <el-dialog v-model="dialogVisible" :title="teacherDialogMode === 'create' ? '新增教师' : '编辑教师'" width="560px">
       <div class="education-dialog-context">
         <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
         <div><strong>校区：</strong>{{ formatCampus(form.campusId || campusId) }}</div>
@@ -150,16 +156,16 @@
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitTeacher">提交教师</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitTeacher">{{ teacherDialogMode === 'create' ? '提交教师' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { createTeacher, fetchTeachers, type TeacherSummary } from '@/api/education'
+import { createTeacher, deleteTeacher, fetchTeachers, updateTeacher, type TeacherSummary } from '@/api/education'
 import { fetchCampuses, type CampusSummary } from '@/api/organization'
 import { useInstitutionStore } from '@/stores/institution'
 
@@ -171,6 +177,8 @@ const teachers = ref<TeacherSummary[]>([])
 const campusId = ref<string | null>(null)
 
 const dialogVisible = ref(false)
+const teacherDialogMode = ref<'create' | 'edit'>('create')
+const editingTeacherId = ref<string | null>(null)
 const pageError = ref('')
 const formError = ref('')
 const lookupLoading = ref(false)
@@ -304,13 +312,28 @@ async function loadTeachers() {
   }
 }
 
-function openDialog() {
+function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
   const contextError = validateContext()
   if (contextError) {
     ElMessage.warning(contextError)
     return
   }
-  resetForm()
+  teacherDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingTeacherId.value = row.id
+    form.teacherCode = row.teacherCode ?? ''
+    form.teacherName = row.teacherName ?? ''
+    form.campusId = row.campusId ?? null
+    form.phone = row.phone ?? ''
+    form.employmentType = row.employmentType ?? 'full_time'
+    form.status = row.status ?? 'active'
+    form.hiredAt = row.hiredAt ?? ''
+    form.remark = row.remark ?? ''
+  } else {
+    editingTeacherId.value = null
+    resetForm()
+  }
+  formError.value = ''
   dialogVisible.value = true
 }
 
@@ -335,24 +358,58 @@ async function submitTeacher() {
   submitting.value = true
   formError.value = ''
   try {
-    await createTeacher({
-      institutionId: institutionId.value,
-      campusId: form.campusId || undefined,
-      teacherCode: form.teacherCode.trim(),
-      teacherName: form.teacherName.trim(),
-      phone: trimToUndefined(form.phone),
-      employmentType: form.employmentType,
-      status: form.status,
-      hiredAt: form.hiredAt || null,
-      remark: trimToUndefined(form.remark),
-    })
-    ElMessage.success('教师已新增')
+    if (teacherDialogMode.value === 'create') {
+      await createTeacher({
+        institutionId: institutionId.value,
+        campusId: form.campusId || undefined,
+        teacherCode: form.teacherCode.trim(),
+        teacherName: form.teacherName.trim(),
+        phone: trimToUndefined(form.phone),
+        employmentType: form.employmentType,
+        status: form.status,
+        hiredAt: form.hiredAt || null,
+        remark: trimToUndefined(form.remark),
+      })
+      ElMessage.success('教师已新增')
+    } else if (editingTeacherId.value) {
+      await updateTeacher(editingTeacherId.value, {
+        campusId: form.campusId || undefined,
+        teacherCode: form.teacherCode.trim(),
+        teacherName: form.teacherName.trim(),
+        phone: trimToUndefined(form.phone),
+        employmentType: form.employmentType,
+        status: form.status,
+        hiredAt: form.hiredAt || null,
+        remark: trimToUndefined(form.remark),
+      })
+      ElMessage.success('教师已更新')
+    }
     dialogVisible.value = false
+    resetForm()
     await loadTeachers()
   } catch (error) {
-    formError.value = toMessage(error, '新增教师失败')
+    formError.value = toMessage(error, teacherDialogMode.value === 'create' ? '新增教师失败' : '更新教师失败')
   } finally {
     submitting.value = false
+  }
+}
+
+async function confirmDeleteTeacher(row: TeacherSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除教师「${row.teacherName || row.teacherCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteTeacher(row.id)
+    ElMessage.success('教师已删除')
+    await loadTeachers()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除教师失败'))
   }
 }
 

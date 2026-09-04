@@ -5,6 +5,7 @@ import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.TeacherEntity;
 import com.jiaopei.platform.education.dto.TeacherCreateRequest;
+import com.jiaopei.platform.education.dto.TeacherUpdateRequest;
 import com.jiaopei.platform.education.mapper.TeacherMapper;
 import com.jiaopei.platform.education.service.TeacherService;
 import com.jiaopei.platform.organization.domain.entity.CampusEntity;
@@ -58,9 +59,9 @@ public class TeacherServiceImpl implements TeacherService {
         String teacherCode = normalize(request.teacherCode());
         String teacherName = normalize(request.teacherName());
         String phone = normalizeToNull(request.phone());
-        assertUniqueTeacherCode(request.institutionId(), teacherCode);
+        assertUniqueTeacherCode(request.institutionId(), teacherCode, null);
         if (phone != null) {
-            assertUniqueTeacherPhone(request.institutionId(), phone);
+            assertUniqueTeacherPhone(request.institutionId(), phone, null);
         }
 
         TeacherEntity entity = new TeacherEntity();
@@ -84,6 +85,62 @@ public class TeacherServiceImpl implements TeacherService {
         return entity;
     }
 
+    @Override
+    public TeacherEntity updateTeacher(Long id, TeacherUpdateRequest request) {
+        TeacherEntity existing = requireTeacher(id);
+        if (request.campusId() != null) {
+            requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
+        }
+        if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt cannot be in the future");
+        }
+
+        if (request.teacherCode() != null && !request.teacherCode().isBlank()) {
+            String teacherCode = normalize(request.teacherCode());
+            if (!Objects.equals(existing.getTeacherCode(), teacherCode)) {
+                assertUniqueTeacherCode(existing.getInstitutionId(), teacherCode, id);
+                existing.setTeacherCode(teacherCode);
+            }
+        }
+        if (request.teacherName() != null && !request.teacherName().isBlank()) {
+            existing.setTeacherName(normalize(request.teacherName()));
+        }
+        if (request.phone() != null && !request.phone().isBlank()) {
+            String phone = normalizeToNull(request.phone());
+            if (!Objects.equals(existing.getPhone(), phone)) {
+                assertUniqueTeacherPhone(existing.getInstitutionId(), phone, id);
+                existing.setPhone(phone);
+            }
+        }
+        existing.setCampusId(request.campusId());
+        existing.setGender(normalizeToNull(request.gender()));
+        existing.setTitle(normalizeToNull(request.title()));
+        existing.setEmploymentType(request.employmentType() == null || request.employmentType().isBlank() ? existing.getEmploymentType() : request.employmentType());
+        existing.setStatus(request.status() == null || request.status().isBlank() ? existing.getStatus() : request.status());
+        existing.setHiredAt(request.hiredAt());
+        existing.setRemark(request.remark());
+        try {
+            teacherMapper.updateById(existing);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher teacherCode or phone already exists in institution: " + existing.getInstitutionId());
+        }
+        return existing;
+    }
+
+    @Override
+    public void deleteTeacher(Long id) {
+        requireTeacher(id);
+        teacherMapper.deleteById(id);
+    }
+
+    private TeacherEntity requireTeacher(Long id) {
+        TeacherEntity entity = teacherMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Teacher does not exist: " + id);
+        }
+        return entity;
+    }
+
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
@@ -100,19 +157,27 @@ public class TeacherServiceImpl implements TeacherService {
         }
     }
 
-    private void assertUniqueTeacherCode(Long institutionId, String teacherCode) {
-        Long count = teacherMapper.selectCount(new LambdaQueryWrapper<TeacherEntity>()
+    private void assertUniqueTeacherCode(Long institutionId, String teacherCode, Long excludeId) {
+        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
             .eq(TeacherEntity::getInstitutionId, institutionId)
-            .eq(TeacherEntity::getTeacherCode, teacherCode));
+            .eq(TeacherEntity::getTeacherCode, teacherCode);
+        if (excludeId != null) {
+            wrapper.ne(TeacherEntity::getId, excludeId);
+        }
+        Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher teacherCode already exists in institution: " + institutionId);
         }
     }
 
-    private void assertUniqueTeacherPhone(Long institutionId, String phone) {
-        Long count = teacherMapper.selectCount(new LambdaQueryWrapper<TeacherEntity>()
+    private void assertUniqueTeacherPhone(Long institutionId, String phone, Long excludeId) {
+        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
             .eq(TeacherEntity::getInstitutionId, institutionId)
-            .eq(TeacherEntity::getPhone, phone));
+            .eq(TeacherEntity::getPhone, phone);
+        if (excludeId != null) {
+            wrapper.ne(TeacherEntity::getId, excludeId);
+        }
+        Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher phone already exists in institution: " + institutionId);
         }

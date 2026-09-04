@@ -282,6 +282,19 @@ export interface TeacherCreatePayload {
   remark?: string
 }
 
+export interface TeacherUpdatePayload {
+  campusId?: string
+  teacherCode?: string
+  teacherName?: string
+  phone?: string
+  gender?: string
+  title?: string
+  employmentType?: string
+  status?: string
+  hiredAt?: string | null
+  remark?: string
+}
+
 export interface CourseCategoryCreatePayload {
   institutionId: string
   categoryCode: string
@@ -475,6 +488,14 @@ export function fetchTeachers(params?: { institutionId?: string | null; campusId
 
 export function createTeacher(payload: TeacherCreatePayload) {
   return requestPost<TeacherSummary>('/education/teachers', payload)
+}
+
+export function updateTeacher(id: string, payload: TeacherUpdatePayload) {
+  return requestPut<TeacherSummary>(`/education/teachers/${id}`, payload)
+}
+
+export function deleteTeacher(id: string) {
+  return requestDelete<null>(`/education/teachers/${id}`)
 }
 
 export function fetchTeachingClasses(params?: {

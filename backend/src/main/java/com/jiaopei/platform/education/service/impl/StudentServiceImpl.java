@@ -130,9 +130,8 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public void deleteStudent(Long id) {
-        StudentEntity existing = requireStudent(id);
-        existing.setDeleted(Boolean.TRUE);
-        studentMapper.updateById(existing);
+        requireStudent(id);
+        studentMapper.deleteById(id);
     }
 
     private StudentEntity requireStudent(Long id) {
