@@ -282,10 +282,41 @@ body {
   min-width: 0;
 }
 
+.resource-grid {
+  display: grid;
+  gap: 18px;
+}
+
+/* min-width:0 阻止面板内 el-table 的固有宽度沿 grid 传导，避免整页被撑出横向滚动 */
+.resource-grid > * {
+  min-width: 0;
+}
+
+.resource-card {
+  display: grid;
+  gap: 16px;
+}
+
+/* min-width:0 阻止 el-table 撑开父容器 */
+.resource-card > * {
+  min-width: 0;
+}
+
+.resource-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .education-toolbar {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+}
+
+.education-toolbar-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .education-context-text {

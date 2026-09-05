@@ -12,6 +12,7 @@ import com.jiaopei.platform.auth.dto.UserView;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.SystemUserService;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
@@ -39,16 +40,19 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
     private final PasswordEncoder passwordEncoder;
+    private final AuthApplicationService authApplicationService;
 
     public SystemUserServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                  UserRoleRelMapper userRoleRelMapper, InstitutionMapper institutionMapper,
-                                 CampusMapper campusMapper, PasswordEncoder passwordEncoder) {
+                                 CampusMapper campusMapper, PasswordEncoder passwordEncoder,
+                                 AuthApplicationService authApplicationService) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
         this.passwordEncoder = passwordEncoder;
+        this.authApplicationService = authApplicationService;
     }
 
     @Override
@@ -94,6 +98,9 @@ public class SystemUserServiceImpl implements SystemUserService {
         UserAccountEntity entity = requireUser(id);
         assertInstitutionExists(request.institutionId());
         assertCampusBelongsToInstitution(request.defaultCampusId(), request.institutionId());
+
+        String oldStatus = entity.getStatus();
+
         entity.setInstitutionId(request.institutionId());
         entity.setDefaultCampusId(request.defaultCampusId());
         entity.setDisplayName(normalize(request.displayName()));
@@ -101,6 +108,11 @@ public class SystemUserServiceImpl implements SystemUserService {
         entity.setStatus(normalize(request.status()));
         entity.setRemark(request.remark());
         userAccountMapper.updateById(entity);
+
+        if (ACTIVE.equals(oldStatus) && !ACTIVE.equals(entity.getStatus())) {
+            authApplicationService.invalidateUserSessions(id);
+        }
+
         return toView(entity);
     }
 
@@ -113,6 +125,9 @@ public class SystemUserServiceImpl implements SystemUserService {
         entity.setForceChangePassword(Boolean.TRUE);
         entity.setPasswordUpdatedAt(null);
         userAccountMapper.updateById(entity);
+
+        authApplicationService.invalidateUserSessions(id);
+
         return new ResetPasswordResponse(entity.getId(), DEFAULT_INITIAL_PASSWORD, Boolean.TRUE);
     }
 

@@ -2,6 +2,7 @@ package com.jiaopei.platform.auth.security;
 
 import com.jiaopei.platform.auth.context.AuthenticatedUser;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
+import com.jiaopei.platform.system.service.SystemConfigService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,9 +25,12 @@ public class StubAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final AuthApplicationService authApplicationService;
+    private final SystemConfigService systemConfigService;
 
-    public StubAuthenticationFilter(AuthApplicationService authApplicationService) {
+    public StubAuthenticationFilter(AuthApplicationService authApplicationService,
+                                    SystemConfigService systemConfigService) {
         this.authApplicationService = authApplicationService;
+        this.systemConfigService = systemConfigService;
     }
 
     @Override
@@ -48,7 +52,12 @@ public class StubAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(user, token, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    if (Boolean.TRUE.equals(user.forceChangePassword()) && !isPasswordChangeAllowed(request)) {
+
+                    Boolean forceChangeEnabled = systemConfigService.getBooleanConfig(
+                        "auth.password.force_change_enabled", true);
+                    if (Boolean.TRUE.equals(forceChangeEnabled)
+                        && Boolean.TRUE.equals(user.forceChangePassword())
+                        && !isPasswordChangeAllowed(request)) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN, "Password change required");
                         return;
                     }

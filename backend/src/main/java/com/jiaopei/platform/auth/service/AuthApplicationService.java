@@ -17,4 +17,6 @@ public interface AuthApplicationService {
     CurrentUserResponse currentUser();
 
     void changePassword(ChangePasswordRequest request);
+
+    void invalidateUserSessions(Long userId);
 }

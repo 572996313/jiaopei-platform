@@ -8,6 +8,7 @@ import com.jiaopei.platform.auth.dto.UserRoleUpdateRequest;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.impl.SystemUserServiceImpl;
 import com.jiaopei.platform.organization.mapper.CampusMapper;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
@@ -39,7 +40,8 @@ class SystemUserServiceImplTest {
             userRoleRelMapper,
             institutionMapper,
             campusMapper,
-            passwordEncoder
+            passwordEncoder,
+            mock(AuthApplicationService.class)
         );
 
         UserAccountEntity user = new UserAccountEntity();

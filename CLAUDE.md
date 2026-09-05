@@ -50,6 +50,25 @@ pnpm preview
 
 新增受保护接口时：路由加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 表中 `organization:read` / `education:write` 这类命名保持一致。
 
+**登录失败排障陷阱**：`GlobalExceptionHandler` 把所有 `AuthenticationException`（含 `BadCredentialsException` 密码错、`DisabledException` 账号禁用等子类）统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`。所以 `/api/auth/login` 密码错和 `/api/auth/me` token 失效返回的**是同一个错误文案**，仅凭响应体无法区分"密码输错了"还是"token/过滤器逻辑坏了"——排查 401 时先用已知正确密码单独打一次 `/api/auth/login` 排除"密码错"这个最常见的可能，再去看过滤器/Redis。本地测试账号：`admin` / `Admin@1234567`（种子数据见 `V7__create_auth_user_role_tables.sql`，`{noop}` 前缀表示 Spring Security 委托编码器按明文比对，不是真正 BCrypt）。
+
+**Token 存储：Redis，非数据库表**。`TokenCacheService`（`auth/service/TokenCacheService.java` + impl）用 `RedisTemplate<String, Object>` 存 `AuthenticatedUser`，key 布局：
+- `jiaopei:token:{token}` → 序列化后的 `AuthenticatedUser`（TTL 由 `auth.token.expire_hours` 系统配置项决定）
+- `jiaopei:user:tokens:{userId}` → 该用户名下的 token 集合，用于 `invalidateUserTokens(userId)` 强制下线（改密/禁用账号后触发）
+
+`RedisConfig` 里的 `ObjectMapper` **必须**用 `activateDefaultTyping(..., ObjectMapper.DefaultTyping.EVERYTHING, ...)`（不能用 `NON_FINAL`）——`AuthenticatedUser` record 里的 `Set<String> roles/permissions` 字段是接口类型，`NON_FINAL` 不会给它们写入 `@class` 类型信息，反序列化时报 `InvalidTypeIdException: missing type id property '@class'`。这个 ObjectMapper 要在 `redisTemplate()` 方法内部单独 new，**不要**做成全局 `@Bean ObjectMapper`，否则会顶掉 Spring MVC 默认的 ObjectMapper 导致接口响应里的 `OffsetDateTime` 等类型序列化报错（缺 JSR310 模块）。
+
+`RedisConfig` 序列化格式变更后，Redis 里旧格式的数据无法被新 ObjectMapper 反序列化（同样报 `missing type id property '@class'`），必须清库：`docker exec <redis容器名> redis-cli FLUSHDB`（容器名以 `docker ps` 实际结果为准，本仓库当前是 `redis` 不带 compose 前缀）。清库后所有已登录用户的 token 失效，前端要重新登录。
+
+**`StubAuthenticationFilter` 认证失败时"吞异常继续放行"是有意为之，不是 bug**：`authenticateToken` 抛出的 `AuthenticationException` 被 catch 后仅 `clearContext()`，然后照常 `filterChain.doFilter()` 往下走，不直接 `sendError`。这是因为该 filter 对**所有**请求生效（包括 `permitAll()` 的公开路径），如果在这里直接返回 401，会导致"带了过期 token 访问公开接口"（例如刷新页面时前端自动带旧 token 打 `/api/health`）被误拦截。真正的鉴权决定交给下游 `SecurityConfig.authorizeHttpRequests`：公开路径即使 `SecurityContext` 是空的也会放行，非公开路径没有认证信息才会 401。**不要**在 catch 块里加 `sendError`/`return` 去"提前拦截"，这只是把本该由 Spring Security 统一做的判断挪到了 filter 里，容易和 `public-paths` 配置产生逻辑重复或冲突。
+
+**系统参数配置表 `sys_system_config`**（`V14__drop_token_table_and_add_system_config.sql` 引入）：把过去写死在代码里的登录/密码策略做成可运行时调整的配置项，通过 `SystemConfigService.getConfigValue/getBooleanConfig/getIntConfig` 读取，`@Cacheable("systemConfig")` 缓存查询结果，写操作 `@CacheEvict` 清缓存。当前用到的 key：
+- `auth.password.force_change_enabled` — 强制改密总开关（`StubAuthenticationFilter` 读取，关闭后忽略用户级 `forceChangePassword` 标记）
+- `auth.password.strength_level` / `min_length` / `max_length` — 密码强度策略（`PasswordValidator` 读取）
+- `auth.token.expire_hours` — Redis token TTL（`AuthApplicationServiceImpl.login()` 读取）
+
+新增系统级可配置项时优先加到这张表，别再写死在 `application.yml`；`SystemConfigServiceImpl` 里系统配置（`is_system=1`）禁止删除，只能改值。
+
 ### 统一响应与全局异常
 
 - 所有 controller 返回值被 `ApiResponseAdvice`（`@ControllerAdvice`）自动包成 `ApiResponse{T}`：`code/success/message/data/timestamp/traceId/path`。controller 里直接返回 data 对象即可，不要手动包 `ApiResponse`（已有分支会跳过重复包装）。`null` 与 `Resource` 不包装。

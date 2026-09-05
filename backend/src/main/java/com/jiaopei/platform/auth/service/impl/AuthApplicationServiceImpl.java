@@ -6,7 +6,6 @@ import com.jiaopei.platform.auth.context.AuthenticatedUser;
 import com.jiaopei.platform.auth.domain.RoleEntity;
 import com.jiaopei.platform.auth.domain.UserAccountEntity;
 import com.jiaopei.platform.auth.domain.UserRoleRelEntity;
-import com.jiaopei.platform.auth.domain.UserTokenEntity;
 import com.jiaopei.platform.auth.dto.ChangePasswordRequest;
 import com.jiaopei.platform.auth.dto.CurrentUserResponse;
 import com.jiaopei.platform.auth.dto.LoginRequest;
@@ -14,17 +13,17 @@ import com.jiaopei.platform.auth.dto.LoginResponse;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
-import com.jiaopei.platform.auth.mapper.UserTokenMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
+import com.jiaopei.platform.auth.service.TokenCacheService;
+import com.jiaopei.platform.system.service.SystemConfigService;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,23 +34,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthApplicationServiceImpl implements AuthApplicationService {
 
     private static final String ACTIVE = "active";
-    private static final int TOKEN_BYTES = 32;
-    private static final long TOKEN_HOURS = 12L;
+    private static final String STUB_TOKEN = "stub-access-token";
 
     private final UserAccountMapper userAccountMapper;
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
-    private final UserTokenMapper userTokenMapper;
+    private final TokenCacheService tokenCacheService;
+    private final SystemConfigService systemConfigService;
     private final PasswordEncoder passwordEncoder;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
-                                      UserRoleRelMapper userRoleRelMapper, UserTokenMapper userTokenMapper,
-                                      PasswordEncoder passwordEncoder) {
+                                      UserRoleRelMapper userRoleRelMapper, TokenCacheService tokenCacheService,
+                                      SystemConfigService systemConfigService, PasswordEncoder passwordEncoder) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
-        this.userTokenMapper = userTokenMapper;
+        this.tokenCacheService = tokenCacheService;
+        this.systemConfigService = systemConfigService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -68,13 +67,17 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         }
 
         RolePermissionSnapshot snapshot = loadRolePermissionSnapshot(user.getId());
-        String accessToken = generateToken();
-        UserTokenEntity token = new UserTokenEntity();
-        token.setUserId(user.getId());
-        token.setAccessToken(accessToken);
-        token.setExpiresAt(LocalDateTime.now().plusHours(TOKEN_HOURS));
-        token.setDeleted(Boolean.FALSE);
-        userTokenMapper.insert(token);
+
+        Integer tokenExpireHours = systemConfigService.getIntConfig("auth.token.expire_hours", 12);
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+            user.getId(),
+            user.getInstitutionId(),
+            user.getUsername(),
+            snapshot.roleCodes(),
+            snapshot.permissionCodes(),
+            Boolean.TRUE.equals(user.getForceChangePassword())
+        );
+        tokenCacheService.storeToken(STUB_TOKEN, authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
 
         user.setLastLoginAt(LocalDateTime.now());
         userAccountMapper.updateById(user);
@@ -87,7 +90,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(snapshot.roleCodes()),
             new ArrayList<>(snapshot.permissionCodes()),
             "Bearer",
-            accessToken,
+            STUB_TOKEN,
             Boolean.TRUE.equals(user.getForceChangePassword())
         );
     }
@@ -98,11 +101,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         if (accessToken == null || accessToken.isBlank()) {
             return;
         }
-        UserTokenEntity token = findToken(accessToken);
-        if (token != null && token.getRevokedAt() == null) {
-            token.setRevokedAt(LocalDateTime.now());
-            userTokenMapper.updateById(token);
-        }
+        tokenCacheService.removeToken(accessToken);
     }
 
     @Override
@@ -110,23 +109,15 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         if (accessToken == null || accessToken.isBlank()) {
             throw new BadCredentialsException("Access token is missing");
         }
-        UserTokenEntity token = findToken(accessToken);
-        if (token == null || token.getRevokedAt() != null || token.getExpiresAt().isBefore(LocalDateTime.now())) {
+        AuthenticatedUser user = tokenCacheService.getUser(accessToken);
+        if (user == null) {
             throw new BadCredentialsException("Access token is invalid or expired");
         }
-        UserAccountEntity user = requireUser(token.getUserId());
-        if (!ACTIVE.equalsIgnoreCase(user.getStatus())) {
+        UserAccountEntity userAccount = requireUser(user.userId());
+        if (!ACTIVE.equalsIgnoreCase(userAccount.getStatus())) {
             throw new DisabledException("User account is disabled");
         }
-        RolePermissionSnapshot snapshot = loadRolePermissionSnapshot(user.getId());
-        return new AuthenticatedUser(
-            user.getId(),
-            user.getInstitutionId(),
-            user.getUsername(),
-            snapshot.roleCodes(),
-            snapshot.permissionCodes(),
-            Boolean.TRUE.equals(user.getForceChangePassword())
-        );
+        return user;
     }
 
     @Override
@@ -176,9 +167,8 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         return user;
     }
 
-    private UserTokenEntity findToken(String accessToken) {
-        return userTokenMapper.selectOne(new LambdaQueryWrapper<UserTokenEntity>()
-            .eq(UserTokenEntity::getAccessToken, accessToken));
+    public void invalidateUserSessions(Long userId) {
+        tokenCacheService.invalidateUserTokens(userId);
     }
 
     private RolePermissionSnapshot loadRolePermissionSnapshot(Long userId) {
@@ -212,12 +202,6 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             .filter(value -> !value.isBlank())
             .distinct()
             .toList();
-    }
-
-    private String generateToken() {
-        byte[] bytes = new byte[TOKEN_BYTES];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String normalize(String value) {

@@ -7,9 +7,10 @@ import com.jiaopei.platform.auth.dto.ChangePasswordRequest;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
-import com.jiaopei.platform.auth.mapper.UserTokenMapper;
+import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.auth.service.impl.AuthApplicationServiceImpl;
 import com.jiaopei.platform.common.exception.BusinessException;
+import com.jiaopei.platform.system.service.SystemConfigService;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,8 @@ class AuthApplicationServiceImplTest {
         userAccountMapper,
         mock(RoleMapper.class),
         mock(UserRoleRelMapper.class),
-        mock(UserTokenMapper.class),
+        mock(TokenCacheService.class),
+        mock(SystemConfigService.class),
         passwordEncoder
     );
 

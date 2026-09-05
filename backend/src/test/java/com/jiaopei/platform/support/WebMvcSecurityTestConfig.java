@@ -12,6 +12,7 @@ import com.jiaopei.platform.system.dto.MenuUpdateRequest;
 import com.jiaopei.platform.system.dto.MenuView;
 import com.jiaopei.platform.system.dto.RoleMenuUpdateRequest;
 import com.jiaopei.platform.system.service.SystemMenuService;
+import com.jiaopei.platform.system.service.SystemConfigService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -71,6 +72,10 @@ public class WebMvcSecurityTestConfig {
 
             @Override
             public void changePassword(ChangePasswordRequest request) {
+            }
+
+            @Override
+            public void invalidateUserSessions(Long userId) {
             }
 
             private AuthenticatedUser stubUser() {
@@ -135,6 +140,56 @@ public class WebMvcSecurityTestConfig {
             @Override
             public List<MenuView> currentUserMenus() {
                 return List.of();
+            }
+        };
+    }
+
+    @Bean
+    public SystemConfigService systemConfigService() {
+        return new SystemConfigService() {
+            @Override
+            public List<com.jiaopei.platform.system.dto.SystemConfigView> listConfigs() {
+                return List.of();
+            }
+
+            @Override
+            public com.jiaopei.platform.system.dto.SystemConfigView getConfig(Long id) {
+                return null;
+            }
+
+            @Override
+            public String getConfigValue(String key, String defaultValue) {
+                if ("auth.password.force_change_enabled".equals(key)) {
+                    return "false";
+                }
+                return defaultValue;
+            }
+
+            @Override
+            public Boolean getBooleanConfig(String key, Boolean defaultValue) {
+                if ("auth.password.force_change_enabled".equals(key)) {
+                    return false;
+                }
+                return defaultValue;
+            }
+
+            @Override
+            public Integer getIntConfig(String key, Integer defaultValue) {
+                return defaultValue;
+            }
+
+            @Override
+            public com.jiaopei.platform.system.dto.SystemConfigView createConfig(com.jiaopei.platform.system.dto.SystemConfigCreateRequest request) {
+                return null;
+            }
+
+            @Override
+            public com.jiaopei.platform.system.dto.SystemConfigView updateConfig(Long id, com.jiaopei.platform.system.dto.SystemConfigUpdateRequest request) {
+                return null;
+            }
+
+            @Override
+            public void deleteConfig(Long id) {
             }
         };
     }
