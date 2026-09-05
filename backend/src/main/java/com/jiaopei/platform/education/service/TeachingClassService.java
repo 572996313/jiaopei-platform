@@ -11,4 +11,6 @@ public interface TeachingClassService {
     TeachingClassEntity createClass(TeachingClassCreateRequest request);
 
     TeachingClassEntity updateClass(Long id, TeachingClassCreateRequest request);
+
+    void deleteClass(Long id);
 }

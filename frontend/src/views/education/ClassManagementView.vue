@@ -87,7 +87,10 @@
               当前班级：{{ formatClass(classId) }} / 课程：{{ formatCourse(currentClass?.courseId) }} / 班型：{{ formatClassType(currentClass?.classTypeId) }}
             </div>
           </div>
-          <el-button link type="primary" :disabled="!currentClass" @click="openClassProfileDialog">正式维护</el-button>
+          <div class="table-actions">
+            <el-button link type="primary" :disabled="!currentClass" @click="openClassProfileDialog">编辑</el-button>
+            <el-button link type="danger" :disabled="!currentClass" @click="confirmDeleteClass">删除</el-button>
+          </div>
         </div>
 
         <div v-if="!currentClass" class="education-empty">
@@ -463,7 +466,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="classProfileDialogVisible" title="班级正式维护" width="560px">
+    <el-dialog v-model="classProfileDialogVisible" title="编辑班级" width="560px">
       <div class="education-dialog-context">
         <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
@@ -480,6 +483,22 @@
       />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="班级编码" required>
+          <el-input v-model="classProfileForm.classCode" placeholder="例如 2026S-MATH-A1" />
+        </el-form-item>
+        <el-form-item label="班级名称" required>
+          <el-input v-model="classProfileForm.className" placeholder="例如 周六上午数学A1班" />
+        </el-form-item>
+        <el-form-item label="学期（可选）">
+          <el-select v-model="classProfileForm.termId" clearable filterable placeholder="选择学期">
+            <el-option
+              v-for="item in terms"
+              :key="item.id"
+              :label="item.termName || item.termCode || `学期 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="课程">
           <el-select v-model="classProfileForm.courseId" clearable placeholder="选择课程">
             <el-option
@@ -518,7 +537,7 @@
 
       <template #footer>
         <el-button @click="classProfileDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classProfileSubmitting" @click="submitClassProfileUpdate">保存主档</el-button>
+        <el-button type="primary" :loading="classProfileSubmitting" @click="submitClassProfileUpdate">保存修改</el-button>
       </template>
     </el-dialog>
 
@@ -680,6 +699,7 @@ import {
   createTeachingClass,
   deleteClassTeacher,
   deleteStudentParent,
+  deleteTeachingClass,
   fetchClassStudents,
   fetchClassTeachers,
   fetchClassTypes,
@@ -785,6 +805,9 @@ const teacherForm = reactive({
 })
 
 const classProfileForm = reactive({
+  classCode: '',
+  className: '',
+  termId: '',
   courseId: '',
   classTypeId: '',
   capacityLimit: 0,
@@ -1176,11 +1199,14 @@ function resetTeacherForm() {
 }
 
 function resetClassProfileForm(target?: TeachingClassSummary | null) {
-  classProfileForm.courseId = target?.courseId || ''
-  classProfileForm.classTypeId = target?.classTypeId || ''
+  classProfileForm.classCode = target?.classCode ?? ''
+  classProfileForm.className = target?.className ?? ''
+  classProfileForm.termId = target?.termId ?? ''
+  classProfileForm.courseId = target?.courseId ?? ''
+  classProfileForm.classTypeId = target?.classTypeId ?? ''
   classProfileForm.capacityLimit = target?.capacityLimit ?? 0
-  classProfileForm.status = target?.status || 'planning'
-  classProfileForm.remark = target?.remark || ''
+  classProfileForm.status = target?.status ?? 'planning'
+  classProfileForm.remark = target?.remark ?? ''
   classProfileFormError.value = ''
 }
 
@@ -1262,6 +1288,33 @@ async function submitClassCreate() {
   }
 }
 
+async function confirmDeleteClass() {
+  const current = currentClass.value
+  if (!current) {
+    ElMessage.warning('请先选择班级')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定删除班级「${current.className || current.classCode || current.id}」吗？若班级仍有在班学员，删除会被拒绝。`,
+      '删除班级',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await deleteTeachingClass(current.id)
+    ElMessage.success('班级已删除')
+    classId.value = null
+    await refreshScopeData()
+    await loadRecords()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除班级失败'))
+  }
+}
+
 function resetParentForm() {
   parentForm.parentName = ''
   parentForm.relationType = 'mother'
@@ -1293,11 +1346,11 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
   return {
     institutionId: target.institutionId || (institutionId.value as string),
     campusId: target.campusId || (campusId.value as string),
-    termId: target.termId || null,
+    termId: classProfileForm.termId || null,
     courseId: classProfileForm.courseId || null,
     classTypeId: classProfileForm.classTypeId || null,
-    classCode: target.classCode || '',
-    className: target.className || '',
+    classCode: classProfileForm.classCode.trim(),
+    className: classProfileForm.className.trim(),
     teacherId: target.teacherId || null,
     capacityLimit: Number.isFinite(classProfileForm.capacityLimit) ? classProfileForm.capacityLimit : 0,
     currentStudents: target.currentStudents ?? activeClassStudentCount.value,
@@ -1612,6 +1665,14 @@ async function submitClassProfileUpdate() {
   }
   if (!currentClass.value.institutionId || !currentClass.value.campusId) {
     classProfileFormError.value = '当前班级缺少机构或校区信息，暂无法更新'
+    return
+  }
+  if (!trimToUndefined(classProfileForm.classCode)) {
+    classProfileFormError.value = '请填写班级编码'
+    return
+  }
+  if (!trimToUndefined(classProfileForm.className)) {
+    classProfileFormError.value = '请填写班级名称'
     return
   }
   if ((currentClass.value.currentStudents ?? activeClassStudentCount.value) > classProfileForm.capacityLimit) {

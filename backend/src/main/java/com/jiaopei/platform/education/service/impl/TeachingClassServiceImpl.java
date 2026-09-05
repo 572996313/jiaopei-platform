@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.ClassTypeEntity;
+import com.jiaopei.platform.education.domain.entity.ClassStudentEntity;
 import com.jiaopei.platform.education.domain.entity.CourseEntity;
 import com.jiaopei.platform.education.domain.entity.TeacherEntity;
 import com.jiaopei.platform.education.domain.entity.TeachingClassEntity;
 import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;
+import com.jiaopei.platform.education.mapper.ClassStudentMapper;
 import com.jiaopei.platform.education.mapper.ClassTypeMapper;
 import com.jiaopei.platform.education.mapper.CourseMapper;
 import com.jiaopei.platform.education.mapper.TeacherMapper;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TeachingClassServiceImpl implements TeachingClassService {
@@ -34,11 +37,13 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     private final TeacherMapper teacherMapper;
     private final CourseMapper courseMapper;
     private final ClassTypeMapper classTypeMapper;
+    private final ClassStudentMapper classStudentMapper;
     private final ClassChangeNoticeService classChangeNoticeService;
 
     public TeachingClassServiceImpl(TeachingClassMapper teachingClassMapper, InstitutionMapper institutionMapper,
                                     CampusMapper campusMapper, TermMapper termMapper, TeacherMapper teacherMapper,
                                     CourseMapper courseMapper, ClassTypeMapper classTypeMapper,
+                                    ClassStudentMapper classStudentMapper,
                                     ClassChangeNoticeService classChangeNoticeService) {
         this.teachingClassMapper = teachingClassMapper;
         this.institutionMapper = institutionMapper;
@@ -47,6 +52,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         this.teacherMapper = teacherMapper;
         this.courseMapper = courseMapper;
         this.classTypeMapper = classTypeMapper;
+        this.classStudentMapper = classStudentMapper;
         this.classChangeNoticeService = classChangeNoticeService;
     }
 
@@ -142,6 +148,20 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         classChangeNoticeService.syncClassNotices(existing.getInstitutionId(), existing.getId());
         return existing;
+    }
+
+    @Override
+    @Transactional
+    public void deleteClass(Long id) {
+        TeachingClassEntity existing = requireClass(id);
+        Long activeStudents = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
+            .eq(ClassStudentEntity::getClassId, id)
+            .eq(ClassStudentEntity::getStatus, "active"));
+        if (activeStudents != null && activeStudents > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "Class still has active students: " + existing.getId() + ", please remove class students first");
+        }
+        teachingClassMapper.deleteById(id);
     }
 
     private void validateRequest(TeachingClassCreateRequest request) {

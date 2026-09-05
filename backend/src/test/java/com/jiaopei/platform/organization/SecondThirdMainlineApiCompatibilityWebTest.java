@@ -559,6 +559,15 @@ class SecondThirdMainlineApiCompatibilityWebTest {
     }
 
     @Test
+    void deleteClassDeletesById() throws Exception {
+        mockMvc.perform(delete("/api/education/classes/210")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Class deleted"));
+        verify(teachingClassService).deleteClass(210L);
+    }
+
+    @Test
     void createClassAcceptsSnakeCasePayloadWithoutCapacityLimit() throws Exception {
         given(teachingClassService.createClass(any())).willAnswer(invocation -> {
             TeachingClassCreateRequest request = invocation.getArgument(0);

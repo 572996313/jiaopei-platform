@@ -9,6 +9,7 @@ import com.jiaopei.platform.education.service.TeachingClassService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +53,12 @@ public class TeachingClassController {
     public ApiResponse<TeachingClassEntity> update(@PathVariable Long id,
                                                    @Valid @RequestBody TeachingClassCreateRequest request) {
         return ApiResponse.success("Class updated", teachingClassService.updateClass(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        teachingClassService.deleteClass(id);
+        return ApiResponse.success("Class deleted", null);
     }
 }

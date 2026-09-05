@@ -562,6 +562,10 @@ export function updateTeachingClass(id: string, payload: TeachingClassUpdatePayl
   return requestPut<TeachingClassSummary>(`/education/classes/${id}`, payload)
 }
 
+export function deleteTeachingClass(id: string) {
+  return requestDelete<null>(`/education/classes/${id}`)
+}
+
 export function createTeachingClass(payload: TeachingClassCreatePayload) {
   return requestPost<TeachingClassSummary>('/education/classes', payload)
 }

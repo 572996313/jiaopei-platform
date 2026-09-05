@@ -18,6 +18,7 @@ import com.jiaopei.platform.education.dto.StudentCreateRequest;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
 import com.jiaopei.platform.education.dto.TeacherCreateRequest;
 import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;
+import com.jiaopei.platform.education.mapper.ClassStudentMapper;
 import com.jiaopei.platform.education.mapper.ClassTeacherMapper;
 import com.jiaopei.platform.education.mapper.ClassTypeMapper;
 import com.jiaopei.platform.education.mapper.ClassChangeNoticeMapper;
@@ -51,6 +52,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -69,6 +71,9 @@ class EducationThirdMainlineValidationTest {
 
     @Mock
     private TeachingClassMapper teachingClassMapper;
+
+    @Mock
+    private ClassStudentMapper classStudentMapper;
 
     @Mock
     private CourseCategoryMapper courseCategoryMapper;
@@ -142,6 +147,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
@@ -162,6 +168,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
@@ -218,6 +225,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
@@ -242,6 +250,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         TeachingClassEntity existing = teachingClass(30, 10);
@@ -420,6 +429,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
@@ -446,6 +456,7 @@ class EducationThirdMainlineValidationTest {
             teacherMapper,
             courseMapper,
             classTypeMapper,
+            classStudentMapper,
             classChangeNoticeService
         );
         TeachingClassEntity existing = teachingClass(30, 18);
@@ -494,6 +505,49 @@ class EducationThirdMainlineValidationTest {
         assertEquals(24, updated.getCapacityLimit());
         verify(teachingClassMapper).updateById(existing);
         verify(classChangeNoticeService).syncClassNotices(1L, 20L);
+    }
+
+    @Test
+    void deleteClassRejectsWhenClassHasActiveStudents() {
+        TeachingClassServiceImpl service = new TeachingClassServiceImpl(
+            teachingClassMapper,
+            institutionMapper,
+            campusMapper,
+            termMapper,
+            teacherMapper,
+            courseMapper,
+            classTypeMapper,
+            classStudentMapper,
+            classChangeNoticeService
+        );
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 12));
+        when(classStudentMapper.selectCount(any())).thenReturn(3L);
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.deleteClass(20L));
+
+        verify(teachingClassMapper, never()).deleteById(any(Long.class));
+        assertTrue(exception.getMessage().contains("active students"));
+    }
+
+    @Test
+    void deleteClassRemovesByIdWhenNoActiveStudents() {
+        TeachingClassServiceImpl service = new TeachingClassServiceImpl(
+            teachingClassMapper,
+            institutionMapper,
+            campusMapper,
+            termMapper,
+            teacherMapper,
+            courseMapper,
+            classTypeMapper,
+            classStudentMapper,
+            classChangeNoticeService
+        );
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
+        when(classStudentMapper.selectCount(any())).thenReturn(0L);
+
+        service.deleteClass(20L);
+
+        verify(teachingClassMapper).deleteById(20L);
     }
 
     @Test
