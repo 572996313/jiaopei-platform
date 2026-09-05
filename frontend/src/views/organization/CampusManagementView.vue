@@ -11,7 +11,7 @@
 
       <div class="campus-hero-actions">
         <el-button @click="refreshAll" :loading="lookupLoading">刷新资源</el-button>
-        <el-button type="primary" @click="openCampusDialog">新增校区</el-button>
+        <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
       </div>
     </div>
 
@@ -65,7 +65,7 @@
             <div class="panel-title">校区列表</div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
-          <el-button type="primary" @click="openCampusDialog">新增校区</el-button>
+          <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
         </div>
         <el-table :data="campuses" border>
           <el-table-column prop="campusCode" label="校区编码" width="150" />
@@ -81,6 +81,12 @@
               <el-tag :type="statusTagType(row.status)">{{ campusStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openCampusDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteCampus(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -90,7 +96,7 @@
             <div class="panel-title">教室列表</div>
             <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
           </div>
-          <el-button type="primary" @click="openClassroomDialog">新增教室</el-button>
+          <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
         </div>
         <el-table :data="classrooms" border>
           <el-table-column prop="classroomCode" label="教室编码" width="150" />
@@ -106,6 +112,12 @@
           <el-table-column label="可排课" width="100">
             <template #default="{ row }">{{ row.allowScheduling ? '是' : '否' }}</template>
           </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openClassroomDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteClassroom(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -115,7 +127,7 @@
             <div class="panel-title">学期列表</div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
-          <el-button type="primary" @click="openTermDialog">新增学期</el-button>
+          <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
         </div>
         <el-table :data="terms" border>
           <el-table-column prop="termCode" label="学期编码" width="150" />
@@ -130,6 +142,12 @@
               <el-tag :type="statusTagType(row.status)">{{ termStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openTermDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteTerm(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -139,7 +157,7 @@
             <div class="panel-title">时间段列表</div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
-          <el-button type="primary" @click="openTimeSlotDialog">新增时间段</el-button>
+          <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
         </div>
         <el-table :data="timeSlots" border>
           <el-table-column prop="slotCode" label="时间段编码" width="150" />
@@ -157,6 +175,12 @@
               <el-tag :type="statusTagType(row.status)">{{ timeSlotStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openTimeSlotDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteTimeSlot(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -166,7 +190,7 @@
             <div class="panel-title">课程分类</div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
-          <el-button type="primary" @click="openCourseCategoryDialog">新增分类</el-button>
+          <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
         </div>
         <el-table :data="courseCategories" border>
           <el-table-column prop="categoryCode" label="分类编码" width="150" />
@@ -174,6 +198,12 @@
           <el-table-column prop="status" label="状态" width="120" />
           <el-table-column prop="sortOrder" label="排序" width="100" />
           <el-table-column prop="remark" label="备注" min-width="180" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteCourseCategory(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -183,7 +213,7 @@
             <div class="panel-title">课程列表</div>
             <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
           </div>
-          <el-button type="primary" @click="openCourseDialog">新增课程</el-button>
+          <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
         </div>
         <el-table :data="courses" border>
           <el-table-column prop="courseCode" label="课程编码" width="150" />
@@ -196,6 +226,12 @@
           <el-table-column prop="subjectName" label="学科" width="120" />
           <el-table-column prop="teachingMethod" label="授课方式" width="160" />
           <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openCourseDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteCourse(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
 
@@ -205,7 +241,7 @@
             <div class="panel-title">班型列表</div>
             <div class="education-context-text">后续用于成班规则和班级主档承接</div>
           </div>
-          <el-button type="primary" @click="openClassTypeDialog">新增班型</el-button>
+          <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
         </div>
         <el-table :data="classTypes" border>
           <el-table-column prop="typeCode" label="班型编码" width="150" />
@@ -214,6 +250,12 @@
           <el-table-column prop="minStudents" label="最少人数" width="100" />
           <el-table-column prop="maxStudents" label="最多人数" width="100" />
           <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openClassTypeDialog('edit', row)">编辑</el-button>
+              <el-button link type="danger" @click="confirmDeleteClassType(row)">删除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </article>
     </div>
@@ -245,7 +287,7 @@
       </div>
     </article>
 
-    <el-dialog v-model="campusDialogVisible" title="新增校区" width="560px">
+    <el-dialog v-model="campusDialogVisible" :title="campusDialogMode === 'create' ? '新增校区' : '编辑校区'" width="560px">
       <el-alert v-if="campusFormError" :title="campusFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="校区编码"><el-input v-model="campusForm.campusCode" /></el-form-item>
@@ -271,11 +313,11 @@
       </el-form>
       <template #footer>
         <el-button @click="campusDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="campusSubmitting" @click="submitCampus">提交校区</el-button>
+        <el-button type="primary" :loading="campusSubmitting" @click="submitCampus">{{ campusDialogMode === 'create' ? '提交校区' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="classroomDialogVisible" title="新增教室" width="560px">
+    <el-dialog v-model="classroomDialogVisible" :title="classroomDialogMode === 'create' ? '新增教室' : '编辑教室'" width="560px">
       <el-alert v-if="classroomFormError" :title="classroomFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="归属校区">
@@ -303,11 +345,11 @@
       </el-form>
       <template #footer>
         <el-button @click="classroomDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classroomSubmitting" @click="submitClassroom">提交教室</el-button>
+        <el-button type="primary" :loading="classroomSubmitting" @click="submitClassroom">{{ classroomDialogMode === 'create' ? '提交教室' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="termDialogVisible" title="新增学期" width="560px">
+    <el-dialog v-model="termDialogVisible" :title="termDialogMode === 'create' ? '新增学期' : '编辑学期'" width="560px">
       <el-alert v-if="termFormError" :title="termFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="学期编码"><el-input v-model="termForm.termCode" /></el-form-item>
@@ -330,11 +372,11 @@
       </el-form>
       <template #footer>
         <el-button @click="termDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="termSubmitting" @click="submitTerm">提交学期</el-button>
+        <el-button type="primary" :loading="termSubmitting" @click="submitTerm">{{ termDialogMode === 'create' ? '提交学期' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="timeSlotDialogVisible" title="新增时间段" width="560px">
+    <el-dialog v-model="timeSlotDialogVisible" :title="timeSlotDialogMode === 'create' ? '新增时间段' : '编辑时间段'" width="560px">
       <el-alert v-if="timeSlotFormError" :title="timeSlotFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="适用校区">
@@ -366,11 +408,11 @@
       </el-form>
       <template #footer>
         <el-button @click="timeSlotDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">提交时间段</el-button>
+        <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">{{ timeSlotDialogMode === 'create' ? '提交时间段' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="courseCategoryDialogVisible" title="新增课程分类" width="560px">
+    <el-dialog v-model="courseCategoryDialogVisible" :title="courseCategoryDialogMode === 'create' ? '新增课程分类' : '编辑课程分类'" width="560px">
       <el-alert v-if="courseCategoryFormError" :title="courseCategoryFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="分类编码"><el-input v-model="courseCategoryForm.categoryCode" /></el-form-item>
@@ -386,11 +428,11 @@
       </el-form>
       <template #footer>
         <el-button @click="courseCategoryDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="courseCategorySubmitting" @click="submitCourseCategory">提交分类</el-button>
+        <el-button type="primary" :loading="courseCategorySubmitting" @click="submitCourseCategory">{{ courseCategoryDialogMode === 'create' ? '提交分类' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="courseDialogVisible" title="新增课程" width="560px">
+    <el-dialog v-model="courseDialogVisible" :title="courseDialogMode === 'create' ? '新增课程' : '编辑课程'" width="560px">
       <el-alert v-if="courseFormError" :title="courseFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="课程分类">
@@ -412,11 +454,11 @@
       </el-form>
       <template #footer>
         <el-button @click="courseDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="courseSubmitting" @click="submitCourse">提交课程</el-button>
+        <el-button type="primary" :loading="courseSubmitting" @click="submitCourse">{{ courseDialogMode === 'create' ? '提交课程' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="classTypeDialogVisible" title="新增班型" width="560px">
+    <el-dialog v-model="classTypeDialogVisible" :title="classTypeDialogMode === 'create' ? '新增班型' : '编辑班型'" width="560px">
       <el-alert v-if="classTypeFormError" :title="classTypeFormError" type="error" show-icon :closable="false" class="education-alert" />
       <el-form label-position="top" class="education-form">
         <el-form-item label="班型编码"><el-input v-model="classTypeForm.typeCode" /></el-form-item>
@@ -434,22 +476,28 @@
       </el-form>
       <template #footer>
         <el-button @click="classTypeDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">提交班型</el-button>
+        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">{{ classTypeDialogMode === 'create' ? '提交班型' : '保存修改' }}</el-button>
       </template>
     </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createClassType,
   createCourse,
   createCourseCategory,
+  deleteClassType,
+  deleteCourse,
+  deleteCourseCategory,
   fetchClassTypes,
   fetchCourses,
   fetchCourseCategories,
+  updateClassType,
+  updateCourse,
+  updateCourseCategory,
   type ClassTypeRecord,
   type CourseCategoryRecord,
   type CourseRecord,
@@ -459,11 +507,19 @@ import {
   createClassroom,
   createTerm,
   createTimeSlot,
+  deleteCampus,
+  deleteClassroom,
+  deleteTerm,
+  deleteTimeSlot,
   fetchCampuses,
   fetchClassrooms,
   fetchTerms,
   fetchTimeSlots,
   getOrganizationSchema,
+  updateCampus,
+  updateClassroom,
+  updateTerm,
+  updateTimeSlot,
   type CampusSummary,
   type ClassroomSummary,
   type TermSummary,
@@ -496,6 +552,22 @@ const timeSlotDialogVisible = ref(false)
 const courseCategoryDialogVisible = ref(false)
 const courseDialogVisible = ref(false)
 const classTypeDialogVisible = ref(false)
+
+const campusDialogMode = ref<'create' | 'edit'>('create')
+const classroomDialogMode = ref<'create' | 'edit'>('create')
+const termDialogMode = ref<'create' | 'edit'>('create')
+const timeSlotDialogMode = ref<'create' | 'edit'>('create')
+const courseCategoryDialogMode = ref<'create' | 'edit'>('create')
+const courseDialogMode = ref<'create' | 'edit'>('create')
+const classTypeDialogMode = ref<'create' | 'edit'>('create')
+
+const editingCampusId = ref<string | null>(null)
+const editingClassroomId = ref<string | null>(null)
+const editingTermId = ref<string | null>(null)
+const editingTimeSlotId = ref<string | null>(null)
+const editingCourseCategoryId = ref<string | null>(null)
+const editingCourseId = ref<string | null>(null)
+const editingClassTypeId = ref<string | null>(null)
 
 const campusSubmitting = ref(false)
 const classroomSubmitting = ref(false)
@@ -841,66 +913,164 @@ async function loadResources() {
   }
 }
 
-function openCampusDialog() {
+function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetCampusForm()
+  campusDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingCampusId.value = row.id
+    campusForm.campusCode = row.campusCode ?? ''
+    campusForm.campusName = row.campusName ?? ''
+    campusForm.campusType = row.campusType ?? 'direct'
+    campusForm.principalName = row.principalName ?? ''
+    campusForm.phone = row.phone ?? ''
+    campusForm.address = row.address ?? ''
+    campusForm.capacityLimit = row.capacityLimit ?? 100
+    campusForm.status = row.status ?? 'planning'
+  } else {
+    editingCampusId.value = null
+    resetCampusForm()
+  }
+  campusFormError.value = ''
   campusDialogVisible.value = true
 }
 
-function openClassroomDialog() {
+function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
   if (!campusId.value) {
     ElMessage.warning('请先选择校区')
     return
   }
-  resetClassroomForm()
+  classroomDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingClassroomId.value = row.id
+    classroomForm.campusId = row.campusId ?? campusId.value
+    classroomForm.classroomCode = row.classroomCode ?? ''
+    classroomForm.classroomName = row.classroomName ?? ''
+    classroomForm.roomType = row.roomType ?? 'normal'
+    classroomForm.floorNo = row.floorNo ?? ''
+    classroomForm.seatCapacity = row.seatCapacity ?? 20
+    classroomForm.status = row.status ?? 'idle'
+  } else {
+    editingClassroomId.value = null
+    resetClassroomForm()
+  }
+  classroomFormError.value = ''
   classroomDialogVisible.value = true
 }
 
-function openTermDialog() {
+function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetTermForm()
+  termDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingTermId.value = row.id
+    termForm.termCode = row.termCode ?? ''
+    termForm.termName = row.termName ?? ''
+    termForm.academicYear = row.academicYear ?? ''
+    termForm.season = row.season ?? 'autumn'
+    termForm.startDate = row.startDate ?? ''
+    termForm.endDate = row.endDate ?? ''
+    termForm.status = row.status ?? 'draft'
+  } else {
+    editingTermId.value = null
+    resetTermForm()
+  }
+  termFormError.value = ''
   termDialogVisible.value = true
 }
 
-function openTimeSlotDialog() {
+function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetTimeSlotForm()
+  timeSlotDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingTimeSlotId.value = row.id
+    timeSlotForm.campusId = row.campusId ?? null
+    timeSlotForm.slotCode = row.slotCode ?? ''
+    timeSlotForm.slotName = row.slotName ?? ''
+    timeSlotForm.weekday = row.weekday ?? 1
+    timeSlotForm.startTime = row.startTime ?? '08:00:00'
+    timeSlotForm.endTime = row.endTime ?? '09:30:00'
+    timeSlotForm.durationMinutes = row.durationMinutes ?? 90
+    timeSlotForm.status = row.status ?? 'active'
+  } else {
+    editingTimeSlotId.value = null
+    resetTimeSlotForm()
+  }
+  timeSlotFormError.value = ''
   timeSlotDialogVisible.value = true
 }
 
-function openCourseCategoryDialog() {
+function openCourseCategoryDialog(mode: 'create' | 'edit', row?: CourseCategoryRecord) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetCourseCategoryForm()
+  courseCategoryDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingCourseCategoryId.value = row.id
+    courseCategoryForm.categoryCode = row.categoryCode ?? ''
+    courseCategoryForm.categoryName = row.categoryName ?? ''
+    courseCategoryForm.status = row.status ?? 'active'
+    courseCategoryForm.sortOrder = row.sortOrder ?? 10
+    courseCategoryForm.remark = row.remark ?? ''
+  } else {
+    editingCourseCategoryId.value = null
+    resetCourseCategoryForm()
+  }
+  courseCategoryFormError.value = ''
   courseCategoryDialogVisible.value = true
 }
 
-function openCourseDialog() {
+function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetCourseForm()
+  courseDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingCourseId.value = row.id
+    courseForm.categoryId = row.categoryId ?? null
+    courseForm.courseCode = row.courseCode ?? ''
+    courseForm.courseName = row.courseName ?? ''
+    courseForm.subjectName = row.subjectName ?? ''
+    courseForm.teachingMethod = row.teachingMethod ?? 'offline_small_class'
+    courseForm.status = row.status ?? 'active'
+    courseForm.remark = row.remark ?? ''
+  } else {
+    editingCourseId.value = null
+    resetCourseForm()
+  }
+  courseFormError.value = ''
   courseDialogVisible.value = true
 }
 
-function openClassTypeDialog() {
+function openClassTypeDialog(mode: 'create' | 'edit', row?: ClassTypeRecord) {
   if (!institutionId.value) {
     ElMessage.warning('请先选择机构范围')
     return
   }
-  resetClassTypeForm()
+  classTypeDialogMode.value = mode
+  if (mode === 'edit' && row) {
+    editingClassTypeId.value = row.id
+    classTypeForm.typeCode = row.typeCode ?? ''
+    classTypeForm.typeName = row.typeName ?? ''
+    classTypeForm.teachingMethod = row.teachingMethod ?? 'offline_small_class'
+    classTypeForm.minStudents = row.minStudents ?? 1
+    classTypeForm.maxStudents = row.maxStudents ?? 12
+    classTypeForm.status = row.status ?? 'active'
+    classTypeForm.remark = row.remark ?? ''
+  } else {
+    editingClassTypeId.value = null
+    resetClassTypeForm()
+  }
+  classTypeFormError.value = ''
   classTypeDialogVisible.value = true
 }
 
@@ -917,24 +1087,60 @@ async function submitCampus() {
   campusSubmitting.value = true
   campusFormError.value = ''
   try {
-    await createCampus({
-      institutionId: institutionId.value,
-      campusCode: campusForm.campusCode.trim(),
-      campusName: campusForm.campusName.trim(),
-      campusType: campusForm.campusType,
-      principalName: trimToUndefined(campusForm.principalName),
-      phone: trimToUndefined(campusForm.phone),
-      address: campusForm.address.trim(),
-      capacityLimit: campusForm.capacityLimit,
-      status: campusForm.status,
-    })
-    ElMessage.success('校区已新增')
+    if (campusDialogMode.value === 'create') {
+      await createCampus({
+        institutionId: institutionId.value,
+        campusCode: campusForm.campusCode.trim(),
+        campusName: campusForm.campusName.trim(),
+        campusType: campusForm.campusType,
+        principalName: trimToUndefined(campusForm.principalName),
+        phone: trimToUndefined(campusForm.phone),
+        address: campusForm.address.trim(),
+        capacityLimit: campusForm.capacityLimit,
+        status: campusForm.status,
+      })
+      ElMessage.success('校区已新增')
+    } else if (editingCampusId.value) {
+      await updateCampus(editingCampusId.value, {
+        campusCode: campusForm.campusCode.trim(),
+        campusName: campusForm.campusName.trim(),
+        campusType: campusForm.campusType,
+        principalName: trimToUndefined(campusForm.principalName),
+        phone: trimToUndefined(campusForm.phone),
+        address: campusForm.address.trim(),
+        capacityLimit: campusForm.capacityLimit,
+        status: campusForm.status,
+      })
+      ElMessage.success('校区已更新')
+    }
     campusDialogVisible.value = false
     await loadResources()
   } catch (error) {
-    campusFormError.value = toMessage(error, '新增校区失败')
+    campusFormError.value = toMessage(error, campusDialogMode.value === 'create' ? '新增校区失败' : '更新校区失败')
   } finally {
     campusSubmitting.value = false
+  }
+}
+
+async function confirmDeleteCampus(row: CampusSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除校区「${row.campusName || row.campusCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteCampus(row.id)
+    ElMessage.success('校区已删除')
+    if (campusId.value === row.id) {
+      campusId.value = null
+    }
+    await loadResources()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除校区失败'))
   }
 }
 
@@ -951,25 +1157,57 @@ async function submitClassroom() {
   classroomSubmitting.value = true
   classroomFormError.value = ''
   try {
-    await createClassroom({
-      campusId: classroomForm.campusId,
-      classroomCode: classroomForm.classroomCode.trim(),
-      classroomName: classroomForm.classroomName.trim(),
-      roomType: trimToUndefined(classroomForm.roomType),
-      floorNo: trimToUndefined(classroomForm.floorNo),
-      seatCapacity: classroomForm.seatCapacity,
-      status: classroomForm.status,
-    })
-    ElMessage.success('教室已新增')
+    if (classroomDialogMode.value === 'create') {
+      await createClassroom({
+        campusId: classroomForm.campusId,
+        classroomCode: classroomForm.classroomCode.trim(),
+        classroomName: classroomForm.classroomName.trim(),
+        roomType: trimToUndefined(classroomForm.roomType),
+        floorNo: trimToUndefined(classroomForm.floorNo),
+        seatCapacity: classroomForm.seatCapacity,
+        status: classroomForm.status,
+      })
+      ElMessage.success('教室已新增')
+    } else if (editingClassroomId.value) {
+      await updateClassroom(editingClassroomId.value, {
+        campusId: classroomForm.campusId,
+        classroomCode: classroomForm.classroomCode.trim(),
+        classroomName: classroomForm.classroomName.trim(),
+        roomType: trimToUndefined(classroomForm.roomType),
+        floorNo: trimToUndefined(classroomForm.floorNo),
+        seatCapacity: classroomForm.seatCapacity,
+        status: classroomForm.status,
+      })
+      ElMessage.success('教室已更新')
+    }
     classroomDialogVisible.value = false
     if (campusId.value !== classroomForm.campusId) {
       campusId.value = classroomForm.campusId
     }
     await loadClassrooms()
   } catch (error) {
-    classroomFormError.value = toMessage(error, '新增教室失败')
+    classroomFormError.value = toMessage(error, classroomDialogMode.value === 'create' ? '新增教室失败' : '更新教室失败')
   } finally {
     classroomSubmitting.value = false
+  }
+}
+
+async function confirmDeleteClassroom(row: ClassroomSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除教室「${row.classroomName || row.classroomCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteClassroom(row.id)
+    ElMessage.success('教室已删除')
+    await loadClassrooms()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除教室失败'))
   }
 }
 
@@ -994,23 +1232,55 @@ async function submitTerm() {
   termSubmitting.value = true
   termFormError.value = ''
   try {
-    await createTerm({
-      institutionId: institutionId.value,
-      termCode: termForm.termCode.trim(),
-      termName: termForm.termName.trim(),
-      academicYear: termForm.academicYear.trim(),
-      season: trimToUndefined(termForm.season),
-      startDate: termForm.startDate,
-      endDate: termForm.endDate,
-      status: termForm.status,
-    })
-    ElMessage.success('学期已新增')
+    if (termDialogMode.value === 'create') {
+      await createTerm({
+        institutionId: institutionId.value,
+        termCode: termForm.termCode.trim(),
+        termName: termForm.termName.trim(),
+        academicYear: termForm.academicYear.trim(),
+        season: trimToUndefined(termForm.season),
+        startDate: termForm.startDate,
+        endDate: termForm.endDate,
+        status: termForm.status,
+      })
+      ElMessage.success('学期已新增')
+    } else if (editingTermId.value) {
+      await updateTerm(editingTermId.value, {
+        termCode: termForm.termCode.trim(),
+        termName: termForm.termName.trim(),
+        academicYear: termForm.academicYear.trim(),
+        season: trimToUndefined(termForm.season),
+        startDate: termForm.startDate,
+        endDate: termForm.endDate,
+        status: termForm.status,
+      })
+      ElMessage.success('学期已更新')
+    }
     termDialogVisible.value = false
     terms.value = await fetchTerms(institutionId.value)
   } catch (error) {
-    termFormError.value = toMessage(error, '新增学期失败')
+    termFormError.value = toMessage(error, termDialogMode.value === 'create' ? '新增学期失败' : '更新学期失败')
   } finally {
     termSubmitting.value = false
+  }
+}
+
+async function confirmDeleteTerm(row: TermSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除学期「${row.termName || row.termCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteTerm(row.id)
+    ElMessage.success('学期已删除')
+    terms.value = await fetchTerms(institutionId.value)
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除学期失败'))
   }
 }
 
@@ -1031,24 +1301,57 @@ async function submitTimeSlot() {
   timeSlotSubmitting.value = true
   timeSlotFormError.value = ''
   try {
-    await createTimeSlot({
-      institutionId: institutionId.value,
-      campusId: timeSlotForm.campusId || null,
-      slotCode: timeSlotForm.slotCode.trim(),
-      slotName: timeSlotForm.slotName.trim(),
-      weekday: timeSlotForm.weekday,
-      startTime: timeSlotForm.startTime,
-      endTime: timeSlotForm.endTime,
-      durationMinutes: timeSlotForm.durationMinutes,
-      status: timeSlotForm.status,
-    })
-    ElMessage.success('时间段已新增')
+    if (timeSlotDialogMode.value === 'create') {
+      await createTimeSlot({
+        institutionId: institutionId.value,
+        campusId: timeSlotForm.campusId || null,
+        slotCode: timeSlotForm.slotCode.trim(),
+        slotName: timeSlotForm.slotName.trim(),
+        weekday: timeSlotForm.weekday,
+        startTime: timeSlotForm.startTime,
+        endTime: timeSlotForm.endTime,
+        durationMinutes: timeSlotForm.durationMinutes,
+        status: timeSlotForm.status,
+      })
+      ElMessage.success('时间段已新增')
+    } else if (editingTimeSlotId.value) {
+      await updateTimeSlot(editingTimeSlotId.value, {
+        campusId: timeSlotForm.campusId || null,
+        slotCode: timeSlotForm.slotCode.trim(),
+        slotName: timeSlotForm.slotName.trim(),
+        weekday: timeSlotForm.weekday,
+        startTime: timeSlotForm.startTime,
+        endTime: timeSlotForm.endTime,
+        durationMinutes: timeSlotForm.durationMinutes,
+        status: timeSlotForm.status,
+      })
+      ElMessage.success('时间段已更新')
+    }
     timeSlotDialogVisible.value = false
     timeSlots.value = await fetchTimeSlots(institutionId.value)
   } catch (error) {
-    timeSlotFormError.value = toMessage(error, '新增时间段失败')
+    timeSlotFormError.value = toMessage(error, timeSlotDialogMode.value === 'create' ? '新增时间段失败' : '更新时间段失败')
   } finally {
     timeSlotSubmitting.value = false
+  }
+}
+
+async function confirmDeleteTimeSlot(row: TimeSlotSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除时间段「${row.slotName || row.slotCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteTimeSlot(row.id)
+    ElMessage.success('时间段已删除')
+    timeSlots.value = await fetchTimeSlots(institutionId.value)
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除时间段失败'))
   }
 }
 
@@ -1064,21 +1367,51 @@ async function submitCourseCategory() {
   courseCategorySubmitting.value = true
   courseCategoryFormError.value = ''
   try {
-    await createCourseCategory({
-      institutionId: institutionId.value,
-      categoryCode: courseCategoryForm.categoryCode.trim(),
-      categoryName: courseCategoryForm.categoryName.trim(),
-      status: courseCategoryForm.status,
-      sortOrder: courseCategoryForm.sortOrder,
-      remark: trimToUndefined(courseCategoryForm.remark),
-    })
-    ElMessage.success('课程分类已新增')
+    if (courseCategoryDialogMode.value === 'create') {
+      await createCourseCategory({
+        institutionId: institutionId.value,
+        categoryCode: courseCategoryForm.categoryCode.trim(),
+        categoryName: courseCategoryForm.categoryName.trim(),
+        status: courseCategoryForm.status,
+        sortOrder: courseCategoryForm.sortOrder,
+        remark: trimToUndefined(courseCategoryForm.remark),
+      })
+      ElMessage.success('课程分类已新增')
+    } else if (editingCourseCategoryId.value) {
+      await updateCourseCategory(editingCourseCategoryId.value, {
+        categoryCode: courseCategoryForm.categoryCode.trim(),
+        categoryName: courseCategoryForm.categoryName.trim(),
+        status: courseCategoryForm.status,
+        sortOrder: courseCategoryForm.sortOrder,
+        remark: trimToUndefined(courseCategoryForm.remark),
+      })
+      ElMessage.success('课程分类已更新')
+    }
     courseCategoryDialogVisible.value = false
     courseCategories.value = await fetchCourseCategories({ institutionId: institutionId.value })
   } catch (error) {
-    courseCategoryFormError.value = toMessage(error, '新增课程分类失败')
+    courseCategoryFormError.value = toMessage(error, courseCategoryDialogMode.value === 'create' ? '新增课程分类失败' : '更新课程分类失败')
   } finally {
     courseCategorySubmitting.value = false
+  }
+}
+
+async function confirmDeleteCourseCategory(row: CourseCategoryRecord) {
+  try {
+    await ElMessageBox.confirm(`确定删除分类「${row.categoryName || row.categoryCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteCourseCategory(row.id)
+    ElMessage.success('课程分类已删除')
+    courseCategories.value = await fetchCourseCategories({ institutionId: institutionId.value })
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除课程分类失败'))
   }
 }
 
@@ -1094,23 +1427,55 @@ async function submitCourse() {
   courseSubmitting.value = true
   courseFormError.value = ''
   try {
-    await createCourse({
-      institutionId: institutionId.value,
-      categoryId: courseForm.categoryId || null,
-      courseCode: courseForm.courseCode.trim(),
-      courseName: courseForm.courseName.trim(),
-      subjectName: trimToUndefined(courseForm.subjectName),
-      teachingMethod: trimToUndefined(courseForm.teachingMethod),
-      status: courseForm.status,
-      remark: trimToUndefined(courseForm.remark),
-    })
-    ElMessage.success('课程已新增')
+    if (courseDialogMode.value === 'create') {
+      await createCourse({
+        institutionId: institutionId.value,
+        categoryId: courseForm.categoryId || null,
+        courseCode: courseForm.courseCode.trim(),
+        courseName: courseForm.courseName.trim(),
+        subjectName: trimToUndefined(courseForm.subjectName),
+        teachingMethod: trimToUndefined(courseForm.teachingMethod),
+        status: courseForm.status,
+        remark: trimToUndefined(courseForm.remark),
+      })
+      ElMessage.success('课程已新增')
+    } else if (editingCourseId.value) {
+      await updateCourse(editingCourseId.value, {
+        categoryId: courseForm.categoryId || null,
+        courseCode: courseForm.courseCode.trim(),
+        courseName: courseForm.courseName.trim(),
+        subjectName: trimToUndefined(courseForm.subjectName),
+        teachingMethod: trimToUndefined(courseForm.teachingMethod),
+        status: courseForm.status,
+        remark: trimToUndefined(courseForm.remark),
+      })
+      ElMessage.success('课程已更新')
+    }
     courseDialogVisible.value = false
     courses.value = await fetchCourses({ institutionId: institutionId.value })
   } catch (error) {
-    courseFormError.value = toMessage(error, '新增课程失败')
+    courseFormError.value = toMessage(error, courseDialogMode.value === 'create' ? '新增课程失败' : '更新课程失败')
   } finally {
     courseSubmitting.value = false
+  }
+}
+
+async function confirmDeleteCourse(row: CourseRecord) {
+  try {
+    await ElMessageBox.confirm(`确定删除课程「${row.courseName || row.courseCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteCourse(row.id)
+    ElMessage.success('课程已删除')
+    courses.value = await fetchCourses({ institutionId: institutionId.value })
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除课程失败'))
   }
 }
 
@@ -1126,23 +1491,55 @@ async function submitClassType() {
   classTypeSubmitting.value = true
   classTypeFormError.value = ''
   try {
-    await createClassType({
-      institutionId: institutionId.value,
-      typeCode: classTypeForm.typeCode.trim(),
-      typeName: classTypeForm.typeName.trim(),
-      teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
-      minStudents: classTypeForm.minStudents,
-      maxStudents: classTypeForm.maxStudents,
-      status: classTypeForm.status,
-      remark: trimToUndefined(classTypeForm.remark),
-    })
-    ElMessage.success('班型已新增')
+    if (classTypeDialogMode.value === 'create') {
+      await createClassType({
+        institutionId: institutionId.value,
+        typeCode: classTypeForm.typeCode.trim(),
+        typeName: classTypeForm.typeName.trim(),
+        teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
+        minStudents: classTypeForm.minStudents,
+        maxStudents: classTypeForm.maxStudents,
+        status: classTypeForm.status,
+        remark: trimToUndefined(classTypeForm.remark),
+      })
+      ElMessage.success('班型已新增')
+    } else if (editingClassTypeId.value) {
+      await updateClassType(editingClassTypeId.value, {
+        typeCode: classTypeForm.typeCode.trim(),
+        typeName: classTypeForm.typeName.trim(),
+        teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
+        minStudents: classTypeForm.minStudents,
+        maxStudents: classTypeForm.maxStudents,
+        status: classTypeForm.status,
+        remark: trimToUndefined(classTypeForm.remark),
+      })
+      ElMessage.success('班型已更新')
+    }
     classTypeDialogVisible.value = false
     classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
   } catch (error) {
-    classTypeFormError.value = toMessage(error, '新增班型失败')
+    classTypeFormError.value = toMessage(error, classTypeDialogMode.value === 'create' ? '新增班型失败' : '更新班型失败')
   } finally {
     classTypeSubmitting.value = false
+  }
+}
+
+async function confirmDeleteClassType(row: ClassTypeRecord) {
+  try {
+    await ElMessageBox.confirm(`确定删除班型「${row.typeName || row.typeCode || row.id}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteClassType(row.id)
+    ElMessage.success('班型已删除')
+    classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除班型失败'))
   }
 }
 

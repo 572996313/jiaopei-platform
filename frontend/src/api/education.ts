@@ -326,6 +326,34 @@ export interface ClassTypeCreatePayload {
   remark?: string
 }
 
+export interface CourseCategoryUpdatePayload {
+  categoryCode?: string
+  categoryName?: string
+  status?: string
+  sortOrder?: number
+  remark?: string
+}
+
+export interface CourseUpdatePayload {
+  categoryId?: string | null
+  courseCode?: string
+  courseName?: string
+  subjectName?: string
+  teachingMethod?: string
+  status?: string
+  remark?: string
+}
+
+export interface ClassTypeUpdatePayload {
+  typeCode?: string
+  typeName?: string
+  teachingMethod?: string
+  minStudents?: number
+  maxStudents?: number
+  status?: string
+  remark?: string
+}
+
 export interface ClassStudentCreatePayload {
   institutionId: string
   classId: string
@@ -466,6 +494,14 @@ export function createCourseCategory(payload: CourseCategoryCreatePayload) {
   return requestPost<CourseCategoryRecord>('/education/course-categories', payload)
 }
 
+export function updateCourseCategory(id: string, payload: CourseCategoryUpdatePayload) {
+  return requestPut<CourseCategoryRecord>(`/education/course-categories/${id}`, payload)
+}
+
+export function deleteCourseCategory(id: string) {
+  return requestDelete<null>(`/education/course-categories/${id}`)
+}
+
 export function fetchCourses(params?: { institutionId?: string | null; categoryId?: string | null }) {
   return requestGet<CourseRecord[]>('/education/courses', params ?? undefined)
 }
@@ -474,12 +510,28 @@ export function createCourse(payload: CourseCreatePayload) {
   return requestPost<CourseRecord>('/education/courses', payload)
 }
 
+export function updateCourse(id: string, payload: CourseUpdatePayload) {
+  return requestPut<CourseRecord>(`/education/courses/${id}`, payload)
+}
+
+export function deleteCourse(id: string) {
+  return requestDelete<null>(`/education/courses/${id}`)
+}
+
 export function fetchClassTypes(params?: { institutionId?: string | null }) {
   return requestGet<ClassTypeRecord[]>('/education/class-types', params ?? undefined)
 }
 
 export function createClassType(payload: ClassTypeCreatePayload) {
   return requestPost<ClassTypeRecord>('/education/class-types', payload)
+}
+
+export function updateClassType(id: string, payload: ClassTypeUpdatePayload) {
+  return requestPut<ClassTypeRecord>(`/education/class-types/${id}`, payload)
+}
+
+export function deleteClassType(id: string) {
+  return requestDelete<null>(`/education/class-types/${id}`)
 }
 
 export function fetchTeachers(params?: { institutionId?: string | null; campusId?: string | null }) {

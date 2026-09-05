@@ -27,13 +27,15 @@ import com.jiaopei.platform.education.domain.entity.TeacherEntity;
 import com.jiaopei.platform.education.domain.entity.TeachingClassEntity;
 import com.jiaopei.platform.education.dto.ClassTeacherCreateRequest;
 import com.jiaopei.platform.education.dto.ClassTypeCreateRequest;
+import com.jiaopei.platform.education.dto.ClassTypeUpdateRequest;
 import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
+import com.jiaopei.platform.education.dto.CourseCategoryUpdateRequest;
 import com.jiaopei.platform.education.dto.CourseCreateRequest;
+import com.jiaopei.platform.education.dto.CourseUpdateRequest;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
 import com.jiaopei.platform.education.dto.TeacherCreateRequest;
 import com.jiaopei.platform.education.dto.TeacherUpdateRequest;
-import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;
-import com.jiaopei.platform.education.service.ClassTeacherService;
+import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;import com.jiaopei.platform.education.service.ClassTeacherService;
 import com.jiaopei.platform.education.service.ClassTypeService;
 import com.jiaopei.platform.education.service.ClassChangeNoticeService;
 import com.jiaopei.platform.education.service.CourseCategoryService;
@@ -45,6 +47,15 @@ import com.jiaopei.platform.education.service.TeachingClassService;
 import com.jiaopei.platform.organization.controller.ClassroomController;
 import com.jiaopei.platform.organization.controller.TermController;
 import com.jiaopei.platform.organization.controller.TimeSlotController;
+import com.jiaopei.platform.organization.domain.entity.ClassroomEntity;
+import com.jiaopei.platform.organization.domain.entity.TermEntity;
+import com.jiaopei.platform.organization.domain.entity.TimeSlotEntity;
+import com.jiaopei.platform.organization.dto.ClassroomCreateRequest;
+import com.jiaopei.platform.organization.dto.ClassroomUpdateRequest;
+import com.jiaopei.platform.organization.dto.TermCreateRequest;
+import com.jiaopei.platform.organization.dto.TermUpdateRequest;
+import com.jiaopei.platform.organization.dto.TimeSlotCreateRequest;
+import com.jiaopei.platform.organization.dto.TimeSlotUpdateRequest;
 import com.jiaopei.platform.organization.service.ClassroomService;
 import com.jiaopei.platform.organization.service.TermService;
 import com.jiaopei.platform.organization.service.TimeSlotService;
@@ -61,6 +72,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -310,7 +322,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
             .andExpect(jsonPath("$.data.id").value(401))
             .andExpect(jsonPath("$.data.campusId").value(1))
             .andExpect(jsonPath("$.data.phone").value("13800000010"));
-        verify(teacherService).updateTeacher(401L, any());
+        verify(teacherService).updateTeacher(eq(401L), any());
     }
 
     @Test
@@ -320,6 +332,230 @@ class SecondThirdMainlineApiCompatibilityWebTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message").value("Teacher deleted"));
         verify(teacherService).deleteTeacher(401L);
+    }
+
+    @Test
+    void updateOrganizationResourcesAcceptSnakeCasePayload() throws Exception {
+        given(classroomService.updateClassroom(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            ClassroomUpdateRequest request = invocation.getArgument(1);
+            ClassroomEntity entity = new ClassroomEntity();
+            entity.setId(id);
+            entity.setCampusId(request.campusId() == null ? 1L : request.campusId());
+            entity.setClassroomCode(request.classroomCode());
+            entity.setClassroomName(request.classroomName());
+            entity.setSeatCapacity(request.seatCapacity());
+            entity.setStatus(request.status());
+            return entity;
+        });
+        given(termService.updateTerm(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            TermUpdateRequest request = invocation.getArgument(1);
+            TermEntity entity = new TermEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setTermCode(request.termCode());
+            entity.setTermName(request.termName());
+            entity.setAcademicYear(request.academicYear());
+            entity.setStartDate(request.startDate());
+            entity.setEndDate(request.endDate());
+            entity.setStatus(request.status());
+            return entity;
+        });
+        given(timeSlotService.updateTimeSlot(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            TimeSlotUpdateRequest request = invocation.getArgument(1);
+            TimeSlotEntity entity = new TimeSlotEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setCampusId(request.campusId());
+            entity.setSlotCode(request.slotCode());
+            entity.setSlotName(request.slotName());
+            entity.setWeekday(request.weekday());
+            entity.setStartTime(request.startTime());
+            entity.setEndTime(request.endTime());
+            entity.setDurationMinutes(request.durationMinutes());
+            return entity;
+        });
+
+        mockMvc.perform(put("/api/organizations/classrooms/705")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "classroom_code": "ROOM-010",
+                      "classroom_name": "十号教室",
+                      "seat_capacity": 30,
+                      "status": "idle"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(705))
+            .andExpect(jsonPath("$.data.classroomCode").value("ROOM-010"))
+            .andExpect(jsonPath("$.data.seatCapacity").value(30));
+        verify(classroomService).updateClassroom(eq(705L), any());
+
+        mockMvc.perform(put("/api/organizations/terms/706")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "term_code": "TERM-2026A",
+                      "term_name": "2026 春季班",
+                      "academic_year": "2026-2027",
+                      "start_date": "2026-03-01",
+                      "end_date": "2026-07-01",
+                      "status": "active"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(706))
+            .andExpect(jsonPath("$.data.termCode").value("TERM-2026A"));
+        verify(termService).updateTerm(eq(706L), any());
+
+        mockMvc.perform(put("/api/organizations/time-slots/707")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "slot_code": "SAT-1",
+                      "slot_name": "周六上午一节",
+                      "weekday": 6,
+                      "start_time": "08:00:00",
+                      "end_time": "09:30:00",
+                      "duration_minutes": 90
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(707))
+            .andExpect(jsonPath("$.data.slotCode").value("SAT-1"))
+            .andExpect(jsonPath("$.data.durationMinutes").value(90));
+        verify(timeSlotService).updateTimeSlot(eq(707L), any());
+    }
+
+    @Test
+    void updateCourseCategoryAndCourseAndClassTypeAcceptSnakeCasePayload() throws Exception {
+        given(courseCategoryService.updateCategory(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            CourseCategoryUpdateRequest request = invocation.getArgument(1);
+            CourseCategoryEntity entity = new CourseCategoryEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setCategoryCode(request.categoryCode());
+            entity.setCategoryName(request.categoryName());
+            entity.setSortOrder(request.sortOrder());
+            return entity;
+        });
+        given(courseService.updateCourse(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            CourseUpdateRequest request = invocation.getArgument(1);
+            CourseEntity entity = new CourseEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setCategoryId(request.categoryId());
+            entity.setCourseCode(request.courseCode());
+            entity.setCourseName(request.courseName());
+            return entity;
+        });
+        given(classTypeService.updateClassType(any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            ClassTypeUpdateRequest request = invocation.getArgument(1);
+            ClassTypeEntity entity = new ClassTypeEntity();
+            entity.setId(id);
+            entity.setInstitutionId(1L);
+            entity.setTypeCode(request.typeCode());
+            entity.setTypeName(request.typeName());
+            entity.setMinStudents(request.minStudents());
+            entity.setMaxStudents(request.maxStudents());
+            return entity;
+        });
+
+        mockMvc.perform(put("/api/education/course-categories/801")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "category_code": "CAT-002",
+                      "category_name": "美术",
+                      "sort_order": 6
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(801))
+            .andExpect(jsonPath("$.data.categoryCode").value("CAT-002"))
+            .andExpect(jsonPath("$.data.sortOrder").value(6));
+        verify(courseCategoryService).updateCategory(eq(801L), any());
+
+        mockMvc.perform(put("/api/education/courses/802")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "course_code": "COURSE-002",
+                      "course_name": "素描基础",
+                      "subject_name": "美术"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(802))
+            .andExpect(jsonPath("$.data.courseCode").value("COURSE-002"));
+        verify(courseService).updateCourse(eq(802L), any());
+
+        mockMvc.perform(put("/api/education/class-types/803")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "type_code": "ONE_TO_TWO",
+                      "type_name": "1对2",
+                      "min_students": 2,
+                      "max_students": 6
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(803))
+            .andExpect(jsonPath("$.data.typeCode").value("ONE_TO_TWO"))
+            .andExpect(jsonPath("$.data.maxStudents").value(6));
+        verify(classTypeService).updateClassType(eq(803L), any());
+    }
+
+    @Test
+    void deleteOrganizationResourceAndEducationArchiveDeletesById() throws Exception {
+        mockMvc.perform(delete("/api/organizations/classrooms/701")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Classroom deleted"));
+        verify(classroomService).deleteClassroom(701L);
+
+        mockMvc.perform(delete("/api/organizations/terms/702")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Term deleted"));
+        verify(termService).deleteTerm(702L);
+
+        mockMvc.perform(delete("/api/organizations/time-slots/703")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Time slot deleted"));
+        verify(timeSlotService).deleteTimeSlot(703L);
+
+        mockMvc.perform(delete("/api/education/course-categories/805")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Course category deleted"));
+        verify(courseCategoryService).deleteCategory(805L);
+
+        mockMvc.perform(delete("/api/education/courses/806")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Course deleted"));
+        verify(courseService).deleteCourse(806L);
+
+        mockMvc.perform(delete("/api/education/class-types/807")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Class type deleted"));
+        verify(classTypeService).deleteClassType(807L);
     }
 
     @Test

@@ -5,12 +5,16 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.CourseCategoryEntity;
 import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
+import com.jiaopei.platform.education.dto.CourseCategoryUpdateRequest;
 import com.jiaopei.platform.education.service.CourseCategoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,5 +43,19 @@ public class CourseCategoryController {
     @RequiresPermission("education:write")
     public ApiResponse<CourseCategoryEntity> create(@Valid @RequestBody CourseCategoryCreateRequest request) {
         return ApiResponse.success("Course category created", courseCategoryService.createCategory(request));
+    }
+
+    @PutMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<CourseCategoryEntity> update(@PathVariable Long id,
+                                                    @Valid @RequestBody CourseCategoryUpdateRequest request) {
+        return ApiResponse.success("Course category updated", courseCategoryService.updateCategory(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        courseCategoryService.deleteCategory(id);
+        return ApiResponse.success("Course category deleted", null);
     }
 }

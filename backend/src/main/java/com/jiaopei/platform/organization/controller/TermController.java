@@ -5,12 +5,16 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.organization.domain.entity.TermEntity;
 import com.jiaopei.platform.organization.dto.TermCreateRequest;
+import com.jiaopei.platform.organization.dto.TermUpdateRequest;
 import com.jiaopei.platform.organization.service.TermService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,5 +41,19 @@ public class TermController {
     @RequiresPermission("organization:write")
     public ApiResponse<TermEntity> create(@Valid @RequestBody TermCreateRequest request) {
         return ApiResponse.success("Term placeholder created", termService.createTerm(request));
+    }
+
+    @PutMapping("/{id}")
+    @RequiresPermission("organization:write")
+    public ApiResponse<TermEntity> update(@PathVariable Long id,
+                                          @Valid @RequestBody TermUpdateRequest request) {
+        return ApiResponse.success("Term updated", termService.updateTerm(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequiresPermission("organization:write")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        termService.deleteTerm(id);
+        return ApiResponse.success("Term deleted", null);
     }
 }

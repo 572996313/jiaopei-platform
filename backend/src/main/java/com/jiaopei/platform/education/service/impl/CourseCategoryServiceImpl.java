@@ -5,10 +5,12 @@ import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.CourseCategoryEntity;
 import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
+import com.jiaopei.platform.education.dto.CourseCategoryUpdateRequest;
 import com.jiaopei.platform.education.mapper.CourseCategoryMapper;
 import com.jiaopei.platform.education.service.CourseCategoryService;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -41,8 +43,8 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
 
         String categoryCode = normalize(request.categoryCode());
         String categoryName = normalize(request.categoryName());
-        assertUniqueCategoryCode(request.institutionId(), categoryCode);
-        assertUniqueCategoryName(request.institutionId(), categoryName);
+        assertUniqueCategoryCode(request.institutionId(), categoryCode, null);
+        assertUniqueCategoryName(request.institutionId(), categoryName, null);
 
         CourseCategoryEntity entity = new CourseCategoryEntity();
         entity.setInstitutionId(request.institutionId());
@@ -61,26 +63,83 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
         return entity;
     }
 
+    @Override
+    public CourseCategoryEntity updateCategory(Long id, CourseCategoryUpdateRequest request) {
+        CourseCategoryEntity existing = requireCategory(id);
+        if (request.categoryCode() != null && !request.categoryCode().isBlank()) {
+            String categoryCode = normalize(request.categoryCode());
+            if (!Objects.equals(existing.getCategoryCode(), categoryCode)) {
+                assertUniqueCategoryCode(existing.getInstitutionId(), categoryCode, id);
+                existing.setCategoryCode(categoryCode);
+            }
+        }
+        if (request.categoryName() != null && !request.categoryName().isBlank()) {
+            String categoryName = normalize(request.categoryName());
+            if (!Objects.equals(existing.getCategoryName(), categoryName)) {
+                assertUniqueCategoryName(existing.getInstitutionId(), categoryName, id);
+                existing.setCategoryName(categoryName);
+            }
+        }
+        if (request.status() != null && !request.status().isBlank()) {
+            existing.setStatus(request.status().trim());
+        }
+        if (request.sortOrder() != null) {
+            existing.setSortOrder(request.sortOrder());
+        }
+        if (request.remark() != null) {
+            existing.setRemark(normalizeToNull(request.remark()));
+        }
+        try {
+            courseCategoryMapper.updateById(existing);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "Course category code or name already exists in institution: " + existing.getInstitutionId());
+        }
+        return existing;
+    }
+
+    @Override
+    public void deleteCategory(Long id) {
+        requireCategory(id);
+        courseCategoryMapper.deleteById(id);
+    }
+
+    private CourseCategoryEntity requireCategory(Long id) {
+        CourseCategoryEntity entity = courseCategoryMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Course category does not exist: " + id);
+        }
+        return entity;
+    }
+
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
         }
     }
 
-    private void assertUniqueCategoryCode(Long institutionId, String categoryCode) {
-        Long count = courseCategoryMapper.selectCount(new LambdaQueryWrapper<CourseCategoryEntity>()
+    private void assertUniqueCategoryCode(Long institutionId, String categoryCode, Long excludeId) {
+        LambdaQueryWrapper<CourseCategoryEntity> wrapper = new LambdaQueryWrapper<CourseCategoryEntity>()
             .eq(CourseCategoryEntity::getInstitutionId, institutionId)
-            .eq(CourseCategoryEntity::getCategoryCode, categoryCode));
+            .eq(CourseCategoryEntity::getCategoryCode, categoryCode);
+        if (excludeId != null) {
+            wrapper.ne(CourseCategoryEntity::getId, excludeId);
+        }
+        Long count = courseCategoryMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "Course category code already exists in institution: " + institutionId);
         }
     }
 
-    private void assertUniqueCategoryName(Long institutionId, String categoryName) {
-        Long count = courseCategoryMapper.selectCount(new LambdaQueryWrapper<CourseCategoryEntity>()
+    private void assertUniqueCategoryName(Long institutionId, String categoryName, Long excludeId) {
+        LambdaQueryWrapper<CourseCategoryEntity> wrapper = new LambdaQueryWrapper<CourseCategoryEntity>()
             .eq(CourseCategoryEntity::getInstitutionId, institutionId)
-            .eq(CourseCategoryEntity::getCategoryName, categoryName));
+            .eq(CourseCategoryEntity::getCategoryName, categoryName);
+        if (excludeId != null) {
+            wrapper.ne(CourseCategoryEntity::getId, excludeId);
+        }
+        Long count = courseCategoryMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "Course category name already exists in institution: " + institutionId);
@@ -89,6 +148,11 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
 
     private String normalize(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String normalizeToNull(String value) {
+        String normalized = normalize(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 
     private boolean isBlank(String value) {

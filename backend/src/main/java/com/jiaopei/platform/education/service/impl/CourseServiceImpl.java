@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.CourseCategoryEntity;
 import com.jiaopei.platform.education.domain.entity.CourseEntity;
 import com.jiaopei.platform.education.dto.CourseCreateRequest;
+import com.jiaopei.platform.education.dto.CourseUpdateRequest;
 import com.jiaopei.platform.education.mapper.CourseCategoryMapper;
 import com.jiaopei.platform.education.mapper.CourseMapper;
 import com.jiaopei.platform.education.service.CourseService;
@@ -53,8 +54,8 @@ public class CourseServiceImpl implements CourseService {
 
         String courseCode = normalize(request.courseCode());
         String courseName = normalize(request.courseName());
-        assertUniqueCourseCode(request.institutionId(), courseCode);
-        assertUniqueCourseName(request.institutionId(), courseName);
+        assertUniqueCourseCode(request.institutionId(), courseCode, null);
+        assertUniqueCourseName(request.institutionId(), courseName, null);
 
         CourseEntity entity = new CourseEntity();
         entity.setInstitutionId(request.institutionId());
@@ -71,6 +72,62 @@ public class CourseServiceImpl implements CourseService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "Course code or name already exists in institution: " + request.institutionId());
+        }
+        return entity;
+    }
+
+    @Override
+    public CourseEntity updateCourse(Long id, CourseUpdateRequest request) {
+        CourseEntity existing = requireCourse(id);
+        if (request.categoryId() != null && !Objects.equals(existing.getCategoryId(), request.categoryId())) {
+            requireCategoryInInstitution(request.categoryId(), existing.getInstitutionId());
+            existing.setCategoryId(request.categoryId());
+        }
+        if (request.courseCode() != null && !request.courseCode().isBlank()) {
+            String courseCode = normalize(request.courseCode());
+            if (!Objects.equals(existing.getCourseCode(), courseCode)) {
+                assertUniqueCourseCode(existing.getInstitutionId(), courseCode, id);
+                existing.setCourseCode(courseCode);
+            }
+        }
+        if (request.courseName() != null && !request.courseName().isBlank()) {
+            String courseName = normalize(request.courseName());
+            if (!Objects.equals(existing.getCourseName(), courseName)) {
+                assertUniqueCourseName(existing.getInstitutionId(), courseName, id);
+                existing.setCourseName(courseName);
+            }
+        }
+        if (request.subjectName() != null) {
+            existing.setSubjectName(normalizeToNull(request.subjectName()));
+        }
+        if (request.teachingMethod() != null) {
+            existing.setTeachingMethod(normalizeToNull(request.teachingMethod()));
+        }
+        if (request.status() != null && !request.status().isBlank()) {
+            existing.setStatus(request.status().trim());
+        }
+        if (request.remark() != null) {
+            existing.setRemark(normalizeToNull(request.remark()));
+        }
+        try {
+            courseMapper.updateById(existing);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "Course code or name already exists in institution: " + existing.getInstitutionId());
+        }
+        return existing;
+    }
+
+    @Override
+    public void deleteCourse(Long id) {
+        requireCourse(id);
+        courseMapper.deleteById(id);
+    }
+
+    private CourseEntity requireCourse(Long id) {
+        CourseEntity entity = courseMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Course does not exist: " + id);
         }
         return entity;
     }
@@ -92,20 +149,28 @@ public class CourseServiceImpl implements CourseService {
         }
     }
 
-    private void assertUniqueCourseCode(Long institutionId, String courseCode) {
-        Long count = courseMapper.selectCount(new LambdaQueryWrapper<CourseEntity>()
+    private void assertUniqueCourseCode(Long institutionId, String courseCode, Long excludeId) {
+        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<CourseEntity>()
             .eq(CourseEntity::getInstitutionId, institutionId)
-            .eq(CourseEntity::getCourseCode, courseCode));
+            .eq(CourseEntity::getCourseCode, courseCode);
+        if (excludeId != null) {
+            wrapper.ne(CourseEntity::getId, excludeId);
+        }
+        Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "Course code already exists in institution: " + institutionId);
         }
     }
 
-    private void assertUniqueCourseName(Long institutionId, String courseName) {
-        Long count = courseMapper.selectCount(new LambdaQueryWrapper<CourseEntity>()
+    private void assertUniqueCourseName(Long institutionId, String courseName, Long excludeId) {
+        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<CourseEntity>()
             .eq(CourseEntity::getInstitutionId, institutionId)
-            .eq(CourseEntity::getCourseName, courseName));
+            .eq(CourseEntity::getCourseName, courseName);
+        if (excludeId != null) {
+            wrapper.ne(CourseEntity::getId, excludeId);
+        }
+        Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "Course name already exists in institution: " + institutionId);

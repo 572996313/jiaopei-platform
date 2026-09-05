@@ -1,5 +1,5 @@
 import { http } from '@/api/http'
-import { requestGet, requestPost } from '@/api/request'
+import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
 
 export interface OrganizationSchemaResponse {
   code: string
@@ -142,6 +142,63 @@ export interface TimeSlotCreatePayload {
   remark?: string
 }
 
+export interface CampusUpdatePayload {
+  campusCode?: string
+  campusName?: string
+  campusType?: string
+  phone?: string
+  principalName?: string
+  address?: string
+  capacityLimit?: number | null
+  status?: string
+  openedAt?: string | null
+  sortNo?: number | null
+  remark?: string
+}
+
+export interface ClassroomUpdatePayload {
+  campusId?: string
+  classroomCode?: string
+  classroomName?: string
+  roomType?: string
+  floorNo?: string
+  seatCapacity?: number
+  areaSqm?: number | null
+  equipmentTags?: string
+  status?: string
+  allowScheduling?: boolean
+  remark?: string
+}
+
+export interface TermUpdatePayload {
+  termCode?: string
+  termName?: string
+  academicYear?: string
+  season?: string
+  startDate?: string
+  endDate?: string
+  enrollmentStartDate?: string | null
+  enrollmentEndDate?: string | null
+  status?: string
+  defaultTerm?: boolean
+  remark?: string
+}
+
+export interface TimeSlotUpdatePayload {
+  campusId?: string | null
+  slotCode?: string
+  slotName?: string
+  weekday?: number
+  startTime?: string
+  endTime?: string
+  durationMinutes?: number
+  slotType?: string
+  applicableScene?: string
+  status?: string
+  sortNo?: number | null
+  remark?: string
+}
+
 export function fetchInstitutions() {
   return requestGet<InstitutionSummary[]>('/organizations/institutions')
 }
@@ -166,14 +223,46 @@ export function createCampus(payload: CampusCreatePayload) {
   return requestPost<CampusSummary>('/organizations/campuses', payload)
 }
 
+export function updateCampus(id: string, payload: CampusUpdatePayload) {
+  return requestPut<CampusSummary>(`/organizations/campuses/${id}`, payload)
+}
+
+export function deleteCampus(id: string) {
+  return requestDelete<null>(`/organizations/campuses/${id}`)
+}
+
 export function createClassroom(payload: ClassroomCreatePayload) {
   return requestPost<ClassroomSummary>('/organizations/classrooms', payload)
+}
+
+export function updateClassroom(id: string, payload: ClassroomUpdatePayload) {
+  return requestPut<ClassroomSummary>(`/organizations/classrooms/${id}`, payload)
+}
+
+export function deleteClassroom(id: string) {
+  return requestDelete<null>(`/organizations/classrooms/${id}`)
 }
 
 export function createTerm(payload: TermCreatePayload) {
   return requestPost<TermSummary>('/organizations/terms', payload)
 }
 
+export function updateTerm(id: string, payload: TermUpdatePayload) {
+  return requestPut<TermSummary>(`/organizations/terms/${id}`, payload)
+}
+
+export function deleteTerm(id: string) {
+  return requestDelete<null>(`/organizations/terms/${id}`)
+}
+
 export function createTimeSlot(payload: TimeSlotCreatePayload) {
   return requestPost<TimeSlotSummary>('/organizations/time-slots', payload)
+}
+
+export function updateTimeSlot(id: string, payload: TimeSlotUpdatePayload) {
+  return requestPut<TimeSlotSummary>(`/organizations/time-slots/${id}`, payload)
+}
+
+export function deleteTimeSlot(id: string) {
+  return requestDelete<null>(`/organizations/time-slots/${id}`)
 }

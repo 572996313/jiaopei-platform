@@ -5,12 +5,16 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.ClassTypeEntity;
 import com.jiaopei.platform.education.dto.ClassTypeCreateRequest;
+import com.jiaopei.platform.education.dto.ClassTypeUpdateRequest;
 import com.jiaopei.platform.education.service.ClassTypeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,5 +43,19 @@ public class ClassTypeController {
     @RequiresPermission("education:write")
     public ApiResponse<ClassTypeEntity> create(@Valid @RequestBody ClassTypeCreateRequest request) {
         return ApiResponse.success("Class type created", classTypeService.createClassType(request));
+    }
+
+    @PutMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<ClassTypeEntity> update(@PathVariable Long id,
+                                               @Valid @RequestBody ClassTypeUpdateRequest request) {
+        return ApiResponse.success("Class type updated", classTypeService.updateClassType(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        classTypeService.deleteClassType(id);
+        return ApiResponse.success("Class type deleted", null);
     }
 }
