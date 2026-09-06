@@ -13,7 +13,7 @@ public record StudentCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "校区ID")
     @JsonAlias("campus_id")
@@ -21,11 +21,11 @@ public record StudentCreateRequest(
     Long campusId,
     @Schema(description = "学员编号", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "student_code"})
-    @NotBlank(message = "studentNo 不能为空")
+    @NotBlank(message = "学号不能为空")
     String studentNo,
     @Schema(description = "学员姓名", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "student_name"})
-    @NotBlank(message = "studentName 不能为空")
+    @NotBlank(message = "学员姓名不能为空")
     String studentName,
     @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"})
     String gender,

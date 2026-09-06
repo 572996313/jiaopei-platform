@@ -12,16 +12,16 @@ public record StudentParentCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "学员ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("student_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "studentId 不能为空")
+    @NotNull(message = "学员ID不能为空")
     Long studentId,
     @Schema(description = "家长姓名", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"parentName", "parent_name", "guardian_name"})
-    @NotBlank(message = "parentName 不能为空")
+    @NotBlank(message = "家长姓名不能为空")
     String parentName,
     @Schema(description = "关系(FATHER/MOTHER/GRANDPA/GRANDMA/OTHER)", allowableValues = {"FATHER", "MOTHER", "GRANDPA", "GRANDMA", "OTHER"})
     @JsonAlias("relation_type")

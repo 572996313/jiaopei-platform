@@ -59,10 +59,10 @@ public class StudentServiceImpl implements StudentService {
             requireCampusInInstitution(request.campusId(), request.institutionId());
         }
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "birthday 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrolledAt 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
         String studentNo = normalize(request.studentNo());
@@ -96,10 +96,10 @@ public class StudentServiceImpl implements StudentService {
             requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
         }
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "birthday 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrolledAt 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
         if (request.studentNo() != null && !request.studentNo().isBlank()) {

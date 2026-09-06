@@ -45,11 +45,11 @@ public class TermServiceImpl implements TermService {
             throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
         }
         if (request.startDate().isAfter(request.endDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始日期不能晚于结束日期");
         }
         if (request.enrollmentStartDate() != null && request.enrollmentEndDate() != null
             && request.enrollmentStartDate().isAfter(request.enrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报名开始日期不能晚于报名结束日期");
         }
         String termCode = normalize(request.termCode());
         String termName = normalize(request.termName());
@@ -85,27 +85,27 @@ public class TermServiceImpl implements TermService {
         boolean onlyEndDate = request.startDate() == null && request.endDate() != null;
         boolean onlyStartDate = request.startDate() != null && request.endDate() == null;
         if (hasDates && request.startDate().isAfter(request.endDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始日期不能晚于结束日期");
         }
         if (onlyEndDate && request.endDate().isBefore(existing.getStartDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始日期不能晚于结束日期");
         }
         if (onlyStartDate && request.startDate().isAfter(existing.getEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始日期不能晚于结束日期");
         }
         boolean hasEnrollmentDates = request.enrollmentStartDate() != null && request.enrollmentEndDate() != null;
         boolean onlyEnrollmentEnd = request.enrollmentStartDate() == null && request.enrollmentEndDate() != null;
         boolean onlyEnrollmentStart = request.enrollmentStartDate() != null && request.enrollmentEndDate() == null;
         if (hasEnrollmentDates && request.enrollmentStartDate().isAfter(request.enrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报名开始日期不能晚于报名结束日期");
         }
         if (onlyEnrollmentEnd && existing.getEnrollmentStartDate() != null
             && request.enrollmentEndDate().isBefore(existing.getEnrollmentStartDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报名开始日期不能晚于报名结束日期");
         }
         if (onlyEnrollmentStart && existing.getEnrollmentEndDate() != null
             && request.enrollmentStartDate().isAfter(existing.getEnrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报名开始日期不能晚于报名结束日期");
         }
         if (request.termCode() != null && !request.termCode().isBlank()) {
             String termCode = normalize(request.termCode());

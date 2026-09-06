@@ -62,11 +62,11 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             }
         }
         if (!request.startTime().isBefore(request.endTime())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime 必须早于 endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始时间必须早于结束时间");
         }
         long minutes = ChronoUnit.MINUTES.between(request.startTime(), request.endTime());
         if (minutes != request.durationMinutes()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes 必须与 startTime 和 endTime 一致");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "时长(分钟)必须与开始时间和结束时间一致");
         }
         String slotCode = normalize(request.slotCode());
         String slotName = normalize(request.slotName());
@@ -115,11 +115,11 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         LocalTime endTime = request.endTime() == null ? existing.getEndTime() : request.endTime();
         Integer durationMinutes = request.durationMinutes() == null ? existing.getDurationMinutes() : request.durationMinutes();
         if (!startTime.isBefore(endTime)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime 必须早于 endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "开始时间必须早于结束时间");
         }
         long minutes = ChronoUnit.MINUTES.between(startTime, endTime);
         if (minutes != durationMinutes) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes 必须与 startTime 和 endTime 一致");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "时长(分钟)必须与开始时间和结束时间一致");
         }
         if (request.slotCode() != null && !request.slotCode().isBlank()) {
             String slotCode = normalize(request.slotCode());
@@ -137,7 +137,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         }
         if (request.weekday() != null) {
             if (request.weekday() < 1 || request.weekday() > 7) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "weekday 必须在 1 到 7 之间");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "星期必须在1到7之间");
             }
             existing.setWeekday(request.weekday());
         }

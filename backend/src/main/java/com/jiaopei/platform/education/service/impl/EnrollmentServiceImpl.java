@@ -61,7 +61,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
         }
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrolledAt 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
         String enrollmentNo = normalize(request.enrollmentNo());

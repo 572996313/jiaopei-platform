@@ -12,7 +12,7 @@ public record CourseCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "课程分类ID")
     @JsonAlias("category_id")
@@ -20,11 +20,11 @@ public record CourseCreateRequest(
     Long categoryId,
     @Schema(description = "课程编码", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "course_code"})
-    @NotBlank(message = "courseCode 不能为空")
+    @NotBlank(message = "课程编号不能为空")
     String courseCode,
     @Schema(description = "课程名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "course_name"})
-    @NotBlank(message = "courseName 不能为空")
+    @NotBlank(message = "课程名称不能为空")
     String courseName,
     @Schema(description = "学科名称(如 数学/英语)")
     @JsonAlias({"subject", "subject_name"})

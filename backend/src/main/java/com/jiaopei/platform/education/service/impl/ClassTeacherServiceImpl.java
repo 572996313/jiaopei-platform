@@ -89,7 +89,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         Long previousPrimaryTeacherId = teachingClass.getTeacherId();
         requireTeacherInInstitution(request.teacherId(), request.institutionId());
         if (request.joinedAt() != null && request.leftAt() != null && request.leftAt().isBefore(request.joinedAt())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt 不能早于 joinedAt");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "离开日期不能早于加入日期");
         }
 
         String teacherRole = normalizeTeacherRole(request.teacherRole());

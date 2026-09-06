@@ -13,26 +13,26 @@ public record ClassTypeCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "类型编码", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "type_code"})
-    @NotBlank(message = "typeCode 不能为空")
+    @NotBlank(message = "班级类型编码不能为空")
     String typeCode,
     @Schema(description = "类型名称(如 一对一/小班/大班)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "type_name"})
-    @NotBlank(message = "typeName 不能为空")
+    @NotBlank(message = "班级类型名称不能为空")
     String typeName,
     @Schema(description = "授课方式(取值来自字典 teaching_method,如 offline_small_class=线下小班、online_one_to_one=线上1对1)")
     @JsonAlias("teaching_method")
     String teachingMethod,
     @Schema(description = "最小开班人数")
     @JsonAlias("min_students")
-    @Min(value = 0, message = "minStudents 必须大于或等于 0")
+    @Min(value = 0, message = "最小学员数必须大于或等于0")
     Integer minStudents,
     @Schema(description = "最大开班人数")
     @JsonAlias("max_students")
-    @Min(value = 0, message = "maxStudents 必须大于或等于 0")
+    @Min(value = 0, message = "最大学员数必须大于或等于0")
     Integer maxStudents,
     @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})
     String status,

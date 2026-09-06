@@ -4,6 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record RoleMenuUpdateRequest(
-    @NotNull List<Long> menuIds
+    @NotNull(message = "菜单ID列表不能为空")List<Long> menuIds
 ) {
 }

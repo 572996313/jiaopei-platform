@@ -53,7 +53,7 @@ public class TeacherServiceImpl implements TeacherService {
             requireCampusInInstitution(request.campusId(), request.institutionId());
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "入职日期不能晚于当前日期");
         }
 
         String teacherCode = normalize(request.teacherCode());
@@ -92,7 +92,7 @@ public class TeacherServiceImpl implements TeacherService {
             requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt 不能晚于当前日期");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "入职日期不能晚于当前日期");
         }
 
         if (request.teacherCode() != null && !request.teacherCode().isBlank()) {

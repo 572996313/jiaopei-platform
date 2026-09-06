@@ -13,21 +13,21 @@ public record EnrollmentCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "学员ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("student_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "studentId 不能为空")
+    @NotNull(message = "学员ID不能为空")
     Long studentId,
     @Schema(description = "班级ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"class_id", "teachingClassId"})
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "classId 不能为空")
+    @NotNull(message = "班级ID不能为空")
     Long classId,
     @Schema(description = "报名编号", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "enrollment_no"})
-    @NotBlank(message = "enrollmentNo 不能为空")
+    @NotBlank(message = "报名编号不能为空")
     String enrollmentNo,
     @Schema(description = "报名渠道(OFFLINE=线下,ONLINE=线上,REFERRAL=推荐,TRANSFER=转班)")
     String channel,

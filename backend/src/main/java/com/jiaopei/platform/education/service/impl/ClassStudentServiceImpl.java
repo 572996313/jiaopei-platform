@@ -59,7 +59,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
         }
         if (request.leftAt() != null && request.joinedAt() != null && request.leftAt().isBefore(request.joinedAt())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt 不能早于 joinedAt");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "离开日期不能早于加入日期");
         }
         assertUniqueClassStudent(request.classId(), request.studentId());
         int activeStudents = countActiveStudents(request.classId());

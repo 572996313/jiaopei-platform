@@ -518,7 +518,7 @@
             <el-option label="规划中" value="planning" />
             <el-option label="启用" value="active" />
             <el-option label="停用" value="inactive" />
-            <el-option label="已结班" value="closed" />
+            <el-option label="已结课" value="closed" />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
@@ -607,7 +607,7 @@
             <el-option label="规划中" value="planning" />
             <el-option label="启用" value="active" />
             <el-option label="停用" value="inactive" />
-            <el-option label="已结班" value="closed" />
+            <el-option label="已结课" value="closed" />
           </el-select>
         </el-form-item>
         <el-form-item label="开班日期">
@@ -1088,7 +1088,7 @@ function teachingClassStatusLabel(status?: string | null) {
     case 'inactive':
       return '停用'
     case 'closed':
-      return '已结班'
+      return '已结课'
     case 'planning':
     default:
       return '规划中'

@@ -20,8 +20,17 @@ public class PasswordValidatorImpl implements PasswordValidator {
         if (!meetsRequirements(password)) {
             String level = systemConfigService.getConfigValue("auth.password.strength_level", "medium");
             throw new BusinessException(ResultCode.VALIDATION_ERROR,
-                "密码强度未达到「" + level + "」等级要求");
+                "密码强度未达到「" + strengthLevelName(level) + "」等级要求");
         }
+    }
+
+    private String strengthLevelName(String level) {
+        return switch (level == null ? "" : level) {
+            case "simple" -> "简单";
+            case "medium" -> "中等";
+            case "complex" -> "复杂";
+            default -> "中等";
+        };
     }
 
     @Override

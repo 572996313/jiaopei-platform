@@ -47,10 +47,10 @@ public class ScheduleLessonEntity extends BaseEntity {
     @Schema(description = "课次标题")
     private String lessonTitle;
 
-    @Schema(description = "课次状态(SCHEDULED=已排课,TAKEN=已上课,CANCELLED=已取消,MAKEUP=已补课)", allowableValues = {"SCHEDULED", "TAKEN", "CANCELLED", "MAKEUP"})
+    @Schema(description = "课次状态(scheduled=已排课,rescheduled=已调课,cancelled=已停课,makeup=已补课,completed=已结课)", allowableValues = {"scheduled", "rescheduled", "cancelled", "makeup", "completed"})
     private String lessonStatus;
 
-    @Schema(description = "变更类型(STOP=停课,MAKEUP=补课,ADJUST=调整,RESCHEDULE=改期)", allowableValues = {"STOP", "MAKEUP", "ADJUST", "RESCHEDULE"})
+    @Schema(description = "变更类型(cancelled_makeup=停课补课)", allowableValues = {"cancelled_makeup"})
     private String changeType;
 
     @Schema(description = "关联课次ID(变更/补课指向原课次)")

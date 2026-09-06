@@ -43,7 +43,7 @@ public class TeachingClassEntity extends BaseEntity {
     @Schema(description = "当前人数")
     private Integer currentStudents;
 
-    @Schema(description = "状态(PLANNED=筹备中,OPEN=开班中,CLOSED=已结课,CANCELLED=已取消)", allowableValues = {"PLANNED", "OPEN", "CLOSED", "CANCELLED"})
+    @Schema(description = "状态(planning=规划中,active=启用,inactive=停用,closed=已结课)", allowableValues = {"planning", "active", "inactive", "closed"})
     private String status;
 
     @Schema(description = "开班日期")

@@ -70,7 +70,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     public CurrentInstitutionView updateCurrentInstitution(Long institutionId, CurrentInstitutionUpdateRequest request) {
         InstitutionEntity entity = requireInstitution(institutionId);
         if (request.name() != null) {
-            String orgName = requireNonBlank(request.name(), "name");
+            String orgName = requireNonBlank(request.name(), "机构名称");
             if (!Objects.equals(entity.getOrgName(), orgName)) {
                 assertUniqueOrgName(orgName, institutionId);
             }
@@ -89,7 +89,7 @@ public class InstitutionServiceImpl implements InstitutionService {
             entity.setAddress(normalizeToNull(request.address()));
         }
         if (request.status() != null) {
-            entity.setStatus(requireNonBlank(request.status(), "status"));
+            entity.setStatus(requireNonBlank(request.status(), "状态"));
         }
         if (request.remark() != null) {
             entity.setRemark(normalizeToNull(request.remark()));
@@ -164,7 +164,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private String requireNonBlank(String value, String fieldName) {
         String normalized = normalize(value);
         if (normalized == null || normalized.isBlank()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " 不能为空");
+            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + "不能为空");
         }
         return normalized;
     }

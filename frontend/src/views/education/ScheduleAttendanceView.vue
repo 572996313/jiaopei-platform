@@ -1519,7 +1519,7 @@ function weekdayLabel(weekday?: number | null) {
 function lessonStatusLabel(status?: string | null) {
   switch (status) {
     case 'completed':
-      return '已完成'
+      return '已结课'
     case 'rescheduled':
       return '已调课'
     case 'makeup':
@@ -2136,7 +2136,7 @@ async function completeLesson(lesson: ScheduleLessonRecord) {
 
   try {
     await ElMessageBox.confirm(
-      `确认将 ${lesson.lessonDate || ''} ${formatClass(lesson.classId)} 标记为已完成吗？`,
+      `确认将 ${lesson.lessonDate || ''} ${formatClass(lesson.classId)} 标记为已结课吗？`,
       '课次结课',
       { type: 'warning' },
     )

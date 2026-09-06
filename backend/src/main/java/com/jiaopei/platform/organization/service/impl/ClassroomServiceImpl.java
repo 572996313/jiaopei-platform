@@ -49,7 +49,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         assertUniqueClassroomCode(request.campusId(), classroomCode, null);
         assertUniqueClassroomName(request.campusId(), classroomName, null);
         if (request.areaSqm() != null && request.areaSqm().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm 必须大于或等于 0");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "面积(平方米)不能小于0");
         }
 
         ClassroomEntity entity = new ClassroomEntity();
@@ -109,7 +109,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         if (request.areaSqm() != null) {
             if (request.areaSqm().compareTo(BigDecimal.ZERO) < 0) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm 必须大于或等于 0");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "面积(平方米)不能小于0");
             }
             existing.setAreaSqm(request.areaSqm());
         }

@@ -31,9 +31,9 @@ public record ScheduleLessonView(
     LocalTime endTime,
     @Schema(description = "课次标题")
     String lessonTitle,
-    @Schema(description = "课次状态(SCHEDULED/TAKEN/CANCELLED/MAKEUP)", allowableValues = {"SCHEDULED", "TAKEN", "CANCELLED", "MAKEUP"})
+    @Schema(description = "课次状态(scheduled=已排课,rescheduled=已调课,cancelled=已停课,makeup=已补课,completed=已结课)", allowableValues = {"scheduled", "rescheduled", "cancelled", "makeup", "completed"})
     String lessonStatus,
-    @Schema(description = "变更类型(STOP/MAKEUP/ADJUST/RESCHEDULE)", allowableValues = {"STOP", "MAKEUP", "ADJUST", "RESCHEDULE"})
+    @Schema(description = "变更类型(cancelled_makeup=停课补课)", allowableValues = {"cancelled_makeup"})
     String changeType,
     @Schema(description = "关联课次ID")
     Long relatedLessonId,

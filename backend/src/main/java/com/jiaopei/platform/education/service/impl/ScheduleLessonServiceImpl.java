@@ -38,6 +38,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private static final String RESCHEDULED = "rescheduled";
     private static final String CANCELLED = "cancelled";
     private static final String MAKEUP = "makeup";
+    private static final String COMPLETED = "completed";
     private static final String CANCELLED_MAKEUP = "cancelled_makeup";
 
     private final ScheduleLessonMapper lessonMapper;
@@ -119,7 +120,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate,
                                                  Boolean pendingMakeupOnly) {
         if (lessonDate == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "lessonDate 不能为空");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "上课日期不能为空");
         }
         return listLessons(institutionId, campusId, null, lessonDate, pendingMakeupOnly);
     }
@@ -128,7 +129,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart,
                                                   LocalDate weekEnd, Boolean pendingMakeupOnly) {
         if (weekStart == null || weekEnd == null || weekStart.isAfter(weekEnd)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "weekStart 和 weekEnd 必须为有效日期且周起不能晚于周止");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "周起始日期和周结束日期必须为有效日期，且周起始日期不能晚于周结束日期");
         }
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder()
             .between(ScheduleLessonEntity::getLessonDate, weekStart, weekEnd);
@@ -217,7 +218,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (!MAKEUP.equalsIgnoreCase(lessonStatus)) {
             if (changeType != null || relatedLessonId != null) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "只有课次状态为 makeup 时才允许传 changeType 和 relatedLessonId");
+                    "只有补课课次才允许填写变更类型和关联的原课次");
             }
             return;
         }
@@ -228,11 +229,11 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
         if (!Objects.equals(changeType, CANCELLED_MAKEUP) || relatedLessonId == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "补课关联必须同时提供 changeType=cancelled_makeup 和 relatedLessonId");
+                "补课关联信息不完整，需要同时提供停课补课的变更类型和关联的原课次");
         }
         if (currentLessonId != null && Objects.equals(currentLessonId, relatedLessonId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "relatedLessonId 不能指向当前课次本身");
+                "关联的原课次不能是当前课次本身");
         }
 
         ScheduleLessonEntity relatedLesson = requireLesson(relatedLessonId);
@@ -406,9 +407,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             return SCHEDULED;
         }
         String canonical = normalized.toLowerCase();
-        if (!List.of(SCHEDULED, RESCHEDULED, CANCELLED, MAKEUP).contains(canonical)) {
+        if (!List.of(SCHEDULED, RESCHEDULED, CANCELLED, MAKEUP, COMPLETED).contains(canonical)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "lessonStatus 只能是 scheduled、rescheduled、cancelled、makeup 之一");
+                "课次状态只能是已排课、已调课、已停课、已补课、已结课之一");
         }
         return canonical;
     }
@@ -421,7 +422,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         String canonical = normalized.toLowerCase();
         if (!CANCELLED_MAKEUP.equals(canonical)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "changeType 传入时只能是 cancelled_makeup");
+                "变更类型只能为停课补课");
         }
         return canonical;
     }

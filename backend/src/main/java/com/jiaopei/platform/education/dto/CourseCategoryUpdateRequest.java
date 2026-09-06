@@ -16,7 +16,7 @@ public record CourseCategoryUpdateRequest(
     String status,
     @Schema(description = "排序号(越小越靠前)")
     @JsonAlias("sort_order")
-    @Min(value = 0, message = "sortOrder 必须大于或等于 0")
+    @Min(value = 0, message = "排序值必须大于或等于0")
     Integer sortOrder,
     @Schema(description = "备注")
     String remark

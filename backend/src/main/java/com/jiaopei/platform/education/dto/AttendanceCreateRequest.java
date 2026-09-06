@@ -20,16 +20,16 @@ public record AttendanceCreateRequest(
     @Schema(description = "班级ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"class_id", "teachingClassId"})
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "classId 不能为空")
+    @NotNull(message = "班级ID不能为空")
     Long classId,
     @Schema(description = "学员ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("student_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "studentId 不能为空")
+    @NotNull(message = "学员ID不能为空")
     Long studentId,
     @Schema(description = "出勤日期", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"date", "attendance_date"})
-    @NotNull(message = "attendanceDate 不能为空")
+    @NotNull(message = "考勤日期不能为空")
     LocalDate attendanceDate,
     @Schema(description = "出勤状态(PRESENT/ABSENT/LATE/LEAVE/EARLY_LEAVE)", allowableValues = {"PRESENT", "ABSENT", "LATE", "LEAVE", "EARLY_LEAVE"})
     @JsonAlias({"status", "attendance_status"})

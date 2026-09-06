@@ -14,12 +14,12 @@ public record TeachingClassCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId 不能为空")
+    @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @Schema(description = "校区ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("campus_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "campusId 不能为空")
+    @NotNull(message = "校区ID不能为空")
     Long campusId,
     @Schema(description = "学期ID")
     @JsonAlias("term_id")
@@ -35,11 +35,11 @@ public record TeachingClassCreateRequest(
     Long classTypeId,
     @Schema(description = "班级编号", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "class_code"})
-    @NotBlank(message = "classCode 不能为空")
+    @NotBlank(message = "班级编号不能为空")
     String classCode,
     @Schema(description = "班级名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "class_name"})
-    @NotBlank(message = "className 不能为空")
+    @NotBlank(message = "班级名称不能为空")
     String className,
     @Schema(description = "主教师ID")
     @JsonAlias({"primary_teacher_id", "teacher_id"})
@@ -47,13 +47,13 @@ public record TeachingClassCreateRequest(
     Long teacherId,
     @Schema(description = "容量上限")
     @JsonAlias({"capacity", "capacity_limit"})
-    @Min(value = 0, message = "capacityLimit 必须大于或等于 0")
+    @Min(value = 0, message = "容量上限必须大于或等于0")
     Integer capacityLimit,
     @Schema(description = "当前人数(服务端按在班学员关系统计，请求值不生效)")
     @JsonAlias("current_students")
-    @Min(value = 0, message = "currentStudents 必须大于或等于 0")
+    @Min(value = 0, message = "当前人数必须大于或等于0")
     Integer currentStudents,
-    @Schema(description = "状态(PLANNED=筹备中,OPEN=开班中,CLOSED=已结课,CANCELLED=已取消)", allowableValues = {"PLANNED", "OPEN", "CLOSED", "CANCELLED"})
+    @Schema(description = "状态(planning=规划中,active=启用,inactive=停用,closed=已结课;不传默认规划中)", allowableValues = {"planning", "active", "inactive", "closed"})
     String status,
     @Schema(description = "开班日期")
     @JsonAlias("opened_at")

@@ -24,7 +24,7 @@ public record AttendanceLessonInfoView(
     LocalTime endTime,
     @Schema(description = "课次标题")
     String lessonTitle,
-    @Schema(description = "课次状态(SCHEDULED/TAKEN/CANCELLED/MAKEUP)", allowableValues = {"SCHEDULED", "TAKEN", "CANCELLED", "MAKEUP"})
+    @Schema(description = "课次状态(scheduled=已排课,rescheduled=已调课,cancelled=已停课,makeup=已补课,completed=已结课)", allowableValues = {"scheduled", "rescheduled", "cancelled", "makeup", "completed"})
     String lessonStatus,
     @Schema(description = "备注")
     String remark

@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException exception) {
         String message = exception.getConstraintViolations().stream()
-            .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+            .map(violation -> violation.getMessage())
             .collect(Collectors.joining("; "));
         return ApiResponse.failure(ResultCode.VALIDATION_ERROR, message);
     }
@@ -91,6 +91,9 @@ public class GlobalExceptionHandler {
     }
 
     private String formatFieldError(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+        // 校验注解统一携带中文 message（如"班级ID不能为空"），直接透传，
+        // 不再拼接英文属性名前缀，避免响应里出现中英混排
+        String message = error.getDefaultMessage();
+        return message == null || message.isBlank() ? "参数校验未通过" : message;
     }
 }

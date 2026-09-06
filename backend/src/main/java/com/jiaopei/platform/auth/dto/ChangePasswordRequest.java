@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ChangePasswordRequest(
-    @NotBlank String oldPassword,
-    @NotBlank @Size(min = 8, max = 128) String newPassword,
-    @NotBlank @Size(min = 8, max = 128) String confirmPassword
+    @NotBlank(message = "原密码不能为空") String oldPassword,
+    @NotBlank(message = "新密码不能为空") @Size(min = 8, max = 128, message = "新密码长度需在8到128个字符之间") String newPassword,
+    @NotBlank(message = "确认密码不能为空") @Size(min = 8, max = 128, message = "确认密码长度需在8到128个字符之间") String confirmPassword
 ) {
 }

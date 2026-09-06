@@ -37,17 +37,36 @@ function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
   return body.data
 }
 
+// axios 原生 error.message 是英文（如 "Network Error"、"timeout of 10000ms exceeded"），
+// 不能直接透出给用户，映射为中文提示
+function localizeNetworkError(error: { code?: string; message?: string }): string | null {
+  if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message ?? '')) {
+    return '请求超时，请稍后重试'
+  }
+  if (/Network Error/i.test(error.message ?? '')) {
+    return '网络连接异常，请检查网络后重试'
+  }
+  return null
+}
+
 function normalizeError(error: unknown): ApiError {
   if (isAxiosError(error)) {
     const body = error.response?.data as ApiResponse<unknown> | undefined
-    return new ApiError(body?.message || error.message || '请求失败', {
-      code: body?.code,
+    if (body?.message) {
+      return new ApiError(body.message, {
+        code: body.code,
+        status: error.response?.status,
+        path: body.path,
+      })
+    }
+    const localized = localizeNetworkError(error)
+    return new ApiError(localized ?? '请求失败', {
       status: error.response?.status,
-      path: body?.path,
     })
   }
   if (error instanceof Error) {
-    return new ApiError(error.message || '请求失败')
+    const localized = localizeNetworkError(error)
+    return new ApiError(localized ?? (error.message || '请求失败'))
   }
   return new ApiError('请求失败')
 }

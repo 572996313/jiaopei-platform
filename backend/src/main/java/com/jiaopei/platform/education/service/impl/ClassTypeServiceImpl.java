@@ -42,7 +42,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         int minStudents = request.minStudents() == null ? 0 : request.minStudents();
         Integer maxStudents = request.maxStudents();
         if (maxStudents != null && maxStudents < minStudents) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents 不能小于 minStudents");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "最大学员数不能小于最小学员数");
         }
 
         String typeCode = normalize(request.typeCode());
@@ -75,7 +75,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         int minStudents = request.minStudents() == null ? existing.getMinStudents() : request.minStudents();
         Integer maxStudents = request.maxStudents() == null ? existing.getMaxStudents() : request.maxStudents();
         if (maxStudents != null && maxStudents < minStudents) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents 不能小于 minStudents");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "最大学员数不能小于最小学员数");
         }
         if (request.typeCode() != null && !request.typeCode().isBlank()) {
             String typeCode = normalize(request.typeCode());

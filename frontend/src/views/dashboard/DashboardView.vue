@@ -436,9 +436,9 @@ function formatTeacherNames(values?: Array<string | number> | null) {
 function lessonStatusLabel(status?: string | null) {
   switch (status) {
     case 'completed':
-      return '已完成'
+      return '已结课'
     case 'cancelled':
-      return '已取消'
+      return '已停课'
     case 'rescheduled':
       return '已调课'
     case 'makeup':
