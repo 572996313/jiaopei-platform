@@ -117,16 +117,16 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     @Override
-    public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate,
+    public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, Long classId, LocalDate lessonDate,
                                                  Boolean pendingMakeupOnly) {
         if (lessonDate == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "上课日期不能为空");
         }
-        return listLessons(institutionId, campusId, null, lessonDate, pendingMakeupOnly);
+        return listLessons(institutionId, campusId, classId, lessonDate, pendingMakeupOnly);
     }
 
     @Override
-    public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart,
+    public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, Long classId, LocalDate weekStart,
                                                   LocalDate weekEnd, Boolean pendingMakeupOnly) {
         if (weekStart == null || weekEnd == null || weekStart.isAfter(weekEnd)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "周起始日期和周结束日期必须为有效日期，且周起始日期不能晚于周结束日期");
@@ -138,6 +138,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         }
         if (campusId != null) {
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
+        }
+        if (classId != null) {
+            wrapper.eq(ScheduleLessonEntity::getClassId, classId);
         }
         return toViews(lessonMapper.selectList(wrapper), pendingMakeupOnly);
     }

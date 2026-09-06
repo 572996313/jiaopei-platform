@@ -75,18 +75,20 @@ public class ScheduleLessonController {
     @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> day(@RequestParam(required = false) Long institutionId,
                                                      @RequestParam(required = false) Long campusId,
+                                                     @RequestParam(required = false) Long classId,
                                                      @RequestParam
                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                      LocalDate lessonDate,
                                                      @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("日课表已加载",
-            scheduleLessonService.dayTimetable(institutionId, campusId, lessonDate, pendingMakeupOnly));
+            scheduleLessonService.dayTimetable(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
     }
 
     @GetMapping("/timetable/week")
     @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> week(@RequestParam(required = false) Long institutionId,
                                                       @RequestParam(required = false) Long campusId,
+                                                      @RequestParam(required = false) Long classId,
                                                       @RequestParam
                                                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                       LocalDate weekStart,
@@ -95,7 +97,7 @@ public class ScheduleLessonController {
                                                       LocalDate weekEnd,
                                                       @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("周课表已加载",
-            scheduleLessonService.weekTimetable(institutionId, campusId, weekStart, weekEnd, pendingMakeupOnly));
+            scheduleLessonService.weekTimetable(institutionId, campusId, classId, weekStart, weekEnd, pendingMakeupOnly));
     }
 
     @PostMapping("/conflicts/check")

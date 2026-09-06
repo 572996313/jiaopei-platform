@@ -682,6 +682,7 @@ export function deleteScheduleLesson(id: string) {
 export function fetchDayTimetable(params: {
   institutionId?: string | null
   campusId?: string | null
+  classId?: string | null
   lessonDate: string
   pendingMakeupOnly?: boolean | null
 }) {
@@ -691,6 +692,7 @@ export function fetchDayTimetable(params: {
 export function fetchWeekTimetable(params: {
   institutionId?: string | null
   campusId?: string | null
+  classId?: string | null
   weekStart: string
   weekEnd: string
   pendingMakeupOnly?: boolean | null

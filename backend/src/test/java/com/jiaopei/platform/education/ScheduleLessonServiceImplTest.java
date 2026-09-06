@@ -1,6 +1,8 @@
 package com.jiaopei.platform.education;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.ScheduleLessonEntity;
 import com.jiaopei.platform.education.domain.entity.ScheduleTeacherRelEntity;
@@ -19,6 +21,8 @@ import com.jiaopei.platform.organization.mapper.TimeSlotMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -34,6 +38,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ScheduleLessonServiceImplTest {
+
+    @BeforeAll
+    static void initEntityTableInfo() {
+        // 单测环境没有 MyBatis 启动流程，手动注册实体元数据，wrapper 的 lambda 才能解析出列名
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ScheduleLessonEntity.class);
+    }
 
     private final ScheduleLessonMapper lessonMapper = mock(ScheduleLessonMapper.class);
     private final ScheduleTeacherRelMapper teacherRelMapper = mock(ScheduleTeacherRelMapper.class);
@@ -392,5 +402,46 @@ class ScheduleLessonServiceImplTest {
         assertEquals(1, lessons.size());
         assertEquals(910L, lessons.getFirst().id());
         assertTrue(Boolean.TRUE.equals(lessons.getFirst().pendingMakeup()));
+    }
+
+    @Test
+    void dayTimetableAppliesClassIdFilter() {
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        service.dayTimetable(1L, 2L, 100L, LocalDate.of(2026, 6, 15), false);
+
+        ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(lessonMapper).selectList(captor.capture());
+        LambdaQueryWrapper wrapper = captor.getValue();
+        // MP 的条件参数在渲染 SQL 片段时才注册，需先触发渲染再断言
+        wrapper.getSqlSegment();
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(100L));
+    }
+
+    @Test
+    void dayTimetableRequiresLessonDate() {
+        assertThrows(BusinessException.class, () -> service.dayTimetable(1L, 2L, null, null, false));
+    }
+
+    @Test
+    void weekTimetableAppliesClassIdAndDateRange() {
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        service.weekTimetable(1L, 2L, 100L, LocalDate.of(2026, 6, 8), LocalDate.of(2026, 6, 14), false);
+
+        ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(lessonMapper).selectList(captor.capture());
+        LambdaQueryWrapper wrapper = captor.getValue();
+        wrapper.getSqlSegment();
+        var values = wrapper.getParamNameValuePairs().values();
+        assertTrue(values.contains(100L));
+        assertTrue(values.contains(LocalDate.of(2026, 6, 8)));
+        assertTrue(values.contains(LocalDate.of(2026, 6, 14)));
+    }
+
+    @Test
+    void weekTimetableRejectsInvalidRange() {
+        assertThrows(BusinessException.class,
+            () -> service.weekTimetable(1L, 2L, null, LocalDate.of(2026, 6, 14), LocalDate.of(2026, 6, 8), false));
     }
 }
