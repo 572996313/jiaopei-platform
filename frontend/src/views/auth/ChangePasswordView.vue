@@ -1,7 +1,7 @@
 <template>
   <div class="login-shell">
     <section class="login-panel login-panel-brand">
-      <div class="login-kicker">SECURITY FLOW</div>
+      <div class="login-kicker">账号安全</div>
       <h1 class="login-title">账号安全校验</h1>
       <p class="login-copy">
         {{ auth.mustChangePassword ? '当前账号需要先修改密码后才能进入业务首页。' : '可在此主动修改当前登录账号密码。' }}
@@ -21,7 +21,7 @@
 
     <section class="login-panel login-panel-form">
       <div class="form-card">
-        <div class="page-kicker">CHANGE PASSWORD</div>
+        <div class="page-kicker">修改密码</div>
         <h2 class="form-title">修改登录密码</h2>
         <p class="login-form-tip">
           当前账号：{{ auth.currentUser?.username || '-' }} / {{ auth.displayName }}

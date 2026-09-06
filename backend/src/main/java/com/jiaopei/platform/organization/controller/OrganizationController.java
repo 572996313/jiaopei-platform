@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/organizations")
-@Tag(name = "Organization")
+@Tag(name = "组织管理")
 public class OrganizationController {
 
     private final OrganizationApplicationService organizationApplicationService;
@@ -24,14 +24,14 @@ public class OrganizationController {
     @GetMapping("/bootstrap")
     @RequiresPermission("organization:read")
     public ApiResponse<OrganizationBootstrapView> bootstrap() {
-        return ApiResponse.success("Organization module bootstrap is ready",
+        return ApiResponse.success("组织模块启动信息已就绪",
             organizationApplicationService.getBootstrapView());
     }
 
     @GetMapping("/schema")
     @RequiresPermission("organization:read")
     public ApiResponse<OrganizationSchemaView> schema() {
-        return ApiResponse.success("Organization schema metadata is ready",
+        return ApiResponse.success("组织模块表结构元数据已就绪",
             organizationApplicationService.getSchemaView());
     }
 }

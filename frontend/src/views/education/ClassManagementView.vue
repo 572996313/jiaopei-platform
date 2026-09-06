@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">CLASS / PROFILE / MEMBERS</div>
+        <div class="page-kicker">班级 · 档案 · 成员</div>
         <h2 class="panel-headline">班级主档与成员</h2>
         <p class="panel-subtitle">
           当前页面统一承接班级主档、学员关系、班级教师与家长联系人。先看课程和班型，再处理主讲、主联系人和班级变动。

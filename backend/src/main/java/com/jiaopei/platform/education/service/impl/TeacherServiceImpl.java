@@ -53,7 +53,7 @@ public class TeacherServiceImpl implements TeacherService {
             requireCampusInInstitution(request.campusId(), request.institutionId());
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt cannot be in the future");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt 不能晚于当前日期");
         }
 
         String teacherCode = normalize(request.teacherCode());
@@ -80,7 +80,7 @@ public class TeacherServiceImpl implements TeacherService {
         try {
             teacherMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher teacherCode or phone already exists in institution: " + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -92,7 +92,7 @@ public class TeacherServiceImpl implements TeacherService {
             requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt cannot be in the future");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "hiredAt 不能晚于当前日期");
         }
 
         if (request.teacherCode() != null && !request.teacherCode().isBlank()) {
@@ -122,7 +122,7 @@ public class TeacherServiceImpl implements TeacherService {
         try {
             teacherMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher teacherCode or phone already exists in institution: " + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -136,24 +136,24 @@ public class TeacherServiceImpl implements TeacherService {
     private TeacherEntity requireTeacher(Long id) {
         TeacherEntity entity = teacherMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Teacher does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + id);
         }
         return entity;
     }
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private void requireCampusInInstitution(Long campusId, Long institutionId) {
         CampusEntity campus = campusMapper.selectById(campusId);
         if (campus == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + campusId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
         }
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
         }
     }
 
@@ -166,7 +166,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
         Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher teacherCode already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码已存在：" + institutionId);
         }
     }
 
@@ -179,7 +179,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
         Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher phone already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师手机号已存在：" + institutionId);
         }
     }
 

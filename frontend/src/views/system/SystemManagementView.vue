@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">SYSTEM / SECURITY / DICTIONARY</div>
+        <div class="page-kicker">系统 · 权限 · 字典</div>
         <h2 class="panel-headline">系统管理</h2>
         <p class="panel-subtitle">
           当前页面承接用户、角色、菜单和字典的最小可用链，并接入真实改密与菜单可见性能力。
@@ -13,6 +13,7 @@
         <el-button :loading="pageLoading" @click="refreshAll">刷新数据</el-button>
         <el-button v-if="activeTab === 'users'" type="primary" @click="openCreateUserDialog">新增用户</el-button>
         <el-button v-else-if="activeTab === 'roles'" type="primary" @click="openCreateRoleDialog">新增角色</el-button>
+        <el-button v-else-if="activeTab === 'configs'" type="primary" @click="openCreateConfigDialog">新增参数</el-button>
       </div>
     </div>
 
@@ -24,22 +25,22 @@
       <article class="stat-card">
         <div class="stat-label">用户数</div>
         <div class="stat-value">{{ users.length }}</div>
-        <div class="stat-hint">来自 /api/system/users</div>
+        <div class="stat-hint">数据来自用户管理接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">角色数</div>
         <div class="stat-value">{{ roles.length }}</div>
-        <div class="stat-hint">来自 /api/system/roles</div>
+        <div class="stat-hint">数据来自角色管理接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">菜单节点</div>
         <div class="stat-value">{{ flattenedMenus.length }}</div>
-        <div class="stat-hint">来自 /api/auth/current/menus 与 /api/system/menus/tree</div>
+        <div class="stat-hint">数据来自当前用户菜单接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">字典类型</div>
         <div class="stat-value">{{ dictTypes.length }}</div>
-        <div class="stat-hint">当前已接 common_status 最小使用链</div>
+        <div class="stat-hint">当前已接「通用状态」字典最小使用链</div>
       </article>
     </div>
 
@@ -68,8 +69,8 @@
       <div class="education-context-text">
         {{
           auth.mustChangePassword
-            ? '当前账号已被 forceChangePassword 锁定，只能先完成改密流程。'
-            : '菜单显示由 /api/auth/current/menus 驱动，状态枚举优先读取 common_status 字典。'
+            ? '当前账号已被强制改密标记锁定，只能先完成改密流程。'
+            : '菜单显示由当前用户菜单接口驱动，状态枚举优先读取「通用状态」字典。'
         }}
       </div>
     </article>
@@ -291,6 +292,44 @@
             </template>
           </template>
 
+          <template v-else-if="tab.name === 'configs'">
+            <article v-if="configSectionError" class="education-empty">
+              {{ configSectionError }}
+            </article>
+            <template v-else>
+              <div class="education-table-head">
+                <div class="panel-title">系统参数</div>
+                <div class="education-context-text">维护全局键值参数（token 有效期等），支持新增、编辑与删除。</div>
+              </div>
+
+              <el-table :data="configs" border v-loading="pageLoading">
+                <el-table-column prop="configKey" label="配置键" min-width="200" />
+                <el-table-column prop="displayName" label="显示名称" min-width="140" />
+                <el-table-column prop="configValue" label="配置值" min-width="160" show-overflow-tooltip />
+                <el-table-column prop="valueType" label="值类型" width="100" />
+                <el-table-column prop="configGroup" label="分组" width="120" />
+                <el-table-column label="系统内置" width="100">
+                  <template #default="{ row }">{{ row.isSystem ? '是' : '否' }}</template>
+                </el-table-column>
+                <el-table-column prop="sortOrder" label="排序" width="80" />
+                <el-table-column label="状态" width="110">
+                  <template #default="{ row }">
+                    <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="description" label="说明" min-width="180" show-overflow-tooltip />
+                <el-table-column label="操作" width="180" fixed="right">
+                  <template #default="{ row }">
+                    <div class="system-operation-group">
+                      <el-button text type="primary" @click="openEditConfigDialog(row)">编辑</el-button>
+                      <el-button text type="danger" :disabled="row.isSystem === true" @click="handleDeleteConfig(row)">删除</el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </template>
+          </template>
+
           <template v-else-if="tab.name === 'dicts'">
             <article v-if="dictSectionError" class="education-empty">
               {{ dictSectionError }}
@@ -298,14 +337,14 @@
             <template v-else>
               <div class="education-table-head">
                 <div class="panel-title">字典最小接入</div>
-                <div class="education-context-text">当前页面只读展示字典类型与条目，并让状态下拉/标签改为 dict 驱动。</div>
+                <div class="education-context-text">当前页面只读展示字典类型与条目，并让状态下拉/标签改为字典驱动。</div>
               </div>
 
               <div class="system-dict-grid">
                 <div class="panel-card">
                   <div class="panel-title">字典类型</div>
                   <el-table :data="dictTypes" border highlight-current-row @current-change="handleDictTypeChange">
-                    <el-table-column prop="typeCode" label="typeCode" min-width="160" />
+                    <el-table-column prop="typeCode" label="类型编码" min-width="160" />
                     <el-table-column prop="typeName" label="类型名称" min-width="180" />
                     <el-table-column label="状态" width="110">
                       <template #default="{ row }">
@@ -490,6 +529,57 @@
         <el-button type="primary" :loading="roleMenuSubmitting" @click="submitRoleMenus">保存菜单</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="configDialogVisible" :title="configDialogMode === 'create' ? '新增系统参数' : '编辑系统参数'" width="620px">
+      <el-alert v-if="configFormError" :title="configFormError" type="error" show-icon :closable="false" class="education-alert" />
+
+      <el-form label-position="top" class="education-form">
+        <div class="system-form-grid">
+          <el-form-item label="配置键">
+            <el-input v-model="configForm.configKey" :disabled="configDialogMode === 'edit'" placeholder="如 token.expire-minutes" />
+          </el-form-item>
+          <el-form-item label="显示名称">
+            <el-input v-model="configForm.displayName" placeholder="请输入显示名称" />
+          </el-form-item>
+          <el-form-item label="配置值">
+            <el-input v-model="configForm.configValue" placeholder="请输入配置值" />
+          </el-form-item>
+          <el-form-item label="值类型">
+            <el-select v-model="configForm.valueType" :disabled="configDialogMode === 'edit'">
+              <el-option v-for="item in configValueTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="配置分组">
+            <el-input v-model="configForm.configGroup" :disabled="configDialogMode === 'edit'" placeholder="如 general / auth" />
+          </el-form-item>
+          <el-form-item label="排序">
+            <el-input-number v-model="configForm.sortOrder" :min="0" :max="9999" />
+          </el-form-item>
+          <el-form-item v-if="configDialogMode === 'create'" label="是否系统内置">
+            <el-switch v-model="configForm.isSystem" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="configForm.status">
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <el-form-item label="默认值">
+          <el-input v-model="configForm.defaultValue" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="配置说明">
+          <el-input v-model="configForm.description" type="textarea" :rows="3" maxlength="500" placeholder="补充参数用途说明" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="configDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="configSubmitting" @click="submitConfig">
+          {{ configDialogMode === 'create' ? '创建参数' : '保存编辑' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -499,9 +589,12 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchCampuses, fetchInstitutions, type CampusSummary, type InstitutionSummary } from '@/api/organization'
 import {
+  createSystemConfig,
   createSystemRole,
   createSystemUser,
   fetchCurrentInstitution,
+  deleteSystemConfig,
+  fetchSystemConfigs,
   fetchSystemDictItems,
   fetchSystemDictTypes,
   fetchSystemMenusTree,
@@ -509,6 +602,7 @@ import {
   fetchSystemRoles,
   fetchSystemUsers,
   resetSystemUserPassword,
+  updateSystemConfig,
   updateCurrentInstitution,
   updateSystemRole,
   updateSystemRoleMenus,
@@ -518,6 +612,7 @@ import {
   type DictItemSummary,
   type DictTypeSummary,
   type SystemMenuTreeNode,
+  type SystemConfigSummary,
   type SystemRoleSummary,
   type SystemUserSummary,
 } from '@/api/system'
@@ -530,6 +625,7 @@ const router = useRouter()
 const pageLoading = ref(false)
 const pageError = ref('')
 const menuSectionError = ref('')
+const configSectionError = ref('')
 const dictSectionError = ref('')
 const institutionSectionError = ref('')
 
@@ -538,6 +634,7 @@ const campusDirectory = ref<CampusSummary[]>([])
 const users = ref<SystemUserSummary[]>([])
 const roles = ref<SystemRoleSummary[]>([])
 const menuTree = ref<SystemMenuTreeNode[]>([])
+const configs = ref<SystemConfigSummary[]>([])
 const dictTypes = ref<DictTypeSummary[]>([])
 const dictItemsMap = ref<Record<string, DictItemSummary[]>>({})
 const selectedDictTypeCode = ref('common_status')
@@ -570,10 +667,38 @@ const roleMenuError = ref('')
 const selectedMenuRole = ref<SystemRoleSummary | null>(null)
 const roleMenuTreeRef = ref<any>(null)
 
+const configDialogVisible = ref(false)
+const configDialogMode = ref<'create' | 'edit'>('create')
+const configSubmitting = ref(false)
+const configFormError = ref('')
+const selectedConfig = ref<SystemConfigSummary | null>(null)
+
+const configValueTypeOptions = [
+  { value: 'string', label: 'string' },
+  { value: 'int', label: 'int' },
+  { value: 'boolean', label: 'boolean' },
+  { value: 'json', label: 'json' },
+]
+
+const configForm = reactive({
+  configKey: '',
+  configValue: '',
+  valueType: 'string',
+  configGroup: 'general',
+  displayName: '',
+  description: '',
+  defaultValue: '',
+  isSystem: false,
+  sortOrder: 0,
+  status: 'active',
+})
+
 const permissionOptions = [
   { value: 'system:user:manage', label: '用户管理' },
   { value: 'system:role:manage', label: '角色管理' },
   { value: 'system:menu:manage', label: '菜单管理' },
+  { value: 'system:config:read', label: '系统参数只读' },
+  { value: 'system:config:write', label: '系统参数维护' },
   { value: 'system:dict:manage', label: '字典管理' },
   { value: 'organization:read', label: '组织只读' },
   { value: 'organization:write', label: '组织维护' },
@@ -609,6 +734,13 @@ const systemTabs = [
     routePath: '/system/menus',
     menuSignals: ['system_menus', '/system/menus'],
     permissionSignals: ['system:menu:manage'],
+  },
+  {
+    name: 'configs',
+    label: '系统参数',
+    routePath: '/system/config',
+    menuSignals: ['system_config', '/system/config'],
+    permissionSignals: ['system:config:read', 'system:config:write'],
   },
   {
     name: 'dicts',
@@ -879,6 +1011,7 @@ async function loadPageData() {
   pageLoading.value = true
   pageError.value = ''
   menuSectionError.value = ''
+  configSectionError.value = ''
   dictSectionError.value = ''
   institutionSectionError.value = ''
 
@@ -903,6 +1036,17 @@ async function loadPageData() {
       }
     } else {
       menuTree.value = []
+    }
+
+    if (availableTabs.value.some((item) => item.name === 'configs')) {
+      try {
+        configs.value = await fetchSystemConfigs()
+      } catch (error) {
+        configs.value = []
+        configSectionError.value = toMessage(error, '系统参数加载失败')
+      }
+    } else {
+      configs.value = []
     }
 
     if (availableTabs.value.some((item) => item.name === 'dicts')) {
@@ -1280,6 +1424,114 @@ async function handleDictTypeChange(row?: DictTypeSummary | null) {
     } catch (error) {
       dictSectionError.value = toMessage(error, '字典条目加载失败')
     }
+  }
+}
+
+function openCreateConfigDialog() {
+  configDialogMode.value = 'create'
+  selectedConfig.value = null
+  configForm.configKey = ''
+  configForm.configValue = ''
+  configForm.valueType = 'string'
+  configForm.configGroup = 'general'
+  configForm.displayName = ''
+  configForm.description = ''
+  configForm.defaultValue = ''
+  configForm.isSystem = false
+  configForm.sortOrder = 0
+  configForm.status = statusOptions.value[0]?.value || 'active'
+  configFormError.value = ''
+  configDialogVisible.value = true
+}
+
+function openEditConfigDialog(config: SystemConfigSummary) {
+  configDialogMode.value = 'edit'
+  selectedConfig.value = config
+  configForm.configKey = config.configKey
+  configForm.configValue = config.configValue
+  configForm.valueType = config.valueType || 'string'
+  configForm.configGroup = config.configGroup || ''
+  configForm.displayName = config.displayName || ''
+  configForm.description = config.description || ''
+  configForm.defaultValue = config.defaultValue || ''
+  configForm.isSystem = config.isSystem === true
+  configForm.sortOrder = config.sortOrder ?? 0
+  configForm.status = config.status || 'active'
+  configFormError.value = ''
+  configDialogVisible.value = true
+}
+
+async function submitConfig() {
+  if (!trimToUndefined(configForm.configKey) && configDialogMode.value === 'create') {
+    configFormError.value = '请填写配置键'
+    return
+  }
+  if (!trimToUndefined(configForm.configValue)) {
+    configFormError.value = '请填写配置值'
+    return
+  }
+  if (!trimToUndefined(configForm.displayName)) {
+    configFormError.value = '请填写显示名称'
+    return
+  }
+  if (!trimToUndefined(configForm.configGroup) && configDialogMode.value === 'create') {
+    configFormError.value = '请填写配置分组'
+    return
+  }
+
+  configSubmitting.value = true
+  configFormError.value = ''
+  try {
+    if (configDialogMode.value === 'create') {
+      await createSystemConfig({
+        configKey: configForm.configKey.trim(),
+        configValue: configForm.configValue,
+        valueType: configForm.valueType,
+        configGroup: configForm.configGroup.trim(),
+        displayName: configForm.displayName.trim(),
+        description: trimToUndefined(configForm.description),
+        defaultValue: trimToUndefined(configForm.defaultValue),
+        isSystem: configForm.isSystem,
+        sortOrder: configForm.sortOrder ?? 0,
+        status: configForm.status,
+      })
+      ElMessage.success('系统参数已创建')
+    } else if (selectedConfig.value) {
+      await updateSystemConfig(selectedConfig.value.id, {
+        configValue: configForm.configValue,
+        displayName: configForm.displayName.trim(),
+        description: trimToUndefined(configForm.description),
+        sortOrder: configForm.sortOrder ?? 0,
+        status: configForm.status,
+      })
+      ElMessage.success('系统参数已更新')
+    }
+    configDialogVisible.value = false
+    await loadPageData()
+  } catch (error) {
+    configFormError.value = toMessage(error, configDialogMode.value === 'create' ? '创建系统参数失败' : '编辑系统参数失败')
+  } finally {
+    configSubmitting.value = false
+  }
+}
+
+async function handleDeleteConfig(config: SystemConfigSummary) {
+  try {
+    await ElMessageBox.confirm(`确定删除系统参数「${config.displayName || config.configKey}」吗？`, '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await deleteSystemConfig(config.id)
+    ElMessage.success('系统参数已删除')
+    await loadPageData()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除系统参数失败'))
   }
 }
 

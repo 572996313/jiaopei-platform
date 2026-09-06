@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system/users")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class SystemUserController {
 
     private final SystemUserService systemUserService;
@@ -33,30 +33,30 @@ public class SystemUserController {
     @GetMapping
     @RequiresPermission("system:user:manage")
     public ApiResponse<List<UserView>> list() {
-        return ApiResponse.success("User list loaded", systemUserService.listUsers());
+        return ApiResponse.success("用户列表已加载", systemUserService.listUsers());
     }
 
     @PostMapping
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> create(@Valid @RequestBody UserCreateRequest request) {
-        return ApiResponse.success("User created", systemUserService.createUser(request));
+        return ApiResponse.success("用户已创建", systemUserService.createUser(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
-        return ApiResponse.success("User updated", systemUserService.updateUser(id, request));
+        return ApiResponse.success("用户已更新", systemUserService.updateUser(id, request));
     }
 
     @PostMapping("/{id}/reset-password")
     @RequiresPermission("system:user:manage")
     public ApiResponse<ResetPasswordResponse> resetPassword(@PathVariable Long id) {
-        return ApiResponse.success("Password reset", systemUserService.resetPassword(id));
+        return ApiResponse.success("密码已重置", systemUserService.resetPassword(id));
     }
 
     @PostMapping("/{id}/roles")
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> updateRoles(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {
-        return ApiResponse.success("User roles updated", systemUserService.updateRoles(id, request));
+        return ApiResponse.success("用户角色已更新", systemUserService.updateRoles(id, request));
     }
 }

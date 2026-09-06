@@ -53,13 +53,13 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         StudentEntity student = requireStudent(request.studentId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class and student must belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
         }
         if (student.getCampusId() != null && !Objects.equals(student.getCampusId(), teachingClass.getCampusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student campus does not match class campus");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
         }
         if (request.leftAt() != null && request.joinedAt() != null && request.leftAt().isBefore(request.joinedAt())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt cannot be earlier than joinedAt");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt 不能早于 joinedAt");
         }
         assertUniqueClassStudent(request.classId(), request.studentId());
         assertClassCapacity(teachingClass);
@@ -76,7 +76,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         try {
             classStudentMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student already joined class: " + request.classId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + request.classId());
         }
 
         int currentStudents = teachingClass.getCurrentStudents() == null ? 0 : teachingClass.getCurrentStudents();
@@ -88,7 +88,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
     private TeachingClassEntity requireClass(Long classId) {
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(classId);
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + classId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         return teachingClass;
     }
@@ -96,7 +96,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
     private StudentEntity requireStudent(Long studentId) {
         StudentEntity student = studentMapper.selectById(studentId);
         if (student == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Student does not exist: " + studentId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         return student;
     }
@@ -106,7 +106,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             .eq(ClassStudentEntity::getClassId, classId)
             .eq(ClassStudentEntity::getStudentId, studentId));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student already joined class: " + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + classId);
         }
     }
 
@@ -114,7 +114,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         int capacity = teachingClass.getCapacityLimit() == null ? 0 : teachingClass.getCapacityLimit();
         int currentStudents = teachingClass.getCurrentStudents() == null ? 0 : teachingClass.getCurrentStudents();
         if (capacity > 0 && currentStudents >= capacity) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class capacity is full: " + teachingClass.getId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级容量已满：" + teachingClass.getId());
         }
     }
 }

@@ -77,7 +77,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         try {
             menuMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Menu code already exists: " + entity.getMenuCode());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "菜单编码已存在：" + entity.getMenuCode());
         }
         return toView(entity, List.of());
     }
@@ -109,7 +109,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         Long childCount = menuMapper.selectCount(new LambdaQueryWrapper<SystemMenuEntity>()
             .eq(SystemMenuEntity::getParentId, id));
         if (childCount != null && childCount > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Menu has children and cannot be deleted");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "菜单存在子节点，不能删除");
         }
         menuMapper.deleteById(id);
     }
@@ -229,7 +229,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
             return;
         }
         if (parentId.equals(selfId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Menu parent cannot be itself");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "上级菜单不能选择自己");
         }
         requireMenu(parentId);
     }
@@ -240,14 +240,14 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         }
         List<SystemMenuEntity> menus = menuMapper.selectBatchIds(menuIds);
         if (menus.size() != menuIds.size()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "One or more menus do not exist");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "部分菜单不存在");
         }
     }
 
     private RoleEntity requireRole(Long roleId) {
         RoleEntity role = roleMapper.selectById(roleId);
         if (role == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Role does not exist: " + roleId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "角色不存在：" + roleId);
         }
         return role;
     }
@@ -255,7 +255,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     private SystemMenuEntity requireMenu(Long id) {
         SystemMenuEntity entity = menuMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Menu does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "菜单不存在：" + id);
         }
         return entity;
     }

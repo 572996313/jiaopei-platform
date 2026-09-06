@@ -12,27 +12,27 @@ import java.time.LocalTime;
 public record TimeSlotCreateRequest(
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId is required")
+    @NotNull(message = "institutionId 不能为空")
     Long institutionId,
     @JsonAlias("campus_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long campusId,
     @JsonAlias({"code", "slot_code"})
-    @NotBlank(message = "slotCode is required")
+    @NotBlank(message = "slotCode 不能为空")
     String slotCode,
     @JsonAlias({"name", "slot_name"})
-    @NotBlank(message = "slotName is required")
+    @NotBlank(message = "slotName 不能为空")
     String slotName,
-    @NotNull(message = "weekday is required")
-    @Min(value = 1, message = "weekday must be between 1 and 7")
-    @Max(value = 7, message = "weekday must be between 1 and 7")
+    @NotNull(message = "weekday 不能为空")
+    @Min(value = 1, message = "weekday 必须在 1 到 7 之间")
+    @Max(value = 7, message = "weekday 必须在 1 到 7 之间")
     Integer weekday,
-    @NotNull(message = "startTime is required")
+    @NotNull(message = "startTime 不能为空")
     LocalTime startTime,
-    @NotNull(message = "endTime is required")
+    @NotNull(message = "endTime 不能为空")
     LocalTime endTime,
-    @NotNull(message = "durationMinutes is required")
-    @Min(value = 1, message = "durationMinutes must be greater than 0")
+    @NotNull(message = "durationMinutes 不能为空")
+    @Min(value = 1, message = "durationMinutes 必须大于 0")
     @JsonAlias("duration_minutes")
     Integer durationMinutes,
     @JsonAlias("slot_type")

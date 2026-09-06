@@ -24,7 +24,7 @@ public final class AuthContext {
 
     public static AuthenticatedUser requireUser() {
         return currentUser().orElseThrow(
-            () -> new InsufficientAuthenticationException("Authentication context is missing"));
+            () -> new InsufficientAuthenticationException("未获取到登录认证信息"));
     }
 
     public static boolean hasPermission(String permission) {

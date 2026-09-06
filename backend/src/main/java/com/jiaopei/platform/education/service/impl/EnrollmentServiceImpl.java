@@ -58,10 +58,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         StudentEntity student = requireStudentInInstitution(request.studentId(), request.institutionId());
         TeachingClassEntity teachingClass = requireClassInInstitution(request.classId(), request.institutionId());
         if (student.getCampusId() != null && !Objects.equals(student.getCampusId(), teachingClass.getCampusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student campus does not match class campus");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
         }
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrolledAt cannot be in the future");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "enrolledAt 不能晚于当前日期");
         }
 
         String enrollmentNo = normalize(request.enrollmentNo());
@@ -81,24 +81,24 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         try {
             enrollmentMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Enrollment already exists");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报名记录已存在");
         }
         return entity;
     }
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private StudentEntity requireStudentInInstitution(Long studentId, Long institutionId) {
         StudentEntity student = studentMapper.selectById(studentId);
         if (student == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Student does not exist: " + studentId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         if (!Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + institutionId);
         }
         return student;
     }
@@ -106,10 +106,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private TeachingClassEntity requireClassInInstitution(Long classId, Long institutionId) {
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(classId);
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + classId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
         }
         return teachingClass;
     }
@@ -119,7 +119,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             .eq(EnrollmentEntity::getInstitutionId, institutionId)
             .eq(EnrollmentEntity::getEnrollmentNo, enrollmentNo));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Enrollment enrollmentNo already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下报名单号已存在：" + institutionId);
         }
     }
 
@@ -128,7 +128,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             .eq(EnrollmentEntity::getStudentId, studentId)
             .eq(EnrollmentEntity::getClassId, classId));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student already has an enrollment for class: " + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已存在此班级的报名记录：" + classId);
         }
     }
 

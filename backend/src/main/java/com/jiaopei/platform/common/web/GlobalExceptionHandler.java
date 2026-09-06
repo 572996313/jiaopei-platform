@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleNotReadable(HttpMessageNotReadableException exception) {
-        return ApiResponse.failure(ResultCode.BAD_REQUEST, "Request body is missing or malformed");
+        return ApiResponse.failure(ResultCode.BAD_REQUEST, "请求体缺失或格式不正确");
     }
 
     @ExceptionHandler(AuthenticationException.class)
@@ -74,7 +74,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNoResourceFound(NoResourceFoundException exception) {
-        return ApiResponse.failure(ResultCode.NOT_FOUND, "Requested endpoint does not exist");
+        return ApiResponse.failure(ResultCode.NOT_FOUND, "请求的接口不存在");
     }
 
     @ExceptionHandler(Exception.class)

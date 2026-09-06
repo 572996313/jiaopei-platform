@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/health")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class HealthController {
 
     @GetMapping
     public ApiResponse<Map<String, Object>> health() {
-        return ApiResponse.success("Health check passed", Map.of(
+        return ApiResponse.success("健康检查通过", Map.of(
             "service", "jiaopei-platform-backend",
-            "status", "UP",
+            "status", "正常",
             "timestamp", OffsetDateTime.now()
         ));
     }

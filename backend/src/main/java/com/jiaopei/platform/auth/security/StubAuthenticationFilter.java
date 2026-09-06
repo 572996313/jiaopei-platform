@@ -58,7 +58,7 @@ public class StubAuthenticationFilter extends OncePerRequestFilter {
                     if (Boolean.TRUE.equals(forceChangeEnabled)
                         && Boolean.TRUE.equals(user.forceChangePassword())
                         && !isPasswordChangeAllowed(request)) {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Password change required");
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "需要先修改密码");
                         return;
                     }
                 } catch (AuthenticationException exception) {

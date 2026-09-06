@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/classes")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class TeachingClassController {
 
     private final TeachingClassService teachingClassService;
@@ -35,7 +35,7 @@ public class TeachingClassController {
     public ApiResponse<List<TeachingClassEntity>> list(@RequestParam(required = false) String institutionId,
                                                        @RequestParam(required = false) String campusId,
                                                        @RequestParam(required = false) String termId) {
-        return ApiResponse.success("Class list loaded", teachingClassService.listClasses(
+        return ApiResponse.success("班级列表已加载", teachingClassService.listClasses(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(campusId, "campusId"),
             ExternalIdParser.parseOptional(termId, "termId")
@@ -45,20 +45,20 @@ public class TeachingClassController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<TeachingClassEntity> create(@Valid @RequestBody TeachingClassCreateRequest request) {
-        return ApiResponse.success("Class created", teachingClassService.createClass(request));
+        return ApiResponse.success("班级已创建", teachingClassService.createClass(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<TeachingClassEntity> update(@PathVariable Long id,
                                                    @Valid @RequestBody TeachingClassCreateRequest request) {
-        return ApiResponse.success("Class updated", teachingClassService.updateClass(id, request));
+        return ApiResponse.success("班级已更新", teachingClassService.updateClass(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         teachingClassService.deleteClass(id);
-        return ApiResponse.success("Class deleted", null);
+        return ApiResponse.success("班级已删除", null);
     }
 }

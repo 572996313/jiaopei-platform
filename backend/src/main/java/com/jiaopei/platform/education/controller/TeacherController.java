@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/teachers")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class TeacherController {
 
     private final TeacherService teacherService;
@@ -35,7 +35,7 @@ public class TeacherController {
     @RequiresPermission("education:read")
     public ApiResponse<List<TeacherEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String campusId) {
-        return ApiResponse.success("Teacher list loaded", teacherService.listTeachers(
+        return ApiResponse.success("教师列表已加载", teacherService.listTeachers(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(campusId, "campusId")
         ));
@@ -44,20 +44,20 @@ public class TeacherController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<TeacherEntity> create(@Valid @RequestBody TeacherCreateRequest request) {
-        return ApiResponse.success("Teacher created", teacherService.createTeacher(request));
+        return ApiResponse.success("教师已创建", teacherService.createTeacher(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<TeacherEntity> update(@PathVariable Long id,
                                              @Valid @RequestBody TeacherUpdateRequest request) {
-        return ApiResponse.success("Teacher updated", teacherService.updateTeacher(id, request));
+        return ApiResponse.success("教师已更新", teacherService.updateTeacher(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         teacherService.deleteTeacher(id);
-        return ApiResponse.success("Teacher deleted", null);
+        return ApiResponse.success("教师已删除", null);
     }
 }

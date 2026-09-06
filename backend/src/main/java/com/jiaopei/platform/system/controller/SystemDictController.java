@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system/dicts")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class SystemDictController {
 
     private final SystemDictService systemDictService;
@@ -35,43 +35,43 @@ public class SystemDictController {
     @GetMapping("/types")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<List<DictTypeView>> types() {
-        return ApiResponse.success("Dict types loaded", systemDictService.listTypes());
+        return ApiResponse.success("字典类型列表已加载", systemDictService.listTypes());
     }
 
     @GetMapping("/types/{typeCode}/items")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<List<DictItemView>> items(@PathVariable String typeCode) {
-        return ApiResponse.success("Dict items loaded", systemDictService.listItems(typeCode));
+        return ApiResponse.success("字典条目列表已加载", systemDictService.listItems(typeCode));
     }
 
     @PostMapping("/types")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> createType(@Valid @RequestBody DictTypeCreateRequest request) {
-        return ApiResponse.success("Dict type created", systemDictService.createType(request));
+        return ApiResponse.success("字典类型已创建", systemDictService.createType(request));
     }
 
     @PutMapping("/types/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> updateType(@PathVariable Long id, @Valid @RequestBody DictTypeUpdateRequest request) {
-        return ApiResponse.success("Dict type updated", systemDictService.updateType(id, request));
+        return ApiResponse.success("字典类型已更新", systemDictService.updateType(id, request));
     }
 
     @PostMapping("/items")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictItemView> createItem(@Valid @RequestBody DictItemCreateRequest request) {
-        return ApiResponse.success("Dict item created", systemDictService.createItem(request));
+        return ApiResponse.success("字典条目已创建", systemDictService.createItem(request));
     }
 
     @PutMapping("/items/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictItemView> updateItem(@PathVariable Long id, @Valid @RequestBody DictItemUpdateRequest request) {
-        return ApiResponse.success("Dict item updated", systemDictService.updateItem(id, request));
+        return ApiResponse.success("字典条目已更新", systemDictService.updateItem(id, request));
     }
 
     @DeleteMapping("/items/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<Void> deleteItem(@PathVariable Long id) {
         systemDictService.deleteItem(id);
-        return ApiResponse.success("Dict item deleted", null);
+        return ApiResponse.success("字典条目已删除", null);
     }
 }

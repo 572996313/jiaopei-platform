@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/organizations/classrooms")
-@Tag(name = "Organization")
+@Tag(name = "组织管理")
 public class ClassroomController {
 
     private final ClassroomService classroomService;
@@ -34,26 +34,26 @@ public class ClassroomController {
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<ClassroomEntity>> list(@RequestParam(required = false) String campusId) {
-        return ApiResponse.success("Classroom list loaded", classroomService.listClassrooms(ExternalIdParser.parseOptional(campusId, "campusId")));
+        return ApiResponse.success("教室列表已加载", classroomService.listClassrooms(ExternalIdParser.parseOptional(campusId, "campusId")));
     }
 
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<ClassroomEntity> create(@Valid @RequestBody ClassroomCreateRequest request) {
-        return ApiResponse.success("Classroom placeholder created", classroomService.createClassroom(request));
+        return ApiResponse.success("教室已创建", classroomService.createClassroom(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<ClassroomEntity> update(@PathVariable Long id,
                                                @Valid @RequestBody ClassroomUpdateRequest request) {
-        return ApiResponse.success("Classroom updated", classroomService.updateClassroom(id, request));
+        return ApiResponse.success("教室已更新", classroomService.updateClassroom(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classroomService.deleteClassroom(id);
-        return ApiResponse.success("Classroom deleted", null);
+        return ApiResponse.success("教室已删除", null);
     }
 }

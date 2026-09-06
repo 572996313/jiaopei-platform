@@ -65,7 +65,7 @@ public class SystemDictServiceImpl implements SystemDictService {
         try {
             typeMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Dict type already exists: " + entity.getTypeCode());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "字典类型已存在：" + entity.getTypeCode());
         }
         return toTypeView(entity);
     }
@@ -97,7 +97,7 @@ public class SystemDictServiceImpl implements SystemDictService {
         try {
             itemMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Dict item already exists: " + entity.getItemCode());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "字典条目已存在：" + entity.getItemCode());
         }
         return toItemView(entity);
     }
@@ -142,7 +142,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     private SystemDictTypeEntity requireType(Long id) {
         SystemDictTypeEntity entity = typeMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Dict type does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "字典类型不存在：" + id);
         }
         return entity;
     }
@@ -151,7 +151,7 @@ public class SystemDictServiceImpl implements SystemDictService {
         SystemDictTypeEntity entity = typeMapper.selectOne(new LambdaQueryWrapper<SystemDictTypeEntity>()
             .eq(SystemDictTypeEntity::getTypeCode, normalize(typeCode)));
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Dict type does not exist: " + typeCode);
+            throw new BusinessException(ResultCode.NOT_FOUND, "字典类型不存在：" + typeCode);
         }
         return entity;
     }
@@ -159,7 +159,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     private SystemDictItemEntity requireItem(Long id) {
         SystemDictItemEntity entity = itemMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Dict item does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "字典条目不存在：" + id);
         }
         return entity;
     }

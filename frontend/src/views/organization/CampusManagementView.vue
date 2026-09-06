@@ -2,7 +2,7 @@
   <section class="campus-page">
     <div class="campus-hero">
       <div>
-        <div class="page-kicker">ARCHIVE / RESOURCE</div>
+        <div class="page-kicker">档案 · 教学资源</div>
         <h2 class="panel-headline">机构与教学资源</h2>
         <p class="panel-subtitle">
           当前入口统一承接机构、校区、教室、学期和时间段，作为排课、成班和课次执行的基础档案中心。
@@ -28,7 +28,7 @@
       <article class="stat-card">
         <div class="stat-label">校区数量</div>
         <div class="stat-value">{{ campuses.length }}</div>
-        <div class="stat-hint">来自 /api/organizations/campuses</div>
+        <div class="stat-hint">数据来自校区主数据接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">教室数量</div>

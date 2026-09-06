@@ -89,7 +89,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         Long previousPrimaryTeacherId = teachingClass.getTeacherId();
         requireTeacherInInstitution(request.teacherId(), request.institutionId());
         if (request.joinedAt() != null && request.leftAt() != null && request.leftAt().isBefore(request.joinedAt())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt cannot be earlier than joinedAt");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt 不能早于 joinedAt");
         }
 
         String teacherRole = normalizeTeacherRole(request.teacherRole());
@@ -115,7 +115,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
                 classTeacherMapper.insert(entity);
             } catch (DuplicateKeyException exception) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "Class teacher relation already exists for class/teacher/role/joinedAt");
+                    "该班级/教师/角色/入任日期的班级教师关系已存在");
             }
         } else {
             classTeacherMapper.updateById(entity);
@@ -134,17 +134,17 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private TeachingClassEntity requireClassInInstitution(Long classId, Long institutionId) {
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(classId);
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + classId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
         }
         return teachingClass;
     }
@@ -152,10 +152,10 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     private void requireTeacherInInstitution(Long teacherId, Long institutionId) {
         TeacherEntity teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Teacher does not exist: " + teacherId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + teacherId);
         }
         if (!Objects.equals(teacher.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + institutionId);
         }
     }
 
@@ -176,7 +176,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         Long count = classTeacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class teacher relation already exists for class/teacher/role/joinedAt");
+                "该班级/教师/角色/入任日期的班级教师关系已存在");
         }
     }
 
@@ -237,7 +237,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     private ClassTeacherEntity requireClassTeacher(Long id) {
         ClassTeacherEntity entity = classTeacherMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class teacher does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级教师关系不存在：" + id);
         }
         return entity;
     }

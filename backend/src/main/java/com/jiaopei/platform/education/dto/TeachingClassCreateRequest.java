@@ -14,12 +14,12 @@ public record TeachingClassCreateRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("institution_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "institutionId is required")
+    @NotNull(message = "institutionId 不能为空")
     Long institutionId,
     @Schema(description = "校区ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("campus_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "campusId is required")
+    @NotNull(message = "campusId 不能为空")
     Long campusId,
     @Schema(description = "学期ID")
     @JsonAlias("term_id")
@@ -35,11 +35,11 @@ public record TeachingClassCreateRequest(
     Long classTypeId,
     @Schema(description = "班级编号", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "class_code"})
-    @NotBlank(message = "classCode is required")
+    @NotBlank(message = "classCode 不能为空")
     String classCode,
     @Schema(description = "班级名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "class_name"})
-    @NotBlank(message = "className is required")
+    @NotBlank(message = "className 不能为空")
     String className,
     @Schema(description = "主教师ID")
     @JsonAlias({"primary_teacher_id", "teacher_id"})
@@ -47,11 +47,11 @@ public record TeachingClassCreateRequest(
     Long teacherId,
     @Schema(description = "容量上限")
     @JsonAlias({"capacity", "capacity_limit"})
-    @Min(value = 0, message = "capacityLimit must be greater than or equal to 0")
+    @Min(value = 0, message = "capacityLimit 必须大于或等于 0")
     Integer capacityLimit,
     @Schema(description = "当前人数")
     @JsonAlias("current_students")
-    @Min(value = 0, message = "currentStudents must be greater than or equal to 0")
+    @Min(value = 0, message = "currentStudents 必须大于或等于 0")
     Integer currentStudents,
     @Schema(description = "状态(PLANNED=筹备中,OPEN=开班中,CLOSED=已结课,CANCELLED=已取消)", allowableValues = {"PLANNED", "OPEN", "CLOSED", "CANCELLED"})
     String status,

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/organizations/institutions")
-@Tag(name = "Organization")
+@Tag(name = "组织管理")
 public class InstitutionController {
 
     private final InstitutionService institutionService;
@@ -28,12 +28,12 @@ public class InstitutionController {
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<InstitutionEntity>> list() {
-        return ApiResponse.success("Institution list loaded", institutionService.listInstitutions());
+        return ApiResponse.success("机构列表已加载", institutionService.listInstitutions());
     }
 
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<InstitutionEntity> create(@Valid @RequestBody InstitutionCreateRequest request) {
-        return ApiResponse.success("Institution placeholder created", institutionService.createInstitution(request));
+        return ApiResponse.success("机构已创建", institutionService.createInstitution(request));
     }
 }

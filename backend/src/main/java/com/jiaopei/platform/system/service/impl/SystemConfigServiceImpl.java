@@ -36,7 +36,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     public SystemConfigView getConfig(Long id) {
         SystemConfigEntity entity = systemConfigMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Configuration not found");
+            throw new BusinessException(ResultCode.NOT_FOUND, "配置项不存在");
         }
         return toView(entity);
     }
@@ -80,7 +80,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         LambdaQueryWrapper<SystemConfigEntity> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SystemConfigEntity::getConfigKey, request.configKey());
         if (systemConfigMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Configuration key already exists");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "配置键已存在");
         }
 
         SystemConfigEntity entity = new SystemConfigEntity();
@@ -105,7 +105,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     public SystemConfigView updateConfig(Long id, SystemConfigUpdateRequest request) {
         SystemConfigEntity entity = systemConfigMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Configuration not found");
+            throw new BusinessException(ResultCode.NOT_FOUND, "配置项不存在");
         }
 
         entity.setConfigValue(request.configValue());
@@ -124,10 +124,10 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     public void deleteConfig(Long id) {
         SystemConfigEntity entity = systemConfigMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Configuration not found");
+            throw new BusinessException(ResultCode.NOT_FOUND, "配置项不存在");
         }
         if (Boolean.TRUE.equals(entity.getIsSystem())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "System configuration cannot be deleted");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "系统内置配置不允许删除");
         }
 
         systemConfigMapper.deleteById(id);

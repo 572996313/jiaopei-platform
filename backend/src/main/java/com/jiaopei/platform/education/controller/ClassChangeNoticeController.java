@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping({"/api/education/class-change-notices", "/api/education/class_change_notice"})
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class ClassChangeNoticeController {
 
     private final ClassChangeNoticeService classChangeNoticeService;
@@ -28,7 +28,7 @@ public class ClassChangeNoticeController {
     public ApiResponse<List<ClassChangeNoticeEntity>> list(@RequestParam(required = false) String institutionId,
                                                            @RequestParam(required = false) String classId,
                                                            @RequestParam(required = false) String noticeStatus) {
-        return ApiResponse.success("Class change notice list loaded", classChangeNoticeService.listNotices(
+        return ApiResponse.success("班级变动通知列表已加载", classChangeNoticeService.listNotices(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(classId, "classId"),
             noticeStatus

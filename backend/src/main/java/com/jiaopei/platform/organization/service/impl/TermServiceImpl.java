@@ -42,14 +42,14 @@ public class TermServiceImpl implements TermService {
     public TermEntity createTerm(TermCreateRequest request) {
         InstitutionEntity institution = institutionMapper.selectById(request.institutionId());
         if (institution == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + request.institutionId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
         }
         if (request.startDate().isAfter(request.endDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate must be earlier than or equal to endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
         }
         if (request.enrollmentStartDate() != null && request.enrollmentEndDate() != null
             && request.enrollmentStartDate().isAfter(request.enrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate must be earlier than or equal to enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
         }
         String termCode = normalize(request.termCode());
         String termName = normalize(request.termName());
@@ -73,7 +73,7 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Term termCode or termName already exists in institution: " + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -85,27 +85,27 @@ public class TermServiceImpl implements TermService {
         boolean onlyEndDate = request.startDate() == null && request.endDate() != null;
         boolean onlyStartDate = request.startDate() != null && request.endDate() == null;
         if (hasDates && request.startDate().isAfter(request.endDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate must be earlier than or equal to endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
         }
         if (onlyEndDate && request.endDate().isBefore(existing.getStartDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate must be earlier than or equal to endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
         }
         if (onlyStartDate && request.startDate().isAfter(existing.getEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate must be earlier than or equal to endDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startDate 不能晚于 endDate");
         }
         boolean hasEnrollmentDates = request.enrollmentStartDate() != null && request.enrollmentEndDate() != null;
         boolean onlyEnrollmentEnd = request.enrollmentStartDate() == null && request.enrollmentEndDate() != null;
         boolean onlyEnrollmentStart = request.enrollmentStartDate() != null && request.enrollmentEndDate() == null;
         if (hasEnrollmentDates && request.enrollmentStartDate().isAfter(request.enrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate must be earlier than or equal to enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
         }
         if (onlyEnrollmentEnd && existing.getEnrollmentStartDate() != null
             && request.enrollmentEndDate().isBefore(existing.getEnrollmentStartDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate must be earlier than or equal to enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
         }
         if (onlyEnrollmentStart && existing.getEnrollmentEndDate() != null
             && request.enrollmentStartDate().isAfter(existing.getEnrollmentEndDate())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate must be earlier than or equal to enrollmentEndDate");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "enrollmentStartDate 不能晚于 enrollmentEndDate");
         }
         if (request.termCode() != null && !request.termCode().isBlank()) {
             String termCode = normalize(request.termCode());
@@ -151,7 +151,7 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Term termCode or termName already exists in institution: " + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -165,7 +165,7 @@ public class TermServiceImpl implements TermService {
     private TermEntity requireTerm(Long id) {
         TermEntity entity = termMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Term does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学期不存在：" + id);
         }
         return entity;
     }
@@ -179,7 +179,7 @@ public class TermServiceImpl implements TermService {
         }
         Long count = termMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Term termCode already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码已存在：" + institutionId);
         }
     }
 
@@ -192,7 +192,7 @@ public class TermServiceImpl implements TermService {
         }
         Long count = termMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Term termName already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期名称已存在：" + institutionId);
         }
     }
 

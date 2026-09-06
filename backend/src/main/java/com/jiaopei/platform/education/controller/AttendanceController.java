@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/attendance")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
@@ -39,7 +39,7 @@ public class AttendanceController {
                                                     @RequestParam(required = false)
                                                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                     LocalDate attendanceDate) {
-        return ApiResponse.success("Attendance list loaded", attendanceService.listAttendances(
+        return ApiResponse.success("考勤列表已加载", attendanceService.listAttendances(
             ExternalIdParser.parseOptional(lessonId, "lessonId"),
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(studentId, "studentId"),
@@ -50,19 +50,19 @@ public class AttendanceController {
     @GetMapping("/lesson-page")
     @RequiresPermission("education:read")
     public ApiResponse<AttendanceLessonPageView> lessonPage(@RequestParam String lessonId) {
-        return ApiResponse.success("Attendance lesson page loaded",
+        return ApiResponse.success("课次点名页已加载",
             attendanceService.getLessonAttendancePage(ExternalIdParser.parseRequired(lessonId, "lessonId")));
     }
 
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<AttendanceEntity> create(@Valid @RequestBody AttendanceCreateRequest request) {
-        return ApiResponse.success("Attendance created", attendanceService.createAttendance(request));
+        return ApiResponse.success("考勤已创建", attendanceService.createAttendance(request));
     }
 
     @PostMapping("/lesson-batch")
     @RequiresPermission("education:write")
     public ApiResponse<AttendanceLessonPageView> saveLessonAttendance(@Valid @RequestBody AttendanceLessonBatchSaveRequest request) {
-        return ApiResponse.success("Attendance lesson saved", attendanceService.saveLessonAttendance(request));
+        return ApiResponse.success("课次点名已保存", attendanceService.saveLessonAttendance(request));
     }
 }

@@ -218,7 +218,7 @@ class EducationFourthMainlineApiCompatibilityWebTest {
                 .param("lessonId", "LESSON-300")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Attendance lesson page loaded"))
+            .andExpect(jsonPath("$.message").value("课次点名页已加载"))
             .andExpect(jsonPath("$.data.lesson.lessonId").value(300))
             .andExpect(jsonPath("$.data.summary.expectedCount").value(1))
             .andExpect(jsonPath("$.data.summary.lateCount").value(1))
@@ -242,7 +242,7 @@ class EducationFourthMainlineApiCompatibilityWebTest {
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Attendance lesson saved"))
+            .andExpect(jsonPath("$.message").value("课次点名已保存"))
             .andExpect(jsonPath("$.data.lesson.lessonId").value(300))
             .andExpect(jsonPath("$.data.students[0].studentId").value(10));
         verify(attendanceService).saveLessonAttendance(new com.jiaopei.platform.education.dto.AttendanceLessonBatchSaveRequest(

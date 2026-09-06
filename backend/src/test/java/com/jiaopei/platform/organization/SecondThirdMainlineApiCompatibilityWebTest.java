@@ -330,7 +330,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         mockMvc.perform(delete("/api/education/teachers/401")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Teacher deleted"));
+            .andExpect(jsonPath("$.message").value("教师已删除"));
         verify(teacherService).deleteTeacher(401L);
     }
 
@@ -524,37 +524,37 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         mockMvc.perform(delete("/api/organizations/classrooms/701")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Classroom deleted"));
+            .andExpect(jsonPath("$.message").value("教室已删除"));
         verify(classroomService).deleteClassroom(701L);
 
         mockMvc.perform(delete("/api/organizations/terms/702")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Term deleted"));
+            .andExpect(jsonPath("$.message").value("学期已删除"));
         verify(termService).deleteTerm(702L);
 
         mockMvc.perform(delete("/api/organizations/time-slots/703")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Time slot deleted"));
+            .andExpect(jsonPath("$.message").value("时间段已删除"));
         verify(timeSlotService).deleteTimeSlot(703L);
 
         mockMvc.perform(delete("/api/education/course-categories/805")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Course category deleted"));
+            .andExpect(jsonPath("$.message").value("课程分类已删除"));
         verify(courseCategoryService).deleteCategory(805L);
 
         mockMvc.perform(delete("/api/education/courses/806")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Course deleted"));
+            .andExpect(jsonPath("$.message").value("课程已删除"));
         verify(courseService).deleteCourse(806L);
 
         mockMvc.perform(delete("/api/education/class-types/807")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Class type deleted"));
+            .andExpect(jsonPath("$.message").value("班型已删除"));
         verify(classTypeService).deleteClassType(807L);
     }
 
@@ -563,7 +563,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         mockMvc.perform(delete("/api/education/classes/210")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Class deleted"));
+            .andExpect(jsonPath("$.message").value("班级已删除"));
         verify(teachingClassService).deleteClass(210L);
     }
 
@@ -864,13 +864,13 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         mockMvc.perform(delete("/api/education/class_teacher/401")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Class teacher deleted"));
+            .andExpect(jsonPath("$.message").value("班级教师已删除"));
         verify(classTeacherService).deleteClassTeacher(401L);
 
         mockMvc.perform(delete("/api/education/student_parent/402")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Student parent deleted"));
+            .andExpect(jsonPath("$.message").value("家长联系人已删除"));
         verify(studentParentService).deleteStudentParent(402L);
     }
 }

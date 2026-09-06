@@ -20,12 +20,12 @@ public class OrganizationApplicationServiceImpl implements OrganizationApplicati
     public OrganizationBootstrapView getBootstrapView() {
         return new OrganizationBootstrapView(
             properties.getModules().isOrganizationEnabled(),
-            "READY",
+            "就绪",
             List.of("organization", "campus", "classroom", "term"),
             List.of(
-                "Add aggregate roots under organization.domain",
-                "Implement repositories under organization.repository",
-                "Expose management APIs with permission annotations"
+                "在 organization.domain 下补充聚合根",
+                "在 organization.repository 下实现仓储",
+                "用权限注解暴露管理接口"
             )
         );
     }

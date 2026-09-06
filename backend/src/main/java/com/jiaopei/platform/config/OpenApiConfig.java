@@ -22,21 +22,21 @@ public class OpenApiConfig {
     public OpenAPI jiaopeiOpenApi() {
         return new OpenAPI()
             .info(new Info()
-                .title("JiaoPei Platform API")
-                .description("Core backend APIs for the JiaoPei management platform.")
+                .title("教培管理平台 API")
+                .description("教培管理平台后端核心接口。")
                 .version("v1")
-                .license(new License().name("Proprietary")))
-            .servers(List.of(new Server().url("/").description("Current environment")))
+                .license(new License().name("专有许可")))
+            .servers(List.of(new Server().url("/").description("当前环境")))
             .addTagsItem(new io.swagger.v3.oas.models.tags.Tag()
-                .name("System")
-                .description("System health and bootstrap endpoints"))
+                .name("系统管理")
+                .description("系统健康检查与启动信息接口"))
             .addTagsItem(new io.swagger.v3.oas.models.tags.Tag()
-                .name("Organization")
-                .description("Organization module bootstrap APIs. Enabled="
+                .name("组织管理")
+                .description("组织模块启动信息接口。Enabled="
                     + properties.getModules().isOrganizationEnabled()))
             .addTagsItem(new io.swagger.v3.oas.models.tags.Tag()
-                .name("Education")
-                .description("Education module reserved APIs. Enabled="
+                .name("教务管理")
+                .description("教务模块预留接口。Enabled="
                     + properties.getModules().isEducationEnabled()));
     }
 }

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping({"/api/education/student-parents", "/api/education/student_parent"})
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class StudentParentController {
 
     private final StudentParentService studentParentService;
@@ -34,7 +34,7 @@ public class StudentParentController {
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentParentEntity>> list(@RequestParam(required = false) String institutionId,
                                                        @RequestParam(required = false) String studentId) {
-        return ApiResponse.success("Student parent list loaded", studentParentService.listStudentParents(
+        return ApiResponse.success("家长联系人列表已加载", studentParentService.listStudentParents(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(studentId, "studentId")
         ));
@@ -43,20 +43,20 @@ public class StudentParentController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<StudentParentEntity> create(@Valid @RequestBody StudentParentCreateRequest request) {
-        return ApiResponse.success("Student parent created", studentParentService.createStudentParent(request));
+        return ApiResponse.success("家长联系人已创建", studentParentService.createStudentParent(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<StudentParentEntity> update(@PathVariable Long id,
                                                    @Valid @RequestBody StudentParentCreateRequest request) {
-        return ApiResponse.success("Student parent updated", studentParentService.updateStudentParent(id, request));
+        return ApiResponse.success("家长联系人已更新", studentParentService.updateStudentParent(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         studentParentService.deleteStudentParent(id);
-        return ApiResponse.success("Student parent deleted", null);
+        return ApiResponse.success("家长联系人已删除", null);
     }
 }

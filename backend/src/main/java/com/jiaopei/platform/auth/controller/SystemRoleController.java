@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system/roles")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class SystemRoleController {
 
     private final SystemRoleService systemRoleService;
@@ -31,18 +31,18 @@ public class SystemRoleController {
     @GetMapping
     @RequiresPermission("system:role:manage")
     public ApiResponse<List<RoleView>> list() {
-        return ApiResponse.success("Role list loaded", systemRoleService.listRoles());
+        return ApiResponse.success("角色列表已加载", systemRoleService.listRoles());
     }
 
     @PostMapping
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleView> create(@Valid @RequestBody RoleCreateRequest request) {
-        return ApiResponse.success("Role created", systemRoleService.createRole(request));
+        return ApiResponse.success("角色已创建", systemRoleService.createRole(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleView> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {
-        return ApiResponse.success("Role updated", systemRoleService.updateRole(id, request));
+        return ApiResponse.success("角色已更新", systemRoleService.updateRole(id, request));
     }
 }

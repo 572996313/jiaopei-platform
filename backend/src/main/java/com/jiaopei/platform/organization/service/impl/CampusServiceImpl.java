@@ -42,7 +42,7 @@ public class CampusServiceImpl implements CampusService {
     public CampusEntity createCampus(CampusCreateRequest request) {
         InstitutionEntity institution = institutionMapper.selectById(request.institutionId());
         if (institution == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + request.institutionId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
         }
         String campusCode = normalize(request.campusCode());
         String campusName = normalize(request.campusName());
@@ -69,7 +69,7 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus campusCode or campusName already exists in institution: " + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -130,7 +130,7 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus campusCode or campusName already exists in institution: " + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -144,7 +144,7 @@ public class CampusServiceImpl implements CampusService {
     private CampusEntity requireCampus(Long id) {
         CampusEntity entity = campusMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + id);
         }
         return entity;
     }
@@ -158,7 +158,7 @@ public class CampusServiceImpl implements CampusService {
         }
         Long count = campusMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus campusCode already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码已存在：" + institutionId);
         }
     }
 
@@ -171,7 +171,7 @@ public class CampusServiceImpl implements CampusService {
         }
         Long count = campusMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus campusName already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区名称已存在：" + institutionId);
         }
     }
 

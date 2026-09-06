@@ -5,11 +5,11 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record CampusCreateRequest(
-    @NotNull(message = "institutionId is required")
+    @NotNull(message = "institutionId 不能为空")
     Long institutionId,
-    @NotBlank(message = "campusCode is required")
+    @NotBlank(message = "campusCode 不能为空")
     String campusCode,
-    @NotBlank(message = "campusName is required")
+    @NotBlank(message = "campusName 不能为空")
     String campusName,
     String campusType,
     String phone,
@@ -17,7 +17,7 @@ public record CampusCreateRequest(
     String provinceCode,
     String cityCode,
     String districtCode,
-    @NotBlank(message = "address is required")
+    @NotBlank(message = "address 不能为空")
     String address,
     Integer capacityLimit,
     String status,

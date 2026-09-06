@@ -102,7 +102,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         try {
             teachingClassMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class classCode or className already exists in campus: " + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
         }
         classChangeNoticeService.syncClassNotices(entity.getInstitutionId(), entity.getId());
         return entity;
@@ -113,12 +113,12 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         TeachingClassEntity existing = requireClass(id);
         validateRequest(request);
         if (!Objects.equals(existing.getInstitutionId(), request.institutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class does not belong to institution: " + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + request.institutionId());
         }
         if (!Objects.equals(existing.getTeacherId(), request.teacherId())) {
             throw new BusinessException(
                 ResultCode.BAD_REQUEST,
-                "Primary teacher can only be changed in class teacher relations; please switch the primary teacher there first"
+                "主讲教师只能在班级教师关系中变更，请先在班级教师关系里切换主讲教师"
             );
         }
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
@@ -144,7 +144,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         try {
             teachingClassMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class classCode or className already exists in campus: " + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
         }
         classChangeNoticeService.syncClassNotices(existing.getInstitutionId(), existing.getId());
         return existing;
@@ -159,7 +159,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             .eq(ClassStudentEntity::getStatus, "active"));
         if (activeStudents != null && activeStudents > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class still has active students: " + existing.getId() + ", please remove class students first");
+                "班级仍有在读学员：" + existing.getId() + "，请先移出班级学员");
         }
         teachingClassMapper.deleteById(id);
     }
@@ -182,63 +182,63 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
         int currentStudents = normalizeCurrentStudents(request.currentStudents());
         if (currentStudents > capacityLimit) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "currentStudents cannot exceed capacityLimit");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "currentStudents 不能超过 capacityLimit");
         }
     }
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private void requireCampusInInstitution(Long campusId, Long institutionId) {
         CampusEntity campus = campusMapper.selectById(campusId);
         if (campus == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + campusId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
         }
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Campus does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
         }
     }
 
     private void requireTermInInstitution(Long termId, Long institutionId) {
         TermEntity term = termMapper.selectById(termId);
         if (term == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Term does not exist: " + termId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学期不存在：" + termId);
         }
         if (!Objects.equals(term.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Term does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学期不属于该机构：" + institutionId);
         }
     }
 
     private void requireTeacherInInstitution(Long teacherId, Long institutionId) {
         TeacherEntity teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Teacher does not exist: " + teacherId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + teacherId);
         }
         if (!Objects.equals(teacher.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + institutionId);
         }
     }
 
     private void requireCourseInInstitution(Long courseId, Long institutionId) {
         CourseEntity course = courseMapper.selectById(courseId);
         if (course == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Course does not exist: " + courseId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "课程不存在：" + courseId);
         }
         if (!Objects.equals(course.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Course does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "课程不属于该机构：" + institutionId);
         }
     }
 
     private void requireClassTypeInInstitution(Long classTypeId, Long institutionId) {
         ClassTypeEntity classType = classTypeMapper.selectById(classTypeId);
         if (classType == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class type does not exist: " + classTypeId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班型不存在：" + classTypeId);
         }
         if (!Objects.equals(classType.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class type does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班型不属于该机构：" + institutionId);
         }
     }
 
@@ -251,7 +251,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         Long count = teachingClassMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class classCode already exists in campus: " + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码已存在：" + campusId);
         }
     }
 
@@ -264,14 +264,14 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         Long count = teachingClassMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class className already exists in campus: " + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级名称已存在：" + campusId);
         }
     }
 
     private TeachingClassEntity requireClass(Long id) {
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(id);
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + id);
         }
         return teachingClass;
     }

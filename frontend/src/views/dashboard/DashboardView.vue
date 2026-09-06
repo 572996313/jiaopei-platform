@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">WORKBENCH / TODAY</div>
+        <div class="page-kicker">工作台 · 今日</div>
         <h2 class="panel-headline">今日教务工作台</h2>
         <p class="panel-subtitle">
           先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。

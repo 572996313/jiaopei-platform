@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">DAILY / ENROLLMENT</div>
+        <div class="page-kicker">学员 · 报名</div>
         <h2 class="panel-headline">报名与入班</h2>
         <p class="panel-subtitle">
           当前页面先承接报名主链路。先选机构范围，再用正式 enrollment 接口完成查询与新增，作为后续入班与排课执行的前置动作。
@@ -25,7 +25,7 @@
       <article class="stat-card">
         <div class="stat-label">机构数</div>
         <div class="stat-value">{{ institutions.length }}</div>
-        <div class="stat-hint">来自 /api/organizations/institutions</div>
+        <div class="stat-hint">数据来自机构主数据</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">学员数</div>
@@ -40,7 +40,7 @@
       <article class="stat-card">
         <div class="stat-label">报名记录</div>
         <div class="stat-value">{{ records.length }}</div>
-        <div class="stat-hint">来自 /api/education/enrollments</div>
+        <div class="stat-hint">数据来自报名记录接口</div>
       </article>
     </div>
 

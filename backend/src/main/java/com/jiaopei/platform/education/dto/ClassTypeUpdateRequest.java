@@ -17,11 +17,11 @@ public record ClassTypeUpdateRequest(
     String teachingMethod,
     @Schema(description = "最小开班人数")
     @JsonAlias("min_students")
-    @Min(value = 0, message = "minStudents must be greater than or equal to 0")
+    @Min(value = 0, message = "minStudents 必须大于或等于 0")
     Integer minStudents,
     @Schema(description = "最大开班人数")
     @JsonAlias("max_students")
-    @Min(value = 0, message = "maxStudents must be greater than or equal to 0")
+    @Min(value = 0, message = "maxStudents 必须大于或等于 0")
     Integer maxStudents,
     @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})
     String status,

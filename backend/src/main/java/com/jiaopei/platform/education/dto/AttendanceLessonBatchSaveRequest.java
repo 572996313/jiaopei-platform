@@ -14,10 +14,10 @@ public record AttendanceLessonBatchSaveRequest(
     @Schema(description = "课次ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("lesson_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "lessonId is required")
+    @NotNull(message = "lessonId 不能为空")
     Long lessonId,
     @Schema(description = "出勤明细列表", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotEmpty(message = "items is required")
+    @NotEmpty(message = "items 不能为空")
     List<@Valid AttendanceBatchItemRequest> items
 ) {
 }

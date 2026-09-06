@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/organizations/campuses")
-@Tag(name = "Organization")
+@Tag(name = "组织管理")
 public class CampusController {
 
     private final CampusService campusService;
@@ -33,26 +33,26 @@ public class CampusController {
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<CampusEntity>> list(@RequestParam(required = false) Long institutionId) {
-        return ApiResponse.success("Campus list loaded", campusService.listCampuses(institutionId));
+        return ApiResponse.success("校区列表已加载", campusService.listCampuses(institutionId));
     }
 
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<CampusEntity> create(@Valid @RequestBody CampusCreateRequest request) {
-        return ApiResponse.success("Campus placeholder created", campusService.createCampus(request));
+        return ApiResponse.success("校区已创建", campusService.createCampus(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<CampusEntity> update(@PathVariable Long id,
                                             @Valid @RequestBody CampusUpdateRequest request) {
-        return ApiResponse.success("Campus updated", campusService.updateCampus(id, request));
+        return ApiResponse.success("校区已更新", campusService.updateCampus(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         campusService.deleteCampus(id);
-        return ApiResponse.success("Campus deleted", null);
+        return ApiResponse.success("校区已删除", null);
     }
 }

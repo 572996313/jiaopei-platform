@@ -119,7 +119,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public List<ScheduleLessonView> dayTimetable(Long institutionId, Long campusId, LocalDate lessonDate,
                                                  Boolean pendingMakeupOnly) {
         if (lessonDate == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "lessonDate is required");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "lessonDate 不能为空");
         }
         return listLessons(institutionId, campusId, null, lessonDate, pendingMakeupOnly);
     }
@@ -128,7 +128,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public List<ScheduleLessonView> weekTimetable(Long institutionId, Long campusId, LocalDate weekStart,
                                                   LocalDate weekEnd, Boolean pendingMakeupOnly) {
         if (weekStart == null || weekEnd == null || weekStart.isAfter(weekEnd)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Valid weekStart and weekEnd are required");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "weekStart 和 weekEnd 必须为有效日期且周起不能晚于周止");
         }
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder()
             .between(ScheduleLessonEntity::getLessonDate, weekStart, weekEnd);
@@ -165,44 +165,44 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private ScheduleMaterial validateMaterial(ScheduleLessonRequest request, Long currentLessonId) {
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + request.classId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + request.classId());
         }
         if (!Objects.equals(teachingClass.getInstitutionId(), request.institutionId())
             || !Objects.equals(teachingClass.getTermId(), request.termId())
             || !Objects.equals(teachingClass.getCampusId(), request.campusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class term/campus/institution does not match lesson");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级的学期/校区/机构与课次不一致");
         }
         ClassroomEntity classroom = classroomMapper.selectById(request.classroomId());
         if (classroom == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Classroom does not exist: " + request.classroomId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "教室不存在：" + request.classroomId());
         }
         if (!Objects.equals(classroom.getCampusId(), request.campusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Classroom campus does not match lesson");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "教室校区与课次不一致");
         }
         TimeSlotEntity timeSlot = timeSlotMapper.selectById(request.timeSlotId());
         if (timeSlot == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Time slot does not exist: " + request.timeSlotId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "时间段不存在：" + request.timeSlotId());
         }
         if (!Objects.equals(timeSlot.getInstitutionId(), request.institutionId())
             || (timeSlot.getCampusId() != null && !Objects.equals(timeSlot.getCampusId(), request.campusId()))) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Time slot does not match lesson");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "时间段与课次不匹配");
         }
         Integer weekday = request.lessonDate().getDayOfWeek().getValue();
         if (!Objects.equals(timeSlot.getWeekday(), weekday)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Lesson date weekday does not match time slot weekday");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "课次日期的星期与时间段星期不一致");
         }
         Set<Long> teacherIds = distinctTeacherIds(request.teacherIds());
         if (teacherIds.isEmpty()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "At least one teacher is required");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "至少需要一名授课教师");
         }
         for (Long teacherId : teacherIds) {
             TeacherEntity teacher = teacherMapper.selectById(teacherId);
             if (teacher == null) {
-                throw new BusinessException(ResultCode.NOT_FOUND, "Teacher does not exist: " + teacherId);
+                throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + teacherId);
             }
             if (!Objects.equals(teacher.getInstitutionId(), request.institutionId())
                 || !Objects.equals(teacher.getCampusId(), request.campusId())) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "Teacher does not match lesson institution/campus");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "教师的机构/校区与课次不一致");
             }
         }
         validateLessonLinkage(request, teachingClass, currentLessonId);
@@ -217,7 +217,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (!MAKEUP.equalsIgnoreCase(lessonStatus)) {
             if (changeType != null || relatedLessonId != null) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "changeType and relatedLessonId are only allowed when lessonStatus is makeup");
+                    "只有课次状态为 makeup 时才允许传 changeType 和 relatedLessonId");
             }
             return;
         }
@@ -228,11 +228,11 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
         if (!Objects.equals(changeType, CANCELLED_MAKEUP) || relatedLessonId == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "makeup linkage requires changeType=cancelled_makeup and relatedLessonId");
+                "补课关联必须同时提供 changeType=cancelled_makeup 和 relatedLessonId");
         }
         if (currentLessonId != null && Objects.equals(currentLessonId, relatedLessonId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "relatedLessonId cannot reference the current lesson itself");
+                "relatedLessonId 不能指向当前课次本身");
         }
 
         ScheduleLessonEntity relatedLesson = requireLesson(relatedLessonId);
@@ -241,11 +241,11 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             || !Objects.equals(relatedLesson.getTermId(), request.termId())
             || !Objects.equals(relatedLesson.getClassId(), teachingClass.getId())) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "relatedLesson does not belong to the same class scope");
+                "关联原课次不属于同一班级范围");
         }
         if (!CANCELLED.equalsIgnoreCase(relatedLesson.getLessonStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "relatedLesson must be a cancelled lesson before linking a makeup lesson");
+                "关联的原课次必须是已停课课次，才能安排补课");
         }
     }
 
@@ -268,7 +268,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             .eq(ScheduleLessonEntity::getTimeSlotId, request.timeSlotId()));
         if (classCount != null && classCount > 0) {
             types.add("class");
-            messages.add("Class already has a scheduled lesson in this slot");
+            messages.add("该班级在此时段已有排课");
         }
         Long classroomCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId)
             .eq(ScheduleLessonEntity::getClassroomId, request.classroomId())
@@ -276,7 +276,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             .eq(ScheduleLessonEntity::getTimeSlotId, request.timeSlotId()));
         if (classroomCount != null && classroomCount > 0) {
             types.add("classroom");
-            messages.add("Classroom is occupied in this slot");
+            messages.add("该教室在此时段已被占用");
         }
         for (Long teacherId : distinctTeacherIds(request.teacherIds())) {
             Long teacherCount = teacherRelMapper.countTeacherConflicts(
@@ -287,7 +287,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             );
             if (teacherCount != null && teacherCount > 0) {
                 types.add("teacher");
-                messages.add("Teacher is occupied in this slot: " + teacherId);
+                messages.add("该教师在此时段已被占用：" + teacherId);
             }
         }
         return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
@@ -385,7 +385,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private ScheduleLessonEntity requireLesson(Long id) {
         ScheduleLessonEntity entity = lessonMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Schedule lesson does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "排课课次不存在：" + id);
         }
         return entity;
     }
@@ -408,7 +408,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         String canonical = normalized.toLowerCase();
         if (!List.of(SCHEDULED, RESCHEDULED, CANCELLED, MAKEUP).contains(canonical)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "lessonStatus must be one of scheduled, rescheduled, cancelled, makeup");
+                "lessonStatus 只能是 scheduled、rescheduled、cancelled、makeup 之一");
         }
         return canonical;
     }
@@ -421,7 +421,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         String canonical = normalized.toLowerCase();
         if (!CANCELLED_MAKEUP.equals(canonical)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "changeType must be cancelled_makeup when provided");
+                "changeType 传入时只能是 cancelled_makeup");
         }
         return canonical;
     }

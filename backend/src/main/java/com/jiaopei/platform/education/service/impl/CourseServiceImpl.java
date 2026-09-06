@@ -71,7 +71,7 @@ public class CourseServiceImpl implements CourseService {
             courseMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Course code or name already exists in institution: " + request.institutionId());
+                "该机构下课程编码或名称已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -113,7 +113,7 @@ public class CourseServiceImpl implements CourseService {
             courseMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Course code or name already exists in institution: " + existing.getInstitutionId());
+                "该机构下课程编码或名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -127,25 +127,25 @@ public class CourseServiceImpl implements CourseService {
     private CourseEntity requireCourse(Long id) {
         CourseEntity entity = courseMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Course does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "课程不存在：" + id);
         }
         return entity;
     }
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private void requireCategoryInInstitution(Long categoryId, Long institutionId) {
         CourseCategoryEntity category = courseCategoryMapper.selectById(categoryId);
         if (category == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Course category does not exist: " + categoryId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "课程分类不存在：" + categoryId);
         }
         if (!Objects.equals(category.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Course category does not belong to institution: " + institutionId);
+                "课程分类不属于该机构：" + institutionId);
         }
     }
 
@@ -159,7 +159,7 @@ public class CourseServiceImpl implements CourseService {
         Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Course code already exists in institution: " + institutionId);
+                "该机构下课程编码已存在：" + institutionId);
         }
     }
 
@@ -173,7 +173,7 @@ public class CourseServiceImpl implements CourseService {
         Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Course name already exists in institution: " + institutionId);
+                "该机构下课程名称已存在：" + institutionId);
         }
     }
 

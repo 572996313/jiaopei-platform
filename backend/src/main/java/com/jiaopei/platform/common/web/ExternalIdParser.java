@@ -18,20 +18,20 @@ public final class ExternalIdParser {
     public static Long parseRequired(String value, String fieldName) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.isBlank()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " is required");
+            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " 不能为空");
         }
 
         String numeric = normalized.matches("\\d+")
             ? normalized
             : normalized.replaceFirst("^.*?(\\d+)$", "$1");
         if (!numeric.matches("\\d+")) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " must be a numeric id or business id ending with digits");
+            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " 必须是数字 ID 或以数字结尾的业务编码");
         }
 
         try {
             return Long.valueOf(numeric);
         } catch (NumberFormatException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " is out of range");
+            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " 超出有效范围");
         }
     }
 }

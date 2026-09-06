@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/schedules")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class ScheduleLessonController {
 
     private final ScheduleLessonService scheduleLessonService;
@@ -42,33 +42,33 @@ public class ScheduleLessonController {
                                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                        LocalDate lessonDate,
                                                        @RequestParam(required = false) Boolean pendingMakeupOnly) {
-        return ApiResponse.success("Schedule lessons loaded",
+        return ApiResponse.success("排课列表已加载",
             scheduleLessonService.listLessons(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
     }
 
     @GetMapping("/lessons/{id}")
     @RequiresPermission("education:read")
     public ApiResponse<ScheduleLessonView> get(@PathVariable Long id) {
-        return ApiResponse.success("Schedule lesson loaded", scheduleLessonService.getLesson(id));
+        return ApiResponse.success("排课详情已加载", scheduleLessonService.getLesson(id));
     }
 
     @PostMapping("/lessons")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleLessonView> create(@Valid @RequestBody ScheduleLessonRequest request) {
-        return ApiResponse.success("Schedule lesson created", scheduleLessonService.createLesson(request));
+        return ApiResponse.success("排课已创建", scheduleLessonService.createLesson(request));
     }
 
     @PutMapping("/lessons/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleLessonView> update(@PathVariable Long id, @Valid @RequestBody ScheduleLessonRequest request) {
-        return ApiResponse.success("Schedule lesson updated", scheduleLessonService.updateLesson(id, request));
+        return ApiResponse.success("排课已更新", scheduleLessonService.updateLesson(id, request));
     }
 
     @DeleteMapping("/lessons/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         scheduleLessonService.deleteLesson(id);
-        return ApiResponse.success("Schedule lesson deleted", null);
+        return ApiResponse.success("排课已删除", null);
     }
 
     @GetMapping("/timetable/day")
@@ -79,7 +79,7 @@ public class ScheduleLessonController {
                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                      LocalDate lessonDate,
                                                      @RequestParam(required = false) Boolean pendingMakeupOnly) {
-        return ApiResponse.success("Day timetable loaded",
+        return ApiResponse.success("日课表已加载",
             scheduleLessonService.dayTimetable(institutionId, campusId, lessonDate, pendingMakeupOnly));
     }
 
@@ -94,13 +94,13 @@ public class ScheduleLessonController {
                                                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                                                       LocalDate weekEnd,
                                                       @RequestParam(required = false) Boolean pendingMakeupOnly) {
-        return ApiResponse.success("Week timetable loaded",
+        return ApiResponse.success("周课表已加载",
             scheduleLessonService.weekTimetable(institutionId, campusId, weekStart, weekEnd, pendingMakeupOnly));
     }
 
     @PostMapping("/conflicts/check")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleConflictCheckResponse> check(@Valid @RequestBody ScheduleConflictCheckRequest request) {
-        return ApiResponse.success("Schedule conflicts checked", scheduleLessonService.checkConflicts(request));
+        return ApiResponse.success("排课冲突检查完成", scheduleLessonService.checkConflicts(request));
     }
 }

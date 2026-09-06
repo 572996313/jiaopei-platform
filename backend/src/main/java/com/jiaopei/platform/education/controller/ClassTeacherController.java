@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping({"/api/education/class-teachers", "/api/education/class_teacher"})
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class ClassTeacherController {
 
     private final ClassTeacherService classTeacherService;
@@ -34,7 +34,7 @@ public class ClassTeacherController {
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassTeacherEntity>> list(@RequestParam(required = false) String classId,
                                                       @RequestParam(required = false) String teacherId) {
-        return ApiResponse.success("Class teacher list loaded", classTeacherService.listClassTeachers(
+        return ApiResponse.success("班级教师列表已加载", classTeacherService.listClassTeachers(
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(teacherId, "teacherId")
         ));
@@ -43,20 +43,20 @@ public class ClassTeacherController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<ClassTeacherEntity> create(@Valid @RequestBody ClassTeacherCreateRequest request) {
-        return ApiResponse.success("Class teacher created", classTeacherService.createClassTeacher(request));
+        return ApiResponse.success("班级教师已创建", classTeacherService.createClassTeacher(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<ClassTeacherEntity> update(@PathVariable Long id,
                                                   @Valid @RequestBody ClassTeacherCreateRequest request) {
-        return ApiResponse.success("Class teacher updated", classTeacherService.updateClassTeacher(id, request));
+        return ApiResponse.success("班级教师已更新", classTeacherService.updateClassTeacher(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classTeacherService.deleteClassTeacher(id);
-        return ApiResponse.success("Class teacher deleted", null);
+        return ApiResponse.success("班级教师已删除", null);
     }
 }

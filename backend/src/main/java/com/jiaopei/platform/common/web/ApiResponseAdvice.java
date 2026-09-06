@@ -44,7 +44,7 @@ public class ApiResponseAdvice implements ResponseBodyAdvice<Object> {
             try {
                 return objectMapper.writeValueAsString(wrapped);
             } catch (JsonProcessingException exception) {
-                throw new IllegalStateException("Failed to serialize ApiResponse", exception);
+                throw new IllegalStateException("统一响应序列化失败", exception);
             }
         }
         return wrapped;

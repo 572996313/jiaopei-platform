@@ -16,12 +16,12 @@ public record ClassStudentCreateRequest(
     @Schema(description = "班级ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"class_id", "teachingClassId"})
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "classId is required")
+    @NotNull(message = "classId 不能为空")
     Long classId,
     @Schema(description = "学员ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("student_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "studentId is required")
+    @NotNull(message = "studentId 不能为空")
     Long studentId,
     @Schema(description = "状态(ACTIVE=在读,QUIT=退班,GRADUATED=结业,RESERVED=预占)", allowableValues = {"ACTIVE", "QUIT", "GRADUATED", "RESERVED"})
     String status,

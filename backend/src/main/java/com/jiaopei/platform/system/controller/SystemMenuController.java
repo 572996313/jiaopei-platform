@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class SystemMenuController {
 
     private final SystemMenuService systemMenuService;
@@ -33,44 +33,44 @@ public class SystemMenuController {
     @GetMapping("/menus/tree")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<List<MenuView>> tree() {
-        return ApiResponse.success("Menu tree loaded", systemMenuService.tree());
+        return ApiResponse.success("菜单树已加载", systemMenuService.tree());
     }
 
     @GetMapping("/menus")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<List<MenuView>> list() {
-        return ApiResponse.success("Menu list loaded", systemMenuService.listMenus());
+        return ApiResponse.success("菜单列表已加载", systemMenuService.listMenus());
     }
 
     @PostMapping("/menus")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<MenuView> create(@Valid @RequestBody MenuCreateRequest request) {
-        return ApiResponse.success("Menu created", systemMenuService.createMenu(request));
+        return ApiResponse.success("菜单已创建", systemMenuService.createMenu(request));
     }
 
     @PutMapping("/menus/{id}")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<MenuView> update(@PathVariable Long id, @Valid @RequestBody MenuUpdateRequest request) {
-        return ApiResponse.success("Menu updated", systemMenuService.updateMenu(id, request));
+        return ApiResponse.success("菜单已更新", systemMenuService.updateMenu(id, request));
     }
 
     @DeleteMapping("/menus/{id}")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         systemMenuService.deleteMenu(id);
-        return ApiResponse.success("Menu deleted", null);
+        return ApiResponse.success("菜单已删除", null);
     }
 
     @GetMapping("/roles/{roleId}/menus")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<List<Long>> roleMenus(@PathVariable Long roleId) {
-        return ApiResponse.success("Role menus loaded", systemMenuService.getRoleMenuIds(roleId));
+        return ApiResponse.success("角色菜单已加载", systemMenuService.getRoleMenuIds(roleId));
     }
 
     @PutMapping("/roles/{roleId}/menus")
     @RequiresPermission("system:menu:manage")
     public ApiResponse<List<Long>> updateRoleMenus(@PathVariable Long roleId,
                                                    @Valid @RequestBody RoleMenuUpdateRequest request) {
-        return ApiResponse.success("Role menus updated", systemMenuService.updateRoleMenus(roleId, request));
+        return ApiResponse.success("角色菜单已更新", systemMenuService.updateRoleMenus(roleId, request));
     }
 }

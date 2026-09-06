@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping({"/api/education/class-students", "/api/education/class_student"})
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class ClassStudentController {
 
     private final ClassStudentService classStudentService;
@@ -31,7 +31,7 @@ public class ClassStudentController {
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassStudentEntity>> list(@RequestParam(required = false) String classId,
                                                       @RequestParam(required = false) String studentId) {
-        return ApiResponse.success("Class student list loaded", classStudentService.listClassStudents(
+        return ApiResponse.success("班级学员列表已加载", classStudentService.listClassStudents(
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(studentId, "studentId")
         ));
@@ -40,6 +40,6 @@ public class ClassStudentController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<ClassStudentEntity> create(@Valid @RequestBody ClassStudentCreateRequest request) {
-        return ApiResponse.success("Class student created", classStudentService.createClassStudent(request));
+        return ApiResponse.success("班级学员已创建", classStudentService.createClassStudent(request));
     }
 }

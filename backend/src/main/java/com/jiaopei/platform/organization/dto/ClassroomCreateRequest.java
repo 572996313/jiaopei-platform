@@ -11,21 +11,21 @@ import java.math.BigDecimal;
 public record ClassroomCreateRequest(
     @JsonAlias("campus_id")
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    @NotNull(message = "campusId is required")
+    @NotNull(message = "campusId 不能为空")
     Long campusId,
     @JsonAlias({"code", "classroom_code"})
-    @NotBlank(message = "classroomCode is required")
+    @NotBlank(message = "classroomCode 不能为空")
     String classroomCode,
     @JsonAlias({"name", "classroom_name"})
-    @NotBlank(message = "classroomName is required")
+    @NotBlank(message = "classroomName 不能为空")
     String classroomName,
     @JsonAlias("room_type")
     String roomType,
     @JsonAlias({"floor", "floor_no"})
     String floorNo,
     @JsonAlias({"capacity", "seat_count", "seat_capacity"})
-    @NotNull(message = "seatCapacity is required")
-    @Min(value = 0, message = "seatCapacity must be greater than or equal to 0")
+    @NotNull(message = "seatCapacity 不能为空")
+    @Min(value = 0, message = "seatCapacity 必须大于或等于 0")
     Integer seatCapacity,
     @JsonAlias("area_sqm")
     BigDecimal areaSqm,

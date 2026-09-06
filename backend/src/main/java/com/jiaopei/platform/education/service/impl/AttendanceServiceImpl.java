@@ -96,7 +96,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         ScheduleLessonEntity lesson = request.lessonId() == null ? null : requireScheduledLesson(request.lessonId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Class and student must belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
         }
         if (lesson != null) {
             assertLessonMatchesAttendance(lesson, request.classId(), institutionId, request.attendanceDate());
@@ -150,7 +150,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             ClassStudentEntity classStudent = classStudentMap.get(item.studentId());
             if (classStudent == null) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "Student is not active in lesson class: " + item.studentId());
+                    "该学员不是课次班级的在班学员：" + item.studentId());
             }
             AttendanceEntity existing = existingAttendanceMap.get(item.studentId());
             if (existing == null) {
@@ -224,7 +224,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             ));
         }
 
-        String message = students.isEmpty() ? "No active students found for this class" : null;
+        String message = students.isEmpty() ? "该班级没有在班学员" : null;
         return new AttendanceLessonPageView(
             new AttendanceLessonInfoView(
                 lesson.getId(),
@@ -283,10 +283,10 @@ public class AttendanceServiceImpl implements AttendanceService {
     private ScheduleLessonEntity requireScheduledLesson(Long lessonId) {
         ScheduleLessonEntity lesson = scheduleLessonMapper.selectById(lessonId);
         if (lesson == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Schedule lesson does not exist: " + lessonId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "排课课次不存在：" + lessonId);
         }
         if (!LESSON_STATUS_SCHEDULED.equals(lesson.getLessonStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Only scheduled lessons can take attendance");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "只有已排课的课次才能点名");
         }
         return lesson;
     }
@@ -294,7 +294,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private TeachingClassEntity requireClass(Long classId) {
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(classId);
         if (teachingClass == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class does not exist: " + classId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         return teachingClass;
     }
@@ -302,7 +302,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private StudentEntity requireStudent(Long studentId) {
         StudentEntity student = studentMapper.selectById(studentId);
         if (student == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Student does not exist: " + studentId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         return student;
     }
@@ -318,7 +318,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
         Long count = classStudentMapper.selectCount(wrapper);
         if (count == null || count == 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student is not active in class: " + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员不是此班级的在班学员：" + classId);
         }
     }
 
@@ -339,20 +339,20 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private void assertLessonMatchesAttendance(ScheduleLessonEntity lesson, Long classId, Long institutionId, LocalDate attendanceDate) {
         if (!Objects.equals(lesson.getClassId(), classId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Attendance class does not match lesson class");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "考勤班级与课次班级不一致");
         }
         if (!Objects.equals(lesson.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Attendance institution does not match lesson institution");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "考勤机构与课次机构不一致");
         }
         if (attendanceDate != null && !Objects.equals(lesson.getLessonDate(), attendanceDate)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Attendance date does not match lesson date");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "考勤日期与课次日期不一致");
         }
     }
 
     private String normalizeAttendanceStatus(String rawStatus, String defaultValue) {
         String candidate = isBlank(rawStatus) ? defaultValue : rawStatus.trim().toLowerCase(Locale.ROOT);
         if (isBlank(candidate) || !ALLOWED_ATTENDANCE_STATUSES.contains(candidate)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Unsupported attendance status: " + rawStatus);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "不支持的考勤状态：" + rawStatus);
         }
         return candidate;
     }
@@ -367,8 +367,8 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private BusinessException duplicateAttendanceException(Long lessonId) {
         if (lessonId != null) {
-            return new BusinessException(ResultCode.BAD_REQUEST, "Attendance already exists for lesson/student");
+            return new BusinessException(ResultCode.BAD_REQUEST, "该学员在此课次已有考勤记录");
         }
-        return new BusinessException(ResultCode.BAD_REQUEST, "Attendance already exists for student/date");
+        return new BusinessException(ResultCode.BAD_REQUEST, "该学员在当天已存在考勤记录");
     }
 }

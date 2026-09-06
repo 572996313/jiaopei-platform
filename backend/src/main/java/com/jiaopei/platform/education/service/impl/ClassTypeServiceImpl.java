@@ -42,7 +42,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         int minStudents = request.minStudents() == null ? 0 : request.minStudents();
         Integer maxStudents = request.maxStudents();
         if (maxStudents != null && maxStudents < minStudents) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents cannot be less than minStudents");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents 不能小于 minStudents");
         }
 
         String typeCode = normalize(request.typeCode());
@@ -64,7 +64,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             classTypeMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class type code or name already exists in institution: " + request.institutionId());
+                "该机构下班型编码或名称已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -75,7 +75,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         int minStudents = request.minStudents() == null ? existing.getMinStudents() : request.minStudents();
         Integer maxStudents = request.maxStudents() == null ? existing.getMaxStudents() : request.maxStudents();
         if (maxStudents != null && maxStudents < minStudents) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents cannot be less than minStudents");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "maxStudents 不能小于 minStudents");
         }
         if (request.typeCode() != null && !request.typeCode().isBlank()) {
             String typeCode = normalize(request.typeCode());
@@ -110,7 +110,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             classTypeMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class type code or name already exists in institution: " + existing.getInstitutionId());
+                "该机构下班型编码或名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -124,14 +124,14 @@ public class ClassTypeServiceImpl implements ClassTypeService {
     private ClassTypeEntity requireClassType(Long id) {
         ClassTypeEntity entity = classTypeMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Class type does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "班型不存在：" + id);
         }
         return entity;
     }
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
@@ -145,7 +145,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         Long count = classTypeMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class type code already exists in institution: " + institutionId);
+                "该机构下班型编码已存在：" + institutionId);
         }
     }
 
@@ -159,7 +159,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         Long count = classTypeMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Class type name already exists in institution: " + institutionId);
+                "该机构下班型名称已存在：" + institutionId);
         }
     }
 

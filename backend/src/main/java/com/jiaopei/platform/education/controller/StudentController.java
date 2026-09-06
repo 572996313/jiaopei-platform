@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/students")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class StudentController {
 
     private final StudentService studentService;
@@ -36,7 +36,7 @@ public class StudentController {
     public ApiResponse<List<StudentEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String campusId,
                                                  @RequestParam(required = false) String keyword) {
-        return ApiResponse.success("Student list loaded", studentService.listStudents(
+        return ApiResponse.success("学员列表已加载", studentService.listStudents(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(campusId, "campusId"),
             keyword
@@ -46,20 +46,20 @@ public class StudentController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<StudentEntity> create(@Valid @RequestBody StudentCreateRequest request) {
-        return ApiResponse.success("Student created", studentService.createStudent(request));
+        return ApiResponse.success("学员已创建", studentService.createStudent(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<StudentEntity> update(@PathVariable Long id,
                                              @Valid @RequestBody StudentUpdateRequest request) {
-        return ApiResponse.success("Student updated", studentService.updateStudent(id, request));
+        return ApiResponse.success("学员已更新", studentService.updateStudent(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         studentService.deleteStudent(id);
-        return ApiResponse.success("Student deleted", null);
+        return ApiResponse.success("学员已删除", null);
     }
 }

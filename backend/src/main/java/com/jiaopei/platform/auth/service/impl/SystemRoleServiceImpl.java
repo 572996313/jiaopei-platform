@@ -49,7 +49,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         try {
             roleMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Role code already exists: " + entity.getRoleCode());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "角色编码已存在：" + entity.getRoleCode());
         }
         return toView(entity);
     }
@@ -69,7 +69,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     private RoleEntity requireRole(Long id) {
         RoleEntity entity = roleMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Role does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "角色不存在：" + id);
         }
         return entity;
     }
@@ -78,7 +78,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         Long count = roleMapper.selectCount(new LambdaQueryWrapper<RoleEntity>()
             .eq(RoleEntity::getRoleCode, roleCode));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Role code already exists: " + roleCode);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "角色编码已存在：" + roleCode);
         }
     }
 

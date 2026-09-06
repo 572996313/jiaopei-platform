@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system/bootstrap")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class PlatformBootstrapController {
 
     private final JiaopeiProperties properties;
@@ -27,18 +27,18 @@ public class PlatformBootstrapController {
 
     @GetMapping
     public ApiResponse<PlatformBootstrapView> bootstrap() {
-        return ApiResponse.success("Platform bootstrap is ready", new PlatformBootstrapView(
+        return ApiResponse.success("平台启动信息已就绪", new PlatformBootstrapView(
             applicationName,
             "0.0.1-SNAPSHOT",
             List.of(
-                new ModuleSummaryView("auth", "权限认证", true, "STUB_READY"),
-                new ModuleSummaryView("organization", "组织主数据", properties.getModules().isOrganizationEnabled(), "READY"),
-                new ModuleSummaryView("education", "教务", properties.getModules().isEducationEnabled(), "RESERVED")
+                new ModuleSummaryView("auth", "权限认证", true, "STUB 就绪"),
+                new ModuleSummaryView("organization", "组织主数据", properties.getModules().isOrganizationEnabled(), "就绪"),
+                new ModuleSummaryView("education", "教务", properties.getModules().isEducationEnabled(), "预留")
             ),
             List.of(
-                "Use POST /api/auth/login to obtain the current stub token",
-                "Call organization endpoints with Authorization: Bearer stub-access-token",
-                "Replace stub authentication with JWT/session implementation"
+                "通过 POST /api/auth/login 获取当前 stub 令牌",
+                "携带 Authorization: Bearer stub-access-token 调用组织模块接口",
+                "后续将用 JWT/会话实现替换 stub 鉴权"
             )
         ));
     }

@@ -87,7 +87,7 @@ public class SystemUserServiceImpl implements SystemUserService {
         try {
             userAccountMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Username already exists: " + entity.getUsername());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "用户名已存在：" + entity.getUsername());
         }
         return toView(entity);
     }
@@ -177,7 +177,7 @@ public class SystemUserServiceImpl implements SystemUserService {
     private UserAccountEntity requireUser(Long id) {
         UserAccountEntity entity = userAccountMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "User does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "用户不存在：" + id);
         }
         return entity;
     }
@@ -186,14 +186,14 @@ public class SystemUserServiceImpl implements SystemUserService {
         Long count = userAccountMapper.selectCount(new LambdaQueryWrapper<UserAccountEntity>()
             .eq(UserAccountEntity::getUsername, username));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Username already exists: " + username);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "用户名已存在：" + username);
         }
     }
 
     private void assertInstitutionExists(Long institutionId) {
         InstitutionEntity institution = institutionMapper.selectById(institutionId);
         if (institution == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构不存在：" + institutionId);
         }
     }
 
@@ -203,7 +203,7 @@ public class SystemUserServiceImpl implements SystemUserService {
         }
         CampusEntity campus = campusMapper.selectById(campusId);
         if (campus == null || !institutionId.equals(campus.getInstitutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Default campus does not belong to institution");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "默认校区不属于该机构");
         }
     }
 
@@ -213,7 +213,7 @@ public class SystemUserServiceImpl implements SystemUserService {
         }
         List<RoleEntity> roles = roleMapper.selectBatchIds(roleIds);
         if (roles.size() != roleIds.size()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "One or more roles do not exist");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "部分角色不存在");
         }
     }
 

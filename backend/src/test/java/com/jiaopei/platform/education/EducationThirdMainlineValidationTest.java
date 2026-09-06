@@ -284,7 +284,7 @@ class EducationThirdMainlineValidationTest {
 
         verify(teachingClassMapper, never()).updateById(any(TeachingClassEntity.class));
         assertEquals(
-            "Primary teacher can only be changed in class teacher relations; please switch the primary teacher there first",
+            "主讲教师只能在班级教师关系中变更，请先在班级教师关系里切换主讲教师",
             exception.getMessage()
         );
     }
@@ -526,7 +526,7 @@ class EducationThirdMainlineValidationTest {
         BusinessException exception = assertThrows(BusinessException.class, () -> service.deleteClass(20L));
 
         verify(teachingClassMapper, never()).deleteById(any(Long.class));
-        assertTrue(exception.getMessage().contains("active students"));
+        assertTrue(exception.getMessage().contains("在读学员"));
     }
 
     @Test

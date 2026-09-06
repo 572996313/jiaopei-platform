@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/course-categories")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class CourseCategoryController {
 
     private final CourseCategoryService courseCategoryService;
@@ -34,7 +34,7 @@ public class CourseCategoryController {
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<CourseCategoryEntity>> list(@RequestParam(required = false) String institutionId) {
-        return ApiResponse.success("Course category list loaded", courseCategoryService.listCategories(
+        return ApiResponse.success("课程分类列表已加载", courseCategoryService.listCategories(
             ExternalIdParser.parseOptional(institutionId, "institutionId")
         ));
     }
@@ -42,20 +42,20 @@ public class CourseCategoryController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<CourseCategoryEntity> create(@Valid @RequestBody CourseCategoryCreateRequest request) {
-        return ApiResponse.success("Course category created", courseCategoryService.createCategory(request));
+        return ApiResponse.success("课程分类已创建", courseCategoryService.createCategory(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<CourseCategoryEntity> update(@PathVariable Long id,
                                                     @Valid @RequestBody CourseCategoryUpdateRequest request) {
-        return ApiResponse.success("Course category updated", courseCategoryService.updateCategory(id, request));
+        return ApiResponse.success("课程分类已更新", courseCategoryService.updateCategory(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         courseCategoryService.deleteCategory(id);
-        return ApiResponse.success("Course category deleted", null);
+        return ApiResponse.success("课程分类已删除", null);
     }
 }

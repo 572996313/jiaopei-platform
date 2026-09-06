@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">DAILY ACADEMIC OPS</div>
+        <div class="page-kicker">日常教务中心</div>
         <h2 class="panel-headline">日常教务中心</h2>
         <p class="panel-subtitle">
           围绕当日课次执行，把排课、点名、结课和变动提醒收敛到同一入口。先处理待点名，再回查课表与排课明细。
@@ -795,14 +795,14 @@
             <article class="stat-card">
               <div class="stat-label">到课</div>
               <div class="stat-value">{{ attendanceSummary.presentCount }}</div>
-              <div class="stat-hint">present</div>
+              <div class="stat-hint">出勤</div>
             </article>
             <article class="stat-card">
               <div class="stat-label">缺勤 / 请假 / 迟到</div>
               <div class="stat-value attendance-multi-stat">
                 {{ attendanceSummary.absentCount }} / {{ attendanceSummary.leaveCount }} / {{ attendanceSummary.lateCount }}
               </div>
-              <div class="stat-hint">absent / leave / late</div>
+              <div class="stat-hint">缺勤 / 请假 / 迟到</div>
             </article>
           </div>
 

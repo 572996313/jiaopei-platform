@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/enrollments")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
@@ -32,7 +32,7 @@ public class EnrollmentController {
     public ApiResponse<List<EnrollmentEntity>> list(@RequestParam(required = false) String institutionId,
                                                     @RequestParam(required = false) String classId,
                                                     @RequestParam(required = false) String studentId) {
-        return ApiResponse.success("Enrollment list loaded", enrollmentService.listEnrollments(
+        return ApiResponse.success("报名列表已加载", enrollmentService.listEnrollments(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(studentId, "studentId")
@@ -42,6 +42,6 @@ public class EnrollmentController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<EnrollmentEntity> create(@Valid @RequestBody EnrollmentCreateRequest request) {
-        return ApiResponse.success("Enrollment created", enrollmentService.createEnrollment(request));
+        return ApiResponse.success("报名已创建", enrollmentService.createEnrollment(request));
     }
 }

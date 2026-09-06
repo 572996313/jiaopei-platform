@@ -55,7 +55,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         try {
             institutionMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution orgCode or orgName already exists");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构编码或机构名称已存在");
         }
         return entity;
     }
@@ -97,7 +97,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         try {
             institutionMapper.updateById(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution name already exists");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构名称已存在");
         }
         return toCurrentView(requireInstitution(institutionId));
     }
@@ -106,7 +106,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         Long count = institutionMapper.selectCount(new LambdaQueryWrapper<InstitutionEntity>()
             .eq(InstitutionEntity::getOrgCode, orgCode));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution orgCode already exists: " + orgCode);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构编码已存在：" + orgCode);
         }
     }
 
@@ -114,7 +114,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         Long count = institutionMapper.selectCount(new LambdaQueryWrapper<InstitutionEntity>()
             .eq(InstitutionEntity::getOrgName, orgName));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution orgName already exists: " + orgName);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构名称已存在：" + orgName);
         }
     }
 
@@ -123,17 +123,17 @@ public class InstitutionServiceImpl implements InstitutionService {
             .eq(InstitutionEntity::getOrgName, orgName)
             .ne(InstitutionEntity::getId, excludeInstitutionId));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Institution name already exists: " + orgName);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "机构名称已存在：" + orgName);
         }
     }
 
     private InstitutionEntity requireInstitution(Long institutionId) {
         if (institutionId == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Current user institution is missing");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "当前登录用户缺少所属机构");
         }
         InstitutionEntity institution = institutionMapper.selectById(institutionId);
         if (institution == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
         return institution;
     }
@@ -164,7 +164,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private String requireNonBlank(String value, String fieldName) {
         String normalized = normalize(value);
         if (normalized == null || normalized.isBlank()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " must not be blank");
+            throw new BusinessException(ResultCode.BAD_REQUEST, fieldName + " 不能为空");
         }
         return normalized;
     }

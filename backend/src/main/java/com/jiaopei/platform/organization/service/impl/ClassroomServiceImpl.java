@@ -42,14 +42,14 @@ public class ClassroomServiceImpl implements ClassroomService {
     public ClassroomEntity createClassroom(ClassroomCreateRequest request) {
         CampusEntity campus = campusMapper.selectById(request.campusId());
         if (campus == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + request.campusId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
         }
         String classroomCode = normalize(request.classroomCode());
         String classroomName = normalize(request.classroomName());
         assertUniqueClassroomCode(request.campusId(), classroomCode, null);
         assertUniqueClassroomName(request.campusId(), classroomName, null);
         if (request.areaSqm() != null && request.areaSqm().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm must be greater than or equal to 0");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm 必须大于或等于 0");
         }
 
         ClassroomEntity entity = new ClassroomEntity();
@@ -68,7 +68,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Classroom classroomCode or classroomName already exists in campus: " + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + request.campusId());
         }
         return entity;
     }
@@ -80,7 +80,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         if (request.campusId() != null && !Objects.equals(existing.getCampusId(), request.campusId())) {
             CampusEntity campus = campusMapper.selectById(request.campusId());
             if (campus == null) {
-                throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + request.campusId());
+                throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
             }
             existing.setCampusId(request.campusId());
         }
@@ -109,7 +109,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         if (request.areaSqm() != null) {
             if (request.areaSqm().compareTo(BigDecimal.ZERO) < 0) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm must be greater than or equal to 0");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "areaSqm 必须大于或等于 0");
             }
             existing.setAreaSqm(request.areaSqm());
         }
@@ -128,7 +128,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Classroom classroomCode or classroomName already exists in campus: " + existing.getCampusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + existing.getCampusId());
         }
         return existing;
     }
@@ -142,7 +142,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private ClassroomEntity requireClassroom(Long id) {
         ClassroomEntity entity = classroomMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Classroom does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "教室不存在：" + id);
         }
         return entity;
     }
@@ -156,7 +156,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         Long count = classroomMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Classroom classroomCode already exists in campus: " + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码已存在：" + campusId);
         }
     }
 
@@ -169,7 +169,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         Long count = classroomMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Classroom classroomName already exists in campus: " + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室名称已存在：" + campusId);
         }
     }
 

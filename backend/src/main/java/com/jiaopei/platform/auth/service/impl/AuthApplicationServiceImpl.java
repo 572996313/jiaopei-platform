@@ -60,10 +60,10 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         UserAccountEntity user = userAccountMapper.selectOne(new LambdaQueryWrapper<UserAccountEntity>()
             .eq(UserAccountEntity::getUsername, normalize(request.username())));
         if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid username or password");
+            throw new BadCredentialsException("用户名或密码错误");
         }
         if (!ACTIVE.equalsIgnoreCase(user.getStatus())) {
-            throw new DisabledException("User account is disabled");
+            throw new DisabledException("账号已被禁用");
         }
 
         RolePermissionSnapshot snapshot = loadRolePermissionSnapshot(user.getId());
@@ -107,15 +107,15 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     @Override
     public AuthenticatedUser authenticateToken(String accessToken) {
         if (accessToken == null || accessToken.isBlank()) {
-            throw new BadCredentialsException("Access token is missing");
+            throw new BadCredentialsException("访问令牌缺失");
         }
         AuthenticatedUser user = tokenCacheService.getUser(accessToken);
         if (user == null) {
-            throw new BadCredentialsException("Access token is invalid or expired");
+            throw new BadCredentialsException("访问令牌无效或已过期");
         }
         UserAccountEntity userAccount = requireUser(user.userId());
         if (!ACTIVE.equalsIgnoreCase(userAccount.getStatus())) {
-            throw new DisabledException("User account is disabled");
+            throw new DisabledException("账号已被禁用");
         }
         return user;
     }
@@ -144,13 +144,13 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         AuthenticatedUser authenticatedUser = AuthContext.requireUser();
         UserAccountEntity user = requireUser(authenticatedUser.userId());
         if (!request.newPassword().equals(request.confirmPassword())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "New password and confirmation do not match");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "新密码与确认密码不一致");
         }
         if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
-            throw new BadCredentialsException("Old password is invalid");
+            throw new BadCredentialsException("原密码不正确");
         }
         if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "New password cannot be the same as old password");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "新密码不能与原密码相同");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setPasswordResetRequired(Boolean.FALSE);
@@ -162,7 +162,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     private UserAccountEntity requireUser(Long userId) {
         UserAccountEntity user = userAccountMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Authenticated user no longer exists");
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "当前登录用户已不存在");
         }
         return user;
     }

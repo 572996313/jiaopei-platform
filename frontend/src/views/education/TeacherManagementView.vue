@@ -2,7 +2,7 @@
   <section class="education-page">
     <div class="education-hero">
       <div>
-        <div class="page-kicker">ARCHIVE / TEACHER</div>
+        <div class="page-kicker">档案 · 教师</div>
         <h2 class="panel-headline">教师档案</h2>
         <p class="panel-subtitle">
           当前页面承接教师档案列表与新增。真实联机构、校区与教师接口，先做基础档案，再为后续授课能力与成班规则差异预留空间。
@@ -23,7 +23,7 @@
       <article class="stat-card">
         <div class="stat-label">机构数</div>
         <div class="stat-value">{{ institutionStore.institutions.length }}</div>
-        <div class="stat-hint">来自 /api/organizations/institutions</div>
+        <div class="stat-hint">数据来自机构主数据</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">校区数</div>
@@ -33,7 +33,7 @@
       <article class="stat-card">
         <div class="stat-label">教师数</div>
         <div class="stat-value">{{ teachers.length }}</div>
-        <div class="stat-hint">来自 /api/education/teachers</div>
+        <div class="stat-hint">数据来自教师档案接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">当前机构</div>

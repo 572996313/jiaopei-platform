@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class AuthController {
 
     private static final String BEARER_PREFIX = "Bearer ";
@@ -34,29 +34,29 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success("Login succeeded", authApplicationService.login(request));
+        return ApiResponse.success("登录成功", authApplicationService.login(request));
     }
 
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletRequest request) {
         authApplicationService.logout(resolveToken(request));
-        return ApiResponse.success("Logout succeeded", null);
+        return ApiResponse.success("已退出登录", null);
     }
 
     @GetMapping("/me")
     public ApiResponse<?> me() {
-        return ApiResponse.success("Current user loaded", authApplicationService.currentUser());
+        return ApiResponse.success("已获取当前用户信息", authApplicationService.currentUser());
     }
 
     @PostMapping("/change-password")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authApplicationService.changePassword(request);
-        return ApiResponse.success("Password changed", null);
+        return ApiResponse.success("密码修改成功", null);
     }
 
     @GetMapping("/current/menus")
     public ApiResponse<List<MenuView>> currentMenus() {
-        return ApiResponse.success("Current user menus loaded", systemMenuService.currentUserMenus());
+        return ApiResponse.success("已获取当前用户菜单", systemMenuService.currentUserMenus());
     }
 
     private String resolveToken(HttpServletRequest request) {

@@ -50,23 +50,23 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     public TimeSlotEntity createTimeSlot(TimeSlotCreateRequest request) {
         InstitutionEntity institution = institutionMapper.selectById(request.institutionId());
         if (institution == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + request.institutionId());
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
         }
         if (request.campusId() != null) {
             CampusEntity campus = campusMapper.selectById(request.campusId());
             if (campus == null) {
-                throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + request.campusId());
+                throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
             }
             if (!Objects.equals(campus.getInstitutionId(), request.institutionId())) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "Campus does not belong to institution: " + request.institutionId());
+                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + request.institutionId());
             }
         }
         if (!request.startTime().isBefore(request.endTime())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime must be earlier than endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime 必须早于 endTime");
         }
         long minutes = ChronoUnit.MINUTES.between(request.startTime(), request.endTime());
         if (minutes != request.durationMinutes()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes must match startTime and endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes 必须与 startTime 和 endTime 一致");
         }
         String slotCode = normalize(request.slotCode());
         String slotName = normalize(request.slotName());
@@ -91,7 +91,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Time slot slotCode or slotName already exists in institution: " + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码或时间段名称已存在：" + request.institutionId());
         }
         return entity;
     }
@@ -104,10 +104,10 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         if (request.campusId() != null && !Objects.equals(existing.getCampusId(), request.campusId())) {
             CampusEntity campus = campusMapper.selectById(request.campusId());
             if (campus == null) {
-                throw new BusinessException(ResultCode.NOT_FOUND, "Campus does not exist: " + request.campusId());
+                throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
             }
             if (!Objects.equals(campus.getInstitutionId(), existing.getInstitutionId())) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "Campus does not belong to institution: " + existing.getInstitutionId());
+                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + existing.getInstitutionId());
             }
             existing.setCampusId(request.campusId());
         }
@@ -115,11 +115,11 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         LocalTime endTime = request.endTime() == null ? existing.getEndTime() : request.endTime();
         Integer durationMinutes = request.durationMinutes() == null ? existing.getDurationMinutes() : request.durationMinutes();
         if (!startTime.isBefore(endTime)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime must be earlier than endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "startTime 必须早于 endTime");
         }
         long minutes = ChronoUnit.MINUTES.between(startTime, endTime);
         if (minutes != durationMinutes) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes must match startTime and endTime");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "durationMinutes 必须与 startTime 和 endTime 一致");
         }
         if (request.slotCode() != null && !request.slotCode().isBlank()) {
             String slotCode = normalize(request.slotCode());
@@ -137,7 +137,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         }
         if (request.weekday() != null) {
             if (request.weekday() < 1 || request.weekday() > 7) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "weekday must be between 1 and 7");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "weekday 必须在 1 到 7 之间");
             }
             existing.setWeekday(request.weekday());
         }
@@ -168,7 +168,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Time slot slotCode or slotName already exists in institution: " + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码或时间段名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
@@ -182,7 +182,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     private TimeSlotEntity requireTimeSlot(Long id) {
         TimeSlotEntity entity = timeSlotMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Time slot does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "时间段不存在：" + id);
         }
         return entity;
     }
@@ -196,7 +196,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         }
         Long count = timeSlotMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Time slot slotCode already exists in institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码已存在：" + institutionId);
         }
     }
 
@@ -214,7 +214,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         }
         Long count = timeSlotMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Time slot slotName already exists in institution/campus scope: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区范围内时间段名称已存在：" + institutionId);
         }
     }
 

@@ -2,7 +2,7 @@
   <div class="app-shell">
     <aside class="app-sidebar">
       <div class="brand-block">
-        <div class="brand-kicker">JIAOPEI PLATFORM</div>
+        <div class="brand-kicker">教培管理平台</div>
         <div class="brand-title">教培管理平台</div>
       </div>
 
@@ -182,8 +182,8 @@ const sidebarDefinitions: SidebarDefinition[] = [
     group: 'system',
     hint: '用户、角色、权限、字典',
     prefixes: ['/system'],
-    menuSignals: ['system', 'system_users', 'system_roles', 'system_menus', 'system_dicts', '/system', '/system/users', '/system/roles', '/system/menus', '/system/dicts'],
-    permissionSignals: ['system:user:manage', 'system:role:manage', 'system:menu:manage', 'system:dict:manage'],
+    menuSignals: ['system', 'system_users', 'system_roles', 'system_menus', 'system_config', 'system_dicts', '/system', '/system/users', '/system/roles', '/system/menus', '/system/config', '/system/dicts'],
+    permissionSignals: ['system:user:manage', 'system:role:manage', 'system:menu:manage', 'system:config:read', 'system:config:write', 'system:dict:manage'],
   },
 ]
 

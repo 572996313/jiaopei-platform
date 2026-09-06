@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/organizations/time-slots")
-@Tag(name = "Organization")
+@Tag(name = "组织管理")
 public class TimeSlotController {
 
     private final TimeSlotService timeSlotService;
@@ -34,26 +34,26 @@ public class TimeSlotController {
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<TimeSlotEntity>> list(@RequestParam(required = false) String institutionId) {
-        return ApiResponse.success("Time slot list loaded", timeSlotService.listTimeSlots(ExternalIdParser.parseOptional(institutionId, "institutionId")));
+        return ApiResponse.success("时间段列表已加载", timeSlotService.listTimeSlots(ExternalIdParser.parseOptional(institutionId, "institutionId")));
     }
 
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<TimeSlotEntity> create(@Valid @RequestBody TimeSlotCreateRequest request) {
-        return ApiResponse.success("Time slot placeholder created", timeSlotService.createTimeSlot(request));
+        return ApiResponse.success("时间段已创建", timeSlotService.createTimeSlot(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<TimeSlotEntity> update(@PathVariable Long id,
                                               @Valid @RequestBody TimeSlotUpdateRequest request) {
-        return ApiResponse.success("Time slot updated", timeSlotService.updateTimeSlot(id, request));
+        return ApiResponse.success("时间段已更新", timeSlotService.updateTimeSlot(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         timeSlotService.deleteTimeSlot(id);
-        return ApiResponse.success("Time slot deleted", null);
+        return ApiResponse.success("时间段已删除", null);
     }
 }

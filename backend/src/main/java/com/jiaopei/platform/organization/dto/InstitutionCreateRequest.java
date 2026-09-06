@@ -4,9 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 
 public record InstitutionCreateRequest(
-    @NotBlank(message = "orgCode is required")
+    @NotBlank(message = "orgCode 不能为空")
     String orgCode,
-    @NotBlank(message = "orgName is required")
+    @NotBlank(message = "orgName 不能为空")
     String orgName,
     String shortName,
     String contactName,

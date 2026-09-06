@@ -1,7 +1,7 @@
 <template>
   <div class="login-shell">
     <section class="login-panel login-panel-brand">
-      <div class="login-kicker">JIAOPEI PLATFORM</div>
+      <div class="login-kicker">教培管理平台</div>
       <h1 class="login-title">线下班课教务中台</h1>
       <p class="login-copy">
         聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。

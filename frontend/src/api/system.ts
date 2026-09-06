@@ -1,4 +1,4 @@
-import { requestGet, requestPost, requestPut } from '@/api/request'
+import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
 
 export interface SystemUserSummary {
   id: string
@@ -132,6 +132,41 @@ export interface RoleMenuUpdatePayload {
   menuIds: string[]
 }
 
+export interface SystemConfigSummary {
+  id: string
+  configKey: string
+  configValue: string
+  valueType?: string | null
+  configGroup?: string | null
+  displayName?: string | null
+  description?: string | null
+  defaultValue?: string | null
+  isSystem?: boolean | null
+  sortOrder?: number | null
+  status?: string | null
+}
+
+export interface SystemConfigCreatePayload {
+  configKey: string
+  configValue: string
+  valueType: string
+  configGroup: string
+  displayName: string
+  description?: string
+  defaultValue?: string
+  isSystem: boolean
+  sortOrder: number
+  status: string
+}
+
+export interface SystemConfigUpdatePayload {
+  configValue: string
+  displayName: string
+  description?: string
+  sortOrder: number
+  status: string
+}
+
 function normalizeUser(user: SystemUserSummary): SystemUserSummary {
   return {
     ...user,
@@ -221,6 +256,29 @@ export function fetchSystemRoleMenuIds(roleId: string) {
 
 export function updateSystemRoleMenus(roleId: string, payload: RoleMenuUpdatePayload) {
   return requestPut<Array<string | number>>(`/system/roles/${roleId}/menus`, payload).then((items) => items.map((item) => String(item)))
+}
+
+function normalizeSystemConfig(item: SystemConfigSummary): SystemConfigSummary {
+  return {
+    ...item,
+    id: String(item.id),
+  }
+}
+
+export function fetchSystemConfigs() {
+  return requestGet<SystemConfigSummary[]>('/system/config').then((items) => items.map(normalizeSystemConfig))
+}
+
+export function createSystemConfig(payload: SystemConfigCreatePayload) {
+  return requestPost<SystemConfigSummary>('/system/config', payload).then(normalizeSystemConfig)
+}
+
+export function updateSystemConfig(id: string, payload: SystemConfigUpdatePayload) {
+  return requestPut<SystemConfigSummary>(`/system/config/${id}`, payload).then(normalizeSystemConfig)
+}
+
+export function deleteSystemConfig(id: string) {
+  return requestDelete<void>(`/system/config/${id}`)
 }
 
 export function fetchSystemDictTypes() {

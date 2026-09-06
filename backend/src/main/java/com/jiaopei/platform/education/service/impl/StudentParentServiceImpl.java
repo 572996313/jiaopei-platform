@@ -96,7 +96,7 @@ public class StudentParentServiceImpl implements StudentParentService {
                 studentParentMapper.insert(entity);
             } catch (DuplicateKeyException exception) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "Student parent phone already exists for student: " + request.studentId());
+                    "该学员下家长联系电话已存在：" + request.studentId());
             }
         } else {
             studentParentMapper.updateById(entity);
@@ -108,17 +108,17 @@ public class StudentParentServiceImpl implements StudentParentService {
 
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Institution does not exist: " + institutionId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
         }
     }
 
     private StudentEntity requireStudentInInstitution(Long studentId, Long institutionId) {
         StudentEntity student = studentMapper.selectById(studentId);
         if (student == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Student does not exist: " + studentId);
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         if (!Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "Student does not belong to institution: " + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + institutionId);
         }
         return student;
     }
@@ -133,7 +133,7 @@ public class StudentParentServiceImpl implements StudentParentService {
         Long count = studentParentMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "Student parent phone already exists for student: " + studentId);
+                "该学员下家长联系电话已存在：" + studentId);
         }
     }
 
@@ -186,7 +186,7 @@ public class StudentParentServiceImpl implements StudentParentService {
     private StudentParentEntity requireStudentParent(Long id) {
         StudentParentEntity entity = studentParentMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "Student parent does not exist: " + id);
+            throw new BusinessException(ResultCode.NOT_FOUND, "家长联系人不存在：" + id);
         }
         return entity;
     }

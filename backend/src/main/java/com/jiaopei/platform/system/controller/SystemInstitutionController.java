@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/system/institution")
-@Tag(name = "System")
+@Tag(name = "系统管理")
 public class SystemInstitutionController {
 
     private final InstitutionService institutionService;
@@ -29,7 +29,7 @@ public class SystemInstitutionController {
     @RequiresPermission("organization:read")
     public ApiResponse<CurrentInstitutionView> current() {
         Long institutionId = AuthContext.requireUser().orgId();
-        return ApiResponse.success("Current institution loaded",
+        return ApiResponse.success("当前机构信息已加载",
             institutionService.getCurrentInstitution(institutionId));
     }
 
@@ -37,7 +37,7 @@ public class SystemInstitutionController {
     @RequiresPermission("organization:write")
     public ApiResponse<CurrentInstitutionView> update(@Valid @RequestBody CurrentInstitutionUpdateRequest request) {
         Long institutionId = AuthContext.requireUser().orgId();
-        return ApiResponse.success("Current institution updated",
+        return ApiResponse.success("当前机构信息已更新",
             institutionService.updateCurrentInstitution(institutionId, request));
     }
 }

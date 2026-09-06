@@ -66,6 +66,14 @@ const routes = [
         component: () => import('@/views/system/SystemManagementView.vue'),
       },
       {
+        path: 'system/config',
+        name: 'system-config',
+        meta: {
+          systemTab: 'configs',
+        },
+        component: () => import('@/views/system/SystemManagementView.vue'),
+      },
+      {
         path: 'system/dicts',
         name: 'system-dicts',
         meta: {

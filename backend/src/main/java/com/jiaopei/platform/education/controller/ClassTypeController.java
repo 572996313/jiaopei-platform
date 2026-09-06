@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/education/class-types")
-@Tag(name = "Education")
+@Tag(name = "教务管理")
 public class ClassTypeController {
 
     private final ClassTypeService classTypeService;
@@ -34,7 +34,7 @@ public class ClassTypeController {
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassTypeEntity>> list(@RequestParam(required = false) String institutionId) {
-        return ApiResponse.success("Class type list loaded", classTypeService.listClassTypes(
+        return ApiResponse.success("班型列表已加载", classTypeService.listClassTypes(
             ExternalIdParser.parseOptional(institutionId, "institutionId")
         ));
     }
@@ -42,20 +42,20 @@ public class ClassTypeController {
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<ClassTypeEntity> create(@Valid @RequestBody ClassTypeCreateRequest request) {
-        return ApiResponse.success("Class type created", classTypeService.createClassType(request));
+        return ApiResponse.success("班型已创建", classTypeService.createClassType(request));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<ClassTypeEntity> update(@PathVariable Long id,
                                                @Valid @RequestBody ClassTypeUpdateRequest request) {
-        return ApiResponse.success("Class type updated", classTypeService.updateClassType(id, request));
+        return ApiResponse.success("班型已更新", classTypeService.updateClassType(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classTypeService.deleteClassType(id);
-        return ApiResponse.success("Class type deleted", null);
+        return ApiResponse.success("班型已删除", null);
     }
 }
