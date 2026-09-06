@@ -27,24 +27,14 @@
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
-        <div class="stat-label">机构数</div>
-        <div class="stat-value">{{ institutionStore.institutions.length }}</div>
-        <div class="stat-hint">数据来自机构主数据</div>
+        <div class="stat-label">教师数</div>
+        <div class="stat-value">{{ teachers.length }}</div>
+        <div class="stat-hint">{{ campusId ? `当前校区：${formatCampus(campusId)}` : '全部校区' }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">校区数</div>
         <div class="stat-value">{{ campuses.length }}</div>
-        <div class="stat-hint">按当前机构范围加载</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">教师数</div>
-        <div class="stat-value">{{ teachers.length }}</div>
-        <div class="stat-hint">数据来自教师档案接口</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">当前机构</div>
-        <div class="stat-value">{{ institutionId ? '1' : '0' }}</div>
-        <div class="stat-hint">{{ formatInstitution(institutionId) }}</div>
+        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
       </article>
     </div>
 

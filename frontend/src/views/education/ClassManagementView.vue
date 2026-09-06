@@ -45,17 +45,7 @@
       <article class="stat-card">
         <div class="stat-label">班级数</div>
         <div class="stat-value">{{ classes.length }}</div>
-        <div class="stat-hint">当前机构 / 校区范围</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">在班学员</div>
-        <div class="stat-value">{{ activeClassStudentCount }}</div>
-        <div class="stat-hint">当前班级在班人数</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">班级教师</div>
-        <div class="stat-value">{{ classTeachers.length }}</div>
-        <div class="stat-hint">主讲 / 助教 / 代课关系</div>
+        <div class="stat-hint">{{ campusId ? '按当前校区筛选' : '当前机构全部校区' }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">班级变动通知</div>

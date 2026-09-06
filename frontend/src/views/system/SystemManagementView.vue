@@ -21,22 +21,19 @@
       <article class="stat-card">
         <div class="stat-label">用户数</div>
         <div class="stat-value">{{ users.length }}</div>
-        <div class="stat-hint">数据来自用户管理接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">角色数</div>
         <div class="stat-value">{{ roles.length }}</div>
-        <div class="stat-hint">数据来自角色管理接口</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">菜单节点</div>
         <div class="stat-value">{{ flattenedMenus.length }}</div>
-        <div class="stat-hint">数据来自当前用户菜单接口</div>
+        <div class="stat-hint">需菜单管理权限，无权限时为 0</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">字典类型</div>
         <div class="stat-value">{{ dictTypes.length }}</div>
-        <div class="stat-hint">当前已接「通用状态」字典最小使用链</div>
       </article>
     </div>
 
@@ -66,7 +63,7 @@
         {{
           auth.mustChangePassword
             ? '当前账号已被强制改密标记锁定，只能先完成改密流程。'
-            : '菜单显示由当前用户菜单接口驱动，状态枚举优先读取「通用状态」字典。'
+            : '以上信息来自当前登录账号与机构资料。'
         }}
       </div>
     </article>

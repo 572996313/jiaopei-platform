@@ -50,24 +50,19 @@
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
-        <div class="stat-label">机构数</div>
-        <div class="stat-value">{{ institutions.length }}</div>
-        <div class="stat-hint">数据来自机构主数据</div>
-      </article>
-      <article class="stat-card">
         <div class="stat-label">学员数</div>
         <div class="stat-value">{{ students.length }}</div>
-        <div class="stat-hint">按当前机构/校区范围加载</div>
+        <div class="stat-hint">{{ campusId ? '按当前校区筛选' : '全部校区' }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">班级数</div>
         <div class="stat-value">{{ classes.length }}</div>
-        <div class="stat-hint">按当前机构/校区/学期范围加载</div>
+        <div class="stat-hint">{{ termId ? '按当前学期筛选' : '按校区范围筛选' }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">报名记录</div>
         <div class="stat-value">{{ records.length }}</div>
-        <div class="stat-hint">数据来自报名记录接口</div>
+        <div class="stat-hint">{{ classId ? '按当前班级筛选' : studentId ? '按当前学员筛选' : '全部报名记录' }}</div>
       </article>
     </div>
 
@@ -409,7 +404,7 @@ import { useInstitutionStore } from '@/stores/institution'
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { institutions, institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
+const { institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
 
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)

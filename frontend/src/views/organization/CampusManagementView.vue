@@ -26,14 +26,9 @@
 
     <div v-show="statsVisible" class="dashboard-grid campus-stat-grid">
       <article class="stat-card">
-        <div class="stat-label">机构数量</div>
-        <div class="stat-value">{{ institutionStore.institutions.length }}</div>
-        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
-      </article>
-      <article class="stat-card">
         <div class="stat-label">校区数量</div>
         <div class="stat-value">{{ campuses.length }}</div>
-        <div class="stat-hint">数据来自校区主数据接口</div>
+        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">教室数量</div>
