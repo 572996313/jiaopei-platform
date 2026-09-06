@@ -125,6 +125,30 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     }
 
     @Override
+    public Set<String> getPermissionCodesByRoleIds(List<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<SystemRoleMenuEntity>()
+                .in(SystemRoleMenuEntity::getRoleId, roleIds))
+            .stream()
+            .map(SystemRoleMenuEntity::getMenuId)
+            .distinct()
+            .toList();
+        if (menuIds.isEmpty()) {
+            return Set.of();
+        }
+        return menuMapper.selectList(new LambdaQueryWrapper<SystemMenuEntity>()
+                .in(SystemMenuEntity::getId, menuIds)
+                .eq(SystemMenuEntity::getStatus, ACTIVE)
+                .isNotNull(SystemMenuEntity::getPermissionCode))
+            .stream()
+            .map(SystemMenuEntity::getPermissionCode)
+            .filter(code -> code != null && !code.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    @Override
     @Transactional
     public List<Long> updateRoleMenus(Long roleId, RoleMenuUpdateRequest request) {
         requireRole(roleId);

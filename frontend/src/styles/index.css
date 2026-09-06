@@ -648,6 +648,21 @@ body {
   gap: 10px 12px;
 }
 
+.system-permission-group {
+  display: grid;
+  gap: 8px;
+}
+
+.system-permission-group + .system-permission-group {
+  margin-top: 12px;
+}
+
+.system-permission-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
 .system-role-checks {
   display: grid;
   gap: 12px;

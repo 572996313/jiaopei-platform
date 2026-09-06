@@ -54,7 +54,7 @@ public class StubAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
                     Boolean forceChangeEnabled = systemConfigService.getBooleanConfig(
-                        "auth.password.force_change_enabled", true);
+                        AuthApplicationService.FORCE_CHANGE_ENABLED_KEY, true);
                     if (Boolean.TRUE.equals(forceChangeEnabled)
                         && Boolean.TRUE.equals(user.forceChangePassword())
                         && !isPasswordChangeAllowed(request)) {

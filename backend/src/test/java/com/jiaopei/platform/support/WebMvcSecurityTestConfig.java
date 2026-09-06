@@ -133,6 +133,11 @@ public class WebMvcSecurityTestConfig {
             }
 
             @Override
+            public Set<String> getPermissionCodesByRoleIds(List<Long> roleIds) {
+                return Set.of();
+            }
+
+            @Override
             public List<Long> updateRoleMenus(Long roleId, RoleMenuUpdateRequest request) {
                 return request.menuIds();
             }

@@ -4,13 +4,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jiaopei.platform.auth.context.AuthenticatedUser;
 import com.jiaopei.platform.auth.domain.UserAccountEntity;
 import com.jiaopei.platform.auth.dto.ChangePasswordRequest;
+import com.jiaopei.platform.auth.dto.CurrentUserResponse;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.auth.service.impl.AuthApplicationServiceImpl;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.system.service.SystemConfigService;
+import com.jiaopei.platform.system.service.SystemMenuService;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +23,9 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -29,13 +34,15 @@ import static org.mockito.Mockito.when;
 class AuthApplicationServiceImplTest {
 
     private final UserAccountMapper userAccountMapper = mock(UserAccountMapper.class);
+    private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
         userAccountMapper,
         mock(RoleMapper.class),
         mock(UserRoleRelMapper.class),
         mock(TokenCacheService.class),
-        mock(SystemConfigService.class),
+        systemConfigService,
+        mock(SystemMenuService.class),
         passwordEncoder
     );
 
@@ -70,6 +77,30 @@ class AuthApplicationServiceImplTest {
         org.junit.jupiter.api.Assertions.assertFalse(user.getPasswordResetRequired());
         org.junit.jupiter.api.Assertions.assertFalse(user.getForceChangePassword());
         org.junit.jupiter.api.Assertions.assertNotNull(user.getPasswordUpdatedAt());
+    }
+
+    @Test
+    void currentUserReturnsEffectiveForceChangeWhenSwitchDisabled() {
+        authenticate();
+        when(userAccountMapper.selectById(1L)).thenReturn(user());
+        when(systemConfigService.getBooleanConfig(AuthApplicationService.FORCE_CHANGE_ENABLED_KEY, true))
+            .thenReturn(false);
+
+        CurrentUserResponse response = service.currentUser();
+
+        assertFalse(response.forceChangePassword());
+    }
+
+    @Test
+    void currentUserKeepsForceChangeWhenSwitchEnabled() {
+        authenticate();
+        when(userAccountMapper.selectById(1L)).thenReturn(user());
+        when(systemConfigService.getBooleanConfig(AuthApplicationService.FORCE_CHANGE_ENABLED_KEY, true))
+            .thenReturn(true);
+
+        CurrentUserResponse response = service.currentUser();
+
+        assertTrue(response.forceChangePassword());
     }
 
     private void authenticate() {

@@ -16,6 +16,7 @@ import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.system.service.SystemConfigService;
+import com.jiaopei.platform.system.service.SystemMenuService;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import java.time.LocalDateTime;
@@ -41,16 +42,19 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     private final UserRoleRelMapper userRoleRelMapper;
     private final TokenCacheService tokenCacheService;
     private final SystemConfigService systemConfigService;
+    private final SystemMenuService systemMenuService;
     private final PasswordEncoder passwordEncoder;
 
     public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                       UserRoleRelMapper userRoleRelMapper, TokenCacheService tokenCacheService,
-                                      SystemConfigService systemConfigService, PasswordEncoder passwordEncoder) {
+                                      SystemConfigService systemConfigService, SystemMenuService systemMenuService,
+                                      PasswordEncoder passwordEncoder) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.tokenCacheService = tokenCacheService;
         this.systemConfigService = systemConfigService;
+        this.systemMenuService = systemMenuService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -91,7 +95,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(snapshot.permissionCodes()),
             "Bearer",
             STUB_TOKEN,
-            Boolean.TRUE.equals(user.getForceChangePassword())
+            effectiveForceChangePassword(user)
         );
     }
 
@@ -134,7 +138,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(authenticatedUser.roles()),
             new ArrayList<>(authenticatedUser.permissions()),
             user.getPasswordResetRequired(),
-            Boolean.TRUE.equals(user.getForceChangePassword())
+            effectiveForceChangePassword(user)
         );
     }
 
@@ -157,6 +161,15 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         user.setForceChangePassword(Boolean.FALSE);
         user.setPasswordUpdatedAt(LocalDateTime.now());
         userAccountMapper.updateById(user);
+    }
+
+    /**
+     * 对外返回的"需强制改密"为生效值：用户标志记录初始密码未轮换这一事实，
+     * 总开关 auth.password.force_change_enabled 只控制是否执行拦截。
+     */
+    private boolean effectiveForceChangePassword(UserAccountEntity user) {
+        Boolean enabled = systemConfigService.getBooleanConfig(AuthApplicationService.FORCE_CHANGE_ENABLED_KEY, true);
+        return Boolean.TRUE.equals(enabled) && Boolean.TRUE.equals(user.getForceChangePassword());
     }
 
     private UserAccountEntity requireUser(Long userId) {
@@ -186,10 +199,14 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             .toList();
         Set<String> roleCodes = new LinkedHashSet<>();
         Set<String> permissionCodes = new LinkedHashSet<>();
+        List<Long> activeRoleIds = new ArrayList<>();
         for (RoleEntity role : roles) {
             roleCodes.add(role.getRoleCode());
+            activeRoleIds.add(role.getId());
             permissionCodes.addAll(splitPermissionCodes(role.getPermissionCodes()));
         }
+        // 按钮权限模型：角色勾选的菜单/按钮节点上的权限码与角色 CSV 码取并集
+        permissionCodes.addAll(systemMenuService.getPermissionCodesByRoleIds(activeRoleIds));
         return new RolePermissionSnapshot(roleCodes, permissionCodes);
     }
 

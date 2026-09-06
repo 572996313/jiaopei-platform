@@ -42,6 +42,35 @@ export interface SystemMenuTreeNode {
   children?: SystemMenuTreeNode[]
 }
 
+export interface SystemMenuCreatePayload {
+  parentId?: string | null
+  menuCode: string
+  menuName: string
+  menuType: string
+  path?: string
+  component?: string
+  permissionCode?: string
+  icon?: string
+  sortNo?: number
+  visible?: boolean
+  status?: string
+  remark?: string
+}
+
+export interface SystemMenuUpdatePayload {
+  parentId?: string | null
+  menuName: string
+  menuType: string
+  path?: string
+  component?: string
+  permissionCode?: string
+  icon?: string
+  sortNo?: number
+  visible?: boolean
+  status?: string
+  remark?: string
+}
+
 export interface DictTypeSummary {
   id: string
   typeCode: string
@@ -248,6 +277,24 @@ export function updateSystemRole(id: string, payload: SystemRoleUpdatePayload) {
 
 export function fetchSystemMenusTree() {
   return requestGet<SystemMenuTreeNode[]>('/system/menus/tree').then((items) => items.map(normalizeMenu))
+}
+
+export function createSystemMenu(payload: SystemMenuCreatePayload) {
+  return requestPost<SystemMenuTreeNode>('/system/menus', {
+    ...payload,
+    parentId: payload.parentId ? Number(payload.parentId) : null,
+  }).then(normalizeMenu)
+}
+
+export function updateSystemMenu(id: string, payload: SystemMenuUpdatePayload) {
+  return requestPut<SystemMenuTreeNode>(`/system/menus/${id}`, {
+    ...payload,
+    parentId: payload.parentId ? Number(payload.parentId) : null,
+  }).then(normalizeMenu)
+}
+
+export function deleteSystemMenu(id: string) {
+  return requestDelete<void>(`/system/menus/${id}`)
 }
 
 export function fetchSystemRoleMenuIds(roleId: string) {

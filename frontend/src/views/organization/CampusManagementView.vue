@@ -357,10 +357,10 @@
         <el-form-item label="学年"><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027" /></el-form-item>
         <el-form-item label="学季"><el-input v-model="termForm.season" placeholder="例如 summer / autumn" /></el-form-item>
         <el-form-item label="开始日期">
-          <el-date-picker v-model="termForm.startDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="termForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="选择开始日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="结束日期">
-          <el-date-picker v-model="termForm.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="termForm.endDate" type="date" value-format="YYYY-MM-DD" placeholder="选择结束日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="termForm.status">
@@ -396,8 +396,8 @@
             <el-option v-for="day in weekdays" :key="day.value" :label="day.label" :value="day.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="开始时间"><el-time-picker v-model="timeSlotForm.startTime" value-format="HH:mm:ss" style="width: 100%" /></el-form-item>
-        <el-form-item label="结束时间"><el-time-picker v-model="timeSlotForm.endTime" value-format="HH:mm:ss" style="width: 100%" /></el-form-item>
+        <el-form-item label="开始时间"><el-time-picker v-model="timeSlotForm.startTime" value-format="HH:mm:ss" placeholder="选择开始时间" style="width: 100%" /></el-form-item>
+        <el-form-item label="结束时间"><el-time-picker v-model="timeSlotForm.endTime" value-format="HH:mm:ss" placeholder="选择结束时间" style="width: 100%" /></el-form-item>
         <el-form-item label="时长（分钟）"><el-input-number v-model="timeSlotForm.durationMinutes" :min="1" style="width: 100%" /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="timeSlotForm.status">

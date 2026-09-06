@@ -8,6 +8,8 @@ import com.jiaopei.platform.auth.dto.LoginResponse;
 
 public interface AuthApplicationService {
 
+    String FORCE_CHANGE_ENABLED_KEY = "auth.password.force_change_enabled";
+
     LoginResponse login(LoginRequest request);
 
     void logout(String accessToken);

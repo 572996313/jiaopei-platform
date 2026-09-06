@@ -448,10 +448,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="生效日期">
-          <el-date-picker v-model="teacherForm.joinedAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="teacherForm.joinedAt" type="date" value-format="YYYY-MM-DD" placeholder="选择生效日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="结束日期">
-          <el-date-picker v-model="teacherForm.leftAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="teacherForm.leftAt" type="date" value-format="YYYY-MM-DD" placeholder="选择结束日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="teacherForm.remark" type="textarea" :rows="3" placeholder="补充班级教师说明" />
@@ -615,7 +615,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="开班日期">
-          <el-date-picker v-model="classCreateForm.openedAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="classCreateForm.openedAt" type="date" value-format="YYYY-MM-DD" placeholder="选择开班日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="classCreateForm.remark" type="textarea" :rows="3" placeholder="补充班级主档说明" />
