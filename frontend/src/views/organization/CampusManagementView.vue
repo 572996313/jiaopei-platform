@@ -40,10 +40,6 @@
         <div class="stat-value">{{ classrooms.length }}</div>
         <div class="stat-hint">当前校区：{{ formatCampus(campusId) }}</div>
       </article>
-      <article class="panel-card">
-        <div class="panel-title">当前迁移脚本</div>
-        <div class="schema-file">{{ schemaMigration }}</div>
-      </article>
     </div>
 
     <div class="resource-grid">
@@ -269,33 +265,6 @@
         </el-table>
       </article>
     </div>
-
-    <article class="panel-card campus-panel">
-      <div class="panel-title">组织模块元数据</div>
-      <div class="schema-grid">
-        <div class="schema-block">
-          <div class="schema-label">聚合根</div>
-          <div class="schema-chips">
-            <span v-for="item in schemaAggregates" :key="item" class="schema-chip">{{ item }}</span>
-          </div>
-        </div>
-        <div class="schema-block">
-          <div class="schema-label">表结构</div>
-          <div class="schema-chips">
-            <span v-for="item in schemaTables" :key="item" class="schema-chip is-secondary">{{ item }}</span>
-          </div>
-        </div>
-        <div class="schema-block">
-          <div class="schema-label">下一步入口</div>
-          <div class="schema-chips">
-            <span class="schema-chip is-secondary">班级教师</span>
-            <span class="schema-chip is-secondary">家长联系人</span>
-            <span class="schema-chip is-secondary">成班规则</span>
-            <span class="schema-chip is-secondary">变动提示</span>
-          </div>
-        </div>
-      </div>
-    </article>
 
     <el-dialog v-model="campusDialogVisible" :title="campusDialogMode === 'create' ? '新增校区' : '编辑校区'" width="560px">
       <el-alert v-if="campusFormError" :title="campusFormError" type="error" show-icon :closable="false" class="education-alert" />
@@ -530,7 +499,6 @@ import {
   fetchClassrooms,
   fetchTerms,
   fetchTimeSlots,
-  getOrganizationSchema,
   updateCampus,
   updateClassroom,
   updateTerm,
@@ -559,9 +527,6 @@ const statsVisible = ref(false)
 
 const pageError = ref('')
 const lookupLoading = ref(false)
-const schemaTables = ref<string[]>([])
-const schemaAggregates = ref<string[]>([])
-const schemaMigration = ref('V2__create_organization_core_tables.sql')
 
 const campusDialogVisible = ref(false)
 const classroomDialogVisible = ref(false)
@@ -950,18 +915,6 @@ function resetClassTypeForm() {
   classTypeForm.status = 'active'
   classTypeForm.remark = ''
   classTypeFormError.value = ''
-}
-
-async function reloadSchema() {
-  try {
-    const { data } = await getOrganizationSchema()
-    schemaTables.value = data.data.tables
-    schemaAggregates.value = data.data.aggregates
-    schemaMigration.value = data.data.migration
-  } catch {
-    schemaTables.value = ['jp_institution', 'jp_campus', 'jp_classroom', 'jp_term', 'jp_time_slot']
-    schemaAggregates.value = ['institution', 'campus', 'classroom', 'term', 'timeSlot']
-  }
 }
 
 async function loadClassrooms() {
@@ -1629,7 +1582,7 @@ async function confirmDeleteClassType(row: ClassTypeRecord) {
 }
 
 async function refreshAll() {
-  await Promise.all([reloadSchema(), loadResources()])
+  await loadResources()
 }
 
 async function initializePage() {

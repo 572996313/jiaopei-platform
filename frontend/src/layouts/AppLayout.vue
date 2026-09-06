@@ -2,13 +2,8 @@
   <div class="app-shell">
     <aside class="app-sidebar">
       <div class="brand-block">
-        <div class="brand-kicker">教培管理平台</div>
+        <div class="brand-kicker">线下班课教务中台</div>
         <div class="brand-title">教培管理平台</div>
-      </div>
-
-      <div class="sidebar-summary">
-        <div class="sidebar-summary-title">今日优先级</div>
-        <div class="sidebar-summary-text">先看工作台，再处理排课、点名、请假与变动。</div>
       </div>
 
       <nav class="nav-groups">
@@ -23,7 +18,6 @@
               :class="{ 'is-active': isNavItemActive(item) }"
             >
               <span class="nav-item-label">{{ item.label }}</span>
-              <span v-if="item.hint" class="nav-item-hint">{{ item.hint }}</span>
             </RouterLink>
           </div>
         </section>
@@ -64,14 +58,22 @@
             </el-select>
             <el-tag v-else type="warning" effect="plain" size="large">未选择机构</el-tag>
           </div>
-          <div class="header-user-block">
-            <div class="header-user-name">{{ auth.displayName }}</div>
-            <div class="header-user-meta">
-              {{ auth.currentUser?.username || 'guest' }} / {{ auth.currentUser?.roles?.join(', ') || '未分配角色' }}
+          <el-dropdown class="header-user-dropdown" trigger="click" @command="handleUserCommand">
+            <div class="header-user-block">
+              <span class="header-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
+              <div class="header-user-info">
+                <div class="header-user-name">{{ auth.displayName }}</div>
+                <div class="header-user-meta">{{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}</div>
+              </div>
+              <el-icon class="header-user-caret"><ArrowDown /></el-icon>
             </div>
-          </div>
-          <el-button @click="router.push('/change-password')">修改密码</el-button>
-          <el-button @click="handleLogout">退出登录</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </header>
 
@@ -85,6 +87,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useInstitutionStore } from '@/stores/institution'
 
@@ -218,6 +221,14 @@ const currentTitle = computed(() => {
 
 function isNavItemActive(item: SidebarDefinition) {
   return item.prefixes.some((prefix) => route.path.startsWith(prefix))
+}
+
+function handleUserCommand(command: string | number | object) {
+  if (command === 'change-password') {
+    router.push('/change-password')
+  } else if (command === 'logout') {
+    handleLogout()
+  }
 }
 
 async function handleLogout() {

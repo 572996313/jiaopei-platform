@@ -60,12 +60,12 @@
       <article class="stat-card">
         <div class="stat-label">班级变动通知</div>
         <div class="stat-value">{{ classChangeNoticeItems.length }}</div>
-        <div class="stat-hint">正式 class_change_notice 待处理项</div>
+        <div class="stat-hint">待处理的班级变动提醒</div>
       </article>
     </div>
 
     <div class="dashboard-grid class-profile-grid">
-      <article class="panel-card panel-card-wide">
+      <article class="panel-card">
         <div class="education-table-head">
           <div>
             <div class="panel-title">班级主档<span class="panel-count">共 {{ classes.length }} 个班级</span></div>
@@ -119,55 +119,52 @@
         </div>
       </article>
 
-      <article class="panel-card">
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">班级风险与通知</div>
-            <div class="education-context-text">本地兜底展示班级主档风险，正式后端接口展示班级变动通知。</div>
-          </div>
-        </div>
+      <article class="panel-card class-risk-panel">
+        <div class="panel-title">班级风险与通知</div>
 
-        <div class="notice-section">
-          <div class="notice-section-head">
-            <strong>班级主档风险</strong>
-            <span>本地兜底，仅提示当前主档状态风险。</span>
-          </div>
-          <div v-if="!currentClass" class="education-empty">
-            请选择班级后查看班级主档风险。
-          </div>
-          <div v-else-if="classProfileRiskItems.length === 0" class="education-empty">
-            当前班级暂无额外主档风险。
-          </div>
-          <div v-else class="reminder-list">
-            <div v-for="item in classProfileRiskItems" :key="item.key" class="reminder-item">
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.text }}</span>
+        <div class="class-risk-scroll">
+          <div class="notice-section">
+            <div class="notice-section-head">
+              <strong>班级主档风险</strong>
+              <span>未绑定课程、班型、主讲或人数超容时在此提示。</span>
+            </div>
+            <div v-if="!currentClass" class="education-empty">
+              请选择班级后查看班级主档风险。
+            </div>
+            <div v-else-if="classProfileRiskItems.length === 0" class="education-empty">
+              当前班级暂无主档风险。
+            </div>
+            <div v-else class="reminder-list">
+              <div v-for="item in classProfileRiskItems" :key="item.key" class="reminder-item">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.text }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="notice-section">
-          <div class="notice-section-head">
-            <strong>班级变动通知</strong>
-            <span>正式后端 notice，来源于 `GET /api/education/class-change-notices`。</span>
-          </div>
-          <div v-if="!currentClass" class="education-empty">
-            请选择班级后查看班级变动通知。
-          </div>
-          <div v-else-if="noticeError" class="education-empty">
-            {{ noticeError }}
-          </div>
-          <div v-else-if="noticeLoading" class="education-context-text">
-            正在加载班级变动通知...
-          </div>
-          <div v-else-if="classChangeNoticeItems.length === 0" class="education-empty">
-            当前班级暂无待处理的班级变动通知。
-          </div>
-          <div v-else class="reminder-list">
-            <div v-for="item in classChangeNoticeItems" :key="item.key" class="reminder-item is-notice">
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.text }}</span>
-              <span v-if="item.action" class="reminder-meta">建议动作：{{ item.action }}</span>
+          <div class="notice-section">
+            <div class="notice-section-head">
+              <strong>班级变动通知</strong>
+              <span>系统生成的变动提醒，处理后自动消除。</span>
+            </div>
+            <div v-if="!currentClass" class="education-empty">
+              请选择班级后查看班级变动通知。
+            </div>
+            <div v-else-if="noticeError" class="education-empty">
+              {{ noticeError }}
+            </div>
+            <div v-else-if="noticeLoading" class="education-context-text">
+              正在加载班级变动通知...
+            </div>
+            <div v-else-if="classChangeNoticeItems.length === 0" class="education-empty">
+              当前班级暂无待处理的变动通知。
+            </div>
+            <div v-else class="reminder-list">
+              <div v-for="item in classChangeNoticeItems" :key="item.key" class="reminder-item is-notice">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.text }}</span>
+                <span v-if="item.action" class="reminder-meta">建议动作：{{ item.action }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1861,9 +1858,38 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.class-profile-grid,
+/* 两行面板各自铺满整行,不再留半行空白 */
+.class-profile-grid {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
 .class-relation-grid {
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+@media (max-width: 1280px) {
+  .class-profile-grid,
+  .class-relation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 风险与通知:与左侧主档等高,内容超出时面板内部滚动 */
+.class-risk-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.class-risk-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
 
 .class-profile-summary {
@@ -1876,7 +1902,7 @@ onUnmounted(() => {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 10px;
   color: #234c77;
   background: rgba(35, 76, 119, 0.08);
 }
@@ -1933,7 +1959,7 @@ onUnmounted(() => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   color: #8f5f00;
   background: rgba(249, 199, 79, 0.18);
 }

@@ -2376,7 +2376,7 @@ onMounted(() => {
 .schedule-conflict-list {
   margin-bottom: 16px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: rgba(250, 173, 20, 0.12);
   color: #8f5f00;
 }
@@ -2403,7 +2403,7 @@ onMounted(() => {
   gap: 14px;
   padding: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 20px;
+  border-radius: 12px;
   background: rgba(248, 250, 252, 0.92);
 }
 
@@ -2435,7 +2435,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   color: #8f5f00;
   background: rgba(249, 199, 79, 0.16);
 }
@@ -2459,9 +2459,9 @@ onMounted(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
 .daily-lesson-item-main,
@@ -2494,7 +2494,7 @@ onMounted(() => {
 
 .daily-mini-item {
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   color: #234c77;
   background: #ffffff;
 }
@@ -2527,7 +2527,7 @@ onMounted(() => {
 .week-board-day {
   min-width: 0;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 12px;
   background: rgba(248, 250, 252, 0.92);
 }
@@ -2549,7 +2549,7 @@ onMounted(() => {
   padding: 10px;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   color: #334155;
   font-size: 12px;
 }
