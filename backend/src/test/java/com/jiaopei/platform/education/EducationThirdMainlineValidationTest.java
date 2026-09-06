@@ -138,7 +138,7 @@ class EducationThirdMainlineValidationTest {
     }
 
     @Test
-    void createClassRejectsCurrentStudentsOverCapacity() {
+    void createClassIgnoresRequestedCurrentStudents() {
         TeachingClassServiceImpl service = new TeachingClassServiceImpl(
             teachingClassMapper,
             institutionMapper,
@@ -153,9 +153,11 @@ class EducationThirdMainlineValidationTest {
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
 
-        assertThrows(BusinessException.class, () -> service.createClass(classRequest("C001", "一班", 10, 11)));
+        service.createClass(classRequest("C001", "一班", 10, 11));
 
-        verify(teachingClassMapper, never()).insert(any(TeachingClassEntity.class));
+        ArgumentCaptor<TeachingClassEntity> captor = ArgumentCaptor.forClass(TeachingClassEntity.class);
+        verify(teachingClassMapper).insert(captor.capture());
+        assertEquals(0, captor.getValue().getCurrentStudents());
     }
 
     @Test
@@ -479,6 +481,7 @@ class EducationThirdMainlineValidationTest {
         teacher.setInstitutionId(1L);
         when(teacherMapper.selectById(10L)).thenReturn(teacher);
         when(teachingClassMapper.selectCount(any())).thenReturn(0L, 0L);
+        when(classStudentMapper.selectCount(any())).thenReturn(19L);
 
         TeachingClassEntity updated = service.updateClass(
             20L,
@@ -503,6 +506,7 @@ class EducationThirdMainlineValidationTest {
         assertEquals(2L, updated.getCourseId());
         assertEquals(3L, updated.getClassTypeId());
         assertEquals(24, updated.getCapacityLimit());
+        assertEquals(19, updated.getCurrentStudents());
         verify(teachingClassMapper).updateById(existing);
         verify(classChangeNoticeService).syncClassNotices(1L, 20L);
     }

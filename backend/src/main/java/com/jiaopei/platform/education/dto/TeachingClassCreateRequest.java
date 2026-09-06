@@ -49,7 +49,7 @@ public record TeachingClassCreateRequest(
     @JsonAlias({"capacity", "capacity_limit"})
     @Min(value = 0, message = "capacityLimit 必须大于或等于 0")
     Integer capacityLimit,
-    @Schema(description = "当前人数")
+    @Schema(description = "当前人数(服务端按在班学员关系统计，请求值不生效)")
     @JsonAlias("current_students")
     @Min(value = 0, message = "currentStudents 必须大于或等于 0")
     Integer currentStudents,

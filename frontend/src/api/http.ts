@@ -1,41 +1,25 @@
 import axios from 'axios'
 import { getStoredAuthorization } from '@/utils/auth-session'
 
-const LARGE_ID_FIELDS = [
-  'id',
-  'userId',
-  'orgId',
-  'institutionId',
-  'campusId',
-  'termId',
-  'classId',
-  'classroomId',
-  'timeSlotId',
-  'studentId',
-  'teacherId',
-  'createdBy',
-  'updatedBy',
-]
-
-const LARGE_ID_ARRAY_FIELDS = [
-  'teacherIds',
-]
+// 后端雪花 ID 是 19 位 Long，以 JSON 数字传输时超出 JS 安全整数范围会丢精度，
+// 必须转成字符串。按字段名约定（id / *Id / *Ids / *By）匹配，避免白名单漏掉新字段。
+const LARGE_ID_FIELD_PATTERN = /"(id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*By)"\s*:\s*(\d{16,})(?=\s*[,}\]])/g
+const LARGE_ID_ARRAY_FIELD_PATTERN = /"(id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*By)"\s*:\s*\[([^\]]*)\]/g
+const LARGE_INTEGER_PATTERN = /^\d{16,}$/
 
 function preserveLargeIds(raw: unknown) {
   if (typeof raw !== 'string' || raw.trim().length === 0) {
     return raw
   }
 
-  const singleIdPattern = new RegExp(`"(${LARGE_ID_FIELDS.join('|')})"\\s*:\\s*(\\d{16,})`, 'g')
-  const arrayIdPattern = new RegExp(`"(${LARGE_ID_ARRAY_FIELDS.join('|')})"\\s*:\\s*\\[([^\\]]*)\\]`, 'g')
   const normalized = raw
-    .replace(singleIdPattern, '"$1":"$2"')
-    .replace(arrayIdPattern, (_match, field: string, items: string) => {
+    .replace(LARGE_ID_FIELD_PATTERN, '"$1":"$2"')
+    .replace(LARGE_ID_ARRAY_FIELD_PATTERN, (_match, field: string, items: string) => {
       const safeItems = items
         .split(',')
         .map((item) => {
           const value = item.trim()
-          return /^\d{16,}$/.test(value) ? `"${value}"` : item
+          return LARGE_INTEGER_PATTERN.test(value) ? `"${value}"` : item
         })
         .join(',')
       return `"${field}":[${safeItems}]`

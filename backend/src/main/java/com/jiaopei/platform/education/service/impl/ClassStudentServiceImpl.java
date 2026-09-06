@@ -62,7 +62,8 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "leftAt 不能早于 joinedAt");
         }
         assertUniqueClassStudent(request.classId(), request.studentId());
-        assertClassCapacity(teachingClass);
+        int activeStudents = countActiveStudents(request.classId());
+        assertClassCapacity(teachingClass, activeStudents);
 
         ClassStudentEntity entity = new ClassStudentEntity();
         entity.setInstitutionId(institutionId);
@@ -79,10 +80,17 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + request.classId());
         }
 
-        int currentStudents = teachingClass.getCurrentStudents() == null ? 0 : teachingClass.getCurrentStudents();
-        teachingClass.setCurrentStudents(currentStudents + 1);
+        // 当前人数按在班学员关系重算，只统计 status=active 的记录，并顺带修复历史脏数据
+        teachingClass.setCurrentStudents(countActiveStudents(request.classId()));
         teachingClassMapper.updateById(teachingClass);
         return entity;
+    }
+
+    private int countActiveStudents(Long classId) {
+        Long count = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
+            .eq(ClassStudentEntity::getClassId, classId)
+            .eq(ClassStudentEntity::getStatus, "active"));
+        return count == null ? 0 : count.intValue();
     }
 
     private TeachingClassEntity requireClass(Long classId) {
@@ -110,10 +118,9 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         }
     }
 
-    private void assertClassCapacity(TeachingClassEntity teachingClass) {
+    private void assertClassCapacity(TeachingClassEntity teachingClass, int activeStudents) {
         int capacity = teachingClass.getCapacityLimit() == null ? 0 : teachingClass.getCapacityLimit();
-        int currentStudents = teachingClass.getCurrentStudents() == null ? 0 : teachingClass.getCurrentStudents();
-        if (capacity > 0 && currentStudents >= capacity) {
+        if (capacity > 0 && activeStudents >= capacity) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级容量已满：" + teachingClass.getId());
         }
     }

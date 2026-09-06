@@ -389,7 +389,6 @@ export interface TeachingClassUpdatePayload {
   className: string
   teacherId?: string | null
   capacityLimit?: number
-  currentStudents?: number
   status?: string
   openedAt?: string | null
   remark?: string

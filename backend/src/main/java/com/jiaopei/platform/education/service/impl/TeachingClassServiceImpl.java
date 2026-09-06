@@ -78,7 +78,6 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     public TeachingClassEntity createClass(TeachingClassCreateRequest request) {
         validateRequest(request);
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
-        int currentStudents = normalizeCurrentStudents(request.currentStudents());
         String classCode = normalize(request.classCode());
         String className = normalize(request.className());
         assertUniqueClassCode(request.campusId(), classCode, null);
@@ -94,7 +93,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         entity.setClassName(className);
         entity.setTeacherId(request.teacherId());
         entity.setCapacityLimit(capacityLimit);
-        entity.setCurrentStudents(currentStudents);
+        entity.setCurrentStudents(0);
         entity.setStatus(normalizeStatus(request.status()));
         entity.setOpenedAt(request.openedAt());
         entity.setRemark(request.remark());
@@ -122,7 +121,11 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             );
         }
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
-        int currentStudents = normalizeCurrentStudents(request.currentStudents());
+        int activeStudents = countActiveStudents(id);
+        if (activeStudents > capacityLimit) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "容量上限不能小于当前在班人数：" + activeStudents);
+        }
         String classCode = normalize(request.classCode());
         String className = normalize(request.className());
         assertUniqueClassCode(request.campusId(), classCode, id);
@@ -137,7 +140,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         existing.setClassName(className);
         existing.setTeacherId(request.teacherId());
         existing.setCapacityLimit(capacityLimit);
-        existing.setCurrentStudents(currentStudents);
+        existing.setCurrentStudents(activeStudents);
         existing.setStatus(normalizeStatus(request.status()));
         existing.setOpenedAt(request.openedAt());
         existing.setRemark(request.remark());
@@ -178,11 +181,6 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         if (request.teacherId() != null) {
             requireTeacherInInstitution(request.teacherId(), request.institutionId());
-        }
-        int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
-        int currentStudents = normalizeCurrentStudents(request.currentStudents());
-        if (currentStudents > capacityLimit) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "currentStudents 不能超过 capacityLimit");
         }
     }
 
@@ -280,8 +278,11 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         return capacityLimit == null ? 0 : capacityLimit;
     }
 
-    private int normalizeCurrentStudents(Integer currentStudents) {
-        return currentStudents == null ? 0 : currentStudents;
+    private int countActiveStudents(Long classId) {
+        Long count = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
+            .eq(ClassStudentEntity::getClassId, classId)
+            .eq(ClassStudentEntity::getStatus, "active"));
+        return count == null ? 0 : count.intValue();
     }
 
     private String normalizeStatus(String status) {

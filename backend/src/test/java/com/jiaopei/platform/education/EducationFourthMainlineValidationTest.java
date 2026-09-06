@@ -31,11 +31,13 @@ import org.springframework.dao.DuplicateKeyException;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class EducationFourthMainlineValidationTest {
@@ -84,11 +86,25 @@ class EducationFourthMainlineValidationTest {
         ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(1, 1));
         when(studentMapper.selectById(10L)).thenReturn(student());
-        when(classStudentMapper.selectCount(any())).thenReturn(0L);
+        when(classStudentMapper.selectCount(any())).thenReturn(0L, 1L);
 
         assertThrows(BusinessException.class, () -> service.createClassStudent(classStudentRequest()));
 
         verify(classStudentMapper, never()).insert(any(ClassStudentEntity.class));
+    }
+
+    @Test
+    void createClassStudentRecalculatesCurrentStudentsFromActiveRelations() {
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 9));
+        when(studentMapper.selectById(10L)).thenReturn(student());
+        when(classStudentMapper.selectCount(any())).thenReturn(0L, 2L, 3L);
+
+        service.createClassStudent(classStudentRequest());
+
+        ArgumentCaptor<TeachingClassEntity> captor = ArgumentCaptor.forClass(TeachingClassEntity.class);
+        verify(teachingClassMapper).updateById(captor.capture());
+        assertEquals(3, captor.getValue().getCurrentStudents());
     }
 
     @Test

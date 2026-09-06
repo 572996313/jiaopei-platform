@@ -116,7 +116,7 @@
           </div>
           <div class="class-profile-item">
             <strong>容量 / 当前人数</strong>
-            <span>{{ currentClass.capacityLimit ?? '-' }} / {{ currentClass.currentStudents ?? records.length }}</span>
+            <span>{{ currentClass.capacityLimit ?? '-' }} / {{ activeClassStudentCount }}</span>
           </div>
           <div class="class-profile-item">
             <strong>主讲教师</strong>
@@ -196,7 +196,7 @@
         </div>
       </div>
 
-      <el-table :data="records" border v-loading="tableLoading">
+      <el-table :data="visibleRecords" border v-loading="tableLoading">
         <el-table-column label="班级" min-width="180">
           <template #default="{ row }">
             {{ formatClass(row.classId) }}
@@ -234,7 +234,7 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!tableLoading && records.length === 0" class="education-empty">
+      <div v-if="!tableLoading && visibleRecords.length === 0" class="education-empty">
         当前筛选范围下暂无班级学员关系。
       </div>
     </article>
@@ -881,6 +881,14 @@ const activeClassStudentCount = computed(() => {
   return records.value.filter((item) => item.status === 'active' || !item.status).length
 })
 
+// 学员筛选改为前端过滤，保证 records 始终是当前班级的完整名单，在班人数统计不受筛选影响
+const visibleRecords = computed(() => {
+  if (!studentId.value) {
+    return records.value
+  }
+  return records.value.filter((item) => item.studentId === studentId.value)
+})
+
 const primaryTeacher = computed(() => {
   return classTeachers.value.find((item) => item.isPrimary) || null
 })
@@ -1353,7 +1361,6 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
     className: classProfileForm.className.trim(),
     teacherId: target.teacherId || null,
     capacityLimit: Number.isFinite(classProfileForm.capacityLimit) ? classProfileForm.capacityLimit : 0,
-    currentStudents: target.currentStudents ?? activeClassStudentCount.value,
     status: classProfileForm.status,
     openedAt: target.openedAt || null,
     remark: trimToUndefined(classProfileForm.remark),
@@ -1474,7 +1481,6 @@ async function loadRecords() {
     const [studentRecords, teacherRecords] = await Promise.all([
       fetchClassStudents({
         classId: classId.value,
-        studentId: studentId.value,
       }),
       classId.value
         ? fetchClassTeachers({
@@ -1675,7 +1681,7 @@ async function submitClassProfileUpdate() {
     classProfileFormError.value = '请填写班级名称'
     return
   }
-  if ((currentClass.value.currentStudents ?? activeClassStudentCount.value) > classProfileForm.capacityLimit) {
+  if (activeClassStudentCount.value > classProfileForm.capacityLimit) {
     classProfileFormError.value = '容量上限不能小于当前在班人数'
     return
   }
