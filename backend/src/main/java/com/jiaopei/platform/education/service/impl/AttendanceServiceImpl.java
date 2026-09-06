@@ -40,6 +40,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class AttendanceServiceImpl implements AttendanceService {
 
     private static final String LESSON_STATUS_SCHEDULED = "scheduled";
+    private static final String LESSON_STATUS_RESCHEDULED = "rescheduled";
+    private static final String LESSON_STATUS_MAKEUP = "makeup";
+    private static final String LESSON_STATUS_CANCELLED = "cancelled";
+    private static final String LESSON_STATUS_COMPLETED = "completed";
+    // 调课/补课课次仍要实际上课，已结课允许回查补录点名，只有停课课次不产生考勤
+    private static final Set<String> ATTENDANCE_ALLOWED_LESSON_STATUSES = Set.of(
+        LESSON_STATUS_SCHEDULED,
+        LESSON_STATUS_RESCHEDULED,
+        LESSON_STATUS_MAKEUP,
+        LESSON_STATUS_COMPLETED
+    );
     private static final String ATTENDANCE_STATUS_PRESENT = "present";
     private static final String ATTENDANCE_STATUS_ABSENT = "absent";
     private static final String ATTENDANCE_STATUS_LEAVE = "leave";
@@ -93,7 +104,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceEntity createAttendance(AttendanceCreateRequest request) {
         TeachingClassEntity teachingClass = requireClass(request.classId());
         StudentEntity student = requireStudent(request.studentId());
-        ScheduleLessonEntity lesson = request.lessonId() == null ? null : requireScheduledLesson(request.lessonId());
+        ScheduleLessonEntity lesson = request.lessonId() == null ? null : requireAttendanceAllowedLesson(request.lessonId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
@@ -124,14 +135,14 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public AttendanceLessonPageView getLessonAttendancePage(Long lessonId) {
-        ScheduleLessonEntity lesson = requireScheduledLesson(lessonId);
+        ScheduleLessonEntity lesson = requireAttendanceAllowedLesson(lessonId);
         return buildLessonAttendancePage(lesson);
     }
 
     @Override
     @Transactional
     public AttendanceLessonPageView saveLessonAttendance(AttendanceLessonBatchSaveRequest request) {
-        ScheduleLessonEntity lesson = requireScheduledLesson(request.lessonId());
+        ScheduleLessonEntity lesson = requireAttendanceAllowedLesson(request.lessonId());
         List<ClassStudentEntity> classStudents = listActiveClassStudents(lesson.getClassId(), lesson.getLessonDate());
         Map<Long, ClassStudentEntity> classStudentMap = classStudents.stream()
             .collect(Collectors.toMap(ClassStudentEntity::getStudentId, item -> item, (left, right) -> right, LinkedHashMap::new));
@@ -280,13 +291,13 @@ public class AttendanceServiceImpl implements AttendanceService {
             .orderByAsc(AttendanceEntity::getStudentId));
     }
 
-    private ScheduleLessonEntity requireScheduledLesson(Long lessonId) {
+    private ScheduleLessonEntity requireAttendanceAllowedLesson(Long lessonId) {
         ScheduleLessonEntity lesson = scheduleLessonMapper.selectById(lessonId);
         if (lesson == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课课次不存在：" + lessonId);
         }
-        if (!LESSON_STATUS_SCHEDULED.equals(lesson.getLessonStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "只有已排课的课次才能点名");
+        if (!ATTENDANCE_ALLOWED_LESSON_STATUSES.contains(lesson.getLessonStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已停课的课次不能点名，请先安排补课或恢复排课");
         }
         return lesson;
     }

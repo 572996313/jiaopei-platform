@@ -101,7 +101,9 @@
         <el-table :data="classrooms" border>
           <el-table-column prop="classroomCode" label="教室编码" width="150" />
           <el-table-column prop="classroomName" label="教室名称" min-width="180" />
-          <el-table-column prop="roomType" label="类型" width="120" />
+          <el-table-column label="类型" width="120">
+            <template #default="{ row }">{{ roomTypeLabel(row.roomType) }}</template>
+          </el-table-column>
           <el-table-column prop="floorNo" label="楼层" width="100" />
           <el-table-column prop="seatCapacity" label="容量" width="100" />
           <el-table-column prop="status" label="状态" width="120">
@@ -133,7 +135,9 @@
           <el-table-column prop="termCode" label="学期编码" width="150" />
           <el-table-column prop="termName" label="学期名称" min-width="180" />
           <el-table-column prop="academicYear" label="学年" width="120" />
-          <el-table-column prop="season" label="学季" width="120" />
+          <el-table-column label="学季" width="120">
+            <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
+          </el-table-column>
           <el-table-column label="起止日期" min-width="220">
             <template #default="{ row }">{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template>
           </el-table-column>
@@ -169,7 +173,9 @@
             <template #default="{ row }">{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template>
           </el-table-column>
           <el-table-column prop="durationMinutes" label="时长" width="100" />
-          <el-table-column prop="slotType" label="类型" width="120" />
+          <el-table-column label="类型" width="120">
+            <template #default="{ row }">{{ slotTypeLabel(row.slotType) }}</template>
+          </el-table-column>
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{ timeSlotStatusLabel(row.status) }}</el-tag>
@@ -195,7 +201,11 @@
         <el-table :data="courseCategories" border>
           <el-table-column prop="categoryCode" label="分类编码" width="150" />
           <el-table-column prop="categoryName" label="分类名称" min-width="180" />
-          <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="sortOrder" label="排序" width="100" />
           <el-table-column prop="remark" label="备注" min-width="180" />
           <el-table-column label="操作" width="150" fixed="right">
@@ -224,8 +234,14 @@
             </template>
           </el-table-column>
           <el-table-column prop="subjectName" label="学科" width="120" />
-          <el-table-column prop="teachingMethod" label="授课方式" width="160" />
-          <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column label="授课方式" width="160">
+            <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openCourseDialog('edit', row)">编辑</el-button>
@@ -246,10 +262,16 @@
         <el-table :data="classTypes" border>
           <el-table-column prop="typeCode" label="班型编码" width="150" />
           <el-table-column prop="typeName" label="班型名称" min-width="180" />
-          <el-table-column prop="teachingMethod" label="授课方式" width="160" />
+          <el-table-column label="授课方式" width="160">
+            <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
+          </el-table-column>
           <el-table-column prop="minStudents" label="最少人数" width="100" />
           <el-table-column prop="maxStudents" label="最多人数" width="100" />
-          <el-table-column prop="status" label="状态" width="120" />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openClassTypeDialog('edit', row)">编辑</el-button>
@@ -398,7 +420,10 @@
         </el-form-item>
         <el-form-item label="开始时间"><el-time-picker v-model="timeSlotForm.startTime" value-format="HH:mm:ss" placeholder="选择开始时间" style="width: 100%" /></el-form-item>
         <el-form-item label="结束时间"><el-time-picker v-model="timeSlotForm.endTime" value-format="HH:mm:ss" placeholder="选择结束时间" style="width: 100%" /></el-form-item>
-        <el-form-item label="时长（分钟）"><el-input-number v-model="timeSlotForm.durationMinutes" :min="1" style="width: 100%" /></el-form-item>
+        <el-form-item label="时长（分钟）">
+          <el-input-number v-model="timeSlotForm.durationMinutes" :min="1" disabled style="width: 100%" />
+          <div class="education-context-text">由开始和结束时间自动计算</div>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="timeSlotForm.status">
             <el-option label="启用" value="active" />
@@ -627,6 +652,25 @@ const timeSlotForm = reactive({
   status: 'active',
 })
 
+function timeSlotMinutes(value?: string | null) {
+  if (!value) {
+    return Number.NaN
+  }
+  const [hours, minutes] = value.split(':').map(Number)
+  return (hours || 0) * 60 + (minutes || 0)
+}
+
+// 后端要求 durationMinutes 与起止时间差值完全一致，这里随时间选择自动重算
+watch(
+  () => [timeSlotForm.startTime, timeSlotForm.endTime] as const,
+  ([start, end]) => {
+    const diff = timeSlotMinutes(end) - timeSlotMinutes(start)
+    if (Number.isFinite(diff) && diff > 0) {
+      timeSlotForm.durationMinutes = diff
+    }
+  },
+)
+
 const courseCategoryForm = reactive({
   categoryCode: '',
   categoryName: '',
@@ -764,6 +808,78 @@ function statusTagType(value?: string | null) {
 
 function weekdayLabel(value?: number | null) {
   return weekdays.find((item) => item.value === value)?.label || '-'
+}
+
+function enabledStatusLabel(value?: string | null) {
+  if (value === 'inactive') {
+    return '停用'
+  }
+  if (value === 'active') {
+    return '启用'
+  }
+  return value || '-'
+}
+
+function roomTypeLabel(value?: string | null) {
+  switch (value) {
+    case 'normal':
+      return '标准教室'
+    case 'piano':
+      return '琴房'
+    case 'lab':
+      return '实验室'
+    case 'dance':
+      return '舞蹈教室'
+    case 'art':
+      return '美术教室'
+    default:
+      return value || '-'
+  }
+}
+
+function seasonLabel(value?: string | null) {
+  switch (value) {
+    case 'spring':
+      return '春季'
+    case 'summer':
+      return '夏季'
+    case 'autumn':
+      return '秋季'
+    case 'winter':
+      return '冬季'
+    default:
+      return value || '-'
+  }
+}
+
+function slotTypeLabel(value?: string | null) {
+  switch (value) {
+    case 'teaching':
+      return '授课'
+    case 'break':
+      return '休息'
+    default:
+      return value || '-'
+  }
+}
+
+function teachingMethodLabel(value?: string | null) {
+  switch (value) {
+    case 'offline_small_class':
+      return '线下小班'
+    case 'offline_large_class':
+      return '线下大班'
+    case 'offline_one_to_one':
+      return '线下1对1'
+    case 'online_small_class':
+      return '线上小班'
+    case 'online_large_class':
+      return '线上大班'
+    case 'online_one_to_one':
+      return '线上1对1'
+    default:
+      return value || '-'
+  }
 }
 
 function resetCampusForm() {
@@ -1295,6 +1411,10 @@ async function submitTimeSlot() {
   }
   if (!timeSlotForm.startTime || !timeSlotForm.endTime) {
     timeSlotFormError.value = '请选择开始和结束时间'
+    return
+  }
+  if (timeSlotMinutes(timeSlotForm.endTime) <= timeSlotMinutes(timeSlotForm.startTime)) {
+    timeSlotFormError.value = '结束时间必须晚于开始时间'
     return
   }
 

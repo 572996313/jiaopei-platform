@@ -243,10 +243,19 @@ const classroomMap = computed(() => {
   )
 })
 
+// 与日常教务中心口径一致：调课/补课课次仍要实际上课，可点名可结课；停课不产生考勤
+function isAttendanceAllowedStatus(status?: string | null) {
+  return status === 'scheduled' || status === 'rescheduled' || status === 'makeup' || status === 'completed'
+}
+
+function canCompleteLesson(lesson: Pick<ScheduleLessonRecord, 'lessonStatus'>) {
+  return lesson.lessonStatus === 'scheduled' || lesson.lessonStatus === 'rescheduled' || lesson.lessonStatus === 'makeup'
+}
+
 const pendingAttendanceLessons = computed(() => {
   return sortedLessons(
     todayLessons.value.filter((lesson) => {
-      if (lesson.lessonStatus !== 'scheduled') {
+      if (!isAttendanceAllowedStatus(lesson.lessonStatus) || !canCompleteLesson(lesson)) {
         return false
       }
       const page = attendancePages.value[lesson.id]
@@ -261,7 +270,7 @@ const pendingAttendanceLessons = computed(() => {
 const readyToCompleteLessons = computed(() => {
   return sortedLessons(
     todayLessons.value.filter((lesson) => {
-      if (lesson.lessonStatus !== 'scheduled') {
+      if (!canCompleteLesson(lesson)) {
         return false
       }
       const page = attendancePages.value[lesson.id]
@@ -434,6 +443,10 @@ function lessonStatusLabel(status?: string | null) {
       return '已完成'
     case 'cancelled':
       return '已取消'
+    case 'rescheduled':
+      return '已调课'
+    case 'makeup':
+      return '已补课'
     case 'scheduled':
     default:
       return '已排课'
@@ -446,6 +459,10 @@ function lessonStatusTagType(status?: string | null) {
       return 'success'
     case 'cancelled':
       return 'info'
+    case 'rescheduled':
+      return 'primary'
+    case 'makeup':
+      return 'danger'
     case 'scheduled':
     default:
       return 'warning'
@@ -474,6 +491,9 @@ function weekdayLabel(weekday?: number | null) {
 }
 
 function attendanceProgressText(lesson: ScheduleLessonRecord) {
+  if (lesson.lessonStatus === 'cancelled') {
+    return '已停课，无需点名'
+  }
   const page = attendancePages.value[lesson.id]
   if (!page) {
     return lesson.lessonStatus === 'completed' ? '已结课，待回查点名' : '待加载点名进度'
@@ -511,7 +531,8 @@ async function loadSupportingResources() {
 
   const [teacherList, classroomList] = await Promise.all([
     fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
-    campusId.value ? fetchClassrooms(campusId.value) : Promise.resolve([]),
+    // 不传校区时后端返回全部教室；之前未选校区会跳过加载，导致"教室数量：0"
+    fetchClassrooms(campusId.value),
   ])
 
   teachers.value = teacherList

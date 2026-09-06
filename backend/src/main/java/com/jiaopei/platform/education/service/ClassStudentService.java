@@ -9,4 +9,6 @@ public interface ClassStudentService {
     List<ClassStudentEntity> listClassStudents(Long classId, Long studentId);
 
     ClassStudentEntity createClassStudent(ClassStudentCreateRequest request);
+
+    void deleteClassStudent(Long id);
 }

@@ -58,4 +58,20 @@ class AuthControllerWebTest {
             .andExpect(jsonPath("$.data.accessToken").value("stub-access-token"))
             .andExpect(jsonPath("$.data.permissions[0]").value("organization:read"));
     }
+
+    @Test
+    void loginWrongPasswordKeepsOriginalMessage() throws Exception {
+        // 回归：认证异常的原始消息必须透传给前端，不能被笼统的"未登录或登录已失效"掩盖
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "admin",
+                      "password": "wrong-password"
+                    }
+                    """))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("用户名或密码错误"));
+    }
 }

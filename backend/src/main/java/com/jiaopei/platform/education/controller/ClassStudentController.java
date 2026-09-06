@@ -9,7 +9,9 @@ import com.jiaopei.platform.education.service.ClassStudentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,5 +43,12 @@ public class ClassStudentController {
     @RequiresPermission("education:write")
     public ApiResponse<ClassStudentEntity> create(@Valid @RequestBody ClassStudentCreateRequest request) {
         return ApiResponse.success("班级学员已创建", classStudentService.createClassStudent(request));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequiresPermission("education:write")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        classStudentService.deleteClassStudent(id);
+        return ApiResponse.success("班级学员已移除", null);
     }
 }

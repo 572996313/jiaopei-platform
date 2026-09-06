@@ -589,6 +589,10 @@ export function createClassStudent(payload: ClassStudentCreatePayload) {
   return requestPost<ClassStudentRecord>('/education/class-students', payload)
 }
 
+export function deleteClassStudent(id: string) {
+  return requestDelete<null>(`/education/class-students/${id}`)
+}
+
 export function fetchClassTeachers(params?: { classId?: string | null; teacherId?: string | null }) {
   return requestGet<ClassTeacherRecord[]>('/education/class-teachers', params ?? undefined)
 }

@@ -225,10 +225,11 @@
         <el-table-column prop="joinedAt" label="入班日期" width="140" />
         <el-table-column prop="leftAt" label="离班日期" width="140" />
         <el-table-column prop="remark" label="备注" min-width="220" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" @click="openParentPanel(row.studentId)">联系人</el-button>
+              <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -693,6 +694,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   createClassStudent,
+  deleteClassStudent,
   fetchClassChangeNotices,
   createClassTeacher,
   createStudentParent,
@@ -1629,6 +1631,26 @@ async function submitClassStudent() {
   }
 }
 
+async function removeClassStudent(row: ClassStudentRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确认将 ${formatStudent(row.studentId)} 移出班级 ${formatClass(row.classId)} 吗？`,
+      '移出班级',
+      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await deleteClassStudent(row.id)
+    ElMessage.success('学员已移出班级')
+    await loadRecords()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '移出班级失败'))
+  }
+}
+
 async function submitClassTeacher() {
   if (!institutionId.value) {
     teacherFormError.value = '请先选择机构范围'
@@ -1702,6 +1724,16 @@ async function submitClassProfileUpdate() {
 }
 
 async function promotePrimaryTeacher(row: ClassTeacherRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确定将 ${formatTeacher(row.teacherId)} 设为班级主讲吗？`,
+      '切换主讲',
+      { type: 'warning', confirmButtonText: '设为主讲', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
   try {
     await updateClassTeacher(row.id, {
       institutionId: institutionId.value as string,
@@ -1777,6 +1809,16 @@ async function submitStudentParent() {
 }
 
 async function promotePrimaryParent(row: StudentParentRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确定将「${row.parentName || '该联系人'}」设为主联系人吗？`,
+      '切换主联系人',
+      { type: 'warning', confirmButtonText: '设为主联系人', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
   try {
     await updateStudentParent(row.id, {
       institutionId: institutionId.value as string,

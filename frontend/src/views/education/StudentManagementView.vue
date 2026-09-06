@@ -152,7 +152,9 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="channel" label="来源渠道" width="140" />
+        <el-table-column label="来源渠道" width="140">
+          <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
+        </el-table-column>
         <el-table-column prop="enrolledAt" label="报名日期" width="140" />
         <el-table-column prop="remark" label="备注" min-width="220" />
       </el-table>
@@ -178,7 +180,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="parentName" label="联系人" min-width="140" />
-        <el-table-column prop="relationType" label="关系" width="120" />
+        <el-table-column label="关系" width="120">
+          <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
+        </el-table-column>
         <el-table-column prop="parentPhone" label="联系电话" width="160" />
         <el-table-column prop="wechatNo" label="微信号" width="160" />
         <el-table-column label="主联系人" width="100">
@@ -604,6 +608,36 @@ function studentParentTagType(status?: string | null) {
     case 'active':
     default:
       return 'success'
+  }
+}
+
+function enrollmentChannelLabel(value?: string | null) {
+  switch (value) {
+    case 'front_desk':
+      return '前台报名'
+    case 'consultant':
+      return '顾问录入'
+    case 'online':
+      return '线上线索'
+    case 'referral':
+      return '转介绍'
+    default:
+      return value || '-'
+  }
+}
+
+function parentRelationLabel(value?: string | null) {
+  switch (value) {
+    case 'father':
+      return '父亲'
+    case 'guardian':
+      return '监护人'
+    case 'relative':
+      return '其他亲属'
+    case 'mother':
+      return '母亲'
+    default:
+      return value || '-'
   }
 }
 

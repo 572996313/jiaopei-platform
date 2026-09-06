@@ -329,7 +329,9 @@
                 <el-table-column prop="displayName" label="显示名称" min-width="140" />
                 <el-table-column prop="configValue" label="配置值" min-width="160" show-overflow-tooltip />
                 <el-table-column prop="valueType" label="值类型" width="100" />
-                <el-table-column prop="configGroup" label="分组" width="120" />
+                <el-table-column label="分组" width="120">
+                  <template #default="{ row }">{{ configGroupLabel(row.configGroup) }}</template>
+                </el-table-column>
                 <el-table-column label="系统内置" width="100">
                   <template #default="{ row }">{{ row.isSystem ? '是' : '否' }}</template>
                 </el-table-column>
@@ -785,6 +787,21 @@ const configValueTypeOptions = [
   { value: 'boolean', label: 'boolean' },
   { value: 'json', label: 'json' },
 ]
+
+function configGroupLabel(value?: string | null) {
+  switch (value) {
+    case 'general':
+      return '通用'
+    case 'auth':
+      return '认证'
+    case 'system':
+      return '系统'
+    case 'business':
+      return '业务'
+    default:
+      return value || '-'
+  }
+}
 
 const configForm = reactive({
   configKey: '',
@@ -1350,6 +1367,17 @@ async function submitUser() {
 }
 
 async function toggleUserStatus(user: SystemUserSummary) {
+  const disabling = user.status === 'active'
+  try {
+    await ElMessageBox.confirm(
+      `确定${disabling ? '停用' : '启用'}用户「${user.displayName || user.username}」吗？`,
+      '操作确认',
+      { type: 'warning', confirmButtonText: disabling ? '停用' : '启用', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
   try {
     await updateSystemUser(user.id, {
       institutionId: user.institutionId,
@@ -1367,6 +1395,16 @@ async function toggleUserStatus(user: SystemUserSummary) {
 }
 
 async function handleResetPassword(user: SystemUserSummary) {
+  try {
+    await ElMessageBox.confirm(
+      `确定重置用户「${user.displayName || user.username}」的密码吗？重置后将生成新的初始密码，请及时告知该用户。`,
+      '重置密码',
+      { type: 'warning', confirmButtonText: '重置', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
   try {
     const result = await resetSystemUserPassword(user.id)
     await ElMessageBox.alert(
@@ -1482,6 +1520,17 @@ async function submitRole() {
 }
 
 async function toggleRoleStatus(role: SystemRoleSummary) {
+  const disabling = role.status === 'active'
+  try {
+    await ElMessageBox.confirm(
+      `确定${disabling ? '停用' : '启用'}角色「${role.roleName}」吗？`,
+      '操作确认',
+      { type: 'warning', confirmButtonText: disabling ? '停用' : '启用', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+
   try {
     await updateSystemRole(role.id, {
       roleName: role.roleName,

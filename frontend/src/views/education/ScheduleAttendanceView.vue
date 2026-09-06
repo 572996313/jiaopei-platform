@@ -149,6 +149,13 @@
               <div class="daily-lesson-item-main">
                 <div class="daily-lesson-item-title">
                   {{ formatClass(lesson.classId) }}
+                  <el-tag
+                    v-if="lesson.lessonStatus && lesson.lessonStatus !== 'scheduled'"
+                    size="small"
+                    :type="lessonStatusTagType(lesson.lessonStatus)"
+                  >
+                    {{ lessonStatusLabel(lesson.lessonStatus) }}
+                  </el-tag>
                   <el-tag size="small" type="warning">待点名</el-tag>
                 </div>
                 <div class="daily-lesson-item-text">
@@ -317,6 +324,7 @@
                   <el-button
                     link
                     type="success"
+                    :disabled="row.lessonStatus === 'cancelled'"
                     @click="openAttendanceDialog(row)"
                   >
                     点名
@@ -324,7 +332,7 @@
                   <el-button
                     link
                     type="warning"
-                    :disabled="row.lessonStatus !== 'scheduled'"
+                    :disabled="!canCompleteLesson(row)"
                     @click="completeLesson(row)"
                   >
                     结课
@@ -405,11 +413,11 @@
                 </el-table-column>
                 <el-table-column label="执行动作" width="280">
                   <template #default="{ row }">
-                    <el-button link type="success" @click="openAttendanceDialog(row)">进入</el-button>
+                    <el-button link type="success" :disabled="row.lessonStatus === 'cancelled'" @click="openAttendanceDialog(row)">进入</el-button>
                     <el-button
                       link
                       type="warning"
-                      :disabled="row.lessonStatus !== 'scheduled'"
+                      :disabled="!canCompleteLesson(row)"
                       @click="completeLesson(row)"
                     >
                       结课
@@ -445,7 +453,7 @@
                         {{ lessonStatusLabel(lesson.lessonStatus) }}
                       </el-tag>
                     </div>
-                    <div>{{ formatTimeSlot(lesson.timeSlotId, lesson.startTime, lesson.endTime) }}</div>
+                    <div>{{ compactTimeRange(lesson.startTime, lesson.endTime) || '待定时段' }}</div>
                     <div>{{ formatClassroom(lesson.classroomId) }}</div>
                     <div>{{ formatTeacherNames(lesson.teacherIds) }}</div>
                     <div v-if="lesson.lessonTitle">{{ lesson.lessonTitle }}</div>
@@ -453,11 +461,11 @@
                       {{ lessonRelationSummary(lesson) }}
                     </div>
                     <div class="week-board-actions">
-                      <el-button link type="success" @click="openAttendanceDialog(lesson)">点名</el-button>
+                      <el-button link type="success" :disabled="lesson.lessonStatus === 'cancelled'" @click="openAttendanceDialog(lesson)">点名</el-button>
                       <el-button
                         link
                         type="warning"
-                        :disabled="lesson.lessonStatus !== 'scheduled'"
+                        :disabled="!canCompleteLesson(lesson)"
                         @click="completeLesson(lesson)"
                       >
                         结课
@@ -1111,7 +1119,7 @@ const weekTimetableGroups = computed(() => {
 
   return Array.from(groups.entries()).map(([date, items]) => ({
     date,
-    title: `${date || '未命名日期'} ${weekdayLabel(weekdayFromDate(date))}`,
+    title: `${compactDateLabel(date)} ${weekdayLabel(weekdayFromDate(date))}`,
     lessons: items,
   }))
 })
@@ -1124,7 +1132,7 @@ const focusedSection = computed(() => {
 const pendingAttendanceLessons = computed(() => {
   return sortedLessons(
     dayLessons.value.filter((lesson) => {
-      if (lesson.lessonStatus !== 'scheduled') {
+      if (!isAttendanceAllowedStatus(lesson.lessonStatus)) {
         return false
       }
       return attendanceMarkedCount(lesson) < attendanceExpectedCount(lesson)
@@ -1135,7 +1143,7 @@ const pendingAttendanceLessons = computed(() => {
 const readyToCompleteLessons = computed(() => {
   return sortedLessons(
     dayLessons.value.filter((lesson) => {
-      if (lesson.lessonStatus !== 'scheduled') {
+      if (!canCompleteLesson(lesson)) {
         return false
       }
       const expectedCount = attendanceExpectedCount(lesson)
@@ -1324,6 +1332,13 @@ function weekdayFromDate(value?: string | null) {
   return weekday === 0 ? 7 : weekday
 }
 
+function compactDateLabel(value?: string | null) {
+  if (!value) {
+    return '未命名'
+  }
+  return value.length >= 10 ? value.slice(5) : value
+}
+
 function trimToUndefined(value: string) {
   const normalized = value.trim()
   return normalized ? normalized : undefined
@@ -1376,6 +1391,15 @@ function isPendingMakeupLesson(lesson?: ScheduleLessonRecord | null) {
     return false
   }
   return lesson.pendingMakeup === true || pendingMakeupLessonIds.value.has(lesson.id)
+}
+
+// 调课/补课课次仍要实际上课，可以点名；停课课次不产生考勤，已结课仅回查
+function isAttendanceAllowedStatus(status?: string | null) {
+  return status === 'scheduled' || status === 'rescheduled' || status === 'makeup' || status === 'completed'
+}
+
+function canCompleteLesson(lesson: Pick<ScheduleLessonRecord, 'lessonStatus'>) {
+  return lesson.lessonStatus === 'scheduled' || lesson.lessonStatus === 'rescheduled' || lesson.lessonStatus === 'makeup'
 }
 
 function cancelledLessonOptionLabel(lesson: ScheduleLessonRecord) {
@@ -1791,7 +1815,8 @@ async function loadSupportingOptions() {
 
   const [teacherList, classroomList, timeSlotList] = await Promise.all([
     fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
-    campusId.value ? fetchClassrooms(campusId.value) : Promise.resolve([]),
+    // 不传校区时后端返回全部教室，保证未选校区时列表/课表仍能显示教室名称
+    fetchClassrooms(campusId.value),
     fetchTimeSlots(institutionId.value),
   ])
 
@@ -2049,7 +2074,7 @@ async function openAttendanceDialog(lesson: ScheduleLessonRecord) {
 function handleReminderClick(lessonId: string) {
   const lesson = dayLessons.value.find((item) => item.id === lessonId) || lessons.value.find((item) => item.id === lessonId)
   if (lesson) {
-    if (isPendingMakeupLesson(lesson)) {
+    if (isPendingMakeupLesson(lesson) || lesson.lessonStatus === 'cancelled') {
       openExecutionChangeDialog('makeup', lesson)
       return
     }
@@ -2145,8 +2170,8 @@ async function updateLessonStatus(id: string, status: 'completed' | 'scheduled',
 }
 
 async function completeLesson(lesson: ScheduleLessonRecord) {
-  if (lesson.lessonStatus !== 'scheduled') {
-    ElMessage.warning('仅已排课课次允许结课')
+  if (!canCompleteLesson(lesson)) {
+    ElMessage.warning('已停课或已结课的课次不支持结课')
     return
   }
 
@@ -2533,51 +2558,66 @@ onMounted(() => {
 
 .week-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  /* 固定 7 列，一行正好放下周一到周日；容器不够宽时横向滚动而不是换行 */
+  grid-template-columns: repeat(7, minmax(132px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .week-board-day {
+  min-width: 0;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 12px;
   background: rgba(248, 250, 252, 0.92);
 }
 
 .week-board-title {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   font-weight: 700;
+  font-size: 13px;
   color: #0f172a;
+  white-space: nowrap;
 }
 
 .week-board-empty {
   color: #64748b;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .week-board-card {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 10px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   color: #334155;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .week-board-card + .week-board-card {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .week-board-main {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 4px 8px;
+  margin-bottom: 6px;
   align-items: center;
+  font-size: 13px;
 }
 
 .week-board-actions {
-  margin-top: 8px;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.week-board-actions .el-button + .el-button {
+  margin-left: 0;
 }
 
 .week-board-relation {

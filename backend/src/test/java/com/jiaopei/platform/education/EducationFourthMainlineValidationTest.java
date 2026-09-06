@@ -108,6 +108,37 @@ class EducationFourthMainlineValidationTest {
     }
 
     @Test
+    void deleteClassStudentRecalculatesCurrentStudents() {
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        ClassStudentEntity relation = new ClassStudentEntity();
+        relation.setId(500L);
+        relation.setClassId(20L);
+        relation.setStudentId(10L);
+        relation.setStatus("active");
+        when(classStudentMapper.selectById(500L)).thenReturn(relation);
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 5));
+        when(classStudentMapper.selectCount(any())).thenReturn(4L);
+
+        service.deleteClassStudent(500L);
+
+        verify(classStudentMapper).deletePhysicallyById(500L);
+        ArgumentCaptor<TeachingClassEntity> captor = ArgumentCaptor.forClass(TeachingClassEntity.class);
+        verify(teachingClassMapper).updateById(captor.capture());
+        assertEquals(4, captor.getValue().getCurrentStudents());
+    }
+
+    @Test
+    void deleteClassStudentRejectsMissingRelation() {
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        when(classStudentMapper.selectById(999L)).thenReturn(null);
+
+        assertThrows(BusinessException.class, () -> service.deleteClassStudent(999L));
+
+        verify(classStudentMapper, never()).deletePhysicallyById(999L);
+        verify(teachingClassMapper, never()).updateById(any(TeachingClassEntity.class));
+    }
+
+    @Test
     void createAttendanceRejectsStudentNotActiveInClass() {
         AttendanceServiceImpl service = new AttendanceServiceImpl(
             attendanceMapper,
@@ -166,6 +197,51 @@ class EducationFourthMainlineValidationTest {
                 List.of(new AttendanceBatchItemRequest(10L, "late", "manual", "traffic"))
             )
         ));
+    }
+
+    @Test
+    void saveLessonAttendanceAllowsMakeupLesson() {
+        AttendanceServiceImpl service = new AttendanceServiceImpl(
+            attendanceMapper,
+            classStudentMapper,
+            teachingClassMapper,
+            studentMapper,
+            scheduleLessonMapper
+        );
+        ScheduleLessonEntity makeupLesson = scheduleLesson();
+        makeupLesson.setLessonStatus("makeup");
+        when(scheduleLessonMapper.selectById(300L)).thenReturn(makeupLesson);
+        when(classStudentMapper.selectList(any())).thenReturn(List.of(activeClassStudent()));
+        when(attendanceMapper.selectList(any())).thenReturn(List.of());
+        when(studentMapper.selectBatchIds(any())).thenReturn(List.of(student()));
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
+
+        service.saveLessonAttendance(
+            new AttendanceLessonBatchSaveRequest(
+                300L,
+                List.of(new AttendanceBatchItemRequest(10L, "present", "manual", null))
+            )
+        );
+
+        verify(attendanceMapper).insert(any(AttendanceEntity.class));
+    }
+
+    @Test
+    void getLessonAttendancePageRejectsCancelledLesson() {
+        AttendanceServiceImpl service = new AttendanceServiceImpl(
+            attendanceMapper,
+            classStudentMapper,
+            teachingClassMapper,
+            studentMapper,
+            scheduleLessonMapper
+        );
+        ScheduleLessonEntity cancelledLesson = scheduleLesson();
+        cancelledLesson.setLessonStatus("cancelled");
+        when(scheduleLessonMapper.selectById(300L)).thenReturn(cancelledLesson);
+
+        assertThrows(BusinessException.class, () -> service.getLessonAttendancePage(300L));
+
+        verify(attendanceMapper, never()).selectList(any());
     }
 
     private EnrollmentCreateRequest enrollmentRequest() {

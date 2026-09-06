@@ -20,6 +20,7 @@ import java.util.Set;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.authentication.BadCredentialsException;
 
 @TestConfiguration
 @EnableConfigurationProperties(JiaopeiProperties.class)
@@ -30,6 +31,9 @@ public class WebMvcSecurityTestConfig {
         return new AuthApplicationService() {
             @Override
             public LoginResponse login(LoginRequest request) {
+                if ("wrong-password".equals(request.password())) {
+                    throw new BadCredentialsException("用户名或密码错误");
+                }
                 AuthenticatedUser user = stubUser();
                 return new LoginResponse(
                     user.userId(),

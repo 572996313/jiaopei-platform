@@ -86,6 +86,21 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         return entity;
     }
 
+    @Override
+    @Transactional
+    public void deleteClassStudent(Long id) {
+        ClassStudentEntity existing = classStudentMapper.selectById(id);
+        if (existing == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "班级学员关系不存在：" + id);
+        }
+        classStudentMapper.deletePhysicallyById(id);
+        TeachingClassEntity teachingClass = teachingClassMapper.selectById(existing.getClassId());
+        if (teachingClass != null) {
+            teachingClass.setCurrentStudents(countActiveStudents(existing.getClassId()));
+            teachingClassMapper.updateById(teachingClass);
+        }
+    }
+
     private int countActiveStudents(Long classId) {
         Long count = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
             .eq(ClassStudentEntity::getClassId, classId)

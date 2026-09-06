@@ -62,7 +62,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleAuthentication(AuthenticationException exception) {
-        return ApiResponse.failure(ResultCode.UNAUTHORIZED, ResultCode.UNAUTHORIZED.getDefaultMessage());
+        // 登录/改密入口抛出的认证异常消息面向用户(如"用户名或密码错误"、"账号已被禁用")，
+        // 必须透传，否则会被笼统的"未登录或登录已失效"掩盖；
+        // 令牌失效场景走安全过滤器的入口点，不经过这里
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = ResultCode.UNAUTHORIZED.getDefaultMessage();
+        }
+        return ApiResponse.failure(ResultCode.UNAUTHORIZED, message);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
