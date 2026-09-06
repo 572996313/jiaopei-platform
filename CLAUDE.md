@@ -38,12 +38,13 @@ pnpm preview
 
 ## 架构要点
 
-### 鉴权：STUB 模式（非真实认证）
+### 鉴权：JWT + Redis 会话
 
-仓库当前不是真实鉴权，是占位实现，这是最容易踩坑的地方：
+登录签发 JWT,Redis 会话负责吊销,这是最容易踩坑的地方：
 
-- `StubAuthenticationFilter` 读取 `Authorization: Bearer <token>`，调用 `AuthApplicationService.authenticateToken(token)` 校验。本地联调与 prod env 都用 `stub-access-token`。
-- 登录 `POST /api/auth/login` 返回一个固定 `stub-access-token`，不校验密码强度（密码只做 BCrypt 落库）。
+- 登录 `POST /api/auth/login` 校验密码后,由 `JwtTokenService` 签发 HS256 JWT(自包含 userId/角色/权限声明,`exp` 与系统配置 `auth.token.expire_hours` 一致,默认 12 小时),同时在 Redis 写入会话(`jiaopei:token:<jwt>`);每次登录 token 唯一,用户之间互不影响。
+- `StubAuthenticationFilter` 读取 `Authorization: Bearer <token>`,调用 `AuthApplicationService.authenticateToken(token)` 校验:先验 JWT 签名与过期时间,再查 Redis 会话(登出/踢人后立即失效)。
+- JWT 签名密钥在 `jiaopei.auth.jwt.secret`(`application.yml`,生产必须用环境变量 `AUTH_JWT_SECRET` 覆盖,至少 32 字节)。
 - `jiaopei.security.public-paths`（`application.yml`）声明放行路径；其余需认证。`SecurityConfig` 是 stateless、CSRF/form/basic 全关。
 - 业务侧权限通过 `@RequiresPermission("xxx:read|write")` 注解 + `PermissionGuardAspect`（AOP `@Before`）拦截，命中检查由 `DefaultPermissionService` 直接判断 `AuthenticatedUser.permissions()` 是否包含该权限串。`AuthenticatedUser` 以 record 形式挂在 `SecurityContextHolder` 的 principal 上。
 - 取当前用户：`AuthContext.requireUser()` / `AuthContext.currentUser()`（`AuthContext` 是静态工具）。

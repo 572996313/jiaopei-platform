@@ -31,14 +31,14 @@ public class PlatformBootstrapController {
             applicationName,
             "0.0.1-SNAPSHOT",
             List.of(
-                new ModuleSummaryView("auth", "权限认证", true, "STUB 就绪"),
+                new ModuleSummaryView("auth", "权限认证", true, "就绪"),
                 new ModuleSummaryView("organization", "组织主数据", properties.getModules().isOrganizationEnabled(), "就绪"),
                 new ModuleSummaryView("education", "教务", properties.getModules().isEducationEnabled(), "预留")
             ),
             List.of(
-                "通过 POST /api/auth/login 获取当前 stub 令牌",
-                "携带 Authorization: Bearer stub-access-token 调用组织模块接口",
-                "后续将用 JWT/会话实现替换 stub 鉴权"
+                "通过 POST /api/auth/login 获取 JWT 访问令牌",
+                "携带 Authorization: Bearer <accessToken> 调用业务接口",
+                "令牌有效期由系统配置 auth.token.expire_hours 控制,默认 12 小时"
             )
         ));
     }

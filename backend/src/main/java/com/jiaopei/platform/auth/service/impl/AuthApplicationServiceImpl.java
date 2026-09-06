@@ -13,6 +13,7 @@ import com.jiaopei.platform.auth.dto.LoginResponse;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.security.JwtTokenService;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.system.service.SystemConfigService;
@@ -35,24 +36,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthApplicationServiceImpl implements AuthApplicationService {
 
     private static final String ACTIVE = "active";
-    private static final String STUB_TOKEN = "stub-access-token";
 
     private final UserAccountMapper userAccountMapper;
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
     private final TokenCacheService tokenCacheService;
+    private final JwtTokenService jwtTokenService;
     private final SystemConfigService systemConfigService;
     private final SystemMenuService systemMenuService;
     private final PasswordEncoder passwordEncoder;
 
     public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                       UserRoleRelMapper userRoleRelMapper, TokenCacheService tokenCacheService,
-                                      SystemConfigService systemConfigService, SystemMenuService systemMenuService,
-                                      PasswordEncoder passwordEncoder) {
+                                      JwtTokenService jwtTokenService, SystemConfigService systemConfigService,
+                                      SystemMenuService systemMenuService, PasswordEncoder passwordEncoder) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.tokenCacheService = tokenCacheService;
+        this.jwtTokenService = jwtTokenService;
         this.systemConfigService = systemConfigService;
         this.systemMenuService = systemMenuService;
         this.passwordEncoder = passwordEncoder;
@@ -81,7 +83,8 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             snapshot.permissionCodes(),
             Boolean.TRUE.equals(user.getForceChangePassword())
         );
-        tokenCacheService.storeToken(STUB_TOKEN, authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
+        String accessToken = jwtTokenService.issue(authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
+        tokenCacheService.storeToken(accessToken, authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
 
         user.setLastLoginAt(LocalDateTime.now());
         userAccountMapper.updateById(user);
@@ -94,7 +97,7 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(snapshot.roleCodes()),
             new ArrayList<>(snapshot.permissionCodes()),
             "Bearer",
-            STUB_TOKEN,
+            accessToken,
             effectiveForceChangePassword(user)
         );
     }
@@ -113,6 +116,8 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         if (accessToken == null || accessToken.isBlank()) {
             throw new BadCredentialsException("访问令牌缺失");
         }
+        // 先校验 JWT 签名与过期时间,再查 Redis 会话(登出/踢人后立即失效)
+        jwtTokenService.verify(accessToken);
         AuthenticatedUser user = tokenCacheService.getUser(accessToken);
         if (user == null) {
             throw new BadCredentialsException("访问令牌无效或已过期");

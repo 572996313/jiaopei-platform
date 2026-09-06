@@ -5,25 +5,32 @@ import com.jiaopei.platform.auth.context.AuthenticatedUser;
 import com.jiaopei.platform.auth.domain.UserAccountEntity;
 import com.jiaopei.platform.auth.dto.ChangePasswordRequest;
 import com.jiaopei.platform.auth.dto.CurrentUserResponse;
+import com.jiaopei.platform.auth.dto.LoginRequest;
+import com.jiaopei.platform.auth.dto.LoginResponse;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.security.JwtTokenService;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.auth.service.impl.AuthApplicationServiceImpl;
 import com.jiaopei.platform.common.exception.BusinessException;
+import com.jiaopei.platform.config.properties.JiaopeiProperties;
 import com.jiaopei.platform.system.service.SystemConfigService;
 import com.jiaopei.platform.system.service.SystemMenuService;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,13 +41,15 @@ import static org.mockito.Mockito.when;
 class AuthApplicationServiceImplTest {
 
     private final UserAccountMapper userAccountMapper = mock(UserAccountMapper.class);
+    private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
         userAccountMapper,
         mock(RoleMapper.class),
         mock(UserRoleRelMapper.class),
-        mock(TokenCacheService.class),
+        tokenCacheService,
+        jwtTokenService(),
         systemConfigService,
         mock(SystemMenuService.class),
         passwordEncoder
@@ -49,6 +58,28 @@ class AuthApplicationServiceImplTest {
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void loginIssuesUniqueTokenPerLoginAndForgedTokenIsRejected() {
+        UserAccountEntity user = user();
+        user.setStatus("active");
+        when(userAccountMapper.selectOne(any())).thenReturn(user);
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+        when(systemConfigService.getIntConfig("auth.token.expire_hours", 12)).thenReturn(12);
+
+        LoginResponse first = service.login(new LoginRequest("admin", "Old@123456"));
+        LoginResponse second = service.login(new LoginRequest("admin", "Old@123456"));
+
+        // 回归:任何用户登录不得影响其他用户的登录态(历史上所有用户共享同一个固定 token)
+        assertNotEquals(first.accessToken(), second.accessToken());
+
+        when(tokenCacheService.getUser(first.accessToken())).thenReturn(
+            new AuthenticatedUser(1L, 1L, "admin", Set.of(), Set.of(), false));
+        assertEquals("admin", service.authenticateToken(first.accessToken()).username());
+
+        assertThrows(BadCredentialsException.class,
+            () -> service.authenticateToken(first.accessToken() + "forged"));
     }
 
     @Test
@@ -101,6 +132,12 @@ class AuthApplicationServiceImplTest {
         CurrentUserResponse response = service.currentUser();
 
         assertTrue(response.forceChangePassword());
+    }
+
+    private static JwtTokenService jwtTokenService() {
+        JiaopeiProperties properties = new JiaopeiProperties();
+        properties.getAuth().getJwt().setSecret("0123456789abcdef0123456789abcdef-test-secret");
+        return new JwtTokenService(properties);
     }
 
     private void authenticate() {

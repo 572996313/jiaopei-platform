@@ -9,6 +9,7 @@ public class JiaopeiProperties {
 
     private final Security security = new Security();
     private final Modules modules = new Modules();
+    private final Auth auth = new Auth();
 
     public Security getSecurity() {
         return security;
@@ -16,6 +17,10 @@ public class JiaopeiProperties {
 
     public Modules getModules() {
         return modules;
+    }
+
+    public Auth getAuth() {
+        return auth;
     }
 
     public static class Security {
@@ -50,6 +55,32 @@ public class JiaopeiProperties {
 
         public void setEducationEnabled(boolean educationEnabled) {
             this.educationEnabled = educationEnabled;
+        }
+    }
+
+    public static class Auth {
+
+        private final Jwt jwt = new Jwt();
+
+        public Jwt getJwt() {
+            return jwt;
+        }
+    }
+
+    public static class Jwt {
+
+        /**
+         * HS256 签名密钥,长度不得少于 32 字节。
+         * 生产环境必须通过 AUTH_JWT_SECRET 环境变量覆盖,禁止使用 application.yml 中的开发默认值。
+         */
+        private String secret;
+
+        public String getSecret() {
+            return secret;
+        }
+
+        public void setSecret(String secret) {
+            this.secret = secret;
         }
     }
 }

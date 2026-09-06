@@ -118,11 +118,14 @@ BACKEND_PORT=8181
 BACKEND_BUILD_MAVEN_OPTS=-Xmx512m -XX:MaxMetaspaceSize=256m -Djava.awt.headless=true
 BACKEND_JAVA_OPTS=-Xms256m -Xmx768m
 
+# JWT 签名密钥(必填,至少 32 字节随机字符串,例如: openssl rand -base64 48)
+AUTH_JWT_SECRET=<生成至少32字节的随机密钥>
+
 # ---- 前端配置 ----
 FRONTEND_PORT=5757
 
-# 如仍未接入真实授权，保持 stub；接入后立即替换
-VITE_API_AUTHORIZATION=Bearer stub-access-token
+# 登录态由前端保存登录接口返回的 JWT 并自动携带,留空即可
+VITE_API_AUTHORIZATION=
 ```
 
 ---
