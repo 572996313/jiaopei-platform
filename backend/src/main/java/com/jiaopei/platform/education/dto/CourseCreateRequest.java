@@ -29,7 +29,7 @@ public record CourseCreateRequest(
     @Schema(description = "学科名称(如 数学/英语)")
     @JsonAlias({"subject", "subject_name"})
     String subjectName,
-    @Schema(description = "授课方式(ONLINE/OFFLINE/HYBRID)", allowableValues = {"ONLINE", "OFFLINE", "HYBRID"})
+    @Schema(description = "授课方式(取值来自字典 teaching_method,如 offline_small_class=线下小班、online_one_to_one=线上1对1)")
     @JsonAlias("teaching_method")
     String teachingMethod,
     @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})

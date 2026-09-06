@@ -1532,19 +1532,19 @@ function lessonStatusLabel(status?: string | null) {
   }
 }
 
+// 已排课/已调课为常态用中性展示;黄色只留给已停课,红色留给待补课
 function lessonStatusTagType(status?: string | null) {
   switch (status) {
     case 'completed':
       return 'success'
-    case 'rescheduled':
-      return 'primary'
     case 'makeup':
       return 'danger'
     case 'cancelled':
-      return 'info'
+      return 'warning'
+    case 'rescheduled':
     case 'scheduled':
     default:
-      return 'warning'
+      return 'info'
   }
 }
 

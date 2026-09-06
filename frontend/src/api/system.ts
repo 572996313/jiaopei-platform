@@ -90,6 +90,43 @@ export interface DictItemSummary {
   remark?: string | null
 }
 
+export interface DictOptionGroupSummary {
+  typeCode: string
+  typeName: string
+  items: DictItemSummary[]
+}
+
+export interface DictTypeCreatePayload {
+  typeCode: string
+  typeName: string
+  status?: string
+  remark?: string
+}
+
+export interface DictTypeUpdatePayload {
+  typeName: string
+  status: string
+  remark?: string
+}
+
+export interface DictItemCreatePayload {
+  typeId: string
+  itemCode: string
+  itemName: string
+  itemValue: string
+  sortNo?: number
+  status?: string
+  remark?: string
+}
+
+export interface DictItemUpdatePayload {
+  itemName: string
+  itemValue: string
+  sortNo?: number
+  status: string
+  remark?: string
+}
+
 export interface CurrentInstitutionProfile {
   id: string
   orgCode?: string | null
@@ -334,4 +371,40 @@ export function fetchSystemDictTypes() {
 
 export function fetchSystemDictItems(typeCode: string) {
   return requestGet<DictItemSummary[]>(`/system/dicts/types/${typeCode}/items`).then((items) => items.map(normalizeDictItem))
+}
+
+export function fetchDictOptions(typeCodes?: string[]) {
+  const query = typeCodes && typeCodes.length > 0
+    ? `?typeCodes=${typeCodes.map((code) => encodeURIComponent(code)).join(',')}`
+    : ''
+  return requestGet<DictOptionGroupSummary[]>(`/system/dicts/options${query}`).then((groups) =>
+    groups.map((group) => ({
+      ...group,
+      items: (group.items || []).map(normalizeDictItem),
+    })),
+  )
+}
+
+export function createSystemDictType(payload: DictTypeCreatePayload) {
+  return requestPost<DictTypeSummary>('/system/dicts/types', payload).then(normalizeDictType)
+}
+
+export function updateSystemDictType(id: string, payload: DictTypeUpdatePayload) {
+  return requestPut<DictTypeSummary>(`/system/dicts/types/${id}`, payload).then(normalizeDictType)
+}
+
+export function deleteSystemDictType(id: string) {
+  return requestDelete<void>(`/system/dicts/types/${id}`)
+}
+
+export function createSystemDictItem(payload: DictItemCreatePayload) {
+  return requestPost<DictItemSummary>('/system/dicts/items', payload).then(normalizeDictItem)
+}
+
+export function updateSystemDictItem(id: string, payload: DictItemUpdatePayload) {
+  return requestPut<DictItemSummary>(`/system/dicts/items/${id}`, payload).then(normalizeDictItem)
+}
+
+export function deleteSystemDictItem(id: string) {
+  return requestDelete<void>(`/system/dicts/items/${id}`)
 }

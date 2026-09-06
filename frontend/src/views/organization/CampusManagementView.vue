@@ -311,7 +311,7 @@
         </el-form-item>
         <el-form-item label="教室编码"><el-input v-model="classroomForm.classroomCode" /></el-form-item>
         <el-form-item label="教室名称"><el-input v-model="classroomForm.classroomName" /></el-form-item>
-        <el-form-item label="教室类型"><el-input v-model="classroomForm.roomType" placeholder="例如 normal / piano / lab" /></el-form-item>
+        <el-form-item label="教室类型"><DictSelect v-model="classroomForm.roomType" type-code="room_type" /></el-form-item>
         <el-form-item label="楼层"><el-input v-model="classroomForm.floorNo" /></el-form-item>
         <el-form-item label="座位数"><el-input-number v-model="classroomForm.seatCapacity" :min="0" style="width: 100%" /></el-form-item>
         <el-form-item label="状态">
@@ -334,7 +334,7 @@
         <el-form-item label="学期编码"><el-input v-model="termForm.termCode" /></el-form-item>
         <el-form-item label="学期名称"><el-input v-model="termForm.termName" /></el-form-item>
         <el-form-item label="学年"><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027" /></el-form-item>
-        <el-form-item label="学季"><el-input v-model="termForm.season" placeholder="例如 summer / autumn" /></el-form-item>
+        <el-form-item label="学季"><DictSelect v-model="termForm.season" type-code="term_season" /></el-form-item>
         <el-form-item label="开始日期">
           <el-date-picker v-model="termForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="选择开始日期" style="width: 100%" />
         </el-form-item>
@@ -425,7 +425,7 @@
         <el-form-item label="课程编码"><el-input v-model="courseForm.courseCode" /></el-form-item>
         <el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item>
         <el-form-item label="学科"><el-input v-model="courseForm.subjectName" /></el-form-item>
-        <el-form-item label="授课方式"><el-input v-model="courseForm.teachingMethod" placeholder="例如 offline_small_class" /></el-form-item>
+        <el-form-item label="授课方式"><DictSelect v-model="courseForm.teachingMethod" type-code="teaching_method" /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="courseForm.status">
             <el-option label="启用" value="active" />
@@ -445,7 +445,7 @@
       <el-form label-position="top" class="education-form">
         <el-form-item label="班型编码"><el-input v-model="classTypeForm.typeCode" /></el-form-item>
         <el-form-item label="班型名称"><el-input v-model="classTypeForm.typeName" /></el-form-item>
-        <el-form-item label="授课方式"><el-input v-model="classTypeForm.teachingMethod" placeholder="例如 offline_small_class" /></el-form-item>
+        <el-form-item label="授课方式"><DictSelect v-model="classTypeForm.teachingMethod" type-code="teaching_method" /></el-form-item>
         <el-form-item label="最少人数"><el-input-number v-model="classTypeForm.minStudents" :min="0" style="width: 100%" /></el-form-item>
         <el-form-item label="最多人数"><el-input-number v-model="classTypeForm.maxStudents" :min="0" style="width: 100%" /></el-form-item>
         <el-form-item label="状态">
@@ -510,9 +510,12 @@ import {
 } from '@/api/organization'
 import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
+import { useDictStore } from '@/stores/dict'
+import DictSelect from '@/components/DictSelect.vue'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
+const dictStore = useDictStore()
 const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
@@ -760,7 +763,8 @@ function statusTagType(value?: string | null) {
     case 'inactive':
       return 'info'
     default:
-      return ''
+      // 规划中等常态用中性色,不占警示位
+      return 'info'
   }
 }
 
@@ -779,6 +783,10 @@ function enabledStatusLabel(value?: string | null) {
 }
 
 function roomTypeLabel(value?: string | null) {
+  const dictLabel = dictStore.labelOf('room_type', value)
+  if (dictLabel) {
+    return dictLabel
+  }
   switch (value) {
     case 'normal':
       return '标准教室'
@@ -796,6 +804,10 @@ function roomTypeLabel(value?: string | null) {
 }
 
 function seasonLabel(value?: string | null) {
+  const dictLabel = dictStore.labelOf('term_season', value)
+  if (dictLabel) {
+    return dictLabel
+  }
   switch (value) {
     case 'spring':
       return '春季'
@@ -822,6 +834,10 @@ function slotTypeLabel(value?: string | null) {
 }
 
 function teachingMethodLabel(value?: string | null) {
+  const dictLabel = dictStore.labelOf('teaching_method', value)
+  if (dictLabel) {
+    return dictLabel
+  }
   switch (value) {
     case 'offline_small_class':
       return '线下小班'
@@ -1604,6 +1620,7 @@ watch(() => institutionStore.currentInstitutionId, async () => {
 })
 
 onMounted(() => {
+  void dictStore.ensureLoaded(['room_type', 'term_season', 'teaching_method']).catch(() => undefined)
   initializePage()
 })
 </script>

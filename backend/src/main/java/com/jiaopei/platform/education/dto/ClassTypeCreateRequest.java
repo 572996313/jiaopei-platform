@@ -23,7 +23,7 @@ public record ClassTypeCreateRequest(
     @JsonAlias({"name", "type_name"})
     @NotBlank(message = "typeName 不能为空")
     String typeName,
-    @Schema(description = "授课方式(ONLINE=线上,OFFLINE=线下,HYBRID=混合)", allowableValues = {"ONLINE", "OFFLINE", "HYBRID"})
+    @Schema(description = "授课方式(取值来自字典 teaching_method,如 offline_small_class=线下小班、online_one_to_one=线上1对1)")
     @JsonAlias("teaching_method")
     String teachingMethod,
     @Schema(description = "最小开班人数")

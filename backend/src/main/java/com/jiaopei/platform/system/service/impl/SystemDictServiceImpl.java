@@ -8,6 +8,7 @@ import com.jiaopei.platform.system.domain.SystemDictTypeEntity;
 import com.jiaopei.platform.system.dto.DictItemCreateRequest;
 import com.jiaopei.platform.system.dto.DictItemUpdateRequest;
 import com.jiaopei.platform.system.dto.DictItemView;
+import com.jiaopei.platform.system.dto.DictOptionGroupView;
 import com.jiaopei.platform.system.dto.DictTypeCreateRequest;
 import com.jiaopei.platform.system.dto.DictTypeUpdateRequest;
 import com.jiaopei.platform.system.dto.DictTypeView;
@@ -15,6 +16,8 @@ import com.jiaopei.platform.system.mapper.SystemDictItemMapper;
 import com.jiaopei.platform.system.mapper.SystemDictTypeMapper;
 import com.jiaopei.platform.system.service.SystemDictService;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +57,36 @@ public class SystemDictServiceImpl implements SystemDictService {
     }
 
     @Override
+    public List<DictOptionGroupView> listOptions(List<String> typeCodes) {
+        List<SystemDictTypeEntity> types = typeMapper.selectList(new LambdaQueryWrapper<SystemDictTypeEntity>()
+                .eq(SystemDictTypeEntity::getStatus, ACTIVE)
+                .orderByAsc(SystemDictTypeEntity::getTypeCode));
+        if (typeCodes != null && !typeCodes.isEmpty()) {
+            types = types.stream()
+                .filter(type -> typeCodes.contains(type.getTypeCode()))
+                .toList();
+        }
+        if (types.isEmpty()) {
+            return List.of();
+        }
+        List<Long> typeIds = types.stream().map(SystemDictTypeEntity::getId).toList();
+        Map<Long, List<DictItemView>> itemsByTypeId = itemMapper.selectList(new LambdaQueryWrapper<SystemDictItemEntity>()
+                .in(SystemDictItemEntity::getTypeId, typeIds)
+                .eq(SystemDictItemEntity::getStatus, ACTIVE)
+                .orderByAsc(SystemDictItemEntity::getSortNo)
+                .orderByAsc(SystemDictItemEntity::getItemCode))
+            .stream()
+            .map(this::toItemView)
+            .collect(Collectors.groupingBy(DictItemView::typeId));
+        return types.stream()
+            .map(type -> new DictOptionGroupView(
+                type.getTypeCode(),
+                type.getTypeName(),
+                itemsByTypeId.getOrDefault(type.getId(), List.of())))
+            .toList();
+    }
+
+    @Override
     @Transactional
     public DictTypeView createType(DictTypeCreateRequest request) {
         SystemDictTypeEntity entity = new SystemDictTypeEntity();
@@ -79,6 +112,18 @@ public class SystemDictServiceImpl implements SystemDictService {
         entity.setRemark(request.remark());
         typeMapper.updateById(entity);
         return toTypeView(entity);
+    }
+
+    @Override
+    @Transactional
+    public void deleteType(Long id) {
+        requireType(id);
+        Long itemCount = itemMapper.selectCount(new LambdaQueryWrapper<SystemDictItemEntity>()
+            .eq(SystemDictItemEntity::getTypeId, id));
+        if (itemCount != null && itemCount > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "字典类型下仍存在条目，请先删除条目：" + id);
+        }
+        typeMapper.deleteById(id);
     }
 
     @Override

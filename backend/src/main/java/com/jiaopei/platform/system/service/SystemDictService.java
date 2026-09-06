@@ -3,6 +3,7 @@ package com.jiaopei.platform.system.service;
 import com.jiaopei.platform.system.dto.DictItemCreateRequest;
 import com.jiaopei.platform.system.dto.DictItemUpdateRequest;
 import com.jiaopei.platform.system.dto.DictItemView;
+import com.jiaopei.platform.system.dto.DictOptionGroupView;
 import com.jiaopei.platform.system.dto.DictTypeCreateRequest;
 import com.jiaopei.platform.system.dto.DictTypeUpdateRequest;
 import com.jiaopei.platform.system.dto.DictTypeView;
@@ -14,9 +15,13 @@ public interface SystemDictService {
 
     List<DictItemView> listItems(String typeCode);
 
+    List<DictOptionGroupView> listOptions(List<String> typeCodes);
+
     DictTypeView createType(DictTypeCreateRequest request);
 
     DictTypeView updateType(Long id, DictTypeUpdateRequest request);
+
+    void deleteType(Long id);
 
     DictItemView createItem(DictItemCreateRequest request);
 

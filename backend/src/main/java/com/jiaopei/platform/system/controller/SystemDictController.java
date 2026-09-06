@@ -5,12 +5,15 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.system.dto.DictItemCreateRequest;
 import com.jiaopei.platform.system.dto.DictItemUpdateRequest;
 import com.jiaopei.platform.system.dto.DictItemView;
+import com.jiaopei.platform.system.dto.DictOptionGroupView;
 import com.jiaopei.platform.system.dto.DictTypeCreateRequest;
 import com.jiaopei.platform.system.dto.DictTypeUpdateRequest;
 import com.jiaopei.platform.system.dto.DictTypeView;
 import com.jiaopei.platform.system.service.SystemDictService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -44,6 +48,18 @@ public class SystemDictController {
         return ApiResponse.success("字典条目列表已加载", systemDictService.listItems(typeCode));
     }
 
+    @Operation(summary = "字典选项", description = "供业务表单下拉使用,仅需登录,不要求字典管理权限;只返回启用类型的启用条目,typeCodes 为空时返回全部启用类型")
+    @GetMapping("/options")
+    public ApiResponse<List<DictOptionGroupView>> options(@RequestParam(required = false) String typeCodes) {
+        List<String> codes = typeCodes == null || typeCodes.isBlank()
+            ? List.of()
+            : Arrays.stream(typeCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .toList();
+        return ApiResponse.success("字典选项已加载", systemDictService.listOptions(codes));
+    }
+
     @PostMapping("/types")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> createType(@Valid @RequestBody DictTypeCreateRequest request) {
@@ -54,6 +70,13 @@ public class SystemDictController {
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> updateType(@PathVariable Long id, @Valid @RequestBody DictTypeUpdateRequest request) {
         return ApiResponse.success("字典类型已更新", systemDictService.updateType(id, request));
+    }
+
+    @DeleteMapping("/types/{id}")
+    @RequiresPermission("system:dict:manage")
+    public ApiResponse<Void> deleteType(@PathVariable Long id) {
+        systemDictService.deleteType(id);
+        return ApiResponse.success("字典类型已删除", null);
     }
 
     @PostMapping("/items")

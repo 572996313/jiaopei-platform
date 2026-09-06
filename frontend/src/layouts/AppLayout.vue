@@ -17,6 +17,7 @@
               class="nav-item"
               :class="{ 'is-active': isNavItemActive(item) }"
             >
+              <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
               <span class="nav-item-label">{{ item.label }}</span>
             </RouterLink>
           </div>
@@ -85,9 +86,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown } from '@element-plus/icons-vue'
+import {
+  AlarmClock,
+  ArrowDown,
+  Avatar,
+  Calendar,
+  OfficeBuilding,
+  Reading,
+  Setting,
+  User,
+} from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useInstitutionStore } from '@/stores/institution'
 
@@ -105,6 +115,7 @@ interface SidebarDefinition {
   to: string
   label: string
   title: string
+  icon: Component
   group: 'workbench' | 'daily' | 'archive' | 'class' | 'analysis' | 'system'
   hint?: string
   prefixes: string[]
@@ -119,6 +130,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/dashboard',
     label: '今日教务',
     title: '今日教务工作台',
+    icon: Calendar,
     group: 'workbench',
     hint: '先处理今日待办',
     prefixes: ['/dashboard'],
@@ -129,6 +141,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/schedule',
     label: '排课与执行',
     title: '排课与执行中心',
+    icon: AlarmClock,
     group: 'daily',
     hint: '排课、点名、结课',
     prefixes: ['/schedule'],
@@ -139,6 +152,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/students',
     label: '报名与入班',
     title: '报名与入班',
+    icon: User,
     group: 'daily',
     hint: '处理新增与报名关系',
     prefixes: ['/students'],
@@ -149,6 +163,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/classes',
     label: '班级学员',
     title: '班级学员',
+    icon: Reading,
     group: 'class',
     hint: '调整在班关系',
     prefixes: ['/classes'],
@@ -159,6 +174,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/campus',
     label: '机构与教学资源',
     title: '机构与教学资源',
+    icon: OfficeBuilding,
     group: 'archive',
     hint: '校区、教室、学期、时间段',
     prefixes: ['/campus'],
@@ -169,6 +185,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/teachers',
     label: '教师档案',
     title: '教师档案',
+    icon: Avatar,
     group: 'archive',
     hint: '教师基础档案',
     prefixes: ['/teachers'],
@@ -179,6 +196,7 @@ const sidebarDefinitions: SidebarDefinition[] = [
     to: '/system/users',
     label: '系统设置',
     title: '系统设置',
+    icon: Setting,
     group: 'system',
     hint: '用户、角色、权限、字典',
     prefixes: ['/system'],

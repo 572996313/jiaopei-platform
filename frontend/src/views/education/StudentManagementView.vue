@@ -541,7 +541,8 @@ function studentStatusTagType(status?: string | null) {
       return 'success'
     case 'studying':
     default:
-      return ''
+      // 在读为常态,用中性点+文字展示
+      return 'info'
   }
 }
 

@@ -69,14 +69,20 @@ body {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
+  grid-template-columns: 220px 1fr;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-sidebar {
-  padding: 28px 20px;
+  padding: 24px 20px;
+  overflow-y: auto;
   color: #f8fafc;
   background: linear-gradient(180deg, #14213d 0%, #223a5e 100%);
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .brand-block {
@@ -125,12 +131,19 @@ body {
 
 .nav-item {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
+}
+
+.nav-item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -160,18 +173,31 @@ body {
   background: var(--brand-gold);
 }
 
+/* 超宽屏下内容限宽居中,标题/内容保持同一轴线 */
+.app-main > * {
+  width: 100%;
+  max-width: 1680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .app-main {
   display: flex;
   flex-direction: column;
-  padding: 28px;
+  min-width: 0;
+  height: 100vh;
+  padding: 20px 28px 24px;
+  overflow: hidden;
 }
 
 .app-alert {
-  margin-bottom: 18px;
+  flex-shrink: 0;
+  margin-bottom: 16px;
 }
 
 .app-header {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
@@ -189,6 +215,9 @@ body {
 
 .app-content {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .header-actions {
@@ -277,8 +306,11 @@ body {
   gap: 18px;
 }
 
-/* 页面统一工具栏:左侧筛选 + 右侧操作按钮 */
+/* 页面统一工具栏:左侧筛选 + 右侧操作按钮;吸顶常驻,方便随时改筛选 */
 .page-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -287,9 +319,8 @@ body {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: var(--surface);
+  background: #fff;
   box-shadow: var(--shadow-card);
-  backdrop-filter: blur(8px);
 }
 
 .page-toolbar-filters {
@@ -702,11 +733,21 @@ body {
   margin-bottom: 12px;
 }
 
-/* Element Plus 细节:表头降噪、弹窗圆角与整体一致 */
+/* Element Plus 细节:表格紧凑密度、表头降噪、弹窗圆角与整体一致 */
 .el-table {
   --el-table-border-color: #eef1f6;
   --el-table-header-bg-color: #f7f9fc;
   --el-table-header-text-color: #5c6b82;
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell,
+.el-table td.el-table__cell {
+  padding: 5px 0;
+}
+
+.el-table .cell {
+  padding: 0 10px;
 }
 
 .el-table th.el-table__cell {
