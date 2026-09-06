@@ -32,3 +32,5 @@ docker/data/
 docker/backups/
 docker/deploy.log
 .claude/settings.local.json
+/.claude/
+/.zcode/

@@ -1,53 +1,12 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">学员 · 报名</div>
-        <h2 class="panel-headline">报名与入班</h2>
-        <p class="panel-subtitle">
-          当前页面先承接报名主链路。先选机构范围，再用正式 enrollment 接口完成查询与新增，作为后续入班与排课执行的前置动作。
-        </p>
-      </div>
-
-      <div class="education-hero-actions">
-        <el-button @click="refreshAll" :loading="lookupLoading || tableLoading">刷新数据</el-button>
-        <el-button type="primary" :disabled="!institutionId" @click="openStudentDialog('create')">新增学员</el-button>
-        <el-button type="primary" @click="openDialog">新增报名</el-button>
-        <el-button @click="openParentDialog">新增家长联系人</el-button>
-      </div>
-    </div>
-
     <article v-if="pageError" class="panel-card">
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="dashboard-grid education-stat-grid">
-      <article class="stat-card">
-        <div class="stat-label">机构数</div>
-        <div class="stat-value">{{ institutions.length }}</div>
-        <div class="stat-hint">数据来自机构主数据</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">学员数</div>
-        <div class="stat-value">{{ students.length }}</div>
-        <div class="stat-hint">按当前机构/校区范围加载</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">班级数</div>
-        <div class="stat-value">{{ classes.length }}</div>
-        <div class="stat-hint">按当前机构/校区/学期范围加载</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">报名记录</div>
-        <div class="stat-value">{{ records.length }}</div>
-        <div class="stat-hint">数据来自报名记录接口</div>
-      </article>
-    </div>
-
-    <article class="panel-card education-panel">
-      <div class="panel-title">当前范围</div>
-      <div class="education-toolbar" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="handleCampusChange">
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -55,7 +14,7 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="termId" placeholder="选择学期" clearable filterable @change="handleTermChange">
+        <el-select v-model="termId" placeholder="筛选学期" clearable filterable @change="handleTermChange">
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -80,17 +39,42 @@
           />
         </el-select>
       </div>
-      <div class="education-context-text">
-        机构、校区、班级、学员为报名与入班所需范围；学期为可选筛选条件，不选学期不影响报名与入班操作。
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+        </el-button>
+        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading" @click="refreshAll" />
       </div>
-    </article>
+    </div>
+
+    <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
+      <article class="stat-card">
+        <div class="stat-label">机构数</div>
+        <div class="stat-value">{{ institutions.length }}</div>
+        <div class="stat-hint">数据来自机构主数据</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">学员数</div>
+        <div class="stat-value">{{ students.length }}</div>
+        <div class="stat-hint">按当前机构/校区范围加载</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">班级数</div>
+        <div class="stat-value">{{ classes.length }}</div>
+        <div class="stat-hint">按当前机构/校区/学期范围加载</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">报名记录</div>
+        <div class="stat-value">{{ records.length }}</div>
+        <div class="stat-hint">数据来自报名记录接口</div>
+      </article>
+    </div>
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">学员档案</div>
-        <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，校区：{{ formatCampus(campusId) }}。可在此新增、编辑、删除学员主档。
-        </div>
+        <div class="panel-title">学员档案<span class="panel-count">共 {{ students.length }} 条</span></div>
+        <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
       </div>
 
       <el-table :data="students" border v-loading="tableLoading">
@@ -127,10 +111,8 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">报名记录</div>
-        <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，班级：{{ formatClass(classId) }}，学员：{{ formatStudent(studentId) }}
-        </div>
+        <div class="panel-title">报名记录<span class="panel-count">共 {{ records.length }} 条</span></div>
+        <el-button type="primary" @click="openDialog">新增报名</el-button>
       </div>
 
       <el-table :data="records" border v-loading="tableLoading">
@@ -166,11 +148,8 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">家长联系人</div>
-        <div class="education-context-text">
-          当前学员：{{ formatStudent(studentId) }}，当前机构：{{ formatInstitution(institutionId) }}。
-          主联系人会兼容同步到学员旧字段，方便前后链路逐步过渡。
-        </div>
+        <div class="panel-title">家长联系人<span class="panel-count">共 {{ studentParents.length }} 条</span></div>
+        <el-button type="primary" @click="openParentDialog">新增家长联系人</el-button>
       </div>
 
       <el-table :data="studentParents" border v-loading="tableLoading">
@@ -211,11 +190,6 @@
     </article>
 
     <el-dialog v-model="studentDialogVisible" :title="studentDialogMode === 'create' ? '新增学员' : '编辑学员'" width="560px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>校区：</strong>{{ formatCampus(studentForm.campusId) }}</div>
-      </div>
-
       <el-alert v-if="studentFormError" :title="studentFormError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
@@ -286,15 +260,30 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="dialogVisible" title="新增报名" width="540px">      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
-        <div><strong>学员：</strong>{{ formatStudent(studentId) }}</div>
-      </div>
-
+    <el-dialog v-model="dialogVisible" title="新增报名" width="540px">
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="报名班级" required>
+          <el-select v-model="form.classId" placeholder="选择报名班级" filterable>
+            <el-option
+              v-for="item in classes"
+              :key="item.id"
+              :label="item.className || item.classCode || `班级 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="报名学员" required>
+          <el-select v-model="form.studentId" placeholder="选择报名学员" filterable>
+            <el-option
+              v-for="item in students"
+              :key="item.id"
+              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="报名编号">
           <el-input v-model="form.enrollmentNo" placeholder="例如 ENR-20260608-001" />
         </el-form-item>
@@ -334,11 +323,6 @@
     </el-dialog>
 
     <el-dialog v-model="parentDialogVisible" title="新增家长联系人" width="560px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>学员：</strong>{{ formatStudent(studentId) }}</div>
-      </div>
-
       <el-alert
         v-if="parentFormError"
         :title="parentFormError"
@@ -349,6 +333,16 @@
       />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="所属学员" required>
+          <el-select v-model="parentForm.studentId" placeholder="选择学员" filterable>
+            <el-option
+              v-for="item in students"
+              :key="item.id"
+              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="联系人姓名">
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
         </el-form-item>
@@ -393,6 +387,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createEnrollment,
@@ -407,15 +403,18 @@ import {
   type StudentSummary,
 } from '@/api/education'
 import { useEducationScope } from '@/composables/useEducationScope'
+import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
 
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const { campusId, termId } = storeToRefs(scopeStore)
 const { institutions, institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
 
-const campusId = ref<string | null>(null)
-const termId = ref<string | null>(null)
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
+
+const statsVisible = ref(false)
 
 const records = ref<EnrollmentRecord[]>([])
 const studentParents = ref<StudentParentRecord[]>([])
@@ -449,6 +448,8 @@ const studentForm = reactive({
 })
 
 const form = reactive({
+  classId: '' as string | null,
+  studentId: '' as string | null,
   enrollmentNo: '',
   status: 'submitted',
   channel: 'front_desk',
@@ -457,6 +458,7 @@ const form = reactive({
 })
 
 const parentForm = reactive({
+  studentId: '' as string | null,
   parentName: '',
   relationType: 'mother',
   parentPhone: '',
@@ -467,18 +469,8 @@ const parentForm = reactive({
   remark: '',
 })
 
-const institutionMap = computed(() => {
-  return new Map(
-    institutions.value.map((item) => [item.id, item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`]),
-  )
-})
-
 const classMap = computed(() => {
   return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
-})
-
-const campusMap = computed(() => {
-  return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
 })
 
 const studentMap = computed(() => {
@@ -500,25 +492,11 @@ function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-function formatInstitution(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return institutionMap.value.get(id) || `机构 #${id}`
-}
-
 function formatClass(id?: string | null) {
   if (!id) {
     return '未选择'
   }
   return classMap.value.get(id) || `班级 #${id}`
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return campusMap.value.get(id) || `校区 #${id}`
 }
 
 function formatStudent(id?: string | null) {
@@ -641,20 +619,9 @@ function parentRelationLabel(value?: string | null) {
   }
 }
 
-function validateContext() {
-  if (!institutionId.value) {
-    return '请先选择机构范围'
-  }
-  if (!classId.value) {
-    return '请先选择报名班级'
-  }
-  if (!studentId.value) {
-    return '请先选择报名学员'
-  }
-  return ''
-}
-
 function resetForm() {
+  form.classId = classId.value
+  form.studentId = studentId.value
   form.enrollmentNo = ''
   form.status = 'submitted'
   form.channel = 'front_desk'
@@ -664,6 +631,7 @@ function resetForm() {
 }
 
 function resetParentForm() {
+  parentForm.studentId = studentId.value
   parentForm.parentName = ''
   parentForm.relationType = 'mother'
   parentForm.parentPhone = ''
@@ -690,10 +658,6 @@ function resetStudentForm() {
 }
 
 function openStudentDialog(mode: 'create' | 'edit', row?: StudentSummary) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   studentDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingStudentId.value = row.id
@@ -861,32 +825,26 @@ async function handleTermChange() {
 }
 
 function openDialog() {
-  const contextError = validateContext()
-  if (contextError) {
-    ElMessage.warning(contextError)
-    return
-  }
   resetForm()
   dialogVisible.value = true
 }
 
 function openParentDialog() {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
-  if (!studentId.value) {
-    ElMessage.warning('请先选择学员')
-    return
-  }
   resetParentForm()
   parentDialogVisible.value = true
 }
 
 async function submitEnrollment() {
-  const contextError = validateContext()
-  if (contextError) {
-    formError.value = contextError
+  if (!institutionId.value) {
+    formError.value = '请先选择机构范围'
+    return
+  }
+  if (!form.classId) {
+    formError.value = '请选择报名班级'
+    return
+  }
+  if (!form.studentId) {
+    formError.value = '请选择报名学员'
     return
   }
 
@@ -899,9 +857,9 @@ async function submitEnrollment() {
   formError.value = ''
   try {
     await createEnrollment({
-      institutionId: institutionId.value as string,
-      classId: classId.value as string,
-      studentId: studentId.value as string,
+      institutionId: institutionId.value,
+      classId: form.classId,
+      studentId: form.studentId,
       enrollmentNo: form.enrollmentNo.trim(),
       status: form.status,
       channel: trimToUndefined(form.channel),
@@ -924,8 +882,8 @@ async function submitStudentParent() {
     parentFormError.value = '请先选择机构范围'
     return
   }
-  if (!studentId.value) {
-    parentFormError.value = '请先选择学员'
+  if (!parentForm.studentId) {
+    parentFormError.value = '请选择学员'
     return
   }
   if (!trimToUndefined(parentForm.parentName)) {
@@ -938,7 +896,7 @@ async function submitStudentParent() {
   try {
     await createStudentParent({
       institutionId: institutionId.value,
-      studentId: studentId.value,
+      studentId: parentForm.studentId,
       parentName: parentForm.parentName.trim(),
       relationType: trimToUndefined(parentForm.relationType),
       parentPhone: trimToUndefined(parentForm.parentPhone),

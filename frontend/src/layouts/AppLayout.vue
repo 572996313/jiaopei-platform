@@ -41,10 +41,7 @@
       />
 
       <header class="app-header">
-        <div>
-          <div class="page-kicker">线下班课教务中台</div>
-          <h1 class="page-title">{{ currentTitle }}</h1>
-        </div>
+        <h1 class="page-title">{{ currentTitle }}</h1>
         <div class="header-actions">
           <div class="header-institution-block">
             <el-tag v-if="institutionStore.isSingleInstitution" type="info" effect="plain" size="large">

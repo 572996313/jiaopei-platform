@@ -1,25 +1,30 @@
 <template>
   <section class="campus-page">
-    <div class="campus-hero">
-      <div>
-        <div class="page-kicker">档案 · 教学资源</div>
-        <h2 class="panel-headline">机构与教学资源</h2>
-        <p class="panel-subtitle">
-          当前入口统一承接机构、校区、教室、学期和时间段，作为排课、成班和课次执行的基础档案中心。
-        </p>
-      </div>
-
-      <div class="campus-hero-actions">
-        <el-button @click="refreshAll" :loading="lookupLoading">刷新资源</el-button>
-        <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
-      </div>
-    </div>
-
     <article v-if="pageError" class="panel-card">
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="dashboard-grid campus-stat-grid">
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="loadClassrooms">
+          <el-option
+            v-for="item in campuses"
+            :key="item.id"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+        </el-button>
+        <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
+      </div>
+    </div>
+
+    <div v-show="statsVisible" class="dashboard-grid campus-stat-grid">
       <article class="stat-card">
         <div class="stat-label">机构数量</div>
         <div class="stat-value">{{ institutionStore.institutions.length }}</div>
@@ -41,28 +46,11 @@
       </article>
     </div>
 
-    <article class="panel-card campus-panel">
-      <div class="panel-title">当前范围</div>
-      <div class="education-toolbar education-toolbar-compact" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="loadClassrooms">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-      <div class="education-context-text">
-        机构切换后会同步刷新校区、教室、学期和时间段。当前沿用真实后端的 stub token 与字符串 ID 方案。
-      </div>
-    </article>
-
     <div class="resource-grid">
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">校区列表</div>
+            <div class="panel-title">校区列表<span class="panel-count">共 {{ campuses.length }} 条</span></div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
           <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
@@ -93,7 +81,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">教室列表</div>
+            <div class="panel-title">教室列表<span class="panel-count">共 {{ classrooms.length }} 条</span></div>
             <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
           </div>
           <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
@@ -126,7 +114,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">学期列表</div>
+            <div class="panel-title">学期列表<span class="panel-count">共 {{ terms.length }} 条</span></div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
           <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
@@ -158,7 +146,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">时间段列表</div>
+            <div class="panel-title">时间段列表<span class="panel-count">共 {{ timeSlots.length }} 条</span></div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
           <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
@@ -193,7 +181,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">课程分类</div>
+            <div class="panel-title">课程分类<span class="panel-count">共 {{ courseCategories.length }} 条</span></div>
             <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
           </div>
           <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
@@ -220,7 +208,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">课程列表</div>
+            <div class="panel-title">课程列表<span class="panel-count">共 {{ courses.length }} 条</span></div>
             <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
           </div>
           <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
@@ -254,7 +242,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">班型列表</div>
+            <div class="panel-title">班型列表<span class="panel-count">共 {{ classTypes.length }} 条</span></div>
             <div class="education-context-text">后续用于成班规则和班级主档承接</div>
           </div>
           <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
@@ -509,6 +497,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createClassType,
@@ -550,9 +540,12 @@ import {
   type TermSummary,
   type TimeSlotSummary,
 } from '@/api/organization'
+import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
 
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
@@ -562,7 +555,7 @@ const courseCategories = ref<CourseCategoryRecord[]>([])
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
 
-const campusId = ref<string | null>(null)
+const statsVisible = ref(false)
 
 const pageError = ref('')
 const lookupLoading = ref(false)
@@ -1030,10 +1023,6 @@ async function loadResources() {
 }
 
 function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   campusDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingCampusId.value = row.id
@@ -1054,10 +1043,6 @@ function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
 }
 
 function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
-  if (!campusId.value) {
-    ElMessage.warning('请先选择校区')
-    return
-  }
   classroomDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingClassroomId.value = row.id
@@ -1077,10 +1062,6 @@ function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
 }
 
 function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   termDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingTermId.value = row.id
@@ -1100,10 +1081,6 @@ function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
 }
 
 function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   timeSlotDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingTimeSlotId.value = row.id
@@ -1124,10 +1101,6 @@ function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
 }
 
 function openCourseCategoryDialog(mode: 'create' | 'edit', row?: CourseCategoryRecord) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   courseCategoryDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingCourseCategoryId.value = row.id
@@ -1145,10 +1118,6 @@ function openCourseCategoryDialog(mode: 'create' | 'edit', row?: CourseCategoryR
 }
 
 function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   courseDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingCourseId.value = row.id
@@ -1168,10 +1137,6 @@ function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
 }
 
 function openClassTypeDialog(mode: 'create' | 'edit', row?: ClassTypeRecord) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
   classTypeDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingClassTypeId.value = row.id

@@ -1,28 +1,69 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">日常教务中心</div>
-        <h2 class="panel-headline">日常教务中心</h2>
-        <p class="panel-subtitle">
-          围绕当日课次执行，把排课、点名、结课和变动提醒收敛到同一入口。先处理待点名，再回查课表与排课明细。
-        </p>
-      </div>
+    <article v-if="pageError" class="panel-card">
+      <el-alert :title="pageError" type="error" show-icon :closable="false" />
+    </article>
 
-      <div class="education-hero-actions">
-        <el-button @click="refreshAll" :loading="lookupLoading || lessonsLoading || dayLoading || weekLoading">
-          刷新数据
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
+          <el-option
+            v-for="item in campuses"
+            :key="item.id"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select v-model="termId" placeholder="筛选学期" clearable filterable @change="handleTermChange">
+          <el-option
+            v-for="item in terms"
+            :key="item.id"
+            :label="item.termName || item.termCode || `学期 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select v-model="classId" placeholder="筛选班级" clearable filterable @change="refreshAll">
+          <el-option
+            v-for="item in classes"
+            :key="item.id"
+            :label="item.className || item.classCode || `班级 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="lessonDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="日课表日期"
+          @change="refreshLessonsAndDay"
+        />
+        <el-date-picker
+          v-model="weekStart"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="周开始"
+          @change="handleWeekStartChange"
+        />
+        <el-date-picker
+          v-model="weekEnd"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="周结束"
+          @change="refreshWeekTimetable"
+        />
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
         </el-button>
+        <el-button :icon="Refresh" circle :loading="lookupLoading || lessonsLoading || dayLoading || weekLoading" @click="refreshAll" />
         <el-button @click="jumpToToday">回到今天</el-button>
         <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
       </div>
     </div>
 
-    <article v-if="pageError" class="panel-card">
-      <el-alert :title="pageError" type="error" show-icon :closable="false" />
-    </article>
-
-    <div class="dashboard-grid education-stat-grid">
+    <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">今日课次</div>
         <div class="stat-value">{{ dayLessons.length }}</div>
@@ -49,66 +90,6 @@
         <div class="stat-hint">待补课、备注、取消和点名提示都会收敛在这里</div>
       </article>
     </div>
-
-    <article class="panel-card education-panel">
-      <div class="panel-title">当前范围</div>
-      <div class="education-toolbar" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="handleCampusChange">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="termId" placeholder="选择学期" clearable filterable @change="handleTermChange">
-          <el-option
-            v-for="item in terms"
-            :key="item.id"
-            :label="item.termName || item.termCode || `学期 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="classId" placeholder="筛选列表班级" clearable filterable @change="refreshAll">
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-date-picker
-          v-model="lessonDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="列表/日课表日期"
-          @change="refreshLessonsAndDay"
-        />
-        <el-date-picker
-          v-model="weekStart"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="周开始"
-          @change="handleWeekStartChange"
-        />
-        <el-date-picker
-          v-model="weekEnd"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="周结束"
-          @change="refreshWeekTimetable"
-        />
-      </div>
-      <div class="education-context-text">
-        创建或编辑排课前会先做冲突检查；班级、教师、教室冲突会阻止保存。当前支持按日期、班级回查课次，并从排课列表或日课表直接进入点名。
-      </div>
-      <div class="education-context-text">
-        当前范围共 {{ classes.length }} 个班级、{{ teachers.length }} 位教师、{{ lessons.length }} 条列表排课记录；今日点名覆盖 {{ dailyMarkedTotal }} / {{ dailyExpectedTotal }}。
-      </div>
-      <div class="education-context-text">
-        待补课聚合 {{ pendingMakeupLessons.length }} 节，统一标记为“已停课，待安排补课”，可直接进入补课动作。
-      </div>
-    </article>
 
     <article class="panel-card education-panel">
       <div class="daily-center-head">
@@ -263,9 +244,9 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="排课管理" name="management">
           <div class="education-table-head">
-            <div class="panel-title">排课列表</div>
+            <div class="panel-title">排课列表<span class="panel-count">共 {{ lessons.length }} 条</span></div>
             <div class="education-context-text">
-              当前机构：{{ formatInstitution(institutionId) }}，校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}
+              校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{ lessonDate || '全部' }}
             </div>
           </div>
 
@@ -484,12 +465,6 @@
     </article>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" destroy-on-close>
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(form.institutionId) }}</div>
-        <div><strong>校区：</strong>{{ formatCampus(form.campusId) }}</div>
-        <div><strong>学期：</strong>{{ formatTerm(form.termId) }}</div>
-      </div>
-
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-alert
@@ -524,7 +499,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="校区">
-            <el-select v-model="form.campusId" disabled>
+            <el-select v-model="form.campusId" placeholder="选择校区" filterable @change="handleFormCampusChange">
               <el-option
                 v-for="item in campuses"
                 :key="item.id"
@@ -534,7 +509,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="学期">
-            <el-select v-model="form.termId" disabled>
+            <el-select v-model="form.termId" placeholder="选择学期" filterable>
               <el-option
                 v-for="item in terms"
                 :key="item.id"
@@ -542,7 +517,6 @@
                 :value="item.id"
               />
             </el-select>
-            <div class="education-form-tip">排课必须关联学期，请先在上方范围栏选择学期。</div>
           </el-form-item>
           <el-form-item label="班级">
             <el-select v-model="form.classId" placeholder="选择班级" filterable>
@@ -885,6 +859,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
@@ -908,6 +884,7 @@ import {
 } from '@/api/education'
 import { fetchClassrooms, fetchTimeSlots, type ClassroomSummary, type TimeSlotSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
+import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
 
 interface ScheduleReminderItem {
@@ -918,6 +895,8 @@ interface ScheduleReminderItem {
 }
 
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const { campusId, termId } = storeToRefs(scopeStore)
 const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
 const route = useRoute()
 
@@ -930,14 +909,14 @@ const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
 const timeSlots = ref<TimeSlotSummary[]>([])
 
-const campusId = ref<string | null>(null)
-const termId = ref<string | null>(null)
 const classId = ref<string | null>(null)
 const lessonDate = ref(todayValue())
 const weekStart = ref(startOfWeekValue())
 const weekEnd = ref(endOfWeekValue(weekStart.value))
 const activeTab = ref('management')
 const timetableTab = ref('day')
+
+const statsVisible = ref(false)
 
 const lessons = ref<ScheduleLessonRecord[]>([])
 const dayLessons = ref<ScheduleLessonRecord[]>([])
@@ -1031,10 +1010,6 @@ const institutionMap = computed(() => {
 
 const campusMap = computed(() => {
   return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
-})
-
-const termMap = computed(() => {
-  return new Map(terms.value.map((item) => [item.id, item.termName || item.termCode || `学期 #${item.id}`]))
 })
 
 const classMap = computed(() => {
@@ -1218,14 +1193,6 @@ const scheduleChangeReminders = computed<ScheduleReminderItem[]>(() => {
   }
 
   return items
-})
-
-const dailyExpectedTotal = computed(() => {
-  return dayLessons.value.reduce((total, lesson) => total + attendanceExpectedCount(lesson), 0)
-})
-
-const dailyMarkedTotal = computed(() => {
-  return dayLessons.value.reduce((total, lesson) => total + attendanceMarkedCount(lesson), 0)
 })
 
 const attendanceSummary = computed(() => {
@@ -1494,13 +1461,6 @@ function formatCampus(id?: string | null) {
   return campusMap.value.get(id) || `校区 #${id}`
 }
 
-function formatTerm(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return termMap.value.get(id) || `学期 #${id}`
-}
-
 function formatClass(id?: string | null) {
   if (!id) {
     return '未选择'
@@ -1694,17 +1654,22 @@ function populateExecutionForm(action: ExecutionAction, lesson: ScheduleLessonRe
   executionConflictResult.value = null
 }
 
-function validateDialogContext() {
+// 弹窗内切换校区后，教师与教室选项按新校区重拉，避免出现与所选校区不符的选项
+async function handleFormCampusChange() {
+  form.classroomId = ''
   if (!institutionId.value) {
-    return '请先选择机构范围'
+    return
   }
-  if (!campusId.value) {
-    return '请先选择校区范围'
+  try {
+    const [teacherList, classroomList] = await Promise.all([
+      fetchTeachers({ institutionId: institutionId.value, campusId: form.campusId || null }),
+      fetchClassrooms(form.campusId || null),
+    ])
+    teachers.value = teacherList
+    classrooms.value = classroomList
+  } catch (error) {
+    ElMessage.warning(toMessage(error, '按校区刷新教师与教室选项失败'))
   }
-  if (!termId.value) {
-    return '请先选择学期范围'
-  }
-  return ''
 }
 
 function validateForm() {
@@ -2020,12 +1985,6 @@ async function jumpToToday() {
 }
 
 function openCreateDialog() {
-  const contextError = validateDialogContext()
-  if (contextError) {
-    ElMessage.warning(contextError)
-    return
-  }
-
   resetForm()
   dialogMode.value = 'create'
   dialogVisible.value = true

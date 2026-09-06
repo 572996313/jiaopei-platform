@@ -1,16 +1,11 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">工作台 · 今日</div>
-        <h2 class="panel-headline">今日教务工作台</h2>
-        <p class="panel-subtitle">
-          先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。
-        </p>
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters">
+        <span class="education-context-text">先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。</span>
       </div>
-
-      <div class="education-hero-actions">
-        <el-button :loading="boardLoading" @click="refreshBoard">刷新工作台</el-button>
+      <div class="page-toolbar-actions">
+        <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
         <el-button type="primary" @click="goToSchedule()">进入日常教务中心</el-button>
       </div>
     </div>
@@ -184,6 +179,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { Refresh } from '@element-plus/icons-vue'
 import { fetchDayTimetable, fetchLessonAttendancePage, fetchTeachers, type AttendanceLessonPage, type ScheduleLessonRecord, type TeacherSummary } from '@/api/education'
 import { fetchClassrooms, type ClassroomSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'

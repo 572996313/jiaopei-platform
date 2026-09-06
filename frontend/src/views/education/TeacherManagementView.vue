@@ -1,25 +1,31 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">档案 · 教师</div>
-        <h2 class="panel-headline">教师档案</h2>
-        <p class="panel-subtitle">
-          当前页面承接教师档案列表与新增。真实联机构、校区与教师接口，先做基础档案，再为后续授课能力与成班规则差异预留空间。
-        </p>
-      </div>
-
-      <div class="education-hero-actions">
-        <el-button @click="refreshAll" :loading="lookupLoading || tableLoading">刷新数据</el-button>
-        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
-      </div>
-    </div>
-
     <article v-if="pageError" class="panel-card">
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="dashboard-grid education-stat-grid">
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="loadTeachers">
+          <el-option
+            v-for="item in campuses"
+            :key="item.id"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+        </el-button>
+        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading" @click="refreshAll" />
+        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+      </div>
+    </div>
+
+    <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">机构数</div>
         <div class="stat-value">{{ institutionStore.institutions.length }}</div>
@@ -43,22 +49,8 @@
     </div>
 
     <article class="panel-card education-panel">
-      <div class="panel-title">当前范围</div>
-      <div class="education-toolbar education-toolbar-compact" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="loadTeachers">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-    </article>
-
-    <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">教师列表</div>
+        <div class="panel-title">教师列表<span class="panel-count">共 {{ teachers.length }} 条</span></div>
         <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}</div>
       </div>
 
@@ -99,11 +91,6 @@
     </article>
 
     <el-dialog v-model="dialogVisible" :title="teacherDialogMode === 'create' ? '新增教师' : '编辑教师'" width="560px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>校区：</strong>{{ formatCampus(form.campusId || campusId) }}</div>
-      </div>
-
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
@@ -164,17 +151,22 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { createTeacher, deleteTeacher, fetchTeachers, updateTeacher, type TeacherSummary } from '@/api/education'
 import { fetchCampuses, type CampusSummary } from '@/api/organization'
+import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
 
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
 const teachers = ref<TeacherSummary[]>([])
 
-const campusId = ref<string | null>(null)
+const statsVisible = ref(false)
 
 const dialogVisible = ref(false)
 const teacherDialogMode = ref<'create' | 'edit'>('create')
@@ -262,13 +254,6 @@ function resetForm() {
   formError.value = ''
 }
 
-function validateContext() {
-  if (!institutionId.value) {
-    return '请先选择机构范围'
-  }
-  return ''
-}
-
 async function loadCampusesAndTeachers() {
   if (!institutionId.value) {
     campuses.value = []
@@ -313,11 +298,6 @@ async function loadTeachers() {
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
-  const contextError = validateContext()
-  if (contextError) {
-    ElMessage.warning(contextError)
-    return
-  }
   teacherDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingTeacherId.value = row.id

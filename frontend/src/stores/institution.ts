@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { fetchInstitutions, type InstitutionSummary } from '@/api/organization'
 import { useAuthStore } from '@/stores/auth'
+import { useEducationScopeStore } from '@/stores/educationScope'
 
 export const useInstitutionStore = defineStore('institution', {
   state: () => ({
@@ -62,6 +63,7 @@ export const useInstitutionStore = defineStore('institution', {
         return
       }
       this.currentInstitutionId = id
+      useEducationScopeStore().reset()
     },
 
     reset() {
@@ -69,6 +71,7 @@ export const useInstitutionStore = defineStore('institution', {
       this.currentInstitutionId = null
       this.loaded = false
       this.loading = false
+      useEducationScopeStore().reset()
     },
   },
 })

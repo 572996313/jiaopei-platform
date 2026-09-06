@@ -1,28 +1,47 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">班级 · 档案 · 成员</div>
-        <h2 class="panel-headline">班级主档与成员</h2>
-        <p class="panel-subtitle">
-          当前页面统一承接班级主档、学员关系、班级教师与家长联系人。先看课程和班型，再处理主讲、主联系人和班级变动。
-        </p>
-      </div>
-
-      <div class="education-hero-actions">
-        <el-button @click="refreshAll" :loading="lookupLoading || tableLoading || parentLoading">刷新数据</el-button>
-        <el-button type="primary" :disabled="!institutionId || !campusId" @click="openClassCreateDialog">新增班级</el-button>
-        <el-button type="primary" @click="openDialog">新增入班</el-button>
-        <el-button @click="openTeacherDialog('create')">新增班级教师</el-button>
-        <el-button :disabled="!contactStudentId" @click="openParentDialog('create')">新增家长联系人</el-button>
-      </div>
-    </div>
-
     <article v-if="pageError" class="panel-card">
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="dashboard-grid education-stat-grid">
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
+          <el-option
+            v-for="item in campuses"
+            :key="item.id"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select v-model="classId" placeholder="筛选班级" clearable filterable @change="loadRecords">
+          <el-option
+            v-for="item in classes"
+            :key="item.id"
+            :label="item.className || item.classCode || `班级 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select v-model="studentId" placeholder="筛选学员" clearable filterable @change="handleStudentFilterChange">
+          <el-option
+            v-for="item in students"
+            :key="item.id"
+            :label="item.studentName || item.studentNo || `学员 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+        </el-button>
+        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading || parentLoading" @click="refreshAll" />
+        <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
+      </div>
+    </div>
+
+    <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">班级数</div>
         <div class="stat-value">{{ classes.length }}</div>
@@ -45,44 +64,11 @@
       </article>
     </div>
 
-    <article class="panel-card education-panel">
-      <div class="panel-title">当前范围</div>
-      <div class="education-toolbar" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="选择校区" clearable filterable @change="handleCampusChange">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="classId" placeholder="选择班级" clearable filterable @change="loadRecords">
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="studentId" placeholder="筛选学员" clearable filterable @change="handleStudentFilterChange">
-          <el-option
-            v-for="item in students"
-            :key="item.id"
-            :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-      <div class="education-context-text">
-        新增入班、班级教师和家长联系人会使用当前机构范围。班级页会直接承接课程、班型、主讲与主联系人。
-      </div>
-    </article>
-
     <div class="dashboard-grid class-profile-grid">
       <article class="panel-card panel-card-wide">
         <div class="education-table-head">
           <div>
-            <div class="panel-title">班级主档</div>
+            <div class="panel-title">班级主档<span class="panel-count">共 {{ classes.length }} 个班级</span></div>
             <div class="education-context-text">
               当前班级：{{ formatClass(classId) }} / 课程：{{ formatCourse(currentClass?.courseId) }} / 班型：{{ formatClassType(currentClass?.classTypeId) }}
             </div>
@@ -190,10 +176,8 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">班级学员关系</div>
-        <div class="education-context-text">
-          当前班级：{{ formatClass(classId) }}，当前学员：{{ formatStudent(studentId) }}
-        </div>
+        <div class="panel-title">班级学员关系<span class="panel-count">共 {{ visibleRecords.length }} 条</span></div>
+        <el-button type="primary" @click="openDialog">新增入班</el-button>
       </div>
 
       <el-table :data="visibleRecords" border v-loading="tableLoading">
@@ -299,7 +283,7 @@
             </div>
           </div>
           <div class="table-actions">
-            <el-button link type="primary" :disabled="!contactStudentId" @click="openParentDialog('create')">新增联系人</el-button>
+            <el-button link type="primary" @click="openParentDialog('create')">新增联系人</el-button>
           </div>
         </div>
 
@@ -350,14 +334,19 @@
     </div>
 
     <el-dialog v-model="dialogVisible" title="新增入班关系" width="520px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
-      </div>
-
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="入班班级" required>
+          <el-select v-model="form.classId" placeholder="选择班级" filterable>
+            <el-option
+              v-for="item in classes"
+              :key="item.id"
+              :label="item.className || item.classCode || `班级 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="学员" required>
           <el-select
             v-model="form.studentId"
@@ -414,14 +403,19 @@
     </el-dialog>
 
     <el-dialog v-model="teacherDialogVisible" :title="teacherDialogMode === 'create' ? '新增班级教师' : '编辑班级教师'" width="520px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
-      </div>
-
       <el-alert v-if="teacherFormError" :title="teacherFormError" type="error" show-icon :closable="false" class="education-alert" />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="所属班级" required>
+          <el-select v-model="teacherForm.classId" placeholder="选择班级" filterable>
+            <el-option
+              v-for="item in classes"
+              :key="item.id"
+              :label="item.className || item.classCode || `班级 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="教师">
           <el-select v-model="teacherForm.teacherId" placeholder="选择教师" filterable>
             <el-option
@@ -469,7 +463,6 @@
 
     <el-dialog v-model="classProfileDialogVisible" title="编辑班级" width="560px">
       <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
         <div><strong>主讲：</strong>{{ primaryTeacherLabel }}（主讲切换仍在班级教师关系中维护）</div>
       </div>
@@ -543,11 +536,6 @@
     </el-dialog>
 
     <el-dialog v-model="classCreateDialogVisible" title="新增班级主档" width="560px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>校区：</strong>{{ formatCampus(campusId) }}</div>
-      </div>
-
       <el-alert
         v-if="classCreateFormError"
         :title="classCreateFormError"
@@ -558,6 +546,16 @@
       />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="所属校区" required>
+          <el-select v-model="classCreateForm.campusId" placeholder="选择校区" filterable>
+            <el-option
+              v-for="item in campuses"
+              :key="item.id"
+              :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="班级编码" required>
           <el-input v-model="classCreateForm.classCode" placeholder="例如 2026S-MATH-A1" />
         </el-form-item>
@@ -630,11 +628,6 @@
     </el-dialog>
 
     <el-dialog v-model="parentDialogVisible" :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'" width="560px">
-      <div class="education-dialog-context">
-        <div><strong>机构：</strong>{{ formatInstitution(institutionId) }}</div>
-        <div><strong>学员：</strong>{{ formatStudent(contactStudentId) }}</div>
-      </div>
-
       <el-alert
         v-if="parentFormError"
         :title="parentFormError"
@@ -645,6 +638,16 @@
       />
 
       <el-form label-position="top" class="education-form">
+        <el-form-item label="所属学员" required>
+          <el-select v-model="parentForm.studentId" placeholder="选择学员" filterable>
+            <el-option
+              v-for="item in students"
+              :key="item.id"
+              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="联系人姓名">
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
         </el-form-item>
@@ -691,6 +694,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   createClassStudent,
@@ -727,6 +732,7 @@ import {
   type TeachingClassCreatePayload,
 } from '@/api/education'
 import { useEducationScope } from '@/composables/useEducationScope'
+import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
 
 interface ReminderItem {
@@ -744,15 +750,18 @@ interface NoticeItem {
 }
 
 const institutionStore = useInstitutionStore()
-const { institutions, institutionId, campuses, classes, students, terms, loadScope } = useEducationScope()
+const scopeStore = useEducationScopeStore()
+const { campusId } = storeToRefs(scopeStore)
+const { institutionId, campuses, classes, students, terms, loadScope } = useEducationScope()
 const teachers = ref<TeacherSummary[]>([])
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
 
-const campusId = ref<string | null>(null)
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
 const activeParentStudentId = ref<string | null>(null)
+
+const statsVisible = ref(false)
 
 const records = ref<ClassStudentRecord[]>([])
 const classTeachers = ref<ClassTeacherRecord[]>([])
@@ -785,6 +794,7 @@ const classCreateSubmitting = ref(false)
 const classCreateFormError = ref('')
 
 const form = reactive({
+  classId: '' as string | null,
   studentId: '' as string,
   status: 'active',
   joinedAt: todayValue(),
@@ -797,6 +807,7 @@ const studentSearchLoading = ref(false)
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const teacherForm = reactive({
+  classId: '' as string | null,
   teacherId: '',
   teacherRole: 'lead',
   isPrimary: true,
@@ -818,6 +829,7 @@ const classProfileForm = reactive({
 })
 
 const classCreateForm = reactive({
+  campusId: '' as string | null,
   classCode: '',
   className: '',
   termId: '',
@@ -831,6 +843,7 @@ const classCreateForm = reactive({
 })
 
 const parentForm = reactive({
+  studentId: '' as string | null,
   parentName: '',
   relationType: 'mother',
   parentPhone: '',
@@ -841,18 +854,8 @@ const parentForm = reactive({
   remark: '',
 })
 
-const institutionMap = computed(() => {
-  return new Map(
-    institutions.value.map((item) => [item.id, item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`]),
-  )
-})
-
 const classMap = computed(() => {
   return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
-})
-
-const campusMap = computed(() => {
-  return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
 })
 
 const studentMap = computed(() => {
@@ -990,25 +993,11 @@ function classOf(id?: string | null) {
   return classes.value.find((item) => item.id === id) || null
 }
 
-function formatInstitution(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return institutionMap.value.get(id) || `机构 #${id}`
-}
-
 function formatClass(id?: string | null) {
   if (!id) {
     return '未选择'
   }
   return classMap.value.get(id) || `班级 #${id}`
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return campusMap.value.get(id) || `校区 #${id}`
 }
 
 function formatStudent(id?: string | null) {
@@ -1143,20 +1132,8 @@ function studentParentTagType(status?: string | null) {
   }
 }
 
-function validateContext() {
-  if (!institutionId.value) {
-    return '请先选择机构范围'
-  }
-  if (!classId.value) {
-    return '请先选择班级'
-  }
-  if (form.leftAt && form.joinedAt && form.leftAt < form.joinedAt) {
-    return '离班日期不能早于入班日期'
-  }
-  return ''
-}
-
 function resetForm() {
+  form.classId = classId.value
   form.studentId = studentId.value || ''
   form.status = 'active'
   form.joinedAt = todayValue()
@@ -1197,6 +1174,7 @@ function onStudentSelectFocus() {
 }
 
 function resetTeacherForm() {
+  teacherForm.classId = classId.value || ''
   teacherForm.teacherId = ''
   teacherForm.teacherRole = 'lead'
   teacherForm.isPrimary = true
@@ -1221,6 +1199,7 @@ function resetClassProfileForm(target?: TeachingClassSummary | null) {
 }
 
 function resetClassCreateForm() {
+  classCreateForm.campusId = campusId.value
   classCreateForm.classCode = ''
   classCreateForm.className = ''
   classCreateForm.termId = ''
@@ -1235,15 +1214,6 @@ function resetClassCreateForm() {
 }
 
 function openClassCreateDialog() {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
-  if (!campusId.value) {
-    ElMessage.warning('请先选择校区')
-    return
-  }
-
   resetClassCreateForm()
   classCreateDialogVisible.value = true
 }
@@ -1251,7 +1221,7 @@ function openClassCreateDialog() {
 function buildClassCreatePayload(): TeachingClassCreatePayload {
   return {
     institutionId: institutionId.value as string,
-    campusId: campusId.value as string,
+    campusId: classCreateForm.campusId as string,
     termId: classCreateForm.termId || null,
     courseId: classCreateForm.courseId || null,
     classTypeId: classCreateForm.classTypeId || null,
@@ -1266,8 +1236,12 @@ function buildClassCreatePayload(): TeachingClassCreatePayload {
 }
 
 async function submitClassCreate() {
-  if (!institutionId.value || !campusId.value) {
-    classCreateFormError.value = '请先选择机构与校区范围'
+  if (!institutionId.value) {
+    classCreateFormError.value = '请先选择机构范围'
+    return
+  }
+  if (!classCreateForm.campusId) {
+    classCreateFormError.value = '请选择所属校区'
     return
   }
   if (!classCreateForm.classCode.trim()) {
@@ -1326,6 +1300,7 @@ async function confirmDeleteClass() {
 }
 
 function resetParentForm() {
+  parentForm.studentId = contactStudentId.value
   parentForm.parentName = ''
   parentForm.relationType = 'mother'
   parentForm.parentPhone = ''
@@ -1341,7 +1316,7 @@ function resetParentForm() {
 function buildTeacherPayload(): ClassTeacherCreatePayload {
   return {
     institutionId: institutionId.value as string,
-    classId: classId.value as string,
+    classId: teacherForm.classId as string,
     teacherId: teacherForm.teacherId,
     teacherRole: teacherForm.teacherRole,
     isPrimary: teacherForm.isPrimary,
@@ -1372,7 +1347,7 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
 function buildParentPayload(): StudentParentCreatePayload {
   return {
     institutionId: institutionId.value as string,
-    studentId: contactStudentId.value as string,
+    studentId: parentForm.studentId as string,
     parentName: parentForm.parentName.trim(),
     relationType: trimToUndefined(parentForm.relationType),
     parentPhone: trimToUndefined(parentForm.parentPhone),
@@ -1518,25 +1493,11 @@ async function handleStudentFilterChange() {
 }
 
 function openDialog() {
-  const contextError = validateContext()
-  if (contextError) {
-    ElMessage.warning(contextError)
-    return
-  }
   resetForm()
   dialogVisible.value = true
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
-  if (!classId.value) {
-    ElMessage.warning('请先选择班级')
-    return
-  }
-
   resetTeacherForm()
   teacherDialogMode.value = mode
 
@@ -1570,15 +1531,6 @@ async function openParentPanel(targetStudentId?: string | null) {
 }
 
 function openParentDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
-  if (!institutionId.value) {
-    ElMessage.warning('请先选择机构范围')
-    return
-  }
-  if (!contactStudentId.value) {
-    ElMessage.warning('请先选择学员或从班级学员表进入联系人管理')
-    return
-  }
-
   resetParentForm()
   parentDialogMode.value = mode
 
@@ -1598,13 +1550,20 @@ function openParentDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
 }
 
 async function submitClassStudent() {
-  const contextError = validateContext()
-  if (contextError) {
-    formError.value = contextError
+  if (!institutionId.value) {
+    formError.value = '请先选择机构范围'
+    return
+  }
+  if (!form.classId) {
+    formError.value = '请选择入班班级'
     return
   }
   if (!form.studentId) {
     formError.value = '请选择学员'
+    return
+  }
+  if (form.leftAt && form.joinedAt && form.leftAt < form.joinedAt) {
+    formError.value = '离班日期不能早于入班日期'
     return
   }
 
@@ -1612,8 +1571,8 @@ async function submitClassStudent() {
   formError.value = ''
   try {
     await createClassStudent({
-      institutionId: institutionId.value as string,
-      classId: classId.value as string,
+      institutionId: institutionId.value,
+      classId: form.classId,
       studentId: form.studentId,
       status: form.status,
       joinedAt: form.joinedAt,
@@ -1656,8 +1615,8 @@ async function submitClassTeacher() {
     teacherFormError.value = '请先选择机构范围'
     return
   }
-  if (!classId.value) {
-    teacherFormError.value = '请先选择班级'
+  if (!teacherForm.classId) {
+    teacherFormError.value = '请选择所属班级'
     return
   }
   if (!teacherForm.teacherId) {
@@ -1778,8 +1737,8 @@ async function submitStudentParent() {
     parentFormError.value = '请先选择机构范围'
     return
   }
-  if (!contactStudentId.value) {
-    parentFormError.value = '请先选择学员'
+  if (!parentForm.studentId) {
+    parentFormError.value = '请选择所属学员'
     return
   }
   if (!trimToUndefined(parentForm.parentName)) {

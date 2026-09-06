@@ -1,28 +1,23 @@
 <template>
   <section class="education-page">
-    <div class="education-hero">
-      <div>
-        <div class="page-kicker">系统 · 权限 · 字典</div>
-        <h2 class="panel-headline">系统管理</h2>
-        <p class="panel-subtitle">
-          当前页面承接用户、角色、菜单和字典的最小可用链，并接入真实改密与菜单可见性能力。
-        </p>
-      </div>
-
-      <div class="education-hero-actions">
-        <el-button :loading="pageLoading" @click="refreshAll">刷新数据</el-button>
-        <el-button v-if="activeTab === 'users' && canManageUsers" type="primary" @click="openCreateUserDialog">新增用户</el-button>
-        <el-button v-else-if="activeTab === 'roles' && canManageRoles" type="primary" @click="openCreateRoleDialog">新增角色</el-button>
-        <el-button v-else-if="activeTab === 'menus' && canManageMenus" type="primary" @click="openCreateMenuDialog">新增菜单</el-button>
-        <el-button v-else-if="activeTab === 'configs' && canWriteConfigs" type="primary" @click="openCreateConfigDialog">新增参数</el-button>
-      </div>
-    </div>
-
     <article v-if="pageError" class="panel-card">
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="dashboard-grid education-stat-grid">
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters">
+        <span class="education-context-text">用户、角色、菜单、参数与字典的统一维护入口。</span>
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button @click="statsVisible = !statsVisible">
+          统计
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+        </el-button>
+        <el-button :icon="Refresh" circle :loading="pageLoading" @click="refreshAll" />
+      </div>
+    </div>
+
+    <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">用户数</div>
         <div class="stat-value">{{ users.length }}</div>
@@ -45,7 +40,7 @@
       </article>
     </div>
 
-    <article class="panel-card education-panel">
+    <article v-show="statsVisible" class="panel-card education-panel">
       <div class="panel-title">当前用户态</div>
       <div class="system-summary-grid">
         <div class="system-summary-item">
@@ -92,7 +87,7 @@
                   维护当前登录账号所属机构的基础档案；机构 ID 和机构编码只读，不提供多机构切换。
                 </div>
               </div>
-              <div class="education-hero-actions">
+              <div class="table-actions">
                 <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile">刷新机构资料</el-button>
                 <el-button v-if="canWriteOrganization" type="primary" :loading="institutionSubmitting" @click="submitInstitutionProfile">保存机构资料</el-button>
               </div>
@@ -170,8 +165,11 @@
 
           <template v-if="tab.name === 'users'">
             <div class="education-table-head">
-              <div class="panel-title">用户列表</div>
-              <div class="education-context-text">支持创建、编辑、启停、重置密码、分配角色。</div>
+              <div class="panel-title">用户列表<span class="panel-count">共 {{ users.length }} 条</span></div>
+              <div class="table-actions">
+                <span class="education-context-text">支持创建、编辑、启停、重置密码、分配角色。</span>
+                <el-button v-if="canManageUsers" type="primary" @click="openCreateUserDialog">新增用户</el-button>
+              </div>
             </div>
 
             <el-table :data="users" border v-loading="pageLoading">
@@ -222,8 +220,11 @@
 
           <template v-else-if="tab.name === 'roles'">
             <div class="education-table-head">
-              <div class="panel-title">角色列表</div>
-              <div class="education-context-text">支持角色维护，并可进一步分配菜单树。</div>
+              <div class="panel-title">角色列表<span class="panel-count">共 {{ roles.length }} 条</span></div>
+              <div class="table-actions">
+                <span class="education-context-text">支持角色维护，并可进一步分配菜单树。</span>
+                <el-button v-if="canManageRoles" type="primary" @click="openCreateRoleDialog">新增角色</el-button>
+              </div>
             </div>
 
             <el-table :data="roles" border v-loading="pageLoading">
@@ -266,9 +267,12 @@
             </article>
             <template v-else>
               <div class="education-table-head">
-                <div class="panel-title">菜单与按钮</div>
-                <div class="education-context-text">
-                  菜单节点决定页面可见性，按钮节点承载接口权限码；在角色管理的「分配菜单」里勾选按钮即授权。
+                <div class="panel-title">菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span></div>
+                <div class="table-actions">
+                  <span class="education-context-text">
+                    菜单节点决定页面可见性，按钮节点承载接口权限码；在角色管理的「分配菜单」里勾选按钮即授权。
+                  </span>
+                  <el-button v-if="canManageMenus" type="primary" @click="openCreateMenuDialog">新增菜单</el-button>
                 </div>
               </div>
 
@@ -320,8 +324,11 @@
             </article>
             <template v-else>
               <div class="education-table-head">
-                <div class="panel-title">系统参数</div>
-                <div class="education-context-text">维护全局键值参数（token 有效期等），支持新增、编辑与删除。</div>
+                <div class="panel-title">系统参数<span class="panel-count">共 {{ configs.length }} 条</span></div>
+                <div class="table-actions">
+                  <span class="education-context-text">维护全局键值参数（token 有效期等），支持新增、编辑与删除。</span>
+                  <el-button v-if="canWriteConfigs" type="primary" @click="openCreateConfigDialog">新增参数</el-button>
+                </div>
               </div>
 
               <el-table :data="configs" border v-loading="pageLoading">
@@ -689,6 +696,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchCampuses, fetchInstitutions, type CampusSummary, type InstitutionSummary } from '@/api/organization'
@@ -732,6 +740,7 @@ const router = useRouter()
 
 const pageLoading = ref(false)
 const pageError = ref('')
+const statsVisible = ref(false)
 const menuSectionError = ref('')
 const configSectionError = ref('')
 const dictSectionError = ref('')
