@@ -1,12 +1,15 @@
 package com.jiaopei.platform.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jiaopei.platform.auth.domain.RoleEntity;
 import com.jiaopei.platform.auth.dto.RoleCreateRequest;
+import com.jiaopei.platform.auth.dto.RolePageQuery;
 import com.jiaopei.platform.auth.dto.RoleUpdateRequest;
 import com.jiaopei.platform.auth.dto.RoleView;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.service.SystemRoleService;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import java.util.Arrays;
@@ -33,6 +36,25 @@ public class SystemRoleServiceImpl implements SystemRoleService {
             .stream()
             .map(this::toView)
             .toList();
+    }
+
+    @Override
+    public PageResult<RoleView> pageRoles(RolePageQuery query) {
+        LambdaQueryWrapper<RoleEntity> wrapper = new LambdaQueryWrapper<>();
+        String keyword = normalize(query.getKeyword());
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(RoleEntity::getRoleCode, keyword)
+                .or().like(RoleEntity::getRoleName, keyword));
+        }
+        String status = normalize(query.getStatus());
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(RoleEntity::getStatus, status);
+        }
+        wrapper.orderByAsc(RoleEntity::getRoleCode);
+
+        Page<RoleEntity> page = roleMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, page.getRecords().stream().map(this::toView).toList());
     }
 
     @Override

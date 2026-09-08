@@ -2,10 +2,13 @@ package com.jiaopei.platform.auth.controller;
 
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.auth.dto.RoleCreateRequest;
+import com.jiaopei.platform.auth.dto.RolePageQuery;
 import com.jiaopei.platform.auth.dto.RoleUpdateRequest;
 import com.jiaopei.platform.auth.dto.RoleView;
 import com.jiaopei.platform.auth.service.SystemRoleService;
 import com.jiaopei.platform.common.api.ApiResponse;
+import com.jiaopei.platform.common.api.PageResult;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springdoc.core.annotations.ParameterObject;
 
 @RestController
 @RequestMapping("/api/system/roles")
@@ -32,6 +36,13 @@ public class SystemRoleController {
     @RequiresPermission("system:role:manage")
     public ApiResponse<List<RoleView>> list() {
         return ApiResponse.success("角色列表已加载", systemRoleService.listRoles());
+    }
+
+    @Operation(summary = "角色分页列表", description = "支持关键字(角色编码/角色名称)、状态筛选")
+    @GetMapping("/page")
+    @RequiresPermission("system:role:manage")
+    public ApiResponse<PageResult<RoleView>> page(@Valid @ParameterObject RolePageQuery query) {
+        return ApiResponse.success("角色分页列表已加载", systemRoleService.pageRoles(query));
     }
 
     @PostMapping

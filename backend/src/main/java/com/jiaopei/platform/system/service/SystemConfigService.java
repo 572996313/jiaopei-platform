@@ -1,6 +1,8 @@
 package com.jiaopei.platform.system.service;
 
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.system.dto.SystemConfigCreateRequest;
+import com.jiaopei.platform.system.dto.SystemConfigPageQuery;
 import com.jiaopei.platform.system.dto.SystemConfigUpdateRequest;
 import com.jiaopei.platform.system.dto.SystemConfigView;
 
@@ -9,6 +11,8 @@ import java.util.List;
 public interface SystemConfigService {
 
     List<SystemConfigView> listConfigs();
+
+    PageResult<SystemConfigView> pageConfigs(SystemConfigPageQuery query);
 
     SystemConfigView getConfig(Long id);
 

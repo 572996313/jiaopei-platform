@@ -162,6 +162,12 @@ public class WebMvcSecurityTestConfig {
             }
 
             @Override
+            public com.jiaopei.platform.common.api.PageResult<com.jiaopei.platform.system.dto.SystemConfigView> pageConfigs(
+                com.jiaopei.platform.system.dto.SystemConfigPageQuery query) {
+                return new com.jiaopei.platform.common.api.PageResult<>(List.of(), 0, query.getPage(), query.getPageSize());
+            }
+
+            @Override
             public com.jiaopei.platform.system.dto.SystemConfigView getConfig(Long id) {
                 return null;
             }

@@ -82,6 +82,14 @@ const routes = [
         component: () => import('@/views/system/SystemManagementView.vue'),
       },
       {
+        path: 'system/list-configs',
+        name: 'system-list-configs',
+        meta: {
+          systemTab: 'listConfigs',
+        },
+        component: () => import('@/views/system/SystemManagementView.vue'),
+      },
+      {
         path: 'campus',
         name: 'campus',
         component: () => import('@/views/organization/CampusManagementView.vue'),

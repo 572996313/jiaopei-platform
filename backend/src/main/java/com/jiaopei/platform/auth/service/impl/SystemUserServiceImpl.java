@@ -1,11 +1,13 @@
 package com.jiaopei.platform.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jiaopei.platform.auth.domain.RoleEntity;
 import com.jiaopei.platform.auth.domain.UserAccountEntity;
 import com.jiaopei.platform.auth.domain.UserRoleRelEntity;
 import com.jiaopei.platform.auth.dto.ResetPasswordResponse;
 import com.jiaopei.platform.auth.dto.UserCreateRequest;
+import com.jiaopei.platform.auth.dto.UserPageQuery;
 import com.jiaopei.platform.auth.dto.UserRoleUpdateRequest;
 import com.jiaopei.platform.auth.dto.UserUpdateRequest;
 import com.jiaopei.platform.auth.dto.UserView;
@@ -14,6 +16,7 @@ import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.SystemUserService;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.organization.domain.entity.CampusEntity;
@@ -22,7 +25,10 @@ import com.jiaopei.platform.organization.mapper.CampusMapper;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -57,11 +63,31 @@ public class SystemUserServiceImpl implements SystemUserService {
 
     @Override
     public List<UserView> listUsers() {
-        return userAccountMapper.selectList(new LambdaQueryWrapper<UserAccountEntity>()
-                .orderByAsc(UserAccountEntity::getUsername))
-            .stream()
-            .map(this::toView)
-            .toList();
+        return toViews(userAccountMapper.selectList(new LambdaQueryWrapper<UserAccountEntity>()
+            .orderByAsc(UserAccountEntity::getUsername)));
+    }
+
+    @Override
+    public PageResult<UserView> pageUsers(UserPageQuery query) {
+        LambdaQueryWrapper<UserAccountEntity> wrapper = new LambdaQueryWrapper<>();
+        String keyword = normalize(query.getKeyword());
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(UserAccountEntity::getUsername, keyword)
+                .or().like(UserAccountEntity::getDisplayName, keyword)
+                .or().like(UserAccountEntity::getPhone, keyword));
+        }
+        String status = normalize(query.getStatus());
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(UserAccountEntity::getStatus, status);
+        }
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(UserAccountEntity::getInstitutionId, query.getInstitutionId());
+        }
+        wrapper.orderByAsc(UserAccountEntity::getUsername);
+
+        Page<UserAccountEntity> page = userAccountMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, toViews(page.getRecords()));
     }
 
     @Override
@@ -158,6 +184,42 @@ public class SystemUserServiceImpl implements SystemUserService {
         List<String> roleCodes = roleIds.isEmpty() ? List.of() : roleMapper.selectBatchIds(roleIds).stream()
             .map(RoleEntity::getRoleCode)
             .toList();
+        return toView(entity, roleIds, roleCodes);
+    }
+
+    /**
+     * 批量组装用户视图:两次查询取回页内全部用户的角色关联与角色编码,
+     * 避免逐用户查询角色的 N+1 问题;list 与 page 共用。
+     */
+    private List<UserView> toViews(List<UserAccountEntity> entities) {
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+        List<Long> userIds = entities.stream().map(UserAccountEntity::getId).toList();
+        Map<Long, List<Long>> roleIdsByUser = userRoleRelMapper.selectList(new LambdaQueryWrapper<UserRoleRelEntity>()
+                .in(UserRoleRelEntity::getUserId, userIds))
+            .stream()
+            .collect(Collectors.groupingBy(UserRoleRelEntity::getUserId,
+                Collectors.mapping(UserRoleRelEntity::getRoleId, Collectors.toList())));
+        Set<Long> allRoleIds = roleIdsByUser.values().stream()
+            .flatMap(List::stream)
+            .collect(Collectors.toSet());
+        Map<Long, String> roleCodeById = allRoleIds.isEmpty() ? Map.of()
+            : roleMapper.selectBatchIds(allRoleIds).stream()
+                .collect(Collectors.toMap(RoleEntity::getId, RoleEntity::getRoleCode, (left, right) -> left));
+        return entities.stream()
+            .map(entity -> {
+                List<Long> roleIds = roleIdsByUser.getOrDefault(entity.getId(), List.of());
+                List<String> roleCodes = roleIds.stream()
+                    .map(roleCodeById::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+                return toView(entity, roleIds, roleCodes);
+            })
+            .toList();
+    }
+
+    private UserView toView(UserAccountEntity entity, List<Long> roleIds, List<String> roleCodes) {
         return new UserView(
             entity.getId(),
             entity.getInstitutionId(),

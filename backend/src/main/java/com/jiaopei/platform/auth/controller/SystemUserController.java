@@ -3,11 +3,14 @@ package com.jiaopei.platform.auth.controller;
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.auth.dto.ResetPasswordResponse;
 import com.jiaopei.platform.auth.dto.UserCreateRequest;
+import com.jiaopei.platform.auth.dto.UserPageQuery;
 import com.jiaopei.platform.auth.dto.UserRoleUpdateRequest;
 import com.jiaopei.platform.auth.dto.UserUpdateRequest;
 import com.jiaopei.platform.auth.dto.UserView;
 import com.jiaopei.platform.auth.service.SystemUserService;
 import com.jiaopei.platform.common.api.ApiResponse;
+import com.jiaopei.platform.common.api.PageResult;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springdoc.core.annotations.ParameterObject;
 
 @RestController
 @RequestMapping("/api/system/users")
@@ -34,6 +38,13 @@ public class SystemUserController {
     @RequiresPermission("system:user:manage")
     public ApiResponse<List<UserView>> list() {
         return ApiResponse.success("用户列表已加载", systemUserService.listUsers());
+    }
+
+    @Operation(summary = "用户分页列表", description = "支持关键字(账号/显示名称/手机号)、状态、机构筛选")
+    @GetMapping("/page")
+    @RequiresPermission("system:user:manage")
+    public ApiResponse<PageResult<UserView>> page(@Valid @ParameterObject UserPageQuery query) {
+        return ApiResponse.success("用户分页列表已加载", systemUserService.pageUsers(query));
     }
 
     @PostMapping

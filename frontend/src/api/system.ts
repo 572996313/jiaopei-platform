@@ -1,4 +1,5 @@
 import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
+import type { PageParams, PageResult } from '@/api/common'
 
 export interface SystemUserSummary {
   id: string
@@ -284,6 +285,19 @@ export function fetchSystemUsers() {
   return requestGet<SystemUserSummary[]>('/system/users').then((items) => items.map(normalizeUser))
 }
 
+export interface SystemUserPageParams extends PageParams {
+  keyword?: string
+  status?: string
+  institutionId?: string
+}
+
+export function fetchSystemUserPage(params: SystemUserPageParams) {
+  return requestGet<PageResult<SystemUserSummary>>('/system/users/page', { ...params }).then((result) => ({
+    ...result,
+    records: (result.records || []).map(normalizeUser),
+  }))
+}
+
 export function createSystemUser(payload: SystemUserCreatePayload) {
   return requestPost<SystemUserSummary>('/system/users', payload).then(normalizeUser)
 }
@@ -302,6 +316,15 @@ export function updateSystemUserRoles(id: string, payload: UserRoleUpdatePayload
 
 export function fetchSystemRoles() {
   return requestGet<SystemRoleSummary[]>('/system/roles')
+}
+
+export interface SystemRolePageParams extends PageParams {
+  keyword?: string
+  status?: string
+}
+
+export function fetchSystemRolePage(params: SystemRolePageParams) {
+  return requestGet<PageResult<SystemRoleSummary>>('/system/roles/page', { ...params })
 }
 
 export function createSystemRole(payload: SystemRoleCreatePayload) {
@@ -351,6 +374,19 @@ function normalizeSystemConfig(item: SystemConfigSummary): SystemConfigSummary {
 
 export function fetchSystemConfigs() {
   return requestGet<SystemConfigSummary[]>('/system/config').then((items) => items.map(normalizeSystemConfig))
+}
+
+export interface SystemConfigPageParams extends PageParams {
+  keyword?: string
+  configGroup?: string
+  status?: string
+}
+
+export function fetchSystemConfigPage(params: SystemConfigPageParams) {
+  return requestGet<PageResult<SystemConfigSummary>>('/system/config/page', { ...params }).then((result) => ({
+    ...result,
+    records: (result.records || []).map(normalizeSystemConfig),
+  }))
 }
 
 export function createSystemConfig(payload: SystemConfigCreatePayload) {
@@ -407,4 +443,53 @@ export function updateSystemDictItem(id: string, payload: DictItemUpdatePayload)
 
 export function deleteSystemDictItem(id: string) {
   return requestDelete<void>(`/system/dicts/items/${id}`)
+}
+
+export interface ListConfigSummary {
+  id: string
+  resourceCode: string
+  resourceName: string
+  endpoint: string
+  pageSize: number
+  columnsJson: string
+  queryJson: string
+  status?: string | null
+  remark?: string | null
+}
+
+export interface ListConfigSavePayload {
+  resourceName: string
+  endpoint: string
+  pageSize: number
+  columnsJson: string
+  queryJson: string
+  status: string
+  remark?: string
+}
+
+function normalizeListConfig(item: ListConfigSummary): ListConfigSummary {
+  return {
+    ...item,
+    id: String(item.id),
+  }
+}
+
+export function fetchListConfigByCode(resourceCode: string) {
+  return requestGet<ListConfigSummary>(`/system/list-configs/code/${encodeURIComponent(resourceCode)}`).then(normalizeListConfig)
+}
+
+export function fetchListConfigs() {
+  return requestGet<ListConfigSummary[]>('/system/list-configs').then((items) => items.map(normalizeListConfig))
+}
+
+export function createListConfig(payload: ListConfigSavePayload & { resourceCode: string }) {
+  return requestPost<ListConfigSummary>('/system/list-configs', payload).then(normalizeListConfig)
+}
+
+export function updateListConfig(id: string, payload: ListConfigSavePayload) {
+  return requestPut<ListConfigSummary>(`/system/list-configs/${id}`, payload).then(normalizeListConfig)
+}
+
+export function deleteListConfig(id: string) {
+  return requestDelete<void>(`/system/list-configs/${id}`)
 }
