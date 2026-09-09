@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import DictSelect from '@/components/DictSelect.vue'
 import { requestGet } from '@/api/request'
 import type { PageResult } from '@/api/common'
 import type { ListConfigSummary } from '@/api/system'
 import { useDictStore } from '@/stores/dict'
 import { useListConfigStore } from '@/stores/listConfig'
+import { useAuthStore } from '@/stores/auth'
 import { ConfigurableCell, collectDictTypes, optionLoaders, type RenderContext } from './renderers'
-import type { ListColumnConfig, ListPageConfig, QueryFieldConfig, QueryOption } from './types'
+import type {
+  ActionHandler,
+  ListActionConfig,
+  ListColumnConfig,
+  ListPageConfig,
+  QueryFieldConfig,
+  QueryOption,
+} from './types'
 
 const props = withDefaults(
   defineProps<{
@@ -15,10 +23,12 @@ const props = withDefaults(
     resourceCode: string
     /** 渲染上下文:宿主页面注入的数据与映射函数(机构/校区名称、机构下拉选项等) */
     context?: RenderContext
-    /** 操作列宽度,使用 #actions 插槽时生效 */
+    /** 代码侧按钮动作注册表:配置里 action 名对应的处理器(label/disabled 支持行级动态) */
+    actions?: Record<string, ActionHandler>
+    /** 操作列宽,不传时按行按钮 label 自动估算(仅行按钮存在时) */
     actionsWidth?: number
   }>(),
-  { actionsWidth: 180 },
+  { actionsWidth: 0 },
 )
 
 const emit = defineEmits<{
@@ -27,6 +37,7 @@ const emit = defineEmits<{
 
 const listConfigStore = useListConfigStore()
 const dictStore = useDictStore()
+const auth = useAuthStore()
 
 const config = ref<ListPageConfig | null>(null)
 const configError = ref('')
@@ -47,9 +58,11 @@ function toMessage(error: unknown, fallback: string) {
 function parseConfig(summary: ListConfigSummary): ListPageConfig {
   let columns: unknown
   let queryFields: unknown
+  let actions: unknown
   try {
     columns = JSON.parse(summary.columnsJson)
     queryFields = summary.queryJson ? JSON.parse(summary.queryJson) : []
+    actions = summary.actionsJson ? JSON.parse(summary.actionsJson) : undefined
   } catch {
     throw new Error(`列表配置 ${summary.resourceCode} 的 JSON 解析失败,请在列表配置中修正`)
   }
@@ -63,6 +76,8 @@ function parseConfig(summary: ListConfigSummary): ListPageConfig {
     pageSize: summary.pageSize,
     columns: columns as ListColumnConfig[],
     queryFields: Array.isArray(queryFields) ? (queryFields as QueryFieldConfig[]) : [],
+    // undefined = 未配置按钮,回退 #actions 插槽;空数组 = 明确无按钮
+    actions: Array.isArray(actions) ? (actions as ListActionConfig[]) : undefined,
   }
 }
 
@@ -170,6 +185,76 @@ function optionsFor(field: QueryFieldConfig): QueryOption[] {
   return []
 }
 
+/* ===== 按钮配置化渲染 ===== */
+
+/** 配置了按钮(即使空数组)即进入配置模式,忽略 #actions 插槽 */
+const hasActionsConfig = computed(() => config.value?.actions !== undefined)
+
+/** 按权限码过滤后的按钮配置;无 permission 视为公开 */
+const actionConfigs = computed<ListActionConfig[]>(() => {
+  const configured = config.value?.actions ?? []
+  return configured.filter((action) => {
+    if (!action.permission) {
+      return true
+    }
+    return auth.hasPermission(action.permission)
+  })
+})
+
+const toolbarActions = computed(() => actionConfigs.value.filter((action) => action.position === 'toolbar'))
+const rowActions = computed(() => actionConfigs.value.filter((action) => action.position === 'row'))
+
+/** 配置模式且未显式传宽时,按行按钮文案估算操作列宽(中文约 14px/字 + 内边距余量) */
+const actionColumnWidth = computed(() => {
+  if (props.actionsWidth) {
+    return props.actionsWidth
+  }
+  if (!hasActionsConfig.value || rowActions.value.length === 0) {
+    return undefined
+  }
+  const contentWidth = rowActions.value.reduce((sum, action) => sum + action.label.length * 14 + 40, 0)
+  return Math.round(contentWidth + 24)
+})
+
+/** toolbar 缺省 default;text 样式在工具栏无意义,归一到 default */
+function toolbarButtonType(action: ListActionConfig): 'primary' | 'default' | 'danger' {
+  if (action.buttonType === 'primary' || action.buttonType === 'danger') {
+    return action.buttonType
+  }
+  return 'default'
+}
+
+/** row 缺省 text 样式;el-button text 模式只有 primary/默认/danger 语义,归一到这些 */
+function rowButtonType(action: ListActionConfig): 'primary' | 'default' | 'danger' | undefined {
+  if (action.buttonType === 'danger') {
+    return 'danger'
+  }
+  if (action.buttonType === 'primary') {
+    return 'primary'
+  }
+  return undefined
+}
+
+function actionLabel(action: ListActionConfig, row?: Record<string, any>) {
+  const handler = props.actions?.[action.action]
+  const dynamic = handler?.label?.(row)
+  return dynamic ?? action.label
+}
+
+function actionDisabled(action: ListActionConfig, row?: Record<string, any>) {
+  const handler = props.actions?.[action.action]
+  return handler?.disabled?.(row) ?? false
+}
+
+function fireAction(action: ListActionConfig, row?: Record<string, any>) {
+  const handler = props.actions?.[action.action]
+  if (!handler) {
+    console.warn(`[ConfigurableList] 按钮动作 "${action.action}" 未在宿主 actions 注册表中找到`)
+    return
+  }
+  handler.handler(row)
+}
+
 watch(
   () => props.resourceCode,
   () => {
@@ -192,6 +277,17 @@ defineExpose({
     <el-alert v-if="configError" :title="configError" type="error" show-icon :closable="false" class="education-alert" />
 
     <template v-else-if="config">
+      <div v-if="toolbarActions.length" class="configurable-list-toolbar">
+        <el-button
+          v-for="action in toolbarActions"
+          :key="action.action"
+          :type="toolbarButtonType(action)"
+          @click="fireAction(action)"
+        >
+          {{ action.label }}
+        </el-button>
+      </div>
+
       <el-form
         v-if="config.queryFields && config.queryFields.length"
         :inline="true"
@@ -257,7 +353,29 @@ defineExpose({
             <ConfigurableCell :column="column" :row="row" :context="context" />
           </template>
         </el-table-column>
-        <el-table-column v-if="$slots.actions" label="操作" :width="actionsWidth" fixed="right">
+        <!-- 配置模式:按 actions 渲染行按钮;未配置时回退 #actions 插槽 -->
+        <el-table-column
+          v-if="rowActions.length > 0"
+          label="操作"
+          :width="actionColumnWidth"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <div class="system-operation-group">
+              <el-button
+                v-for="action in rowActions"
+                :key="action.action"
+                text
+                :type="rowButtonType(action)"
+                :disabled="actionDisabled(action, row)"
+                @click="fireAction(action, row)"
+              >
+                {{ actionLabel(action, row) }}
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column v-else-if="$slots.actions" label="操作" :width="actionsWidth" fixed="right">
           <template #default="{ row }">
             <div class="system-operation-group">
               <slot name="actions" :row="row" />
@@ -281,6 +399,13 @@ defineExpose({
 </template>
 
 <style scoped>
+.configurable-list-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
 .configurable-list-query {
   margin-bottom: 4px;
 }

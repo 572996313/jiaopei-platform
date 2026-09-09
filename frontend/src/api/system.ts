@@ -453,6 +453,7 @@ export interface ListConfigSummary {
   pageSize: number
   columnsJson: string
   queryJson: string
+  actionsJson?: string | null
   status?: string | null
   remark?: string | null
 }
@@ -463,6 +464,7 @@ export interface ListConfigSavePayload {
   pageSize: number
   columnsJson: string
   queryJson: string
+  actionsJson?: string | null
   status: string
   remark?: string
 }

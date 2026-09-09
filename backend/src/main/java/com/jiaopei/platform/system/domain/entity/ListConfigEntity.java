@@ -33,6 +33,9 @@ public class ListConfigEntity extends BaseEntity {
     @Schema(description = "查询条件配置 JSON 数组", requiredMode = Schema.RequiredMode.REQUIRED)
     private String queryJson;
 
+    @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式")
+    private String actionsJson;
+
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     private String status;
 

@@ -5,7 +5,6 @@
         <div class="panel-title">用户列表<span class="panel-count">共 {{ userTotal }} 条</span></div>
         <div class="table-actions">
           <span class="education-context-text">支持创建、编辑、启停、重置密码、分配角色。</span>
-          <el-button v-if="permissions.canManageUsers" type="primary" @click="openCreateUserDialog">新增用户</el-button>
         </div>
       </div>
 
@@ -13,18 +12,9 @@
         ref="userListRef"
         resource-code="system-users"
         :context="listRenderContext"
-        :actions-width="320"
+        :actions="userActionHandlers"
         @loaded="onUsersLoaded"
-      >
-        <template #actions="{ row }">
-          <el-button v-if="permissions.canManageUsers" text type="primary" @click="openEditUserDialog(row)">编辑</el-button>
-          <el-button v-if="permissions.canManageUsers" text @click="toggleUserStatus(row)">
-            {{ row.status === 'active' ? '停用' : '启用' }}
-          </el-button>
-          <el-button v-if="permissions.canManageUsers" text @click="handleResetPassword(row)">重置密码</el-button>
-          <el-button v-if="permissions.canManageUsers" text @click="openRoleAssignDialog(row)">分配角色</el-button>
-        </template>
-      </ConfigurableList>
+      />
     </article>
 
     <el-dialog v-model="userDialogVisible" :title="userDialogMode === 'create' ? '新增用户' : '编辑用户'" width="620px">
@@ -121,6 +111,7 @@ import type { SystemRoleSummary, SystemUserSummary } from '@/api/system'
 import { fetchCampuses, fetchInstitutions } from '@/api/organization'
 import type { CampusSummary, InstitutionSummary } from '@/api/organization'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import type { ActionHandler } from '@/components/ConfigurableList/types'
 import type { RenderContext } from '@/components/ConfigurableList/renderers'
 import {
   ensureStatusDictLoaded,
@@ -128,11 +119,9 @@ import {
   trimToUndefined,
   useInstitutionDisplay,
   useStatusOptions,
-  useSystemPermissions,
 } from './shared'
 
 const auth = useAuthStore()
-const permissions = useSystemPermissions()
 const { institutionMap, campusMap, formatInstitution, formatCampus } = useInstitutionDisplay()
 
 const statusOptions = useStatusOptions()
@@ -380,6 +369,21 @@ async function submitRoleAssignment() {
   } finally {
     roleAssignSubmitting.value = false
   }
+}
+
+/**
+ * 按钮动作注册表:与 sys_list_config.actions_json 的 action 名一一对应,
+ * label/disabled 提供配置无法表达的动态逻辑(停用/启用文案切换)。
+ */
+const userActionHandlers: Record<string, ActionHandler> = {
+  'user-create': { handler: () => void openCreateUserDialog() },
+  'user-edit': { handler: (row) => void openEditUserDialog(row as SystemUserSummary) },
+  'user-toggle-status': {
+    handler: (row) => void toggleUserStatus(row as SystemUserSummary),
+    label: (row) => (row?.status === 'active' ? '停用' : '启用'),
+  },
+  'user-reset-password': { handler: (row) => void handleResetPassword(row as SystemUserSummary) },
+  'user-assign-roles': { handler: (row) => openRoleAssignDialog(row as SystemUserSummary) },
 }
 
 onMounted(async () => {

@@ -5,24 +5,15 @@
         <div class="panel-title">角色列表<span class="panel-count">共 {{ roleTotal }} 条</span></div>
         <div class="table-actions">
           <span class="education-context-text">支持角色维护,并可进一步分配菜单树。</span>
-          <el-button v-if="permissions.canManageRoles" type="primary" @click="openCreateRoleDialog">新增角色</el-button>
         </div>
       </div>
 
       <ConfigurableList
         ref="roleListRef"
         resource-code="system-roles"
-        :actions-width="260"
+        :actions="roleActionHandlers"
         @loaded="onRolesLoaded"
-      >
-        <template #actions="{ row }">
-          <el-button v-if="permissions.canManageRoles" text type="primary" @click="openEditRoleDialog(row)">编辑</el-button>
-          <el-button v-if="permissions.canManageMenus" text @click="openRoleMenuDialog(row)">分配菜单</el-button>
-          <el-button v-if="permissions.canManageRoles" text @click="toggleRoleStatus(row)">
-            {{ row.status === 'active' ? '停用' : '启用' }}
-          </el-button>
-        </template>
-      </ConfigurableList>
+      />
     </article>
 
     <el-dialog v-model="roleDialogVisible" :title="roleDialogMode === 'create' ? '新增角色' : '编辑角色'" width="640px">
@@ -117,6 +108,7 @@ import {
 } from '@/api/system'
 import type { SystemMenuTreeNode, SystemRoleSummary } from '@/api/system'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import type { ActionHandler } from '@/components/ConfigurableList/types'
 import { permissionGroups } from '@/constants/permissionLabels'
 import {
   ensureStatusDictLoaded,
@@ -124,10 +116,8 @@ import {
   toMessage,
   trimToUndefined,
   useStatusOptions,
-  useSystemPermissions,
 } from './shared'
 
-const permissions = useSystemPermissions()
 const statusOptions = useStatusOptions()
 
 const permissionGroupData = permissionGroups()
@@ -346,6 +336,20 @@ async function submitRoleMenus() {
   } finally {
     roleMenuSubmitting.value = false
   }
+}
+
+/**
+ * 按钮动作注册表:与 sys_list_config.actions_json 的 action 名一一对应,
+ * label 提供配置无法表达的动态逻辑(停用/启用文案切换)。
+ */
+const roleActionHandlers: Record<string, ActionHandler> = {
+  'role-create': { handler: () => openCreateRoleDialog() },
+  'role-edit': { handler: (row) => openEditRoleDialog(row as SystemRoleSummary) },
+  'role-assign-menus': { handler: (row) => void openRoleMenuDialog(row as SystemRoleSummary) },
+  'role-toggle-status': {
+    handler: (row) => void toggleRoleStatus(row as SystemRoleSummary),
+    label: (row) => (row?.status === 'active' ? '停用' : '启用'),
+  },
 }
 
 onMounted(() => {

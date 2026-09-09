@@ -22,6 +22,8 @@ public record ListConfigUpdateRequest(
 
     @NotBlank(message = "查询条件配置不能为空") @Schema(description = "查询条件配置 JSON 数组") String queryJson,
 
+    @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式") String actionsJson,
+
     @NotBlank(message = "状态不能为空") @Size(max = 32, message = "状态长度不能超过32个字符")
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"}) String status,
 

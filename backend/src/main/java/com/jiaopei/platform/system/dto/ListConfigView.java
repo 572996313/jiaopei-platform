@@ -11,6 +11,7 @@ public record ListConfigView(
     @Schema(description = "默认每页条数") Integer pageSize,
     @Schema(description = "列配置 JSON 数组") String columnsJson,
     @Schema(description = "查询条件配置 JSON 数组") String queryJson,
+    @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式") String actionsJson,
     @Schema(description = "状态(active=启用,disabled=停用)") String status,
     @Schema(description = "备注") String remark
 ) {

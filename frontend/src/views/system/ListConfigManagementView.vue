@@ -77,6 +77,13 @@
             field 必须是后端分页接口支持的查询参数,否则查询不生效。
           </div>
         </el-form-item>
+        <el-form-item label="按钮配置 actionsJson">
+          <el-input v-model="listConfigForm.actionsJson" type="textarea" :rows="7" placeholder='[{"action":"xxx-create","label":"新增","position":"toolbar","buttonType":"primary"}]' />
+          <div class="education-context-text">
+            每项 action/label/position 必填;position= toolbar(表格上方)或 row(行内);buttonType 可选 primary/default/text/danger;
+            permission 为权限码,无权限自动隐藏;action 必须是对应列表页已注册的动作名,写错会导致按钮不渲染。
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="listConfigDialogVisible = false">取消</el-button>
@@ -135,6 +142,7 @@ const listConfigForm = reactive({
   remark: '',
   columnsJson: '',
   queryJson: '',
+  actionsJson: '',
 })
 
 async function loadListConfigs() {
@@ -182,6 +190,7 @@ function openCreateListConfigDialog() {
   listConfigForm.remark = ''
   listConfigForm.columnsJson = '[\n  { "prop": "id", "label": "ID" }\n]'
   listConfigForm.queryJson = '[]'
+  listConfigForm.actionsJson = ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -197,6 +206,7 @@ function openEditListConfigDialog(row: ListConfigSummary) {
   listConfigForm.remark = row.remark || ''
   listConfigForm.columnsJson = prettyJson(row.columnsJson)
   listConfigForm.queryJson = prettyJson(row.queryJson)
+  listConfigForm.actionsJson = row.actionsJson ? prettyJson(row.actionsJson) : ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -217,9 +227,15 @@ async function submitListConfig() {
 
   let columnsJson: string
   let queryJson: string
+  let actionsJson: string | null
   try {
     columnsJson = validateJsonArray(listConfigForm.columnsJson, '列配置 columnsJson')
     queryJson = validateJsonArray(listConfigForm.queryJson, '查询条件 queryJson')
+    // actionsJson 允许为空字符串(null=未配置按钮,回退插槽模式),非空时必须合法
+    actionsJson = listConfigForm.actionsJson.trim() || null
+    if (actionsJson) {
+      actionsJson = validateJsonArray(actionsJson, '按钮配置 actionsJson')
+    }
   } catch (error) {
     listConfigFormError.value = toMessage(error, 'JSON 校验失败')
     return
@@ -234,6 +250,7 @@ async function submitListConfig() {
       pageSize: listConfigForm.pageSize,
       columnsJson,
       queryJson,
+      actionsJson,
       status: listConfigForm.status,
       remark: trimToUndefined(listConfigForm.remark),
     }

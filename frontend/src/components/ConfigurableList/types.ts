@@ -31,6 +31,35 @@ export interface ListColumnConfig {
 
 export type ListQueryFieldType = 'input' | 'select' | 'dict-select' | 'date'
 
+/** 按钮位置:表格上方工具栏 / 行内操作列 */
+export type ListActionPosition = 'toolbar' | 'row'
+
+/** 按钮样式,与 Element Plus button type 对齐 */
+export type ListButtonType = 'primary' | 'default' | 'text' | 'danger'
+
+export interface ListActionConfig {
+  /** 代码侧动作名,宿主页面通过 actions prop 注册同名处理器 */
+  action: string
+  /** 静态文案兜底;行内动作可在注册表里用 label(row) 覆盖(如 停用/启用) */
+  label: string
+  /** 渲染位置,每个按钮独立配置,toolbar=表格上方工具栏,row=行内操作列 */
+  position: ListActionPosition
+  /** 按钮样式,toolbar 缺省 default,row 缺省 text */
+  buttonType?: ListButtonType
+  /** 权限码,当前用户无该权限时按钮隐藏(不渲染) */
+  permission?: string
+}
+
+/**
+ * 按钮动作处理器(宿主注入):handler 触发点击行为,label/disabled 可选,
+ * 用于静态配置无法表达的动态文案(如 停用/启用)与禁用条件(如系统内置禁删)。
+ */
+export interface ActionHandler {
+  handler: (row?: Record<string, any>) => void
+  label?: (row?: Record<string, any>) => string
+  disabled?: (row?: Record<string, any>) => boolean
+}
+
 export interface QueryOption {
   label: string
   value: string
@@ -61,4 +90,6 @@ export interface ListPageConfig {
   pageSize?: number
   columns: ListColumnConfig[]
   queryFields?: QueryFieldConfig[]
+  /** 按钮配置;未配置(空)时组件回退 #actions 插槽模式 */
+  actions?: ListActionConfig[]
 }

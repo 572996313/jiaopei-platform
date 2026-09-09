@@ -5,27 +5,15 @@
         <div class="panel-title">系统参数<span class="panel-count">共 {{ configTotal }} 条</span></div>
         <div class="table-actions">
           <span class="education-context-text">维护全局键值参数(token 有效期等),支持新增、编辑与删除。</span>
-          <el-button v-if="permissions.canWriteConfigs" type="primary" @click="openCreateConfigDialog">新增参数</el-button>
         </div>
       </div>
 
       <ConfigurableList
         ref="configListRef"
         resource-code="system-configs"
-        :actions-width="180"
+        :actions="configActionHandlers"
         @loaded="onConfigsLoaded"
-      >
-        <template #actions="{ row }">
-          <el-button v-if="permissions.canWriteConfigs" text type="primary" @click="openEditConfigDialog(row)">编辑</el-button>
-          <el-button
-            v-if="permissions.canWriteConfigs"
-            text
-            type="danger"
-            :disabled="row.isSystem === true"
-            @click="handleDeleteConfig(row)"
-          >删除</el-button>
-        </template>
-      </ConfigurableList>
+      />
     </article>
 
     <el-dialog v-model="configDialogVisible" :title="configDialogMode === 'create' ? '新增系统参数' : '编辑系统参数'" width="620px">
@@ -91,15 +79,14 @@ import {
 } from '@/api/system'
 import type { SystemConfigSummary } from '@/api/system'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import type { ActionHandler } from '@/components/ConfigurableList/types'
 import {
   ensureStatusDictLoaded,
   toMessage,
   trimToUndefined,
   useStatusOptions,
-  useSystemPermissions,
 } from './shared'
 
-const permissions = useSystemPermissions()
 const statusOptions = useStatusOptions()
 
 const configListRef = ref<InstanceType<typeof ConfigurableList> | null>(null)
@@ -241,6 +228,19 @@ async function handleDeleteConfig(config: SystemConfigSummary) {
   } catch (error) {
     ElMessage.error(toMessage(error, '删除系统参数失败'))
   }
+}
+
+/**
+ * 按钮动作注册表:与 sys_list_config.actions_json 的 action 名一一对应,
+ * disabled 提供配置无法表达的动态禁用(系统内置参数禁删)。
+ */
+const configActionHandlers: Record<string, ActionHandler> = {
+  'config-create': { handler: () => openCreateConfigDialog() },
+  'config-edit': { handler: (row) => openEditConfigDialog(row as SystemConfigSummary) },
+  'config-delete': {
+    handler: (row) => void handleDeleteConfig(row as SystemConfigSummary),
+    disabled: (row) => row?.isSystem === true,
+  },
 }
 
 onMounted(() => {

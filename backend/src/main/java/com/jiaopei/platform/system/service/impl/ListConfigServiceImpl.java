@@ -33,6 +33,12 @@ public class ListConfigServiceImpl implements ListConfigService {
     /** 查询控件类型:输入框(默认)/下拉/字典下拉/日期 */
     private static final Set<String> QUERY_FIELD_TYPES = Set.of("input", "select", "dict-select", "date");
 
+    /** 按钮位置:表格上方工具栏 / 行内操作列 */
+    private static final Set<String> ACTION_POSITIONS = Set.of("toolbar", "row");
+
+    /** 按钮样式,与 Element Plus button type 对齐 */
+    private static final Set<String> ACTION_BUTTON_TYPES = Set.of("primary", "default", "text", "danger");
+
     private final ListConfigMapper listConfigMapper;
     private final ObjectMapper objectMapper;
 
@@ -65,6 +71,7 @@ public class ListConfigServiceImpl implements ListConfigService {
     public ListConfigView createConfig(ListConfigCreateRequest request) {
         validateEndpoint(request.endpoint());
         validatePayload(request.columnsJson(), request.queryJson());
+        validateActions(request.actionsJson());
         assertUniqueResourceCode(request.resourceCode());
 
         ListConfigEntity entity = new ListConfigEntity();
@@ -74,6 +81,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         entity.setPageSize(request.pageSize());
         entity.setColumnsJson(request.columnsJson());
         entity.setQueryJson(request.queryJson());
+        entity.setActionsJson(request.actionsJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         try {
@@ -91,12 +99,14 @@ public class ListConfigServiceImpl implements ListConfigService {
         ListConfigEntity entity = requireConfig(id);
         validateEndpoint(request.endpoint());
         validatePayload(request.columnsJson(), request.queryJson());
+        validateActions(request.actionsJson());
 
         entity.setResourceName(request.resourceName());
         entity.setEndpoint(request.endpoint());
         entity.setPageSize(request.pageSize());
         entity.setColumnsJson(request.columnsJson());
         entity.setQueryJson(request.queryJson());
+        entity.setActionsJson(request.actionsJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         listConfigMapper.updateById(entity);
@@ -206,6 +216,33 @@ public class ListConfigServiceImpl implements ListConfigService {
         }
     }
 
+    /**
+     * 校验按钮配置 JSON 结构:action/label/position 必填、position 与 buttonType 取值合法。
+     * actionsJson 为空(null/空白)表示未配置按钮,前端回退插槽模式,不校验。
+     */
+    private void validateActions(String actionsJson) {
+        if (actionsJson == null || actionsJson.isBlank()) {
+            return;
+        }
+        List<Map<String, Object>> actions = parseArray(actionsJson, "按钮配置 actionsJson");
+        for (int i = 0; i < actions.size(); i++) {
+            Map<String, Object> action = actions.get(i);
+            String where = "按钮配置[" + i + "]";
+            requireText(action, "action", where);
+            requireText(action, "label", where);
+            String position = optionalText(action, "position");
+            if (position == null || !ACTION_POSITIONS.contains(position)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    where + " 缺少必填字段 position,可选值 " + ACTION_POSITIONS);
+            }
+            String buttonType = optionalText(action, "buttonType");
+            if (buttonType != null && !ACTION_BUTTON_TYPES.contains(buttonType)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    where + " 的 buttonType 不支持：" + buttonType + ",可选值 " + ACTION_BUTTON_TYPES);
+            }
+        }
+    }
+
     private void requireText(Map<String, Object> source, String key, String where) {
         Object value = source.get(key);
         if (!(value instanceof String text) || text.isBlank()) {
@@ -227,6 +264,7 @@ public class ListConfigServiceImpl implements ListConfigService {
             entity.getPageSize(),
             entity.getColumnsJson(),
             entity.getQueryJson(),
+            entity.getActionsJson(),
             entity.getStatus(),
             entity.getRemark()
         );
