@@ -10,16 +10,40 @@
         <section v-for="group in navGroups" :key="group.key" class="nav-group">
           <div class="nav-group-title">{{ group.label }}</div>
           <div class="nav-list">
-            <RouterLink
-              v-for="item in group.items"
-              :key="item.key"
-              :to="item.to"
-              class="nav-item"
-              :class="{ 'is-active': isNavItemActive(item) }"
-            >
-              <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
-              <span class="nav-item-label">{{ item.label }}</span>
-            </RouterLink>
+            <template v-for="item in group.items" :key="item.key">
+              <div v-if="item.children?.length" class="nav-parent">
+                <button
+                  type="button"
+                  class="nav-item nav-toggle"
+                  :class="{ 'is-active': isNavItemActive(item), 'is-open': isGroupOpen(item) }"
+                  @click="toggleGroup(item.key)"
+                >
+                  <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
+                  <span class="nav-item-label">{{ item.label }}</span>
+                  <el-icon class="nav-caret"><ArrowDown /></el-icon>
+                </button>
+                <div v-show="isGroupOpen(item)" class="nav-children">
+                  <RouterLink
+                    v-for="child in visibleChildren(item)"
+                    :key="child.key"
+                    :to="child.to"
+                    class="nav-item nav-child-item"
+                    :class="{ 'is-active': isChildActive(child) }"
+                  >
+                    <span class="nav-item-label">{{ child.label }}</span>
+                  </RouterLink>
+                </div>
+              </div>
+              <RouterLink
+                v-else
+                :to="item.to"
+                class="nav-item"
+                :class="{ 'is-active': isNavItemActive(item) }"
+              >
+                <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
+                <span class="nav-item-label">{{ item.label }}</span>
+              </RouterLink>
+            </template>
           </div>
         </section>
       </nav>
@@ -86,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, type Component } from 'vue'
+import { computed, onMounted, ref, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   AlarmClock,
@@ -110,6 +134,16 @@ onMounted(() => {
   institutionStore.loadInstitutions()
 })
 
+interface SidebarChildDefinition {
+  key: string
+  to: string
+  label: string
+  title: string
+  prefixes: string[]
+  menuSignals?: string[]
+  permissionSignals?: string[]
+}
+
 interface SidebarDefinition {
   key: string
   to: string
@@ -122,6 +156,19 @@ interface SidebarDefinition {
   alwaysVisible?: boolean
   menuSignals?: string[]
   permissionSignals?: string[]
+  children?: SidebarChildDefinition[]
+}
+
+/** 当前用户对某菜单项是否有访问权(命中菜单信号或任一权限信号) */
+function canAccess(menuSignals?: string[], permissionSignals?: string[]) {
+  return (
+    auth.hasMenuAccess(menuSignals || []) ||
+    (permissionSignals || []).some((permission: string) => auth.hasPermission(permission))
+  )
+}
+
+function hasVisibleChild(item: SidebarDefinition) {
+  return (item.children || []).some((child) => canAccess(child.menuSignals, child.permissionSignals))
 }
 
 const sidebarDefinitions: SidebarDefinition[] = [
@@ -200,8 +247,71 @@ const sidebarDefinitions: SidebarDefinition[] = [
     group: 'system',
     hint: '用户、角色、权限、字典',
     prefixes: ['/system'],
-    menuSignals: ['system', 'system_users', 'system_roles', 'system_menus', 'system_config', 'system_dicts', '/system', '/system/users', '/system/roles', '/system/menus', '/system/config', '/system/dicts'],
-    permissionSignals: ['system:user:manage', 'system:role:manage', 'system:menu:manage', 'system:config:read', 'system:config:write', 'system:dict:manage'],
+    children: [
+      {
+        key: 'system-institution',
+        to: '/system/institution',
+        label: '机构资料',
+        title: '机构资料',
+        prefixes: ['/system/institution'],
+        menuSignals: ['system_institution', '/system/institution'],
+        permissionSignals: ['organization:read', 'organization:write', 'system:user:manage'],
+      },
+      {
+        key: 'system-users',
+        to: '/system/users',
+        label: '用户管理',
+        title: '用户管理',
+        prefixes: ['/system/users'],
+        menuSignals: ['system_users', '/system/users'],
+        permissionSignals: ['system:user:manage'],
+      },
+      {
+        key: 'system-roles',
+        to: '/system/roles',
+        label: '角色管理',
+        title: '角色管理',
+        prefixes: ['/system/roles'],
+        menuSignals: ['system_roles', '/system/roles'],
+        permissionSignals: ['system:role:manage'],
+      },
+      {
+        key: 'system-menus',
+        to: '/system/menus',
+        label: '菜单管理',
+        title: '菜单管理',
+        prefixes: ['/system/menus'],
+        menuSignals: ['system_menus', '/system/menus'],
+        permissionSignals: ['system:menu:manage'],
+      },
+      {
+        key: 'system-config',
+        to: '/system/config',
+        label: '系统参数',
+        title: '系统参数',
+        prefixes: ['/system/config'],
+        menuSignals: ['system_config', '/system/config'],
+        permissionSignals: ['system:config:read', 'system:config:write'],
+      },
+      {
+        key: 'system-dicts',
+        to: '/system/dicts',
+        label: '字典管理',
+        title: '字典管理',
+        prefixes: ['/system/dicts'],
+        menuSignals: ['system_dicts', '/system/dicts'],
+        permissionSignals: ['system:dict:manage'],
+      },
+      {
+        key: 'system-list-configs',
+        to: '/system/list-configs',
+        label: '列表配置',
+        title: '列表配置',
+        prefixes: ['/system/list-configs'],
+        menuSignals: ['system_list_configs', '/system/list-configs'],
+        permissionSignals: ['system:list-config:manage'],
+      },
+    ],
   },
 ]
 
@@ -216,11 +326,27 @@ const navGroupMeta = [
 
 const navItems = computed(() => {
   return sidebarDefinitions.filter((item) => {
+    if (item.children?.length) {
+      // 父菜单自身不带信号时,可见性完全由子项决定(复刻原系统设置页 tabs 为空则整组隐藏的语义)
+      return hasVisibleChild(item)
+    }
     if (item.alwaysVisible) {
       return true
     }
-    return auth.hasMenuAccess(item.menuSignals || []) || (item.permissionSignals || []).some((permission: string) => auth.hasPermission(permission))
+    return canAccess(item.menuSignals, item.permissionSignals)
   })
+})
+
+/** 当前路径命中的子项(用于标题与高亮,子项优先于父项) */
+const matchedChild = computed(() => {
+  for (const item of sidebarDefinitions) {
+    for (const child of item.children || []) {
+      if (child.prefixes.some((prefix) => route.path.startsWith(prefix))) {
+        return child
+      }
+    }
+  }
+  return null
 })
 
 const navGroups = computed(() => {
@@ -234,11 +360,36 @@ const navGroups = computed(() => {
 })
 
 const currentTitle = computed(() => {
-  return sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))?.title ?? '教培管理平台'
+  return matchedChild.value?.title ?? sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))?.title ?? '教培管理平台'
 })
 
 function isNavItemActive(item: SidebarDefinition) {
   return item.prefixes.some((prefix) => route.path.startsWith(prefix))
+}
+
+function isChildActive(child: SidebarChildDefinition) {
+  return child.prefixes.some((prefix) => route.path.startsWith(prefix))
+}
+
+// 展开态:默认收起;当前路径位于父项前缀内时自动展开(可点击手动收起)
+const openGroups = ref(new Set<string>())
+
+function isGroupOpen(item: SidebarDefinition) {
+  return openGroups.value.has(item.key) || item.prefixes.some((prefix) => route.path.startsWith(prefix))
+}
+
+function toggleGroup(key: string) {
+  const next = new Set(openGroups.value)
+  if (next.has(key)) {
+    next.delete(key)
+  } else {
+    next.add(key)
+  }
+  openGroups.value = next
+}
+
+function visibleChildren(item: SidebarDefinition) {
+  return (item.children || []).filter((child) => canAccess(child.menuSignals, child.permissionSignals))
 }
 
 function handleUserCommand(command: string | number | object) {

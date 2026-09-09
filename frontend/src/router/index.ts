@@ -36,58 +36,37 @@ const routes = [
       {
         path: 'system/users',
         name: 'system-users',
-        meta: {
-          systemTab: 'users',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/UserManagementView.vue'),
       },
       {
         path: 'system/institution',
         name: 'system-institution',
-        meta: {
-          systemTab: 'institution',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/InstitutionProfileView.vue'),
       },
       {
         path: 'system/roles',
         name: 'system-roles',
-        meta: {
-          systemTab: 'roles',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/RoleManagementView.vue'),
       },
       {
         path: 'system/menus',
         name: 'system-menus',
-        meta: {
-          systemTab: 'menus',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/MenuManagementView.vue'),
       },
       {
         path: 'system/config',
         name: 'system-config',
-        meta: {
-          systemTab: 'configs',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/ConfigManagementView.vue'),
       },
       {
         path: 'system/dicts',
         name: 'system-dicts',
-        meta: {
-          systemTab: 'dicts',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/DictManagementView.vue'),
       },
       {
         path: 'system/list-configs',
         name: 'system-list-configs',
-        meta: {
-          systemTab: 'listConfigs',
-        },
-        component: () => import('@/views/system/SystemManagementView.vue'),
+        component: () => import('@/views/system/ListConfigManagementView.vue'),
       },
       {
         path: 'campus',
