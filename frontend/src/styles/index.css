@@ -146,6 +146,10 @@ body {
   flex-shrink: 0;
 }
 
+.nav-child-item .nav-item-icon {
+  font-size: 14px;
+}
+
 .nav-item:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
@@ -210,8 +214,20 @@ body {
   font-size: 13px;
 }
 
+.nav-child-item .nav-item-icon-sub {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
 .nav-child-item.is-active::before {
   left: -12px;
+}
+
+/* 菜单管理页图标下拉选项 */
+.menu-icon-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* 超宽屏下内容限宽居中,标题/内容保持同一轴线 */

@@ -107,7 +107,20 @@
             <el-input v-model="menuForm.component" :disabled="menuForm.menuType === 'button'" placeholder="如 system/users" />
           </el-form-item>
           <el-form-item label="图标">
-            <el-input v-model="menuForm.icon" placeholder="选填" />
+            <el-select
+              v-model="menuForm.icon"
+              filterable
+              clearable
+              placeholder="选择图标,用于侧边栏展示"
+              style="width: 100%"
+            >
+              <el-option v-for="item in menuIconOptions" :key="item.value" :label="item.label" :value="item.value">
+                <span class="menu-icon-option">
+                  <el-icon v-if="resolveMenuIcon(item.value)"><component :is="resolveMenuIcon(item.value)" /></el-icon>
+                  <span>{{ item.label }}</span>
+                </span>
+              </el-option>
+            </el-select>
           </el-form-item>
           <el-form-item label="状态">
             <el-select v-model="menuForm.status">
@@ -146,6 +159,7 @@ import {
 } from '@/api/system'
 import type { SystemMenuTreeNode } from '@/api/system'
 import { permissionGroups, permissionLabel } from '@/constants/permissionLabels'
+import { MENU_ICON_OPTIONS, normalizeMenuIconKey, resolveMenuIcon } from '@/constants/menuIcons'
 import {
   ensureStatusDictLoaded,
   menuTypeLabel,
@@ -183,6 +197,8 @@ const menuTypeOptions = [
   { value: 'menu', label: '菜单' },
   { value: 'button', label: '按钮' },
 ]
+
+const menuIconOptions = MENU_ICON_OPTIONS
 
 const menuForm = reactive({
   parentId: '' as string | null,
@@ -237,7 +253,7 @@ function openEditMenuDialog(node: SystemMenuTreeNode) {
   menuForm.path = node.path || ''
   menuForm.component = node.component || ''
   menuForm.permissionCode = node.permissionCode || ''
-  menuForm.icon = node.icon || ''
+  menuForm.icon = normalizeMenuIconKey(node.icon) || ''
   menuForm.sortNo = node.sortNo ?? 0
   menuForm.visible = node.visible !== false
   menuForm.status = node.status || 'active'

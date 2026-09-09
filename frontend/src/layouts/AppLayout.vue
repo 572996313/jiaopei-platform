@@ -11,7 +11,7 @@
           <div class="nav-group-title">{{ group.label }}</div>
           <div class="nav-list">
             <template v-for="item in group.items" :key="item.key">
-              <div v-if="item.children?.length" class="nav-parent">
+              <div v-if="visibleChildren(item).length" class="nav-parent">
                 <button
                   type="button"
                   class="nav-item nav-toggle"
@@ -19,7 +19,7 @@
                   @click="toggleGroup(item.key)"
                 >
                   <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
-                  <span class="nav-item-label">{{ item.label }}</span>
+                  <span class="nav-item-label">{{ displayLabel(item) }}</span>
                   <el-icon class="nav-caret"><ArrowDown /></el-icon>
                 </button>
                 <div v-show="isGroupOpen(item)" class="nav-children">
@@ -30,6 +30,7 @@
                     class="nav-item nav-child-item"
                     :class="{ 'is-active': isChildActive(child) }"
                   >
+                    <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"><component :is="child.icon" /></el-icon>
                     <span class="nav-item-label">{{ child.label }}</span>
                   </RouterLink>
                 </div>
@@ -124,6 +125,8 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useInstitutionStore } from '@/stores/institution'
+import type { SystemMenuTreeNode } from '@/api/system'
+import { resolveMenuIcon } from '@/constants/menuIcons'
 
 const route = useRoute()
 const router = useRouter()
@@ -140,8 +143,7 @@ interface SidebarChildDefinition {
   label: string
   title: string
   prefixes: string[]
-  menuSignals?: string[]
-  permissionSignals?: string[]
+  icon?: Component
 }
 
 interface SidebarDefinition {
@@ -154,21 +156,56 @@ interface SidebarDefinition {
   hint?: string
   prefixes: string[]
   alwaysVisible?: boolean
-  menuSignals?: string[]
-  permissionSignals?: string[]
-  children?: SidebarChildDefinition[]
+  /** 命中该项对应系统目录(menuCode)时,子项改由后端菜单树动态提供 */
+  menuCatalogCode?: string
 }
 
-/** 当前用户对某菜单项是否有访问权(命中菜单信号或任一权限信号) */
-function canAccess(menuSignals?: string[], permissionSignals?: string[]) {
-  return (
-    auth.hasMenuAccess(menuSignals || []) ||
-    (permissionSignals || []).some((permission: string) => auth.hasPermission(permission))
-  )
+/** 后端菜单节点 → 侧边栏子项结构(名称/顺序/图标来自 sys_menu,可后台配置) */
+function adaptMenuChildren(nodes: SystemMenuTreeNode[]): SidebarChildDefinition[] {
+  return nodes
+    .filter((node) => node.menuType === 'menu' && node.path)
+    .map((node) => ({
+      key: node.menuCode,
+      to: node.path as string,
+      label: node.menuName,
+      title: node.menuName,
+      prefixes: [node.path as string],
+      icon: resolveMenuIcon(node.icon),
+    }))
+}
+
+/** 当前用户菜单树里 code 对应的节点(含目录与菜单) */
+function findMenuNode(items: SystemMenuTreeNode[] | undefined, code: string): SystemMenuTreeNode | null {
+  for (const item of items || []) {
+    if (item.menuCode === code) {
+      return item
+    }
+    const found = findMenuNode(item.children, code)
+    if (found) {
+      return found
+    }
+  }
+  return null
+}
+
+/**
+ * 计算某菜单项应展示的子项。
+ * - 配置化目录(system):子项直接来自后端菜单树(角色已授权 + 按 sortNo 排序),目录未授权则无子项;
+ * - 其余顶层项无子项。
+ */
+function resolveVisibleChildren(item: SidebarDefinition): SidebarChildDefinition[] {
+  if (item.menuCatalogCode) {
+    const catalog = findMenuNode(auth.currentMenus, item.menuCatalogCode)
+    if (!catalog) {
+      return []
+    }
+    return adaptMenuChildren(catalog.children || [])
+  }
+  return []
 }
 
 function hasVisibleChild(item: SidebarDefinition) {
-  return (item.children || []).some((child) => canAccess(child.menuSignals, child.permissionSignals))
+  return resolveVisibleChildren(item).length > 0
 }
 
 const sidebarDefinitions: SidebarDefinition[] = [
@@ -247,82 +284,21 @@ const sidebarDefinitions: SidebarDefinition[] = [
     group: 'system',
     hint: '用户、角色、权限、字典',
     prefixes: ['/system'],
-    children: [
-      {
-        key: 'system-institution',
-        to: '/system/institution',
-        label: '机构资料',
-        title: '机构资料',
-        prefixes: ['/system/institution'],
-        menuSignals: ['system_institution', '/system/institution'],
-        permissionSignals: ['organization:read', 'organization:write', 'system:user:manage'],
-      },
-      {
-        key: 'system-users',
-        to: '/system/users',
-        label: '用户管理',
-        title: '用户管理',
-        prefixes: ['/system/users'],
-        menuSignals: ['system_users', '/system/users'],
-        permissionSignals: ['system:user:manage'],
-      },
-      {
-        key: 'system-roles',
-        to: '/system/roles',
-        label: '角色管理',
-        title: '角色管理',
-        prefixes: ['/system/roles'],
-        menuSignals: ['system_roles', '/system/roles'],
-        permissionSignals: ['system:role:manage'],
-      },
-      {
-        key: 'system-menus',
-        to: '/system/menus',
-        label: '菜单管理',
-        title: '菜单管理',
-        prefixes: ['/system/menus'],
-        menuSignals: ['system_menus', '/system/menus'],
-        permissionSignals: ['system:menu:manage'],
-      },
-      {
-        key: 'system-config',
-        to: '/system/config',
-        label: '系统参数',
-        title: '系统参数',
-        prefixes: ['/system/config'],
-        menuSignals: ['system_config', '/system/config'],
-        permissionSignals: ['system:config:read', 'system:config:write'],
-      },
-      {
-        key: 'system-dicts',
-        to: '/system/dicts',
-        label: '字典管理',
-        title: '字典管理',
-        prefixes: ['/system/dicts'],
-        menuSignals: ['system_dicts', '/system/dicts'],
-        permissionSignals: ['system:dict:manage'],
-      },
-      {
-        key: 'system-list-configs',
-        to: '/system/list-configs',
-        label: '列表配置',
-        title: '列表配置',
-        prefixes: ['/system/list-configs'],
-        menuSignals: ['system_list_configs', '/system/list-configs'],
-        permissionSignals: ['system:list-config:manage'],
-      },
-      {
-        key: 'system-permission-overview',
-        to: '/system/permission-overview',
-        label: '功能权限',
-        title: '功能权限总览',
-        prefixes: ['/system/permission-overview'],
-        menuSignals: ['system_permission_overview', '/system/permission-overview'],
-        permissionSignals: ['system:menu:manage'],
-      },
-    ],
+    // 系统设置组:父级目录与子项均来自 sys_menu(/auth/current/menus),名称/顺序/图标可在后台菜单管理配置
+    menuCatalogCode: 'system',
   },
 ]
+
+/** 配置化目录的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
+function displayLabel(item: SidebarDefinition): string {
+  if (item.menuCatalogCode) {
+    const catalog = findMenuNode(auth.currentMenus, item.menuCatalogCode)
+    if (catalog?.menuName) {
+      return catalog.menuName
+    }
+  }
+  return item.label
+}
 
 const navGroupMeta = [
   { key: 'workbench', label: '工作台' },
@@ -335,21 +311,18 @@ const navGroupMeta = [
 
 const navItems = computed(() => {
   return sidebarDefinitions.filter((item) => {
-    if (item.children?.length) {
-      // 父菜单自身不带信号时,可见性完全由子项决定(复刻原系统设置页 tabs 为空则整组隐藏的语义)
-      return hasVisibleChild(item)
-    }
     if (item.alwaysVisible) {
       return true
     }
-    return canAccess(item.menuSignals, item.permissionSignals)
+    // 其余顶层项(当前仅系统目录):至少有一个可见子项才显示
+    return hasVisibleChild(item)
   })
 })
 
 /** 当前路径命中的子项(用于标题与高亮,子项优先于父项) */
 const matchedChild = computed(() => {
   for (const item of sidebarDefinitions) {
-    for (const child of item.children || []) {
+    for (const child of resolveVisibleChildren(item)) {
       if (child.prefixes.some((prefix) => route.path.startsWith(prefix))) {
         return child
       }
@@ -398,7 +371,7 @@ function toggleGroup(key: string) {
 }
 
 function visibleChildren(item: SidebarDefinition) {
-  return (item.children || []).filter((child) => canAccess(child.menuSignals, child.permissionSignals))
+  return resolveVisibleChildren(item)
 }
 
 function handleUserCommand(command: string | number | object) {
