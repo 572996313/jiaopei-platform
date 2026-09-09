@@ -32,6 +32,7 @@ public class SystemRoleController {
         this.systemRoleService = systemRoleService;
     }
 
+    @Operation(summary = "获取角色列表")
     @GetMapping
     @RequiresPermission("system:role:manage")
     public ApiResponse<List<RoleView>> list() {
@@ -45,12 +46,14 @@ public class SystemRoleController {
         return ApiResponse.success("角色分页列表已加载", systemRoleService.pageRoles(query));
     }
 
+    @Operation(summary = "创建角色")
     @PostMapping
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleView> create(@Valid @RequestBody RoleCreateRequest request) {
         return ApiResponse.success("角色已创建", systemRoleService.createRole(request));
     }
 
+    @Operation(summary = "更新角色")
     @PutMapping("/{id}")
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleView> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {

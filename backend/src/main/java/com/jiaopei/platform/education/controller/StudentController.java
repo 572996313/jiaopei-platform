@@ -7,6 +7,7 @@ import com.jiaopei.platform.education.domain.entity.StudentEntity;
 import com.jiaopei.platform.education.dto.StudentCreateRequest;
 import com.jiaopei.platform.education.dto.StudentUpdateRequest;
 import com.jiaopei.platform.education.service.StudentService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,6 +32,7 @@ public class StudentController {
         this.studentService = studentService;
     }
 
+    @Operation(summary = "获取学员列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentEntity>> list(@RequestParam(required = false) String institutionId,
@@ -43,12 +45,14 @@ public class StudentController {
         ));
     }
 
+    @Operation(summary = "创建学员")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<StudentEntity> create(@Valid @RequestBody StudentCreateRequest request) {
         return ApiResponse.success("学员已创建", studentService.createStudent(request));
     }
 
+    @Operation(summary = "更新学员")
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<StudentEntity> update(@PathVariable Long id,
@@ -56,6 +60,7 @@ public class StudentController {
         return ApiResponse.success("学员已更新", studentService.updateStudent(id, request));
     }
 
+    @Operation(summary = "删除学员")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

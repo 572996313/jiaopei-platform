@@ -5,6 +5,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.organization.dto.OrganizationBootstrapView;
 import com.jiaopei.platform.organization.dto.OrganizationSchemaView;
 import com.jiaopei.platform.organization.service.OrganizationApplicationService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,7 @@ public class OrganizationController {
         this.organizationApplicationService = organizationApplicationService;
     }
 
+    @Operation(summary = "获取组织模块启动信息")
     @GetMapping("/bootstrap")
     @RequiresPermission("organization:read")
     public ApiResponse<OrganizationBootstrapView> bootstrap() {
@@ -28,6 +30,7 @@ public class OrganizationController {
             organizationApplicationService.getBootstrapView());
     }
 
+    @Operation(summary = "获取组织模块表结构元数据")
     @GetMapping("/schema")
     @RequiresPermission("organization:read")
     public ApiResponse<OrganizationSchemaView> schema() {

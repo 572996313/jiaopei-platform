@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.EnrollmentEntity;
 import com.jiaopei.platform.education.dto.EnrollmentCreateRequest;
 import com.jiaopei.platform.education.service.EnrollmentService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,6 +28,7 @@ public class EnrollmentController {
         this.enrollmentService = enrollmentService;
     }
 
+    @Operation(summary = "获取报名列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<EnrollmentEntity>> list(@RequestParam(required = false) String institutionId,
@@ -39,6 +41,7 @@ public class EnrollmentController {
         ));
     }
 
+    @Operation(summary = "创建报名")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<EnrollmentEntity> create(@Valid @RequestBody EnrollmentCreateRequest request) {

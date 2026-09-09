@@ -7,6 +7,7 @@ import com.jiaopei.platform.education.domain.entity.ClassTypeEntity;
 import com.jiaopei.platform.education.dto.ClassTypeCreateRequest;
 import com.jiaopei.platform.education.dto.ClassTypeUpdateRequest;
 import com.jiaopei.platform.education.service.ClassTypeService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,6 +32,7 @@ public class ClassTypeController {
         this.classTypeService = classTypeService;
     }
 
+    @Operation(summary = "获取班型列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassTypeEntity>> list(@RequestParam(required = false) String institutionId) {
@@ -39,12 +41,14 @@ public class ClassTypeController {
         ));
     }
 
+    @Operation(summary = "创建班型")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<ClassTypeEntity> create(@Valid @RequestBody ClassTypeCreateRequest request) {
         return ApiResponse.success("班型已创建", classTypeService.createClassType(request));
     }
 
+    @Operation(summary = "更新班型")
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<ClassTypeEntity> update(@PathVariable Long id,
@@ -52,6 +56,7 @@ public class ClassTypeController {
         return ApiResponse.success("班型已更新", classTypeService.updateClassType(id, request));
     }
 
+    @Operation(summary = "删除班型")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

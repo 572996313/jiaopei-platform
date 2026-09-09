@@ -7,6 +7,7 @@ import com.jiaopei.platform.education.dto.ScheduleConflictCheckResponse;
 import com.jiaopei.platform.education.dto.ScheduleLessonRequest;
 import com.jiaopei.platform.education.dto.ScheduleLessonView;
 import com.jiaopei.platform.education.service.ScheduleLessonService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -33,6 +34,7 @@ public class ScheduleLessonController {
         this.scheduleLessonService = scheduleLessonService;
     }
 
+    @Operation(summary = "获取排课列表")
     @GetMapping("/lessons")
     @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> list(@RequestParam(required = false) Long institutionId,
@@ -46,24 +48,28 @@ public class ScheduleLessonController {
             scheduleLessonService.listLessons(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
     }
 
+    @Operation(summary = "获取排课详情")
     @GetMapping("/lessons/{id}")
     @RequiresPermission("education:read")
     public ApiResponse<ScheduleLessonView> get(@PathVariable Long id) {
         return ApiResponse.success("排课详情已加载", scheduleLessonService.getLesson(id));
     }
 
+    @Operation(summary = "创建排课")
     @PostMapping("/lessons")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleLessonView> create(@Valid @RequestBody ScheduleLessonRequest request) {
         return ApiResponse.success("排课已创建", scheduleLessonService.createLesson(request));
     }
 
+    @Operation(summary = "更新排课")
     @PutMapping("/lessons/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleLessonView> update(@PathVariable Long id, @Valid @RequestBody ScheduleLessonRequest request) {
         return ApiResponse.success("排课已更新", scheduleLessonService.updateLesson(id, request));
     }
 
+    @Operation(summary = "删除排课")
     @DeleteMapping("/lessons/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -71,6 +77,7 @@ public class ScheduleLessonController {
         return ApiResponse.success("排课已删除", null);
     }
 
+    @Operation(summary = "获取日课表")
     @GetMapping("/timetable/day")
     @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> day(@RequestParam(required = false) Long institutionId,
@@ -84,6 +91,7 @@ public class ScheduleLessonController {
             scheduleLessonService.dayTimetable(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
     }
 
+    @Operation(summary = "获取周课表")
     @GetMapping("/timetable/week")
     @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> week(@RequestParam(required = false) Long institutionId,
@@ -100,6 +108,7 @@ public class ScheduleLessonController {
             scheduleLessonService.weekTimetable(institutionId, campusId, classId, weekStart, weekEnd, pendingMakeupOnly));
     }
 
+    @Operation(summary = "排课冲突检查")
     @PostMapping("/conflicts/check")
     @RequiresPermission("education:write")
     public ApiResponse<ScheduleConflictCheckResponse> check(@Valid @RequestBody ScheduleConflictCheckRequest request) {

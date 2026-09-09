@@ -311,6 +311,15 @@ const sidebarDefinitions: SidebarDefinition[] = [
         menuSignals: ['system_list_configs', '/system/list-configs'],
         permissionSignals: ['system:list-config:manage'],
       },
+      {
+        key: 'system-permission-overview',
+        to: '/system/permission-overview',
+        label: '功能权限',
+        title: '功能权限总览',
+        prefixes: ['/system/permission-overview'],
+        menuSignals: ['system_permission_overview', '/system/permission-overview'],
+        permissionSignals: ['system:menu:manage'],
+      },
     ],
   },
 ]

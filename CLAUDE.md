@@ -51,6 +51,9 @@ pnpm preview
 
 新增受保护接口时：路由加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 表中 `organization:read` / `education:write` 这类命名保持一致。
 
+
+**Controller 每个接口方法都要写 `@Operation(summary="中文说明")`**:summary 展示在 Swagger UI 与"功能权限总览"页的"受控接口"表格里。permission 总览(`PermissionOverviewController`)靠扫描 `@RequiresPermission` + 读 `@Operation.summary` 生成接口说明;**缺 `@Operation` 的接口在总览页"说明"列就是空**。新增接口必须写,存量已分批补齐(自查:对每个 Controller 数 `@Operation` 与 `@(Get|Post|Put|Delete)Mapping` 的数量,应接近一致)。
+
 **登录失败排障陷阱**：`GlobalExceptionHandler` 把所有 `AuthenticationException`（含 `BadCredentialsException` 密码错、`DisabledException` 账号禁用等子类）统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`。所以 `/api/auth/login` 密码错和 `/api/auth/me` token 失效返回的**是同一个错误文案**，仅凭响应体无法区分"密码输错了"还是"token/过滤器逻辑坏了"——排查 401 时先用已知正确密码单独打一次 `/api/auth/login` 排除"密码错"这个最常见的可能，再去看过滤器/Redis。本地测试账号：`admin` / `Admin@1234567`（种子数据见 `V7__create_auth_user_role_tables.sql`，`{noop}` 前缀表示 Spring Security 委托编码器按明文比对，不是真正 BCrypt）。
 
 **Token 存储：Redis，非数据库表**。`TokenCacheService`（`auth/service/TokenCacheService.java` + impl）用 `RedisTemplate<String, Object>` 存 `AuthenticatedUser`，key 布局：

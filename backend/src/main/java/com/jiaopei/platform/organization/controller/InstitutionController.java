@@ -5,6 +5,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
 import com.jiaopei.platform.organization.dto.InstitutionCreateRequest;
 import com.jiaopei.platform.organization.service.InstitutionService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -25,12 +26,14 @@ public class InstitutionController {
         this.institutionService = institutionService;
     }
 
+    @Operation(summary = "获取机构列表")
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<InstitutionEntity>> list() {
         return ApiResponse.success("机构列表已加载", institutionService.listInstitutions());
     }
 
+    @Operation(summary = "创建机构")
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<InstitutionEntity> create(@Valid @RequestBody InstitutionCreateRequest request) {

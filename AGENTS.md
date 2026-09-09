@@ -54,3 +54,54 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 启动后端访问 `http://localhost:8080/swagger-ui.html`,字段说明应展示中文。
 也可访问 `/v3/api-docs` 查看 OpenAPI JSON,字段 `description` 已写入。
+
+## 接口中文说明规范(@Operation,软规范)
+
+本规范为**软规范**,不阻塞构建,但作为团队约定在新接口添加、存量补齐时遵循。
+
+### 背景
+
+Controller 的接口方法缺少中文说明,导致:
+
+- Swagger UI 与 `/v3/api-docs` 里的接口没有语义描述,前端联调时反复询问。
+- **功能权限总览页**(系统设置 → 功能权限,后端 `PermissionOverviewController`)
+  展示"权限码 → 受控接口"时,读取的是 `@Operation(summary)`;"说明"列为空的接口
+  基本都是漏写 `@Operation` 的存量接口。
+
+### 约定内容
+
+1. 所有 Controller 的**每个接口方法**(`@GetMapping/@PostMapping/@PutMapping/@DeleteMapping`
+   等)必须添加:
+
+   ```java
+   @Operation(summary = "获取教师列表", description = "按机构与校区筛选,返回教师列表")
+   @GetMapping
+   @RequiresPermission("education:read")
+   public ApiResponse<List<TeacherEntity>> list(...) { ... }
+   ```
+
+2. `summary` 用简洁中文短语(如 "获取系统参数列表"),在总览页与 Swagger 列表直接展示;
+   `description` 可选,补充入参含义、筛选字段等细节。**两者都使用中文**。
+
+3. 若方法同时有 `@RequiresPermission`,`@Operation` 与其并列;不带权限的公开接口
+   (如 `HealthController`)同样建议补 `@Operation`,保持文档完整。
+
+### 验证与覆盖度自查
+
+启动后访问 `http://localhost:8080/swagger-ui.html`,接口应显示中文 summary;
+功能权限总览页"受控接口"表格的"说明"列应非空。
+
+存量覆盖度检查可用命令行比对(统计每个 Controller 的 `@Operation` 与
+`@(Get|Post|Put|Delete)Mapping` 数量):
+
+```bash
+grep -c "@Operation" **/*Controller.java
+grep -cE "@(Get|Post|Put|Delete|Request)Mapping" **/*Controller.java
+```
+
+存量接口已按域分批补齐(系统域已首批,教务/组织域已第二批);新增接口必须同步写。
+
+### 落地节奏
+
+- 新建接口时同步添加,不留存量。
+- 存量缺失按域逐步补齐;发现总览页"说明"列为空即为漏写,应补。

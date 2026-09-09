@@ -495,3 +495,54 @@ export function updateListConfig(id: string, payload: ListConfigSavePayload) {
 export function deleteListConfig(id: string) {
   return requestDelete<void>(`/system/list-configs/${id}`)
 }
+
+export interface PermissionEndpointInfo {
+  method: string
+  path: string
+  summary?: string | null
+}
+
+export interface PermissionRoleRef {
+  roleId: string
+  roleCode: string
+  roleName: string
+}
+
+export interface PermissionMenuNodeRef {
+  menuId: string
+  menuName: string
+  menuCode: string
+}
+
+export interface PermissionConfigButtonRef {
+  resourceCode: string
+  resourceName: string
+  action: string
+  label: string
+  position: string
+}
+
+export interface PermissionUsage {
+  code: string
+  endpoints: PermissionEndpointInfo[]
+  roles: PermissionRoleRef[]
+  menuNodes: PermissionMenuNodeRef[]
+  configButtons: PermissionConfigButtonRef[]
+  dangling: boolean
+}
+
+export interface UnregisteredPermission {
+  code: string
+  roles: PermissionRoleRef[]
+  menuNodes: PermissionMenuNodeRef[]
+  configButtons: PermissionConfigButtonRef[]
+}
+
+export interface PermissionOverview {
+  permissions: PermissionUsage[]
+  unregistered: UnregisteredPermission[]
+}
+
+export function fetchPermissionOverview() {
+  return requestGet<PermissionOverview>('/system/permission-overview')
+}

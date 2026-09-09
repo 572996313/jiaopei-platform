@@ -4,6 +4,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.config.properties.JiaopeiProperties;
 import com.jiaopei.platform.system.dto.ModuleSummaryView;
 import com.jiaopei.platform.system.dto.PlatformBootstrapView;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class PlatformBootstrapController {
         this.properties = properties;
     }
 
+    @Operation(summary = "获取平台启动信息")
     @GetMapping
     public ApiResponse<PlatformBootstrapView> bootstrap() {
         return ApiResponse.success("平台启动信息已就绪", new PlatformBootstrapView(

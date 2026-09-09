@@ -7,6 +7,7 @@ import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.system.dto.MenuView;
 import com.jiaopei.platform.system.service.SystemMenuService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -32,28 +33,33 @@ public class AuthController {
         this.systemMenuService = systemMenuService;
     }
 
+    @Operation(summary = "登录", description = "账号密码登录,返回 JWT 访问令牌")
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success("登录成功", authApplicationService.login(request));
     }
 
+    @Operation(summary = "退出登录")
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletRequest request) {
         authApplicationService.logout(resolveToken(request));
         return ApiResponse.success("已退出登录", null);
     }
 
+    @Operation(summary = "获取当前用户信息")
     @GetMapping("/me")
     public ApiResponse<?> me() {
         return ApiResponse.success("已获取当前用户信息", authApplicationService.currentUser());
     }
 
+    @Operation(summary = "修改密码")
     @PostMapping("/change-password")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authApplicationService.changePassword(request);
         return ApiResponse.success("密码修改成功", null);
     }
 
+    @Operation(summary = "获取当前用户菜单")
     @GetMapping("/current/menus")
     public ApiResponse<List<MenuView>> currentMenus() {
         return ApiResponse.success("已获取当前用户菜单", systemMenuService.currentUserMenus());

@@ -36,12 +36,14 @@ public class SystemDictController {
         this.systemDictService = systemDictService;
     }
 
+    @Operation(summary = "获取字典类型列表")
     @GetMapping("/types")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<List<DictTypeView>> types() {
         return ApiResponse.success("字典类型列表已加载", systemDictService.listTypes());
     }
 
+    @Operation(summary = "获取字典类型下的条目")
     @GetMapping("/types/{typeCode}/items")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<List<DictItemView>> items(@PathVariable String typeCode) {
@@ -60,18 +62,21 @@ public class SystemDictController {
         return ApiResponse.success("字典选项已加载", systemDictService.listOptions(codes));
     }
 
+    @Operation(summary = "创建字典类型")
     @PostMapping("/types")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> createType(@Valid @RequestBody DictTypeCreateRequest request) {
         return ApiResponse.success("字典类型已创建", systemDictService.createType(request));
     }
 
+    @Operation(summary = "更新字典类型")
     @PutMapping("/types/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictTypeView> updateType(@PathVariable Long id, @Valid @RequestBody DictTypeUpdateRequest request) {
         return ApiResponse.success("字典类型已更新", systemDictService.updateType(id, request));
     }
 
+    @Operation(summary = "删除字典类型")
     @DeleteMapping("/types/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<Void> deleteType(@PathVariable Long id) {
@@ -79,18 +84,21 @@ public class SystemDictController {
         return ApiResponse.success("字典类型已删除", null);
     }
 
+    @Operation(summary = "创建字典条目")
     @PostMapping("/items")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictItemView> createItem(@Valid @RequestBody DictItemCreateRequest request) {
         return ApiResponse.success("字典条目已创建", systemDictService.createItem(request));
     }
 
+    @Operation(summary = "更新字典条目")
     @PutMapping("/items/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<DictItemView> updateItem(@PathVariable Long id, @Valid @RequestBody DictItemUpdateRequest request) {
         return ApiResponse.success("字典条目已更新", systemDictService.updateItem(id, request));
     }
 
+    @Operation(summary = "删除字典条目")
     @DeleteMapping("/items/{id}")
     @RequiresPermission("system:dict:manage")
     public ApiResponse<Void> deleteItem(@PathVariable Long id) {

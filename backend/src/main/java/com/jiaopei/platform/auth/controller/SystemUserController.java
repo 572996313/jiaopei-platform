@@ -34,6 +34,7 @@ public class SystemUserController {
         this.systemUserService = systemUserService;
     }
 
+    @Operation(summary = "获取用户列表")
     @GetMapping
     @RequiresPermission("system:user:manage")
     public ApiResponse<List<UserView>> list() {
@@ -47,24 +48,28 @@ public class SystemUserController {
         return ApiResponse.success("用户分页列表已加载", systemUserService.pageUsers(query));
     }
 
+    @Operation(summary = "创建用户")
     @PostMapping
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> create(@Valid @RequestBody UserCreateRequest request) {
         return ApiResponse.success("用户已创建", systemUserService.createUser(request));
     }
 
+    @Operation(summary = "更新用户")
     @PutMapping("/{id}")
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return ApiResponse.success("用户已更新", systemUserService.updateUser(id, request));
     }
 
+    @Operation(summary = "重置用户密码")
     @PostMapping("/{id}/reset-password")
     @RequiresPermission("system:user:manage")
     public ApiResponse<ResetPasswordResponse> resetPassword(@PathVariable Long id) {
         return ApiResponse.success("密码已重置", systemUserService.resetPassword(id));
     }
 
+    @Operation(summary = "更新用户角色")
     @PostMapping("/{id}/roles")
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> updateRoles(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {

@@ -8,6 +8,7 @@ import com.jiaopei.platform.education.dto.AttendanceCreateRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonBatchSaveRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonPageView;
 import com.jiaopei.platform.education.service.AttendanceService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
+    @Operation(summary = "获取考勤列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<AttendanceEntity>> list(@RequestParam(required = false) String lessonId,
@@ -47,6 +49,7 @@ public class AttendanceController {
         ));
     }
 
+    @Operation(summary = "获取课次点名页")
     @GetMapping("/lesson-page")
     @RequiresPermission("education:read")
     public ApiResponse<AttendanceLessonPageView> lessonPage(@RequestParam String lessonId) {
@@ -54,12 +57,14 @@ public class AttendanceController {
             attendanceService.getLessonAttendancePage(ExternalIdParser.parseRequired(lessonId, "lessonId")));
     }
 
+    @Operation(summary = "创建考勤")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<AttendanceEntity> create(@Valid @RequestBody AttendanceCreateRequest request) {
         return ApiResponse.success("考勤已创建", attendanceService.createAttendance(request));
     }
 
+    @Operation(summary = "保存课次点名")
     @PostMapping("/lesson-batch")
     @RequiresPermission("education:write")
     public ApiResponse<AttendanceLessonPageView> saveLessonAttendance(@Valid @RequestBody AttendanceLessonBatchSaveRequest request) {

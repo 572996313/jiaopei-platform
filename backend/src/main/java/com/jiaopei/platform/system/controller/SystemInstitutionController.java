@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.organization.dto.CurrentInstitutionUpdateRequest;
 import com.jiaopei.platform.organization.dto.CurrentInstitutionView;
 import com.jiaopei.platform.organization.service.InstitutionService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ public class SystemInstitutionController {
         this.institutionService = institutionService;
     }
 
+    @Operation(summary = "获取当前机构信息")
     @GetMapping("/current")
     @RequiresPermission("organization:read")
     public ApiResponse<CurrentInstitutionView> current() {
@@ -33,6 +35,7 @@ public class SystemInstitutionController {
             institutionService.getCurrentInstitution(institutionId));
     }
 
+    @Operation(summary = "更新当前机构信息")
     @PutMapping("/current")
     @RequiresPermission("organization:write")
     public ApiResponse<CurrentInstitutionView> update(@Valid @RequestBody CurrentInstitutionUpdateRequest request) {

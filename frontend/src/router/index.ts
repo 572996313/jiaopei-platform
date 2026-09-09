@@ -69,6 +69,11 @@ const routes = [
         component: () => import('@/views/system/ListConfigManagementView.vue'),
       },
       {
+        path: 'system/permission-overview',
+        name: 'system-permission-overview',
+        component: () => import('@/views/system/PermissionOverviewView.vue'),
+      },
+      {
         path: 'campus',
         name: 'campus',
         component: () => import('@/views/organization/CampusManagementView.vue'),

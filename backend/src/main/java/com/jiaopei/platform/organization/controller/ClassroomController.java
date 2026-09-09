@@ -7,6 +7,7 @@ import com.jiaopei.platform.organization.domain.entity.ClassroomEntity;
 import com.jiaopei.platform.organization.dto.ClassroomCreateRequest;
 import com.jiaopei.platform.organization.dto.ClassroomUpdateRequest;
 import com.jiaopei.platform.organization.service.ClassroomService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,18 +32,21 @@ public class ClassroomController {
         this.classroomService = classroomService;
     }
 
+    @Operation(summary = "获取教室列表")
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<ClassroomEntity>> list(@RequestParam(required = false) String campusId) {
         return ApiResponse.success("教室列表已加载", classroomService.listClassrooms(ExternalIdParser.parseOptional(campusId, "campusId")));
     }
 
+    @Operation(summary = "创建教室")
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<ClassroomEntity> create(@Valid @RequestBody ClassroomCreateRequest request) {
         return ApiResponse.success("教室已创建", classroomService.createClassroom(request));
     }
 
+    @Operation(summary = "更新教室")
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<ClassroomEntity> update(@PathVariable Long id,
@@ -50,6 +54,7 @@ public class ClassroomController {
         return ApiResponse.success("教室已更新", classroomService.updateClassroom(id, request));
     }
 
+    @Operation(summary = "删除教室")
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

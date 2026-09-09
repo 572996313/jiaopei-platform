@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.ClassStudentEntity;
 import com.jiaopei.platform.education.dto.ClassStudentCreateRequest;
 import com.jiaopei.platform.education.service.ClassStudentService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -29,6 +30,7 @@ public class ClassStudentController {
         this.classStudentService = classStudentService;
     }
 
+    @Operation(summary = "获取班级学员列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassStudentEntity>> list(@RequestParam(required = false) String classId,
@@ -39,12 +41,14 @@ public class ClassStudentController {
         ));
     }
 
+    @Operation(summary = "创建班级学员")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<ClassStudentEntity> create(@Valid @RequestBody ClassStudentCreateRequest request) {
         return ApiResponse.success("班级学员已创建", classStudentService.createClassStudent(request));
     }
 
+    @Operation(summary = "删除班级学员")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

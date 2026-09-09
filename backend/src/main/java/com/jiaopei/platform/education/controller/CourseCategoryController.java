@@ -7,6 +7,7 @@ import com.jiaopei.platform.education.domain.entity.CourseCategoryEntity;
 import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
 import com.jiaopei.platform.education.dto.CourseCategoryUpdateRequest;
 import com.jiaopei.platform.education.service.CourseCategoryService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,6 +32,7 @@ public class CourseCategoryController {
         this.courseCategoryService = courseCategoryService;
     }
 
+    @Operation(summary = "获取课程分类列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<CourseCategoryEntity>> list(@RequestParam(required = false) String institutionId) {
@@ -39,12 +41,14 @@ public class CourseCategoryController {
         ));
     }
 
+    @Operation(summary = "创建课程分类")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<CourseCategoryEntity> create(@Valid @RequestBody CourseCategoryCreateRequest request) {
         return ApiResponse.success("课程分类已创建", courseCategoryService.createCategory(request));
     }
 
+    @Operation(summary = "更新课程分类")
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<CourseCategoryEntity> update(@PathVariable Long id,
@@ -52,6 +56,7 @@ public class CourseCategoryController {
         return ApiResponse.success("课程分类已更新", courseCategoryService.updateCategory(id, request));
     }
 
+    @Operation(summary = "删除课程分类")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

@@ -7,6 +7,7 @@ import com.jiaopei.platform.organization.domain.entity.TermEntity;
 import com.jiaopei.platform.organization.dto.TermCreateRequest;
 import com.jiaopei.platform.organization.dto.TermUpdateRequest;
 import com.jiaopei.platform.organization.service.TermService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,18 +32,21 @@ public class TermController {
         this.termService = termService;
     }
 
+    @Operation(summary = "获取学期列表")
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<TermEntity>> list(@RequestParam(required = false) String institutionId) {
         return ApiResponse.success("学期列表已加载", termService.listTerms(ExternalIdParser.parseOptional(institutionId, "institutionId")));
     }
 
+    @Operation(summary = "创建学期")
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<TermEntity> create(@Valid @RequestBody TermCreateRequest request) {
         return ApiResponse.success("学期已创建", termService.createTerm(request));
     }
 
+    @Operation(summary = "更新学期")
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<TermEntity> update(@PathVariable Long id,
@@ -50,6 +54,7 @@ public class TermController {
         return ApiResponse.success("学期已更新", termService.updateTerm(id, request));
     }
 
+    @Operation(summary = "删除学期")
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.TeachingClassEntity;
 import com.jiaopei.platform.education.dto.TeachingClassCreateRequest;
 import com.jiaopei.platform.education.service.TeachingClassService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -30,6 +31,7 @@ public class TeachingClassController {
         this.teachingClassService = teachingClassService;
     }
 
+    @Operation(summary = "获取班级列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<TeachingClassEntity>> list(@RequestParam(required = false) String institutionId,
@@ -42,12 +44,14 @@ public class TeachingClassController {
         ));
     }
 
+    @Operation(summary = "创建班级")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<TeachingClassEntity> create(@Valid @RequestBody TeachingClassCreateRequest request) {
         return ApiResponse.success("班级已创建", teachingClassService.createClass(request));
     }
 
+    @Operation(summary = "更新班级")
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<TeachingClassEntity> update(@PathVariable Long id,
@@ -55,6 +59,7 @@ public class TeachingClassController {
         return ApiResponse.success("班级已更新", teachingClassService.updateClass(id, request));
     }
 
+    @Operation(summary = "删除班级")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

@@ -16,6 +16,7 @@ export const permissionLabels: PermissionLabelItem[] = [
   { code: 'system:dict:manage', label: '字典维护', group: '系统管理' },
   { code: 'system:config:read', label: '参数查看', group: '系统管理' },
   { code: 'system:config:write', label: '参数维护', group: '系统管理' },
+  { code: 'system:list-config:manage', label: '列表配置维护', group: '系统管理' },
   { code: 'organization:read', label: '组织查看', group: '组织档案' },
   { code: 'organization:write', label: '组织维护', group: '组织档案' },
   { code: 'education:read', label: '教务查看', group: '教务管理' },

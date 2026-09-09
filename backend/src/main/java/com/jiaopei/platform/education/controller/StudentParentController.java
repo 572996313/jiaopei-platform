@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.StudentParentEntity;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
 import com.jiaopei.platform.education.service.StudentParentService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -30,6 +31,7 @@ public class StudentParentController {
         this.studentParentService = studentParentService;
     }
 
+    @Operation(summary = "获取家长联系人列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentParentEntity>> list(@RequestParam(required = false) String institutionId,
@@ -40,12 +42,14 @@ public class StudentParentController {
         ));
     }
 
+    @Operation(summary = "创建家长联系人")
     @PostMapping
     @RequiresPermission("education:write")
     public ApiResponse<StudentParentEntity> create(@Valid @RequestBody StudentParentCreateRequest request) {
         return ApiResponse.success("家长联系人已创建", studentParentService.createStudentParent(request));
     }
 
+    @Operation(summary = "更新家长联系人")
     @PutMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<StudentParentEntity> update(@PathVariable Long id,
@@ -53,6 +57,7 @@ public class StudentParentController {
         return ApiResponse.success("家长联系人已更新", studentParentService.updateStudentParent(id, request));
     }
 
+    @Operation(summary = "删除家长联系人")
     @DeleteMapping("/{id}")
     @RequiresPermission("education:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

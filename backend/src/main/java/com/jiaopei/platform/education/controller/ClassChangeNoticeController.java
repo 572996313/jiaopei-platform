@@ -5,6 +5,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.ClassChangeNoticeEntity;
 import com.jiaopei.platform.education.service.ClassChangeNoticeService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ public class ClassChangeNoticeController {
         this.classChangeNoticeService = classChangeNoticeService;
     }
 
+    @Operation(summary = "获取班级变动通知列表")
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<ClassChangeNoticeEntity>> list(@RequestParam(required = false) String institutionId,

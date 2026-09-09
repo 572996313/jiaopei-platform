@@ -7,6 +7,7 @@ import com.jiaopei.platform.organization.domain.entity.TimeSlotEntity;
 import com.jiaopei.platform.organization.dto.TimeSlotCreateRequest;
 import com.jiaopei.platform.organization.dto.TimeSlotUpdateRequest;
 import com.jiaopei.platform.organization.service.TimeSlotService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,18 +32,21 @@ public class TimeSlotController {
         this.timeSlotService = timeSlotService;
     }
 
+    @Operation(summary = "获取时间段列表")
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<TimeSlotEntity>> list(@RequestParam(required = false) String institutionId) {
         return ApiResponse.success("时间段列表已加载", timeSlotService.listTimeSlots(ExternalIdParser.parseOptional(institutionId, "institutionId")));
     }
 
+    @Operation(summary = "创建时间段")
     @PostMapping
     @RequiresPermission("organization:write")
     public ApiResponse<TimeSlotEntity> create(@Valid @RequestBody TimeSlotCreateRequest request) {
         return ApiResponse.success("时间段已创建", timeSlotService.createTimeSlot(request));
     }
 
+    @Operation(summary = "更新时间段")
     @PutMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<TimeSlotEntity> update(@PathVariable Long id,
@@ -50,6 +54,7 @@ public class TimeSlotController {
         return ApiResponse.success("时间段已更新", timeSlotService.updateTimeSlot(id, request));
     }
 
+    @Operation(summary = "删除时间段")
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
