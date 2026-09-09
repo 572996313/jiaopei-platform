@@ -1,6 +1,7 @@
 <template>
-  <div class="app-shell">
-    <aside class="app-sidebar">
+  <div class="app-shell" :class="shellClass">
+    <!-- ============ 完整导航(宽模式) ============ -->
+    <aside v-if="navMode === 'full'" class="app-sidebar">
       <div class="brand-block">
         <div class="brand-kicker">线下班课教务中台</div>
         <div class="brand-title">教培管理平台</div>
@@ -50,6 +51,71 @@
       </nav>
     </aside>
 
+    <!-- ============ 图标导航(窄模式 / rail) ============ -->
+    <aside v-else class="app-sidebar app-sidebar-rail">
+      <div class="brand-block rail-brand">
+        <span class="rail-brand-mark">培</span>
+      </div>
+
+      <nav class="rail-nav">
+        <template v-for="(group, groupIndex) in navRailGroups" :key="group.key">
+          <div v-if="groupIndex > 0" class="rail-group-gap" />
+          <div class="rail-group-items">
+            <div
+              v-for="item in group.items"
+              :key="item.key"
+              class="rail-cell"
+              @mouseenter="openRail(item)"
+              @mouseleave="scheduleCloseRail()"
+            >
+              <RouterLink
+                v-if="!item.children.length"
+                :to="item.to"
+                class="rail-trigger"
+                :class="{ 'is-active': isNavItemActive(item) }"
+                :title="item.label"
+              >
+                <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
+              </RouterLink>
+              <button
+                v-else
+                type="button"
+                class="rail-trigger"
+                :class="{ 'is-active': isNavItemActive(item), 'is-pinned': activeRailPopoverKey === item.key }"
+                :title="item.label"
+                @click="toggleRailPin(item)"
+              >
+                <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
+              </button>
+
+              <div
+                v-if="item.children.length && activeRailPopoverKey === item.key"
+                class="rail-popover"
+                @mouseenter="cancelCloseRail()"
+                @mouseleave="scheduleCloseRail()"
+              >
+                <div class="rail-pop-head">
+                  <span class="rail-pop-group">{{ group.label }}</span>
+                  <span class="rail-pop-title">{{ item.label }}</span>
+                </div>
+                <RouterLink
+                  v-for="child in item.children"
+                  :key="child.key"
+                  :to="child.to"
+                  class="rail-pop-item"
+                  :class="{ 'is-active': isChildActive(child) }"
+                  @click="handleRailChildClick(item)"
+                >
+                  <el-icon v-if="child.icon" class="rail-pop-icon"><component :is="child.icon" /></el-icon>
+                  <span>{{ child.label }}</span>
+                </RouterLink>
+              </div>
+            </div>
+          </div>
+        </template>
+      </nav>
+    </aside>
+
     <div class="app-main">
       <el-alert
         v-if="auth.currentUser?.passwordResetRequired || auth.mustChangePassword"
@@ -57,7 +123,7 @@
         :type="auth.mustChangePassword ? 'error' : 'warning'"
         show-icon
         :closable="false"
-        :title="auth.mustChangePassword ? '当前账号已被强制跳转至改密流程，完成修改前不能进入业务首页。' : '当前账号仍处于初始化密码状态，请尽快完成改密。'"
+        :title="auth.mustChangePassword ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。' : '当前账号仍处于初始化密码状态,请尽快完成改密。'"
       />
 
       <header class="app-header">
@@ -95,7 +161,18 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <span class="nav-mode-label">导航模式</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="nav-mode:full">
+                  <el-icon v-if="navMode === 'full'" class="nav-mode-check"><Check /></el-icon>
+                  <span>完整导航</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="nav-mode:rail">
+                  <el-icon v-if="navMode === 'rail'" class="nav-mode-check"><Check /></el-icon>
+                  <span>图标导航</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="change-password" divided>修改密码</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -118,6 +195,7 @@ import {
   ArrowDown,
   Avatar,
   Calendar,
+  Check,
   OfficeBuilding,
   Reading,
   Setting,
@@ -136,6 +214,8 @@ const institutionStore = useInstitutionStore()
 onMounted(() => {
   institutionStore.loadInstitutions()
 })
+
+/** ================= 导航数据模型(宽窄两态共用) ================= */
 
 interface SidebarChildDefinition {
   key: string
@@ -319,6 +399,18 @@ const navItems = computed(() => {
   })
 })
 
+const navGroups = computed(() => {
+  return navGroupMeta
+    .map((group) => ({
+      key: group.key,
+      label: group.label,
+      items: navItems.value.filter((item) => item.group === group.key),
+    }))
+    .filter((group) => group.items.length > 0)
+})
+
+/** ================= 当前页匹配(标题 / 高亮) ================= */
+
 /** 当前路径命中的子项(用于标题与高亮,子项优先于父项) */
 const matchedChild = computed(() => {
   for (const item of sidebarDefinitions) {
@@ -331,21 +423,15 @@ const matchedChild = computed(() => {
   return null
 })
 
-const navGroups = computed(() => {
-  return navGroupMeta
-    .map((group) => ({
-      key: group.key,
-      label: group.label,
-      items: navItems.value.filter((item) => item.group === group.key),
-    }))
-    .filter((group) => group.items.length > 0)
-})
-
 const currentTitle = computed(() => {
-  return matchedChild.value?.title ?? sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))?.title ?? '教培管理平台'
+  return (
+    matchedChild.value?.title ??
+    sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))?.title ??
+    '教培管理平台'
+  )
 })
 
-function isNavItemActive(item: SidebarDefinition) {
+function isNavItemActive(item: { prefixes: string[] }) {
   return item.prefixes.some((prefix) => route.path.startsWith(prefix))
 }
 
@@ -353,7 +439,7 @@ function isChildActive(child: SidebarChildDefinition) {
   return child.prefixes.some((prefix) => route.path.startsWith(prefix))
 }
 
-// 展开态:默认收起;当前路径位于父项前缀内时自动展开(可点击手动收起)
+/** 完整模式:可展开父菜单的展开态(默认收起,当前路径在父项前缀内自动展开) */
 const openGroups = ref(new Set<string>())
 
 function isGroupOpen(item: SidebarDefinition) {
@@ -374,8 +460,117 @@ function visibleChildren(item: SidebarDefinition) {
   return resolveVisibleChildren(item)
 }
 
+/** ================= 导航模式(完整 / 图标窄栏) ================= */
+
+const NAV_MODE_STORAGE_KEY = 'jiaopei-nav-mode'
+type NavMode = 'full' | 'rail'
+
+function readStoredNavMode(): NavMode {
+  if (typeof window === 'undefined') {
+    return 'full'
+  }
+  return window.localStorage.getItem(NAV_MODE_STORAGE_KEY) === 'rail' ? 'rail' : 'full'
+}
+
+const navMode = ref<NavMode>(readStoredNavMode())
+
+const shellClass = computed(() => (navMode.value === 'rail' ? 'is-rail' : 'is-full'))
+
+function setNavMode(mode: NavMode) {
+  navMode.value = mode
+  window.localStorage.setItem(NAV_MODE_STORAGE_KEY, mode)
+}
+
+/**
+ * 窄栏数据:分组 → 目录项。目录项统一带 children(空数组表示无子页的直达项)。
+ */
+interface RailItem {
+  key: string
+  label: string
+  icon: Component
+  to: string
+  prefixes: string[]
+  children: SidebarChildDefinition[]
+}
+
+const navRailGroups = computed(() => {
+  return navGroups.value.map((group) => ({
+    key: group.key,
+    label: group.label,
+    items: group.items.map<RailItem>((item) => ({
+      key: item.key,
+      label: displayLabel(item),
+      icon: item.icon,
+      to: item.to,
+      prefixes: item.prefixes,
+      children: visibleChildren(item),
+    })),
+  }))
+})
+
+/** 窄栏浮层状态:hover 打开、点击可钉住;移出图标+浮层后延迟收起 */
+const hoveredRailKey = ref<string | null>(null)
+const pinnedRailKey = ref<string | null>(null)
+const railCloseTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+const activeRailPopoverKey = computed(() => {
+  return pinnedRailKey.value ?? hoveredRailKey.value
+})
+
+function openRail(item: RailItem) {
+  cancelCloseRail()
+  if (!item.children.length) {
+    hoveredRailKey.value = null
+    return
+  }
+  hoveredRailKey.value = item.key
+}
+
+function cancelCloseRail() {
+  if (railCloseTimer.value) {
+    clearTimeout(railCloseTimer.value)
+    railCloseTimer.value = null
+  }
+}
+
+function scheduleCloseRail() {
+  if (pinnedRailKey.value) {
+    return
+  }
+  cancelCloseRail()
+  railCloseTimer.value = setTimeout(() => {
+    hoveredRailKey.value = null
+    railCloseTimer.value = null
+  }, 200)
+}
+
+function toggleRailPin(item: RailItem) {
+  if (!item.children.length) {
+    hoveredRailKey.value = null
+    return
+  }
+  if (pinnedRailKey.value === item.key) {
+    pinnedRailKey.value = null
+  } else {
+    pinnedRailKey.value = item.key
+    hoveredRailKey.value = null
+  }
+}
+
+function handleRailChildClick(item: RailItem) {
+  if (pinnedRailKey.value === item.key) {
+    pinnedRailKey.value = null
+  }
+}
+
+/** ================= 顶栏用户操作 ================= */
+
 function handleUserCommand(command: string | number | object) {
-  if (command === 'change-password') {
+  if (command === 'nav-mode:full') {
+    setNavMode('full')
+  } else if (command === 'nav-mode:rail') {
+    setNavMode('rail')
+  } else if (command === 'change-password') {
     router.push('/change-password')
   } else if (command === 'logout') {
     handleLogout()
