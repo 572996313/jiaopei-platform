@@ -16,48 +16,30 @@
       />
     </article>
 
-    <el-dialog v-model="roleDialogVisible" :title="roleDialogMode === 'create' ? '新增角色' : '编辑角色'" width="640px">
+    <el-dialog v-model="roleDialogVisible" :title="roleDialogMode === 'create' ? '新增角色' : '编辑角色'" width="680px">
       <el-alert v-if="roleFormError" :title="roleFormError" type="error" show-icon :closable="false" class="education-alert" />
 
-      <el-form label-position="top" class="education-form">
-        <div class="system-form-grid">
-          <el-form-item label="角色编码">
-            <el-input v-model="roleForm.roleCode" :disabled="roleDialogMode === 'edit'" placeholder="请输入角色编码" />
-          </el-form-item>
-          <el-form-item label="角色名称">
-            <el-input v-model="roleForm.roleName" placeholder="请输入角色名称" />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="roleForm.status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <el-form-item label="预设权限">
-          <el-checkbox-group v-model="roleForm.permissionCodes">
+      <ConfigurableForm
+        ref="roleFormRef"
+        resource-code="system-roles"
+        :mode="roleDialogMode"
+        :initial="roleInitial"
+        :context="roleFormContext"
+      >
+        <!-- permission-groups 复合控件:按权限分组渲染复选框网格 -->
+        <template #field-permissionCodes="{ model, disabled }">
+          <el-checkbox-group v-model="model.permissionCodes" :disabled="disabled">
             <div v-for="group in permissionGroupData" :key="group.group" class="system-permission-group">
               <div class="system-permission-group-title">{{ group.group }}</div>
               <div class="system-permission-grid">
-                <el-checkbox v-for="item in group.items" :key="item.code" :label="item.code">
+                <el-checkbox v-for="item in group.items" :key="item.code" :value="item.code">
                   {{ item.label }}
                 </el-checkbox>
               </div>
             </div>
           </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="补充权限码">
-          <el-input
-            v-model="roleForm.customPermissionCodes"
-            type="textarea"
-            :rows="3"
-            placeholder="可输入额外权限码,使用逗号或换行分隔"
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="roleForm.remark" type="textarea" :rows="3" placeholder="补充角色说明" />
-        </el-form-item>
-      </el-form>
+        </template>
+      </ConfigurableForm>
 
       <template #footer>
         <el-button @click="roleDialogVisible = false">取消</el-button>
@@ -98,7 +80,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import {
   createSystemRole,
   fetchSystemMenusTree,
@@ -108,7 +90,9 @@ import {
 } from '@/api/system'
 import type { SystemMenuTreeNode, SystemRoleSummary } from '@/api/system'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import ConfigurableForm from '@/components/ConfigurableForm/index.vue'
 import type { ActionHandler } from '@/components/ConfigurableList/types'
+import type { RenderContext } from '@/components/ConfigurableList/renderers'
 import { permissionGroups } from '@/constants/permissionLabels'
 import {
   ensureStatusDictLoaded,
@@ -126,6 +110,7 @@ const permissionOptions = permissionGroupData.flatMap((group) =>
 )
 
 const roleListRef = ref<InstanceType<typeof ConfigurableList> | null>(null)
+const roleFormRef = ref<InstanceType<typeof ConfigurableForm> | null>(null)
 const roleTotal = ref(0)
 
 function onRolesLoaded(payload: { total: number }) {
@@ -146,61 +131,60 @@ const roleMenuTreeRef = ref<any>(null)
 
 const menuTree = ref<SystemMenuTreeNode[]>([])
 
-const roleForm = reactive({
-  roleCode: '',
-  roleName: '',
-  permissionCodes: [] as string[],
-  customPermissionCodes: '',
-  status: 'active',
-  remark: '',
+/** 弹窗回填初值(编辑:权限码拆为"已知权限组勾选"与"自定义补充文本") */
+const roleInitial = computed<Record<string, any>>(() => {
+  if (roleDialogMode.value === 'edit' && selectedRole.value) {
+    const role = selectedRole.value
+    const knownPermissions = new Set(permissionOptions.map((item) => item.value))
+    return {
+      roleCode: role.roleCode,
+      roleName: role.roleName,
+      permissionCodes: role.permissionCodes.filter((item) => knownPermissions.has(item)),
+      customPermissionCodes: role.permissionCodes.filter((item) => !knownPermissions.has(item)).join(', '),
+      status: role.status || 'active',
+      remark: role.remark || '',
+    }
+  }
+  return {}
 })
 
-function resetRoleForm() {
-  roleForm.roleCode = ''
-  roleForm.roleName = ''
-  roleForm.permissionCodes = []
-  roleForm.customPermissionCodes = ''
-  roleForm.status = statusOptions.value[0]?.value || 'active'
-  roleForm.remark = ''
-  roleFormError.value = ''
-}
+const roleFormContext = computed<RenderContext>(() => ({
+  statusOptions: statusOptions.value,
+}))
 
 function openCreateRoleDialog() {
   roleDialogMode.value = 'create'
   selectedRole.value = null
-  resetRoleForm()
+  roleFormError.value = ''
   roleDialogVisible.value = true
+  void roleFormRef.value?.reset()
 }
 
 function openEditRoleDialog(role: SystemRoleSummary) {
   roleDialogMode.value = 'edit'
   selectedRole.value = role
-  const knownPermissions = new Set(permissionOptions.map((item) => item.value))
-  roleForm.roleCode = role.roleCode
-  roleForm.roleName = role.roleName
-  roleForm.permissionCodes = role.permissionCodes.filter((item) => knownPermissions.has(item))
-  roleForm.customPermissionCodes = role.permissionCodes.filter((item) => !knownPermissions.has(item)).join(', ')
-  roleForm.status = role.status || 'active'
-  roleForm.remark = role.remark || ''
   roleFormError.value = ''
   roleDialogVisible.value = true
 }
 
-function collectRolePermissionCodes() {
-  return [...new Set([...roleForm.permissionCodes, ...parseCustomPermissionCodes(roleForm.customPermissionCodes)])]
+function collectRolePermissionCodes(form: Record<string, any>): string[] {
+  const preset = Array.isArray(form.permissionCodes) ? form.permissionCodes : []
+  const custom = typeof form.customPermissionCodes === 'string' ? form.customPermissionCodes : ''
+  return [...new Set([...preset, ...parseCustomPermissionCodes(custom)])]
 }
 
 async function submitRole() {
-  if (!trimToUndefined(roleForm.roleCode) && roleDialogMode.value === 'create') {
-    roleFormError.value = '请填写角色编码'
+  if (!roleFormRef.value) {
     return
   }
-  if (!trimToUndefined(roleForm.roleName)) {
-    roleFormError.value = '请填写角色名称'
+  const valid = await roleFormRef.value.validate()
+  if (!valid) {
+    roleFormError.value = '请检查表单填写是否完整'
     return
   }
+  const form = roleFormRef.value.values()
 
-  const permissionCodes = collectRolePermissionCodes()
+  const permissionCodes = collectRolePermissionCodes(form)
   if (permissionCodes.length === 0) {
     roleFormError.value = '请至少选择或输入一个权限码'
     return
@@ -211,19 +195,19 @@ async function submitRole() {
   try {
     if (roleDialogMode.value === 'create') {
       await createSystemRole({
-        roleCode: roleForm.roleCode.trim(),
-        roleName: roleForm.roleName.trim(),
+        roleCode: String(form.roleCode ?? '').trim(),
+        roleName: String(form.roleName ?? '').trim(),
         permissionCodes,
-        status: roleForm.status,
-        remark: trimToUndefined(roleForm.remark),
+        status: form.status || 'active',
+        remark: trimToUndefined(form.remark),
       })
       ElMessage.success('角色已创建')
     } else if (selectedRole.value) {
       await updateSystemRole(selectedRole.value.id, {
-        roleName: roleForm.roleName.trim(),
+        roleName: String(form.roleName ?? '').trim(),
         permissionCodes,
-        status: roleForm.status,
-        remark: trimToUndefined(roleForm.remark),
+        status: form.status || 'active',
+        remark: trimToUndefined(form.remark),
       })
       ElMessage.success('角色已更新')
     }

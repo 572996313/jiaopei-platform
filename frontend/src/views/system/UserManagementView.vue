@@ -17,54 +17,17 @@
       />
     </article>
 
-    <el-dialog v-model="userDialogVisible" :title="userDialogMode === 'create' ? '新增用户' : '编辑用户'" width="620px">
+    <el-dialog v-model="userDialogVisible" :title="userDialogMode === 'create' ? '新增用户' : '编辑用户'" width="640px">
       <el-alert v-if="userFormError" :title="userFormError" type="error" show-icon :closable="false" class="education-alert" />
 
-      <el-form label-position="top" class="education-form">
-        <div class="system-form-grid">
-          <el-form-item label="机构">
-            <el-select v-model="userForm.institutionId" filterable @change="handleUserInstitutionChange">
-              <el-option
-                v-for="item in institutions"
-                :key="item.id"
-                :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-                :value="item.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="默认校区">
-            <el-select v-model="userForm.defaultCampusId" clearable filterable>
-              <el-option
-                v-for="item in userDialogCampuses"
-                :key="item.id"
-                :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-                :value="item.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="账号">
-            <el-input v-model="userForm.username" :disabled="userDialogMode === 'edit'" placeholder="请输入账号" />
-          </el-form-item>
-          <el-form-item label="显示名称">
-            <el-input v-model="userForm.displayName" placeholder="请输入显示名称" />
-          </el-form-item>
-          <el-form-item label="手机号">
-            <el-input v-model="userForm.phone" placeholder="请输入手机号" />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="userForm.status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <el-form-item v-if="userDialogMode === 'create'" label="初始化密码">
-          <el-input v-model="userForm.initialPassword" type="password" show-password placeholder="留空则使用 Init@123456" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="userForm.remark" type="textarea" :rows="3" placeholder="补充用户说明" />
-        </el-form-item>
-      </el-form>
+      <ConfigurableForm
+        ref="userFormRef"
+        resource-code="system-users"
+        :mode="userDialogMode"
+        :initial="userInitial"
+        :context="userFormContext"
+        :on-field-change="userFormFieldHooks"
+      />
 
       <template #footer>
         <el-button @click="userDialogVisible = false">取消</el-button>
@@ -98,7 +61,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   createSystemUser,
@@ -111,7 +74,9 @@ import type { SystemRoleSummary, SystemUserSummary } from '@/api/system'
 import { fetchCampuses, fetchInstitutions } from '@/api/organization'
 import type { CampusSummary, InstitutionSummary } from '@/api/organization'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import ConfigurableForm from '@/components/ConfigurableForm/index.vue'
 import type { ActionHandler } from '@/components/ConfigurableList/types'
+import type { FormFieldConfig } from '@/components/ConfigurableList/types'
 import type { RenderContext } from '@/components/ConfigurableList/renderers'
 import {
   ensureStatusDictLoaded,
@@ -127,6 +92,7 @@ const { institutionMap, campusMap, formatInstitution, formatCampus } = useInstit
 const statusOptions = useStatusOptions()
 
 const userListRef = ref<InstanceType<typeof ConfigurableList> | null>(null)
+const userFormRef = ref<InstanceType<typeof ConfigurableForm> | null>(null)
 const userTotal = ref(0)
 const institutions = ref<InstitutionSummary[]>([])
 const campusDirectory = ref<CampusSummary[]>([])
@@ -167,44 +133,65 @@ const userFormError = ref('')
 const userDialogCampuses = ref<CampusSummary[]>([])
 const selectedUser = ref<SystemUserSummary | null>(null)
 
-const userForm = reactive({
-  institutionId: '',
-  defaultCampusId: '' as string | null,
-  username: '',
-  displayName: '',
-  phone: '',
-  initialPassword: '',
-  status: 'active',
-  remark: '',
-})
-
 const roleAssignDialogVisible = ref(false)
 const roleAssignSubmitting = ref(false)
 const roleAssignError = ref('')
 const selectedRoleIds = ref<string[]>([])
 
-function resetUserForm() {
-  userForm.institutionId = auth.currentUser?.institutionId || institutions.value[0]?.id || ''
-  userForm.defaultCampusId = auth.currentUser?.defaultCampusId || null
-  userForm.username = ''
-  userForm.displayName = ''
-  userForm.phone = ''
-  userForm.initialPassword = ''
-  userForm.status = statusOptions.value[0]?.value || 'active'
-  userForm.remark = ''
-  userFormError.value = ''
-}
+/** 弹窗回填初值(新增模式给默认机构/状态,编辑模式回填该用户) */
+const userInitial = computed<Record<string, any>>(() => {
+  if (userDialogMode.value === 'edit' && selectedUser.value) {
+    const user = selectedUser.value
+    return {
+      institutionId: user.institutionId,
+      defaultCampusId: user.defaultCampusId || '',
+      username: user.username,
+      displayName: user.displayName,
+      phone: user.phone || '',
+      initialPassword: '',
+      status: user.status || 'active',
+      remark: user.remark || '',
+    }
+  }
+  return {
+    institutionId: auth.currentUser?.institutionId || institutions.value[0]?.id || '',
+    defaultCampusId: auth.currentUser?.defaultCampusId || '',
+    username: '',
+    displayName: '',
+    phone: '',
+    initialPassword: '',
+    status: statusOptions.value[0]?.value || 'active',
+    remark: '',
+  }
+})
 
-async function syncUserDialogCampuses() {
-  if (!userForm.institutionId) {
+/** 表单 optionsLoader 数据源:机构 + 当前机构下的校区 + 状态字典 */
+const userFormContext = computed<RenderContext>(() => ({
+  statusOptions: statusOptions.value,
+  institutionOptions: institutions.value.map((item) => ({
+    label: item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
+    value: item.id,
+  })),
+  campusOptions: userDialogCampuses.value.map((item) => ({
+    label: item.campusName || item.campusCode || `校区 #${item.id}`,
+    value: item.id,
+  })),
+}))
+
+async function syncUserDialogCampuses(institutionId: string, currentCampusId: string | null = null) {
+  if (!institutionId) {
     userDialogCampuses.value = []
-    userForm.defaultCampusId = null
     return
   }
   try {
-    userDialogCampuses.value = await fetchCampuses(userForm.institutionId)
-    if (userForm.defaultCampusId && !userDialogCampuses.value.some((item) => item.id === userForm.defaultCampusId)) {
-      userForm.defaultCampusId = null
+    userDialogCampuses.value = await fetchCampuses(institutionId)
+    // 所选校区不在新机构下时清空(通过 ConfigurableForm 回写,见 handleUserInstitutionChange)
+    if (
+      currentCampusId &&
+      userDialogCampuses.value.length > 0 &&
+      !userDialogCampuses.value.some((item) => item.id === currentCampusId)
+    ) {
+      userFormRef.value?.setFieldValue('defaultCampusId', '')
     }
   } catch (error) {
     userDialogCampuses.value = []
@@ -212,71 +199,73 @@ async function syncUserDialogCampuses() {
   }
 }
 
-async function handleUserInstitutionChange() {
-  await syncUserDialogCampuses()
+/** 机构变更联动:重拉当前机构校区(读 ConfigurableForm 的 model) */
+const userFormFieldHooks: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void> = {
+  institutionId: (form) => {
+    const institutionId = String(form.institutionId ?? '')
+    const currentCampus = form.defaultCampusId ? String(form.defaultCampusId) : null
+    void syncUserDialogCampuses(institutionId, currentCampus)
+  },
 }
 
 async function openCreateUserDialog() {
   userDialogMode.value = 'create'
   selectedUser.value = null
-  resetUserForm()
-  await syncUserDialogCampuses()
+  userFormError.value = ''
   userDialogVisible.value = true
+  await nextTick()
+  // 重置表单(触发 initial 重建与机构联动钩子),再按默认机构预载校区
+  void userFormRef.value?.reset()
+  const defaultInstitutionId = auth.currentUser?.institutionId || institutions.value[0]?.id || ''
+  void syncUserDialogCampuses(defaultInstitutionId, null)
 }
 
 async function openEditUserDialog(user: SystemUserSummary) {
   userDialogMode.value = 'edit'
   selectedUser.value = user
-  userForm.institutionId = user.institutionId
-  userForm.defaultCampusId = user.defaultCampusId || null
-  userForm.username = user.username
-  userForm.displayName = user.displayName
-  userForm.phone = user.phone || ''
-  userForm.initialPassword = ''
-  userForm.status = user.status || 'active'
-  userForm.remark = user.remark || ''
   userFormError.value = ''
-  await syncUserDialogCampuses()
   userDialogVisible.value = true
+  await nextTick()
+  void userFormRef.value?.reset()
+  await syncUserDialogCampuses(user.institutionId, user.defaultCampusId || null)
 }
 
 async function submitUser() {
-  if (!userForm.institutionId) {
-    userFormError.value = '请选择机构'
+  if (!userFormRef.value) {
     return
   }
-  if (!trimToUndefined(userForm.username) && userDialogMode.value === 'create') {
-    userFormError.value = '请填写账号'
+  const valid = await userFormRef.value.validate()
+  if (!valid) {
+    userFormError.value = '请检查表单填写是否完整'
     return
   }
-  if (!trimToUndefined(userForm.displayName)) {
-    userFormError.value = '请填写显示名称'
-    return
-  }
+  const form = userFormRef.value.values()
+  const institutionId = String(form.institutionId ?? '').trim()
+  const defaultCampusId = form.defaultCampusId ? String(form.defaultCampusId) : null
 
   userSubmitting.value = true
   userFormError.value = ''
   try {
     if (userDialogMode.value === 'create') {
       await createSystemUser({
-        institutionId: userForm.institutionId,
-        defaultCampusId: userForm.defaultCampusId || null,
-        username: userForm.username.trim(),
-        displayName: userForm.displayName.trim(),
-        phone: trimToUndefined(userForm.phone),
-        initialPassword: trimToUndefined(userForm.initialPassword),
-        status: userForm.status,
-        remark: trimToUndefined(userForm.remark),
+        institutionId,
+        defaultCampusId,
+        username: String(form.username ?? '').trim(),
+        displayName: String(form.displayName ?? '').trim(),
+        phone: trimToUndefined(form.phone),
+        initialPassword: trimToUndefined(form.initialPassword),
+        status: form.status || 'active',
+        remark: trimToUndefined(form.remark),
       })
       ElMessage.success('用户已创建')
     } else if (selectedUser.value) {
       await updateSystemUser(selectedUser.value.id, {
-        institutionId: userForm.institutionId,
-        defaultCampusId: userForm.defaultCampusId || null,
-        displayName: userForm.displayName.trim(),
-        phone: trimToUndefined(userForm.phone),
-        status: userForm.status,
-        remark: trimToUndefined(userForm.remark),
+        institutionId,
+        defaultCampusId,
+        displayName: String(form.displayName ?? '').trim(),
+        phone: trimToUndefined(form.phone),
+        status: form.status || 'active',
+        remark: trimToUndefined(form.remark),
       })
       ElMessage.success('用户已更新')
     }

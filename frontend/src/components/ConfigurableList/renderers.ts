@@ -15,6 +15,12 @@ export interface RenderContext {
   formatCampus?: (id?: string | null) => string
   /** 机构下拉选项(查询条件 optionsLoader=institutions 使用) */
   institutionOptions?: QueryOption[]
+  /** 校区下拉选项(表单 optionsLoader=campuses,宿主按当前机构动态提供) */
+  campusOptions?: QueryOption[]
+  /** 角色下拉选项(表单 optionsLoader=roles) */
+  roleOptions?: QueryOption[]
+  /** 状态选项(optionsLoader=status,通常来自 common_status 字典) */
+  statusOptions?: QueryOption[]
 }
 
 type ElTagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
@@ -52,6 +58,9 @@ const customRenderers: Record<string, CustomRenderer> = {
  */
 export const optionLoaders: Record<string, (context?: RenderContext) => QueryOption[]> = {
   institutions: (context) => context?.institutionOptions ?? [],
+  campuses: (context) => context?.campusOptions ?? [],
+  roles: (context) => context?.roleOptions ?? [],
+  status: (context) => context?.statusOptions ?? [],
 }
 
 function renderTagList(items: Array<{ key: string; label: string; tooltip?: string }>): VNode {

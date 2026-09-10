@@ -454,6 +454,7 @@ export interface ListConfigSummary {
   columnsJson: string
   queryJson: string
   actionsJson?: string | null
+  formJson?: string | null
   status?: string | null
   remark?: string | null
 }
@@ -465,6 +466,7 @@ export interface ListConfigSavePayload {
   columnsJson: string
   queryJson: string
   actionsJson?: string | null
+  formJson?: string | null
   status: string
   remark?: string
 }

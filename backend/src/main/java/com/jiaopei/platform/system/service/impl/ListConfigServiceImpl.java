@@ -39,6 +39,14 @@ public class ListConfigServiceImpl implements ListConfigService {
     /** 按钮样式,与 Element Plus button type 对齐 */
     private static final Set<String> ACTION_BUTTON_TYPES = Set.of("primary", "default", "text", "danger");
 
+    /** 表单控件类型(与前端 ConfigurableForm 控件枚举对齐) */
+    private static final Set<String> FORM_FIELD_TYPES = Set.of(
+        "input", "password", "textarea", "number", "select", "dict-select",
+        "switch", "checkbox-group", "radio", "permission-groups");
+
+    /** 表单显示/禁用模式取值 */
+    private static final Set<String> FORM_MODES = Set.of("create", "edit");
+
     private final ListConfigMapper listConfigMapper;
     private final ObjectMapper objectMapper;
 
@@ -72,6 +80,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         validateEndpoint(request.endpoint());
         validatePayload(request.columnsJson(), request.queryJson());
         validateActions(request.actionsJson());
+        validateForm(request.formJson());
         assertUniqueResourceCode(request.resourceCode());
 
         ListConfigEntity entity = new ListConfigEntity();
@@ -82,6 +91,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         entity.setColumnsJson(request.columnsJson());
         entity.setQueryJson(request.queryJson());
         entity.setActionsJson(request.actionsJson());
+        entity.setFormJson(request.formJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         try {
@@ -100,6 +110,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         validateEndpoint(request.endpoint());
         validatePayload(request.columnsJson(), request.queryJson());
         validateActions(request.actionsJson());
+        validateForm(request.formJson());
 
         entity.setResourceName(request.resourceName());
         entity.setEndpoint(request.endpoint());
@@ -107,6 +118,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         entity.setColumnsJson(request.columnsJson());
         entity.setQueryJson(request.queryJson());
         entity.setActionsJson(request.actionsJson());
+        entity.setFormJson(request.formJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         listConfigMapper.updateById(entity);
@@ -250,6 +262,76 @@ public class ListConfigServiceImpl implements ListConfigService {
         }
     }
 
+    /**
+     * 校验弹窗表单配置 form_json 结构:整体为 JSON 对象且 fields 为数组;
+     * 每个字段有 field/label/type(type 取值合法)、showOn/disabledOn 只能含 create/edit、
+     * type=dict-select 必须带 dictType、type=select 的 options/optionsLoader 二选一。
+     * form_json 为空(null/空白)表示未配置表单,不校验。
+     */
+    private void validateForm(String formJson) {
+        if (formJson == null || formJson.isBlank()) {
+            return;
+        }
+        Map<String, Object> form;
+        try {
+            Object parsed = objectMapper.readValue(formJson, new TypeReference<>() {
+            });
+            if (!(parsed instanceof Map<?, ?> map)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "表单配置 formJson 必须是 JSON 对象,如 {\"fields\":[...]}");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> formMap = (Map<String, Object>) map;
+            form = formMap;
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "表单配置 formJson 不是合法的 JSON:" + exception.getOriginalMessage());
+        }
+        Object fields = form.get("fields");
+        if (!(fields instanceof List<?> list) || list.isEmpty()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "表单配置 formJson 的 fields 必须是非空数组");
+        }
+        for (int i = 0; i < list.size(); i++) {
+            Object item = list.get(i);
+            if (!(item instanceof Map<?, ?> itemMap)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "表单配置 fields[" + i + "] 必须是 JSON 对象");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> field = (Map<String, Object>) itemMap;
+            String where = "表单配置[" + i + "]";
+            requireText(field, "field", where);
+            requireText(field, "label", where);
+            String type = optionalText(field, "type");
+            if (type == null || !FORM_FIELD_TYPES.contains(type)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    where + " 缺少必填字段 type,可选值 " + FORM_FIELD_TYPES);
+            }
+            validateModeList(field.get("showOn"), where + " 的 showOn");
+            validateModeList(field.get("disabledOn"), where + " 的 disabledOn");
+            if ("dict-select".equals(type) && optionalText(field, "dictType") == null) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, where + " 的 type=dict-select 时必须提供 dictType");
+            }
+            if ("select".equals(type) && optionalText(field, "dictType") == null
+                && !field.containsKey("options") && optionalText(field, "optionsLoader") == null) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    where + " 的 type=select 必须提供 options/optionsLoader 之一");
+            }
+        }
+    }
+
+    private void validateModeList(Object value, String where) {
+        if (value == null) {
+            return;
+        }
+        if (!(value instanceof List<?> list)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, where + " 必须是数组,如 [\"create\"]");
+        }
+        for (Object item : list) {
+            if (!(item instanceof String mode) || !FORM_MODES.contains(mode)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, where + " 只能包含 create/edit");
+            }
+        }
+    }
+
     private String optionalText(Map<String, Object> source, String key) {
         Object value = source.get(key);
         return value instanceof String text ? text : null;
@@ -265,6 +347,7 @@ public class ListConfigServiceImpl implements ListConfigService {
             entity.getColumnsJson(),
             entity.getQueryJson(),
             entity.getActionsJson(),
+            entity.getFormJson(),
             entity.getStatus(),
             entity.getRemark()
         );

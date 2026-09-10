@@ -93,3 +93,74 @@ export interface ListPageConfig {
   /** 按钮配置;未配置(空)时组件回退 #actions 插槽模式 */
   actions?: ListActionConfig[]
 }
+
+/** 弹窗表单控件类型(与后端 ListConfigServiceImpl.FORM_FIELD_TYPES 对齐) */
+export type FormFieldType =
+  | 'input'
+  | 'password'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'dict-select'
+  | 'switch'
+  | 'checkbox-group'
+  | 'radio'
+  | 'permission-groups'
+
+/** 表单模式:新增 / 编辑 */
+export type FormMode = 'create' | 'edit'
+
+/** 弹窗表单中单个字段的配置(结构进配置,联动/复杂渲染走代码钩子/注册表) */
+export interface FormFieldConfig {
+  /** 表单字段名(与后端 DTO 字段一一对应) */
+  field: string
+  label: string
+  type: FormFieldType
+  placeholder?: string
+  /** 控件提示/辅助文案 */
+  tip?: string
+  /** 栅格占位:1=半行(默认),2=整行 */
+  gridSpan?: number
+  /** 仅这些模式显示(缺省两个模式都显示) */
+  showOn?: FormMode[]
+  /** 这些模式下禁用(如账号编辑时禁用) */
+  disabledOn?: FormMode[]
+  /** 静态选项(type=select/radio/checkbox-group) */
+  options?: QueryOption[]
+  /** 代码侧选项加载器(renderers.ts 的 optionLoaders 注册表),如 institutions/campuses/status */
+  optionsLoader?: string
+  /** type=dict-select 时的字典类型编码 */
+  dictType?: string
+  /** 是否必填 */
+  required?: boolean
+  /** 自定义校验规则(轻量,复杂校验走 validate 钩子) */
+  rules?: Array<{ required?: boolean; message?: string }>
+  /** 默认值(新增模式;下拉/勾选等按控件类型给初始值) */
+  defaultValue?: unknown
+  maxlength?: number
+  min?: number
+  max?: number
+  clearable?: boolean
+  rows?: number
+  /** 组件间联动:值变化时通知宿主(如机构变化刷新校区),宿主导入 onChangeHandlers */
+  onChange?: string
+}
+
+/** 弹窗表单整页配置(与后端 sys_list_config.form_json 对应) */
+export interface FormPageConfig {
+  resourceCode: string
+  labelWidth?: string | number
+  /** 栅格列数,缺省 2 */
+  gridColumns?: number
+  fields: FormFieldConfig[]
+}
+
+/** 是否在指定模式下显示该字段 */
+export function isFieldVisible(field: FormFieldConfig, mode: FormMode): boolean {
+  return !field.showOn || field.showOn.includes(mode)
+}
+
+/** 是否在指定模式下禁用该字段 */
+export function isFieldDisabled(field: FormFieldConfig, mode: FormMode): boolean {
+  return Boolean(field.disabledOn?.includes(mode))
+}

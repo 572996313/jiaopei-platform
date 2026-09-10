@@ -16,48 +16,16 @@
       />
     </article>
 
-    <el-dialog v-model="configDialogVisible" :title="configDialogMode === 'create' ? '新增系统参数' : '编辑系统参数'" width="620px">
+    <el-dialog v-model="configDialogVisible" :title="configDialogMode === 'create' ? '新增系统参数' : '编辑系统参数'" width="640px">
       <el-alert v-if="configFormError" :title="configFormError" type="error" show-icon :closable="false" class="education-alert" />
 
-      <el-form label-position="top" class="education-form">
-        <div class="system-form-grid">
-          <el-form-item label="配置键">
-            <el-input v-model="configForm.configKey" :disabled="configDialogMode === 'edit'" placeholder="如 token.expire-minutes" />
-          </el-form-item>
-          <el-form-item label="显示名称">
-            <el-input v-model="configForm.displayName" placeholder="请输入显示名称" />
-          </el-form-item>
-          <el-form-item label="配置值">
-            <el-input v-model="configForm.configValue" placeholder="请输入配置值" />
-          </el-form-item>
-          <el-form-item label="值类型">
-            <el-select v-model="configForm.valueType" :disabled="configDialogMode === 'edit'">
-              <el-option v-for="item in configValueTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="配置分组">
-            <el-input v-model="configForm.configGroup" :disabled="configDialogMode === 'edit'" placeholder="如 general / auth" />
-          </el-form-item>
-          <el-form-item label="排序">
-            <el-input-number v-model="configForm.sortOrder" :min="0" :max="9999" />
-          </el-form-item>
-          <el-form-item v-if="configDialogMode === 'create'" label="是否系统内置">
-            <el-switch v-model="configForm.isSystem" />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="configForm.status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <el-form-item label="默认值">
-          <el-input v-model="configForm.defaultValue" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="配置说明">
-          <el-input v-model="configForm.description" type="textarea" :rows="3" maxlength="500" placeholder="补充参数用途说明" />
-        </el-form-item>
-      </el-form>
+      <ConfigurableForm
+        ref="configFormRef"
+        resource-code="system-configs"
+        :mode="configDialogMode"
+        :initial="configInitial"
+        :context="configFormContext"
+      />
 
       <template #footer>
         <el-button @click="configDialogVisible = false">取消</el-button>
@@ -71,7 +39,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   createSystemConfig,
   deleteSystemConfig,
@@ -79,7 +47,9 @@ import {
 } from '@/api/system'
 import type { SystemConfigSummary } from '@/api/system'
 import ConfigurableList from '@/components/ConfigurableList/index.vue'
+import ConfigurableForm from '@/components/ConfigurableForm/index.vue'
 import type { ActionHandler } from '@/components/ConfigurableList/types'
+import type { RenderContext } from '@/components/ConfigurableList/renderers'
 import {
   ensureStatusDictLoaded,
   toMessage,
@@ -90,6 +60,7 @@ import {
 const statusOptions = useStatusOptions()
 
 const configListRef = ref<InstanceType<typeof ConfigurableList> | null>(null)
+const configFormRef = ref<InstanceType<typeof ConfigurableForm> | null>(null)
 const configTotal = ref(0)
 
 function onConfigsLoaded(payload: { total: number }) {
@@ -102,102 +73,81 @@ const configSubmitting = ref(false)
 const configFormError = ref('')
 const selectedConfig = ref<SystemConfigSummary | null>(null)
 
-const configValueTypeOptions = [
-  { value: 'string', label: 'string' },
-  { value: 'int', label: 'int' },
-  { value: 'boolean', label: 'boolean' },
-  { value: 'json', label: 'json' },
-]
-
-const configForm = reactive({
-  configKey: '',
-  configValue: '',
-  valueType: 'string',
-  configGroup: 'general',
-  displayName: '',
-  description: '',
-  defaultValue: '',
-  isSystem: false,
-  sortOrder: 0,
-  status: 'active',
+/** 弹窗回填初值(仅编辑时使用;新增由字段 defaultValue/默认初值承担) */
+const configInitial = computed<Record<string, any>>(() => {
+  if (configDialogMode.value === 'edit' && selectedConfig.value) {
+    const config = selectedConfig.value
+    return {
+      configKey: config.configKey,
+      configValue: config.configValue,
+      valueType: config.valueType || 'string',
+      configGroup: config.configGroup || '',
+      displayName: config.displayName || '',
+      description: config.description || '',
+      defaultValue: config.defaultValue || '',
+      isSystem: config.isSystem === true,
+      sortOrder: config.sortOrder ?? 0,
+      status: config.status || 'active',
+    }
+  }
+  return {}
 })
+
+/** optionsLoader 数据源(状态下拉) */
+const configFormContext = computed<RenderContext>(() => ({
+  statusOptions: statusOptions.value,
+}))
 
 function openCreateConfigDialog() {
   configDialogMode.value = 'create'
   selectedConfig.value = null
-  configForm.configKey = ''
-  configForm.configValue = ''
-  configForm.valueType = 'string'
-  configForm.configGroup = 'general'
-  configForm.displayName = ''
-  configForm.description = ''
-  configForm.defaultValue = ''
-  configForm.isSystem = false
-  configForm.sortOrder = 0
-  configForm.status = statusOptions.value[0]?.value || 'active'
   configFormError.value = ''
   configDialogVisible.value = true
+  void configFormRef.value?.reset()
 }
 
 function openEditConfigDialog(config: SystemConfigSummary) {
   configDialogMode.value = 'edit'
   selectedConfig.value = config
-  configForm.configKey = config.configKey
-  configForm.configValue = config.configValue
-  configForm.valueType = config.valueType || 'string'
-  configForm.configGroup = config.configGroup || ''
-  configForm.displayName = config.displayName || ''
-  configForm.description = config.description || ''
-  configForm.defaultValue = config.defaultValue || ''
-  configForm.isSystem = config.isSystem === true
-  configForm.sortOrder = config.sortOrder ?? 0
-  configForm.status = config.status || 'active'
   configFormError.value = ''
   configDialogVisible.value = true
 }
 
 async function submitConfig() {
-  if (!trimToUndefined(configForm.configKey) && configDialogMode.value === 'create') {
-    configFormError.value = '请填写配置键'
+  if (!configFormRef.value) {
     return
   }
-  if (!trimToUndefined(configForm.configValue)) {
-    configFormError.value = '请填写配置值'
+  const valid = await configFormRef.value.validate()
+  if (!valid) {
+    configFormError.value = '请检查表单填写是否完整'
     return
   }
-  if (!trimToUndefined(configForm.displayName)) {
-    configFormError.value = '请填写显示名称'
-    return
-  }
-  if (!trimToUndefined(configForm.configGroup) && configDialogMode.value === 'create') {
-    configFormError.value = '请填写配置分组'
-    return
-  }
+  const form = configFormRef.value.values()
 
   configSubmitting.value = true
   configFormError.value = ''
   try {
     if (configDialogMode.value === 'create') {
       await createSystemConfig({
-        configKey: configForm.configKey.trim(),
-        configValue: configForm.configValue,
-        valueType: configForm.valueType,
-        configGroup: configForm.configGroup.trim(),
-        displayName: configForm.displayName.trim(),
-        description: trimToUndefined(configForm.description),
-        defaultValue: trimToUndefined(configForm.defaultValue),
-        isSystem: configForm.isSystem,
-        sortOrder: configForm.sortOrder ?? 0,
-        status: configForm.status,
+        configKey: String(form.configKey ?? '').trim(),
+        configValue: form.configValue ?? '',
+        valueType: form.valueType || 'string',
+        configGroup: String(form.configGroup ?? '').trim(),
+        displayName: String(form.displayName ?? '').trim(),
+        description: trimToUndefined(form.description),
+        defaultValue: trimToUndefined(form.defaultValue),
+        isSystem: Boolean(form.isSystem),
+        sortOrder: typeof form.sortOrder === 'number' ? form.sortOrder : 0,
+        status: form.status || 'active',
       })
       ElMessage.success('系统参数已创建')
     } else if (selectedConfig.value) {
       await updateSystemConfig(selectedConfig.value.id, {
-        configValue: configForm.configValue,
-        displayName: configForm.displayName.trim(),
-        description: trimToUndefined(configForm.description),
-        sortOrder: configForm.sortOrder ?? 0,
-        status: configForm.status,
+        configValue: form.configValue ?? '',
+        displayName: String(form.displayName ?? '').trim(),
+        description: trimToUndefined(form.description),
+        sortOrder: typeof form.sortOrder === 'number' ? form.sortOrder : 0,
+        status: form.status || 'active',
       })
       ElMessage.success('系统参数已更新')
     }

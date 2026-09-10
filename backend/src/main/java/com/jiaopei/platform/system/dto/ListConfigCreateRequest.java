@@ -29,6 +29,8 @@ public record ListConfigCreateRequest(
 
     @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式") String actionsJson,
 
+    @Schema(description = "弹窗表单配置 JSON(fields 数组),为空表示未配置表单") String formJson,
+
     @NotBlank(message = "状态不能为空") @Size(max = 32, message = "状态长度不能超过32个字符")
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"}) String status,
 

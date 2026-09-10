@@ -36,6 +36,9 @@ public class ListConfigEntity extends BaseEntity {
     @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式")
     private String actionsJson;
 
+    @Schema(description = "弹窗表单配置 JSON(fields 数组),为空表示该资源未配置表单")
+    private String formJson;
+
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     private String status;
 

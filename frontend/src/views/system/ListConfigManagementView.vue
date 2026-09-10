@@ -84,6 +84,15 @@
             permission 为权限码,无权限自动隐藏;action 必须是对应列表页已注册的动作名,写错会导致按钮不渲染。
           </div>
         </el-form-item>
+        <el-form-item label="弹窗表单 formJson">
+          <el-input v-model="listConfigForm.formJson" type="textarea" :rows="10" placeholder='{"labelWidth":"auto","gridColumns":2,"fields":[{"field":"displayName","label":"显示名称","type":"input","required":true}]}' />
+          <div class="education-context-text">
+            可选,描述该资源的"新增/编辑"弹窗;空表示未配置(列表页弹窗会提示先配置)。整体为 JSON 对象,fields 为非空数组;
+            每个字段 field/label/type 必填;type 可选 input/password/textarea/number/select/dict-select/switch/checkbox-group/radio/permission-groups;
+            select 可配 options 或 optionsLoader(institutions/campuses/roles/status);dict-select 需 dictType;
+            showOn/disabledOn 可选 create/edit;required 标必填;gridSpan 1(半行)/2(整行);onChange 填页面注册的联动钩子名。
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="listConfigDialogVisible = false">取消</el-button>
@@ -143,6 +152,7 @@ const listConfigForm = reactive({
   columnsJson: '',
   queryJson: '',
   actionsJson: '',
+  formJson: '',
 })
 
 async function loadListConfigs() {
@@ -179,6 +189,41 @@ function validateJsonArray(raw: string, name: string) {
   return trimmed
 }
 
+/** form_json 校验:JSON 对象 + 非空 fields 数组 + 每个字段 field/label/type 必填 */
+function validateFormObject(raw: string, name: string) {
+  const trimmed = raw.trim()
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch (error) {
+    throw new Error(toMessage(error, `${name} 不是合法的 JSON`))
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`${name} 必须是 JSON 对象,如 {"fields":[...]}`)
+  }
+  const fields = (parsed as { fields?: unknown }).fields
+  if (!Array.isArray(fields) || fields.length === 0) {
+    throw new Error(`${name} 的 fields 必须是非空数组`)
+  }
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i]
+    if (!field || typeof field !== 'object' || Array.isArray(field)) {
+      throw new Error(`${name} fields[${i}] 必须是 JSON 对象`)
+    }
+    const f = field as Record<string, unknown>
+    if (typeof f.field !== 'string' || !f.field.trim()) {
+      throw new Error(`${name} fields[${i}] 缺少必填字段 field`)
+    }
+    if (typeof f.label !== 'string' || !f.label.trim()) {
+      throw new Error(`${name} fields[${i}] 缺少必填字段 label`)
+    }
+    if (typeof f.type !== 'string' || !f.type.trim()) {
+      throw new Error(`${name} fields[${i}] 缺少必填字段 type`)
+    }
+  }
+  return trimmed
+}
+
 function openCreateListConfigDialog() {
   listConfigDialogMode.value = 'create'
   selectedListConfig.value = null
@@ -191,6 +236,7 @@ function openCreateListConfigDialog() {
   listConfigForm.columnsJson = '[\n  { "prop": "id", "label": "ID" }\n]'
   listConfigForm.queryJson = '[]'
   listConfigForm.actionsJson = ''
+  listConfigForm.formJson = ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -207,6 +253,7 @@ function openEditListConfigDialog(row: ListConfigSummary) {
   listConfigForm.columnsJson = prettyJson(row.columnsJson)
   listConfigForm.queryJson = prettyJson(row.queryJson)
   listConfigForm.actionsJson = row.actionsJson ? prettyJson(row.actionsJson) : ''
+  listConfigForm.formJson = row.formJson ? prettyJson(row.formJson) : ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -228,6 +275,7 @@ async function submitListConfig() {
   let columnsJson: string
   let queryJson: string
   let actionsJson: string | null
+  let formJson: string | null
   try {
     columnsJson = validateJsonArray(listConfigForm.columnsJson, '列配置 columnsJson')
     queryJson = validateJsonArray(listConfigForm.queryJson, '查询条件 queryJson')
@@ -235,6 +283,11 @@ async function submitListConfig() {
     actionsJson = listConfigForm.actionsJson.trim() || null
     if (actionsJson) {
       actionsJson = validateJsonArray(actionsJson, '按钮配置 actionsJson')
+    }
+    // formJson 允许为空(null=未配置弹窗表单,页面提示先配置),非空时必须为含非空 fields 数组的 JSON 对象
+    formJson = listConfigForm.formJson.trim() || null
+    if (formJson) {
+      formJson = validateFormObject(formJson, '弹窗表单 formJson')
     }
   } catch (error) {
     listConfigFormError.value = toMessage(error, 'JSON 校验失败')
@@ -251,6 +304,7 @@ async function submitListConfig() {
       columnsJson,
       queryJson,
       actionsJson,
+      formJson,
       status: listConfigForm.status,
       remark: trimToUndefined(listConfigForm.remark),
     }
