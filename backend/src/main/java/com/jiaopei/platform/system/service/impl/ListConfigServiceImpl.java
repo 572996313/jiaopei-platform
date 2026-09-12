@@ -81,6 +81,8 @@ public class ListConfigServiceImpl implements ListConfigService {
         validatePayload(request.columnsJson(), request.queryJson());
         validateActions(request.actionsJson());
         validateForm(request.formJson());
+        validatePageShell(request.pageJson());
+        validateDialogShell(request.dialogJson());
         assertUniqueResourceCode(request.resourceCode());
 
         ListConfigEntity entity = new ListConfigEntity();
@@ -92,6 +94,8 @@ public class ListConfigServiceImpl implements ListConfigService {
         entity.setQueryJson(request.queryJson());
         entity.setActionsJson(request.actionsJson());
         entity.setFormJson(request.formJson());
+        entity.setPageJson(request.pageJson());
+        entity.setDialogJson(request.dialogJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         try {
@@ -111,6 +115,8 @@ public class ListConfigServiceImpl implements ListConfigService {
         validatePayload(request.columnsJson(), request.queryJson());
         validateActions(request.actionsJson());
         validateForm(request.formJson());
+        validatePageShell(request.pageJson());
+        validateDialogShell(request.dialogJson());
 
         entity.setResourceName(request.resourceName());
         entity.setEndpoint(request.endpoint());
@@ -119,6 +125,8 @@ public class ListConfigServiceImpl implements ListConfigService {
         entity.setQueryJson(request.queryJson());
         entity.setActionsJson(request.actionsJson());
         entity.setFormJson(request.formJson());
+        entity.setPageJson(request.pageJson());
+        entity.setDialogJson(request.dialogJson());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
         listConfigMapper.updateById(entity);
@@ -318,6 +326,45 @@ public class ListConfigServiceImpl implements ListConfigService {
         }
     }
 
+    /**
+     * 校验页面壳配置 page_json:整体必须是合法的 JSON 对象。
+     * 字段未配置/配置为空(null/空白)表示未配置壳,前端回退默认壳,不校验。
+     * 字段级取值不强校验(避免与前端解析器的容错语义冲突),仅要求结构合法。
+     */
+    private void validatePageShell(String pageJson) {
+        if (pageJson == null || pageJson.isBlank()) {
+            return;
+        }
+        parseObject(pageJson, "页面壳配置 pageJson");
+    }
+
+    /**
+     * 校验弹窗壳配置 dialog_json:整体必须是合法的 JSON 对象。
+     * 为空(null/空白)表示未配置弹窗壳,前端回退默认弹窗,不校验。
+     */
+    private void validateDialogShell(String dialogJson) {
+        if (dialogJson == null || dialogJson.isBlank()) {
+            return;
+        }
+        parseObject(dialogJson, "弹窗壳配置 dialogJson");
+    }
+
+    private Map<String, Object> parseObject(String json, String name) {
+        try {
+            Object parsed = objectMapper.readValue(json, new TypeReference<>() {
+            });
+            if (!(parsed instanceof Map<?, ?> map)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, name + " 必须是 JSON 对象,如 {\"title\":\"系统参数\"}");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> mapValue = (Map<String, Object>) map;
+            return mapValue;
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                name + " 不是合法的 JSON:" + exception.getOriginalMessage());
+        }
+    }
+
     private void validateModeList(Object value, String where) {
         if (value == null) {
             return;
@@ -348,6 +395,8 @@ public class ListConfigServiceImpl implements ListConfigService {
             entity.getQueryJson(),
             entity.getActionsJson(),
             entity.getFormJson(),
+            entity.getPageJson(),
+            entity.getDialogJson(),
             entity.getStatus(),
             entity.getRemark()
         );

@@ -39,6 +39,12 @@ public class ListConfigEntity extends BaseEntity {
     @Schema(description = "弹窗表单配置 JSON(fields 数组),为空表示该资源未配置表单")
     private String formJson;
 
+    @Schema(description = "页面壳配置 JSON(title/description/showCount/countFormat/emptyText),为空时前端回退默认壳")
+    private String pageJson;
+
+    @Schema(description = "弹窗壳配置 JSON(width/createTitle/editTitle/submitText/cancelText/createMessage/updateMessage/reloadAfterSubmit),为空时前端回退默认弹窗")
+    private String dialogJson;
+
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     private String status;
 

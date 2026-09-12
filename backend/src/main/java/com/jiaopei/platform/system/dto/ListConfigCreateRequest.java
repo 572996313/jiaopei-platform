@@ -31,6 +31,10 @@ public record ListConfigCreateRequest(
 
     @Schema(description = "弹窗表单配置 JSON(fields 数组),为空表示未配置表单") String formJson,
 
+    @Schema(description = "页面壳配置 JSON(title/description/showCount/countFormat/emptyText),为空时前端回退默认壳") String pageJson,
+
+    @Schema(description = "弹窗壳配置 JSON(width/createTitle/editTitle/submitText/cancelText/createMessage/updateMessage/reloadAfterSubmit),为空时前端回退默认弹窗") String dialogJson,
+
     @NotBlank(message = "状态不能为空") @Size(max = 32, message = "状态长度不能超过32个字符")
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"}) String status,
 

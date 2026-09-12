@@ -27,8 +27,10 @@ const props = withDefaults(
     actions?: Record<string, ActionHandler>
     /** 操作列宽,不传时按行按钮 label 自动估算(仅行按钮存在时) */
     actionsWidth?: number
+    /** 空态文案(表格无数据时展示),缺省 '暂无数据' */
+    emptyText?: string
   }>(),
-  { actionsWidth: 0 },
+  { actionsWidth: 0, emptyText: '暂无数据' },
 )
 
 const emit = defineEmits<{
@@ -340,6 +342,9 @@ defineExpose({
       </el-form>
 
       <el-table :data="rows" border v-loading="loading">
+        <template #empty>
+          <el-empty :description="props.emptyText" :image-size="70" />
+        </template>
         <el-table-column
           v-for="column in config.columns"
           :key="column.prop"

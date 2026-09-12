@@ -455,6 +455,10 @@ export interface ListConfigSummary {
   queryJson: string
   actionsJson?: string | null
   formJson?: string | null
+  /** 页面壳配置 JSON(阶段 A 扩展:后端加列后返回,缺省为 null) */
+  pageJson?: string | null
+  /** 弹窗壳配置 JSON(阶段 A 扩展:后端加列后返回,缺省为 null) */
+  dialogJson?: string | null
   status?: string | null
   remark?: string | null
 }
@@ -467,6 +471,10 @@ export interface ListConfigSavePayload {
   queryJson: string
   actionsJson?: string | null
   formJson?: string | null
+  /** 页面壳配置 JSON(缺省 null=未配置,页面按默认壳渲染) */
+  pageJson?: string | null
+  /** 弹窗壳配置 JSON(缺省 null=未配置,弹窗按默认壳渲染) */
+  dialogJson?: string | null
   status: string
   remark?: string
 }

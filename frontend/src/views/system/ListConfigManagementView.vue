@@ -93,6 +93,23 @@
             showOn/disabledOn 可选 create/edit;required 标必填;gridSpan 1(半行)/2(整行);onChange 填页面注册的联动钩子名。
           </div>
         </el-form-item>
+        <el-form-item label="页面壳配置 pageJson">
+          <el-input v-model="listConfigForm.pageJson" type="textarea" :rows="8" placeholder='{"title":"系统参数","description":"维护全局键值参数","showCount":true,"countFormat":"共 {total} 条","emptyText":"暂无数据"}' />
+          <div class="education-context-text">
+            可选,描述该资源的页面主标题/副标题说明/计数/空态,保存后立即生效;空表示未配置,页面走默认。
+            均为可选字段:title(页面大标题,缺省显示资源名)、description(标题右侧说明)、
+            showCount(布尔,是否显示"共 X 条")、countFormat(计数模板,{total} 为占位符)、
+            emptyText(表格空态文案)。
+          </div>
+        </el-form-item>
+        <el-form-item label="弹窗壳配置 dialogJson">
+          <el-input v-model="listConfigForm.dialogJson" type="textarea" :rows="8" placeholder='{"width":"680px","createTitle":"新增角色","editTitle":"编辑角色","createMessage":"角色已创建","updateMessage":"角色已更新"}' />
+          <div class="education-context-text">
+            可选,描述该资源"新增/编辑"弹窗的展示外壳;空表示未配置,弹窗走默认(640px 宽、"新增/编辑{name}" 标题)。
+            均为可选字段:width(弹窗宽度)、createTitle/editTitle(新增/编辑标题)、submitText/cancelText(底部按钮文案)、
+            createMessage/updateMessage(成功提示,{name} 为资源名占位符)、reloadAfterSubmit(布尔,提交后是否刷新列表)。
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="listConfigDialogVisible = false">取消</el-button>
@@ -153,6 +170,8 @@ const listConfigForm = reactive({
   queryJson: '',
   actionsJson: '',
   formJson: '',
+  pageJson: '',
+  dialogJson: '',
 })
 
 async function loadListConfigs() {
@@ -224,6 +243,21 @@ function validateFormObject(raw: string, name: string) {
   return trimmed
 }
 
+/** page_json / dialog_json 校验:JSON 对象(拒绝数组),结构权威校验在后端,此处只挡明显错误 */
+function validateJsonObject(raw: string, name: string) {
+  const trimmed = raw.trim()
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch (error) {
+    throw new Error(toMessage(error, `${name} 不是合法的 JSON`))
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`${name} 必须是 JSON 对象,如 {"title":"系统参数"}`)
+  }
+  return trimmed
+}
+
 function openCreateListConfigDialog() {
   listConfigDialogMode.value = 'create'
   selectedListConfig.value = null
@@ -237,6 +271,8 @@ function openCreateListConfigDialog() {
   listConfigForm.queryJson = '[]'
   listConfigForm.actionsJson = ''
   listConfigForm.formJson = ''
+  listConfigForm.pageJson = ''
+  listConfigForm.dialogJson = ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -254,6 +290,8 @@ function openEditListConfigDialog(row: ListConfigSummary) {
   listConfigForm.queryJson = prettyJson(row.queryJson)
   listConfigForm.actionsJson = row.actionsJson ? prettyJson(row.actionsJson) : ''
   listConfigForm.formJson = row.formJson ? prettyJson(row.formJson) : ''
+  listConfigForm.pageJson = row.pageJson ? prettyJson(row.pageJson) : ''
+  listConfigForm.dialogJson = row.dialogJson ? prettyJson(row.dialogJson) : ''
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
 }
@@ -276,6 +314,8 @@ async function submitListConfig() {
   let queryJson: string
   let actionsJson: string | null
   let formJson: string | null
+  let pageJson: string | null
+  let dialogJson: string | null
   try {
     columnsJson = validateJsonArray(listConfigForm.columnsJson, '列配置 columnsJson')
     queryJson = validateJsonArray(listConfigForm.queryJson, '查询条件 queryJson')
@@ -288,6 +328,15 @@ async function submitListConfig() {
     formJson = listConfigForm.formJson.trim() || null
     if (formJson) {
       formJson = validateFormObject(formJson, '弹窗表单 formJson')
+    }
+    // pageJson / dialogJson 允许为空(null=未配置壳,页面走默认),非空时必须为 JSON 对象
+    pageJson = listConfigForm.pageJson.trim() || null
+    if (pageJson) {
+      pageJson = validateJsonObject(pageJson, '页面壳配置 pageJson')
+    }
+    dialogJson = listConfigForm.dialogJson.trim() || null
+    if (dialogJson) {
+      dialogJson = validateJsonObject(dialogJson, '弹窗壳配置 dialogJson')
     }
   } catch (error) {
     listConfigFormError.value = toMessage(error, 'JSON 校验失败')
@@ -305,6 +354,8 @@ async function submitListConfig() {
       queryJson,
       actionsJson,
       formJson,
+      pageJson,
+      dialogJson,
       status: listConfigForm.status,
       remark: trimToUndefined(listConfigForm.remark),
     }
