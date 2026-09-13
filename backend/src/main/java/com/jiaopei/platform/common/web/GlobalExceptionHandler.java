@@ -5,6 +5,7 @@ import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -87,6 +89,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception exception) {
+        // 兜底异常必须记录完整堆栈,否则线上只剩一句"服务器内部错误"无从排查
+        log.error("未捕获的服务器异常", exception);
         return ApiResponse.failure(ResultCode.INTERNAL_ERROR, ResultCode.INTERNAL_ERROR.getDefaultMessage());
     }
 

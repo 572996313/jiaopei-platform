@@ -11,6 +11,7 @@ import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.security.JwtTokenService;
+import com.jiaopei.platform.auth.security.UserAccessTokenService;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.auth.service.impl.AuthApplicationServiceImpl;
@@ -44,14 +45,21 @@ class AuthApplicationServiceImplTest {
     private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
+    private final JwtTokenService jwtTokenService = jwtTokenService();
+    private final UserAccessTokenService userAccessTokenService = new UserAccessTokenService(
         userAccountMapper,
         mock(RoleMapper.class),
         mock(UserRoleRelMapper.class),
         tokenCacheService,
-        jwtTokenService(),
+        jwtTokenService,
         systemConfigService,
-        mock(SystemMenuService.class),
+        mock(SystemMenuService.class)
+    );
+    private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
+        userAccountMapper,
+        tokenCacheService,
+        jwtTokenService,
+        userAccessTokenService,
         passwordEncoder
     );
 
