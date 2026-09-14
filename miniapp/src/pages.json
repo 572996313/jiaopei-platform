@@ -13,9 +13,9 @@
 			}
 		},
 		{
-			"path": "pages/bind/index",
+			"path": "pages/register/index",
 			"style": {
-				"navigationBarTitleText": "绑定账号"
+				"navigationBarTitleText": "注册"
 			}
 		},
 		{

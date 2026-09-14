@@ -12,8 +12,10 @@ export interface LoginResponse {
   forceChangePassword: boolean
 }
 
+export type MiniappRole = 'STUDENT' | 'PARENT'
+
 export interface WechatLoginResponse {
-  bound: boolean
+  registered: boolean
   auth: LoginResponse | null
 }
 
@@ -30,14 +32,23 @@ export interface CurrentUserResponse {
   forceChangePassword: boolean
 }
 
-/** 微信小程序登录:code 换 openid,已绑定直接返回令牌,未绑定时 bound=false */
+/** 微信小程序登录:code 换 openid,已注册直接返回令牌,未注册时 registered=false */
 export function wechatLogin(code: string) {
   return requestPost<WechatLoginResponse>('/auth/wechat/login', { code })
 }
 
-/** 用系统账号密码绑定当前微信 openid,绑定成功返回令牌 */
-export function wechatBind(code: string, username: string, password: string) {
-  return requestPost<LoginResponse>('/auth/wechat/bind', { code, username, password })
+/** 自助注册:选择身份(学生/家长)自动建档进系统并分配角色,昵称选填 */
+export function wechatRegister(code: string, role: MiniappRole, nickname?: string) {
+  return requestPost<LoginResponse>('/auth/wechat/register', {
+    code,
+    role,
+    nickname: nickname?.trim() ? nickname.trim() : undefined,
+  })
+}
+
+/** 账号注销:删除当前微信注册的账号(含身份与绑定),注销后可重新注册 */
+export function wechatDeregister() {
+  return requestPost<void>('/auth/wechat/deregister', {})
 }
 
 /** 获取当前登录用户信息(带令牌调用) */

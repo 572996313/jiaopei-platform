@@ -49,7 +49,9 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     public LoginResponse login(LoginRequest request) {
         UserAccountEntity user = userAccountMapper.selectOne(new LambdaQueryWrapper<UserAccountEntity>()
             .eq(UserAccountEntity::getUsername, normalize(request.username())));
-        if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        // 小程序自助注册的用户没有密码,走账号密码登录一律视为凭证错误
+        if (user == null || user.getPasswordHash() == null
+            || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BadCredentialsException("用户名或密码错误");
         }
         if (!ACTIVE.equalsIgnoreCase(user.getStatus())) {

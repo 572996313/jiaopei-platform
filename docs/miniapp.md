@@ -23,11 +23,11 @@ miniapp/src/
 ├── utils/
 │   ├── auth-session.ts     # 登录态存取(uni storage,key: jiaopei.mini.auth.session)
 │   └── request.ts          # uni.request 封装:ApiResponse 信封解包 + 雪花 ID 精度保护 + 401 统一处理
-├── api/auth.ts             # 微信登录 / 绑定 / 当前用户 / 退出
+├── api/auth.ts             # 微信登录 / 自助注册 / 当前用户 / 退出
 ├── stores/auth.ts          # Pinia 登录态
 └── pages/
     ├── login/index.vue     # 微信一键登录(启动页)
-    ├── bind/index.vue      # 首次使用绑定系统账号
+    ├── register/index.vue  # 首次使用选择身份(学生/家长)自动注册
     ├── index/index.vue     # 首页 tab(业务占位)
     └── mine/index.vue      # 我的 tab(用户信息 + 退出登录)
 ```
@@ -37,10 +37,15 @@ miniapp/src/
 | 项 | 说明 |
 | --- | --- |
 | `V26__create_wechat_binding_table.sql` | `jp_wechat_binding` 表:openid ↔ 系统用户绑定关系 |
-| `POST /api/auth/wechat/login` | code 换 openid;已绑定签发 JWT,未绑定返回 `bound=false` |
-| `POST /api/auth/wechat/bind` | 校验账号密码后绑定 openid 与用户,并签发 JWT |
+| `V27__wechat_self_register.sql` | `password_hash` 改可空、`register_source` 来源列、预置 `MINIAPP_STUDENT`/`MINIAPP_PARENT` 两个角色 |
+| `POST /api/auth/wechat/login` | code 换 openid;已注册签发 JWT,未注册返回 `registered=false` |
+| `POST /api/auth/wechat/register` | 自助注册:选身份(学生/家长)+昵称自动建档、分配角色并签发 JWT;重复注册幂等 |
+| `POST /api/auth/wechat/deregister` | 账号注销:删除当前微信注册的账号(含身份角色与绑定),令牌立即失效;注销后同一微信重新登录为未注册状态,可重新注册 |
 | `UserAccessTokenService` | 从 `AuthApplicationServiceImpl` 抽出的统一令牌签发组件,账号密码登录与微信登录共用 |
 | `wx.miniapp.*` 配置 | `application.yml`,通过环境变量 `WECHAT_MINIAPP_APPID/SECRET` 注入 |
+
+自助注册的用户不设密码(`password_hash` 为空),不能走账号密码登录,只能微信免密登录;
+机构归属取系统配置 `auth.register.default_institution_id`(默认 1,可在后台系统配置里调整)。
 
 微信登录复用现有 JWT + Redis 会话体系,签发的令牌与管理后台完全同构,
 小程序端可直接调用受 `@RequiresPermission` 保护的接口。
@@ -82,19 +87,21 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
    (开发阶段直连 `http://127.0.0.1:8080`,正式发布必须 HTTPS 域名)。
 4. 确认本机 MySQL/Redis/后端已启动,模拟器中即可走通登录流程。
 
-## 登录流程
+## 登录与注册流程
 
 ```
 启动 → 登录页 → uni.login 取 code
      → POST /api/auth/wechat/login
-         ├─ bound=true  → 保存令牌 → 进入首页
-         └─ bound=false → 绑定页(输系统账号密码)
-                        → POST /api/auth/wechat/bind → 保存令牌 → 进入首页
+         ├─ registered=true  → 保存令牌 → 进入首页(微信免密登录)
+         └─ registered=false → 注册页:选身份(学生/家长)+填昵称
+                             → POST /api/auth/wechat/register → 自动建档+分配角色 → 进入首页
 ```
 
-- 绑定只需一次,之后微信免密登录。
-- 一个微信只能绑定一个账号,重复绑定会改绑到新账号。
+- 首次使用自动注册进系统(分配 MINIAPP_STUDENT / MINIAPP_PARENT 角色),之后微信免密登录。
+- 一个微信对应一个账号,重复提交注册时按已注册用户直接登录(幂等)。
+- 注册用户无密码,不能走账号密码登录;注册身份不可自行更改,需要调整找管理员。
 - 退出登录调用 `/api/auth/logout`,服务端令牌(Redis)立即失效。
+- 「我的」页提供**注销账号**:删除当前微信注册的账号及绑定关系,注销后同一微信重新登录即为全新未注册用户,可重新选择身份注册。注销操作不可恢复,仅小程序自助注册的账号可自助注销。
 
 ## 关键约定(与 frontend 保持一致)
 
@@ -117,7 +124,9 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 
 ## 后续迭代方向
 
-- 家长/学生业务页:课程表、考勤记录、消息通知、课耗明细(首页已留占位)。
-- 小程序端用户体系细化:家长微信与学生的关联(当前绑定的是系统账号)。
+- 按身份开放功能:学生端/家长端各自的功能页,后端配套权限码(`miniapp:student:*` / `miniapp:parent:*`,在角色管理里追加即可)。
+- 注册用户与教育域档案关联:家长可按 `jp_student_parent.parent_phone / wechat_no` 匹配孩子;学员需给 `jp_student` 加 `user_id` 列。
+- 手机号一键获取(需企业认证小程序)。
+- 后台用户管理按 `register_source` 筛选小程序注册用户。
 - tabBar 图标(当前为纯文字 tab,可在 `pages.json` 的 `tabBar.list` 中补充 iconPath)。
 - 需要输出 H5/App 时,uni-app 一套代码直接切换编译目标;届时 H5 端需后端补 CORS 配置。

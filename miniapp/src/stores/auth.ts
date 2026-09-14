@@ -9,10 +9,12 @@ import {
   fetchCurrentUser,
   getWxLoginCode,
   logout as logoutApi,
-  wechatBind,
+  wechatDeregister,
   wechatLogin,
+  wechatRegister,
   type CurrentUserResponse,
   type LoginResponse,
+  type MiniappRole,
 } from '@/api/auth'
 
 interface AuthState {
@@ -38,21 +40,21 @@ export const useAuthStore = defineStore('auth', {
       setStoredAuthSession(session)
     },
 
-    /** 微信一键登录;返回 true 表示已绑定并登录成功,false 表示需要先绑定账号 */
+    /** 微信一键登录;返回 true 表示已注册并登录成功,false 表示需要先选择身份注册 */
     async loginByWechat(): Promise<boolean> {
       const code = await getWxLoginCode()
       const result = await wechatLogin(code)
-      if (result.bound && result.auth) {
+      if (result.registered && result.auth) {
         this.applyLogin(result.auth)
         return true
       }
       return false
     },
 
-    /** 用系统账号密码绑定当前微信 */
-    async bindAccount(username: string, password: string) {
+    /** 自助注册:选择学生/家长身份建档进系统 */
+    async registerAccount(role: MiniappRole, nickname?: string) {
       const code = await getWxLoginCode()
-      const auth = await wechatBind(code, username, password)
+      const auth = await wechatRegister(code, role, nickname)
       this.applyLogin(auth)
     },
 
@@ -63,6 +65,17 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         await logoutApi()
+      } finally {
+        clearStoredAuthSession()
+        this.session = null
+        this.userInfo = null
+      }
+    },
+
+    /** 注销账号:删除当前微信注册的账号及绑定,令牌作废 */
+    async deregister() {
+      try {
+        await wechatDeregister()
       } finally {
         clearStoredAuthSession()
         this.session = null

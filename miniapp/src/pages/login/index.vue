@@ -26,8 +26,8 @@ async function handleWechatLogin() {
     if (bound) {
       uni.reLaunch({ url: '/pages/index/index' })
     } else {
-      // 首次使用,引导绑定系统账号(仅需一次)
-      uni.navigateTo({ url: '/pages/bind/index' })
+      // 首次使用,引导选择身份完成注册
+      uni.navigateTo({ url: '/pages/register/index' })
     }
   } catch (error) {
     uni.hideLoading()
@@ -51,7 +51,7 @@ async function handleWechatLogin() {
 
     <view class="actions">
       <button class="login-btn" :disabled="loading" @click="handleWechatLogin">微信一键登录</button>
-      <text class="hint">首次使用需绑定系统账号,绑定后微信免密登录</text>
+      <text class="hint">首次使用将自动注册,选择学生/家长身份即可</text>
     </view>
   </view>
 </template>

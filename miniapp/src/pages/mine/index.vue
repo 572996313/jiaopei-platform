@@ -8,9 +8,18 @@ const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '未登录',
 )
 const avatarChar = computed(() => displayName.value.slice(0, 1) || '客')
+
+// 角色码转中文展示;未映射的角色码原样显示
+const ROLE_LABELS: Record<string, string> = {
+  MINIAPP_STUDENT: '学生',
+  MINIAPP_PARENT: '家长',
+  PLATFORM_ADMIN: '管理员',
+}
 const roleText = computed(() => {
   const roles = authStore.userInfo?.roles ?? []
-  return roles.length > 0 ? roles.join('、') : '暂无角色'
+  return roles.length > 0
+    ? roles.map((code) => ROLE_LABELS[code] ?? code).join('、')
+    : '暂无角色'
 })
 
 function handleLogout() {
@@ -25,6 +34,31 @@ function handleLogout() {
         await authStore.logout()
       } finally {
         uni.reLaunch({ url: '/pages/login/index' })
+      }
+    },
+  })
+}
+
+function handleDeregister() {
+  uni.showModal({
+    title: '注销账号',
+    content: '注销后将删除你的账号信息,且无法恢复,确定注销吗?',
+    confirmColor: '#dc2626',
+    success: async (result) => {
+      if (!result.confirm) {
+        return
+      }
+      uni.showLoading({ title: '注销中…' })
+      try {
+        await authStore.deregister()
+        uni.hideLoading()
+        uni.showToast({ title: '已注销', icon: 'success' })
+        setTimeout(() => {
+          uni.reLaunch({ url: '/pages/login/index' })
+        }, 600)
+      } catch (error) {
+        uni.hideLoading()
+        uni.showToast({ title: '注销失败,请重试', icon: 'none' })
       }
     },
   })
@@ -53,6 +87,7 @@ function handleLogout() {
     </view>
 
     <button class="logout-btn" @click="handleLogout">退出登录</button>
+    <button class="deregister-btn" @click="handleDeregister">注销账号</button>
   </view>
 </template>
 
@@ -142,6 +177,22 @@ function handleLogout() {
 }
 
 .logout-btn::after {
+  border: none;
+}
+
+.deregister-btn {
+  margin-top: 24rpx;
+  width: 100%;
+  height: 92rpx;
+  line-height: 92rpx;
+  border-radius: 46rpx;
+  background: #ffffff;
+  color: #9ca3af;
+  font-size: 32rpx;
+  border: 1rpx solid #e5e7eb;
+}
+
+.deregister-btn::after {
   border: none;
 }
 </style>
