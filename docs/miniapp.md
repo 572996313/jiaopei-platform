@@ -92,11 +92,13 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 
 | `V28__user_student_rel.sql` | 用户-学员关联表 `jp_user_student_rel`;小程序角色追加 `miniapp:access` 权限码 |
 | `GET/POST /api/miniapp/students` | 绑定学员档案(按学号/监护人手机号)与当前用户已绑学员列表 |
+| `DELETE /api/miniapp/students/{id}` | 解绑学员档案(物理删除关联,解绑后可重新绑定) |
 | `GET /api/miniapp/students/{id}/lessons` | 学员周课表(联查班级/课程/教室/教师),仅限已绑定的当前用户 |
 
 ## 档案关联与课程表
 
-- **绑定学员**:「我的」→「绑定学员档案」,支持按**学员编号**或**监护人手机号**两种方式;手机号方式通过 `jp_student_parent.parent_phone` 匹配。一个账号可绑多个学员,一个学员可被多个家长绑定。
+- **绑定学员**:「我的」→「绑定学员档案」,支持按**学员编号**或**监护人手机号**两种方式;手机号方式通过 `jp_student_parent.parent_phone` 匹配。**双因子校验**:除编号/手机号外必须填写**学员姓名**,字段与档案不一致(或该手机号下无此姓名)时拒绝绑定,防止陌生人仅凭传播的学号/手机号绑定查看学员信息。一个账号可绑多个学员,一个学员可被多个家长绑定。
+- **绑定的学员**:「我的」→「我的学员」列表,点学员进课表,点「解绑」解除关联(有二次确认,解绑后可重新绑定)。
 - **数据隔离**:所有 `/api/miniapp` 接口都经 `@RequiresPermission("miniapp:access")` 且按**当前登录用户**过滤——只能查到自己绑定的学员,不能越权看别人。
 - **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` ACTIVE)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师姓名电话。停课(cancelled)课次在页面置灰标识。
 

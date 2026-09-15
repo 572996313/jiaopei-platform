@@ -83,7 +83,7 @@ class AuthApplicationServiceImplTest {
         assertNotEquals(first.accessToken(), second.accessToken());
 
         when(tokenCacheService.getUser(first.accessToken())).thenReturn(
-            new AuthenticatedUser(1L, 1L, "admin", Set.of(), Set.of(), false));
+            new AuthenticatedUser(1L, 1L, "admin", Set.of(), Set.of(), false, "admin"));
         assertEquals("admin", service.authenticateToken(first.accessToken()).username());
 
         assertThrows(BadCredentialsException.class,
@@ -155,7 +155,8 @@ class AuthApplicationServiceImplTest {
             "admin",
             Set.of("PLATFORM_ADMIN"),
             Set.of("system:user:manage"),
-            true
+            true,
+            "admin"
         );
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", Set.of()));

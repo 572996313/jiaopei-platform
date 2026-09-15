@@ -101,7 +101,8 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(authenticatedUser.roles()),
             new ArrayList<>(authenticatedUser.permissions()),
             user.getPasswordResetRequired(),
-            userAccessTokenService.effectiveForceChangePassword(user)
+            userAccessTokenService.effectiveForceChangePassword(user),
+            authenticatedUser.portal()
         );
     }
 

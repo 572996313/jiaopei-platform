@@ -8,6 +8,7 @@ public record AuthenticatedUser(
     String username,
     Set<String> roles,
     Set<String> permissions,
-    Boolean forceChangePassword
+    Boolean forceChangePassword,
+    String portal
 ) {
 }

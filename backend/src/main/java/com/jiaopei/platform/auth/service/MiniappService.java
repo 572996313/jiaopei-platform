@@ -14,6 +14,9 @@ public interface MiniappService {
     /** 按学员编号或监护人手机号绑定一个学员档案到当前用户 */
     StudentBriefView bindStudent(BindStudentRequest request);
 
+    /** 解绑当前用户与某学员的档案关联,解绑后可重新绑定 */
+    void unbindStudent(Long studentId);
+
     /** 当前用户已关联的学员列表 */
     List<StudentBriefView> listMyStudents();
 

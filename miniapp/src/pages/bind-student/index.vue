@@ -5,6 +5,7 @@ import { bindStudent, type BindMethod } from '@/api/miniapp'
 
 const method = ref<BindMethod>('STUDENT_NO')
 const value = ref('')
+const studentName = ref('')
 const remark = ref('')
 const submitting = ref(false)
 
@@ -23,13 +24,17 @@ async function handleBind() {
     uni.showToast({ title: method.value === 'STUDENT_NO' ? '请输入学员编号' : '请输入监护人手机号', icon: 'none' })
     return
   }
+  if (!studentName.value.trim()) {
+    uni.showToast({ title: '请输入学员姓名', icon: 'none' })
+    return
+  }
   if (submitting.value) {
     return
   }
   submitting.value = true
   uni.showLoading({ title: '绑定中…' })
   try {
-    await bindStudent(method.value, value.value.trim(), remark.value)
+    await bindStudent(method.value, value.value.trim(), studentName.value.trim(), remark.value)
     uni.hideLoading()
     uni.showToast({ title: '绑定成功', icon: 'success' })
     setTimeout(() => {
@@ -72,6 +77,16 @@ async function handleBind() {
         />
       </view>
       <view class="form-item">
+        <text class="label">学员姓名</text>
+        <input
+          v-model="studentName"
+          class="input"
+          type="text"
+          placeholder="请输入学员在机构登记的姓名"
+          placeholder-class="placeholder"
+        />
+      </view>
+      <view class="form-item">
         <text class="label">备注(选填)</text>
         <input
           v-model="remark"
@@ -84,7 +99,7 @@ async function handleBind() {
       <button class="submit-btn" :disabled="submitting" @click="handleBind">绑定</button>
     </view>
 
-    <text class="tip">绑定后可在「我的学员」查看课表。一个账号可绑定多个学员,一个学员也可被多个家长绑定。</text>
+    <text class="tip">为保护学员隐私,绑定需同时核对学员姓名。绑定后可在「我的学员」查看课表,一个账号可绑定多个学员。</text>
   </view>
 </template>
 

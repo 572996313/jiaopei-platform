@@ -92,6 +92,16 @@ public class MiniappServiceImpl implements MiniappService {
     }
 
     @Override
+    @Transactional
+    public void unbindStudent(Long studentId) {
+        Long userId = AuthContext.requireUser().userId();
+        int deleted = userStudentRelMapper.physicalDelete(userId, studentId);
+        if (deleted == 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该学员的绑定关系,请勿重复解绑");
+        }
+    }
+
+    @Override
     public List<StudentBriefView> listMyStudents() {
         Long userId = AuthContext.requireUser().userId();
         List<UserStudentRelEntity> relations = userStudentRelMapper.selectList(new LambdaQueryWrapper<UserStudentRelEntity>()
@@ -168,24 +178,25 @@ public class MiniappServiceImpl implements MiniappService {
 
     // ---- 内部辅助 ----
 
-    private StudentEntity resolveStudent(BindStudentRequest request) {
+private StudentEntity resolveStudent(BindStudentRequest request) {
+        String expectedName = request.studentName().trim();
         if ("PARENT_PHONE".equals(request.method())) {
             String phone = request.value().trim();
             if (phone.isBlank()) {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "手机号不能为空");
             }
-            // 通过家长关系表按手机号找学员;可能存在多个孩子同手机号,取其一提示
+            // 先按手机号查家长关系,再按姓名过滤:一个手机号可能关联多个孩子,姓名能精确锁定目标
             List<StudentParentEntity> parents = studentParentMapper.selectList(new LambdaQueryWrapper<StudentParentEntity>()
                 .eq(StudentParentEntity::getParentPhone, phone));
             if (parents.isEmpty()) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该手机号对应的学员档案，请核对或选择学员编号绑定");
+                throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该手机号对应学员,请核对手机号与学员姓名");
             }
-            Long studentId = parents.get(0).getStudentId();
-            StudentEntity student = studentMapper.selectById(studentId);
-            if (student == null) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "学员档案不存在");
-            }
-            return student;
+            return parents.stream()
+                .map(parent -> studentMapper.selectById(parent.getStudentId()))
+                .filter(student -> student != null && expectedName.equals(student.getStudentName()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ResultCode.BAD_REQUEST,
+                    "学员信息不匹配,请核对姓名后重试"));
         }
         // 默认 STUDENT_NO
         String studentNo = request.value().trim();
@@ -195,7 +206,10 @@ public class MiniappServiceImpl implements MiniappService {
         StudentEntity student = studentMapper.selectOne(new LambdaQueryWrapper<StudentEntity>()
             .eq(StudentEntity::getStudentNo, studentNo));
         if (student == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该学员编号对应的学员档案");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该学员编号对应学员,请核对编号与学员姓名");
+        }
+        if (!expectedName.equals(student.getStudentName())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员信息不匹配,请核对姓名后重试");
         }
         return student;
     }

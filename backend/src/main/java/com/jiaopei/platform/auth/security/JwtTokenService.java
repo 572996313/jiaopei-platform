@@ -41,6 +41,7 @@ public class JwtTokenService {
             .claim("roles", List.copyOf(user.roles()))
             .claim("permissions", List.copyOf(user.permissions()))
             .claim("forceChangePassword", user.forceChangePassword())
+            .claim("portal", user.portal())
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusMillis(unit.toMillis(duration))))
             .signWith(secretKey)

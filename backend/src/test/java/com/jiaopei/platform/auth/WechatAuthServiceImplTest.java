@@ -211,7 +211,7 @@ class WechatAuthServiceImplTest {
         user.setStatus("active");
         user.setRegisterSource(registerSource);
         AuthenticatedUser authenticated = new AuthenticatedUser(
-            userId, 1L, user.getUsername(), java.util.Set.of(), java.util.Set.of(), false);
+            userId, 1L, user.getUsername(), java.util.Set.of(), java.util.Set.of(), false, "admin");
         when(userAccountMapper.selectById(userId)).thenReturn(user);
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(authenticated, "token", java.util.Set.of()));
@@ -248,6 +248,6 @@ class WechatAuthServiceImplTest {
     private LoginResponse loginResponse() {
         return new LoginResponse(1L, 1L, "wx_" + OPENID, "微信用户",
             List.of("MINIAPP_STUDENT"), List.of("miniapp:base"),
-            "Bearer", "access-token", false);
+            "Bearer", "access-token", false, "student");
     }
 }

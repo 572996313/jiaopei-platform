@@ -132,6 +132,10 @@ export async function requestPost<T>(url: string, body: Record<string, unknown>)
   return request<T>(url, { method: 'POST', data: body })
 }
 
+export async function requestDelete<T>(url: string): Promise<T> {
+  return request<T>(url, { method: 'DELETE' })
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }

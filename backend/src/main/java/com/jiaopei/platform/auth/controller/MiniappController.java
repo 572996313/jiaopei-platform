@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,15 @@ public class MiniappController {
     @PostMapping("/students/bind")
     public ApiResponse<StudentBriefView> bindStudent(@Valid @RequestBody BindStudentRequest request) {
         return ApiResponse.success("绑定成功", miniappService.bindStudent(request));
+    }
+
+    @Operation(summary = "解绑学员档案",
+        description = "解除当前用户与该学员的档案关联,仅能解绑自己已绑定的学员;解绑后可重新绑定")
+    @RequiresPermission("miniapp:access")
+    @DeleteMapping("/students/{studentId}")
+    public ApiResponse<Void> unbindStudent(@PathVariable Long studentId) {
+        miniappService.unbindStudent(studentId);
+        return ApiResponse.success("已解绑", null);
     }
 
     @Operation(summary = "当前用户已关联的学员列表")

@@ -2,7 +2,7 @@
 import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { listMyStudents, type StudentBrief } from '@/api/miniapp'
+import { listMyStudents, unbindStudent, type StudentBrief } from '@/api/miniapp'
 
 const authStore = useAuthStore()
 const boundStudents = ref<StudentBrief[]>([])
@@ -46,6 +46,26 @@ function goAddStudent() {
 
 function goTimetable(studentId: string) {
   uni.navigateTo({ url: '/pages/timetable/index?studentId=' + studentId })
+}
+
+function handleUnbind(student: StudentBrief) {
+  uni.showModal({
+    title: '解绑学员',
+    content: `确定解绑「${student.studentName}」吗?解绑后将无法查看该学员课表,可重新绑定。`,
+    confirmColor: '#dc2626',
+    success: async (result) => {
+      if (!result.confirm) {
+        return
+      }
+      try {
+        await unbindStudent(student.id)
+        uni.showToast({ title: '已解绑', icon: 'success' })
+        loadStudents()
+      } catch (error) {
+        uni.showToast({ title: '解绑失败,请重试', icon: 'none' })
+      }
+    },
+  })
 }
 
 function handleLogout() {
@@ -128,7 +148,10 @@ function handleDeregister() {
           <text class="student-name">{{ student.studentName }}</text>
           <text class="student-class">{{ student.className || '未分班' }}</text>
         </view>
-        <text class="student-arrow">›</text>
+        <view class="student-actions">
+          <text class="unbind-btn" @click.stop="handleUnbind(student)">解绑</text>
+          <text class="student-arrow">›</text>
+        </view>
       </view>
       <view class="add-row" @click="goAddStudent">
         <text class="add-text">＋ 绑定学员档案</text>
@@ -260,6 +283,20 @@ function handleDeregister() {
 .student-arrow {
   font-size: 36rpx;
   color: #c4c9d1;
+}
+
+.student-actions {
+  display: flex;
+  align-items: center;
+}
+
+.unbind-btn {
+  font-size: 24rpx;
+  color: #dc2626;
+  border: 1rpx solid #fecaca;
+  border-radius: 999rpx;
+  padding: 6rpx 20rpx;
+  margin-right: 16rpx;
 }
 
 .empty-row {

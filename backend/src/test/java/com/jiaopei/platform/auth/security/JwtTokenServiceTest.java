@@ -70,7 +70,8 @@ class JwtTokenServiceTest {
             "teacher01",
             new LinkedHashSet<>(List.of("EDUCATION_TEACHER")),
             new LinkedHashSet<>(List.of("education:read", "education:write")),
-            false
+            false,
+            "admin"
         );
     }
 }

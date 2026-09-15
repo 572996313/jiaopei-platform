@@ -53,13 +53,15 @@ public class UserAccessTokenService {
         RolePermissionSnapshot snapshot = loadRolePermissionSnapshot(user.getId());
 
         Integer tokenExpireHours = systemConfigService.getIntConfig("auth.token.expire_hours", 12);
+        String portal = resolvePortal(user.getRegisterSource(), snapshot.roleCodes());
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
             user.getId(),
             user.getInstitutionId(),
             user.getUsername(),
             snapshot.roleCodes(),
             snapshot.permissionCodes(),
-            Boolean.TRUE.equals(user.getForceChangePassword())
+            Boolean.TRUE.equals(user.getForceChangePassword()),
+            portal
         );
         String accessToken = jwtTokenService.issue(authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
         tokenCacheService.storeToken(accessToken, authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
@@ -76,8 +78,25 @@ public class UserAccessTokenService {
             new ArrayList<>(snapshot.permissionCodes()),
             "Bearer",
             accessToken,
-            effectiveForceChangePassword(user)
+            effectiveForceChangePassword(user),
+            portal
         );
+    }
+
+    /**
+     * 端归属:小程序注册+学生角色 → student + 家长角色 → parent;其余(后台账号)一律 admin。
+     * 端是比角色高一级的维度,决定该用户看到哪一套功能清单(菜单树)。
+     */
+    private String resolvePortal(String registerSource, Set<String> roleCodes) {
+        if ("WECHAT_MINIAPP".equals(registerSource)) {
+            if (roleCodes.contains("MINIAPP_STUDENT")) {
+                return "student";
+            }
+            if (roleCodes.contains("MINIAPP_PARENT")) {
+                return "parent";
+            }
+        }
+        return "admin";
     }
 
     /**

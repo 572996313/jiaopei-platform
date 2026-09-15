@@ -44,7 +44,8 @@ public class WebMvcSecurityTestConfig {
                     new ArrayList<>(user.permissions()),
                     "Bearer",
                     "stub-access-token",
-                    false
+                    false,
+                    user.portal()
                 );
             }
 
@@ -70,7 +71,8 @@ public class WebMvcSecurityTestConfig {
                     new ArrayList<>(user.roles()),
                     new ArrayList<>(user.permissions()),
                     false,
-                    false
+                    false,
+                    user.portal()
                 );
             }
 
@@ -98,7 +100,8 @@ public class WebMvcSecurityTestConfig {
                         "system:menu:manage",
                         "system:dict:manage"
                     )),
-                    false
+                    false,
+                    "admin"
                 );
             }
         };

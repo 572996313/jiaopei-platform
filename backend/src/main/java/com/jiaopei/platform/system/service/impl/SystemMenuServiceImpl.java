@@ -189,10 +189,13 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         if (menuIds.isEmpty()) {
             return List.of();
         }
+        // 端隔离:只返回当前用户所属端(portal)的功能清单。旧令牌无 portal 时兜底按 admin 过滤,保证后台行为不变
+        String portal = user.portal() == null ? "admin" : user.portal();
         List<SystemMenuEntity> menus = menuMapper.selectList(new LambdaQueryWrapper<SystemMenuEntity>()
                 .in(SystemMenuEntity::getId, menuIds)
                 .eq(SystemMenuEntity::getStatus, ACTIVE)
-                .eq(SystemMenuEntity::getVisible, Boolean.TRUE))
+                .eq(SystemMenuEntity::getVisible, Boolean.TRUE)
+                .eq(SystemMenuEntity::getPortal, portal))
             .stream()
             .filter(menu -> menu.getPermissionCode() == null
                 || menu.getPermissionCode().isBlank()

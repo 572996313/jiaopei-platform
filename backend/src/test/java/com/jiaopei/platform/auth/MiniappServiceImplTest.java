@@ -81,7 +81,7 @@ class MiniappServiceImplTest {
         // currentClassName 会查一次班级为空
         when(classMapper.selectById(any())).thenReturn(null);
 
-        StudentBriefView result = service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "老大"));
+        StudentBriefView result = service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "小明", "老大"));
 
         assertEquals("小明", result.studentName());
         ArgumentCaptor<UserStudentRelEntity> captor = ArgumentCaptor.forClass(UserStudentRelEntity.class);
@@ -101,7 +101,7 @@ class MiniappServiceImplTest {
         when(relMapper.selectCount(any())).thenReturn(1L);
 
         BusinessException exception = assertThrows(BusinessException.class,
-            () -> service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "老大")));
+            () -> service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "小明", "老大")));
 
         assertTrue(exception.getMessage().contains("已绑定"));
         verify(relMapper, never()).insert(any(UserStudentRelEntity.class));
@@ -123,7 +123,7 @@ class MiniappServiceImplTest {
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
         when(classMapper.selectById(any())).thenReturn(null);
 
-        StudentBriefView result = service.bindStudent(new BindStudentRequest("PARENT_PHONE", "13800000000", null));
+        StudentBriefView result = service.bindStudent(new BindStudentRequest("PARENT_PHONE", "13800000000", "小明", null));
 
         assertEquals("小明", result.studentName());
     }
@@ -133,9 +133,46 @@ class MiniappServiceImplTest {
         when(parentMapper.selectList(any())).thenReturn(List.of());
 
         BusinessException exception = assertThrows(BusinessException.class,
-            () -> service.bindStudent(new BindStudentRequest("PARENT_PHONE", "13800000000", null)));
+            () -> service.bindStudent(new BindStudentRequest("PARENT_PHONE", "13800000000", "小明", null)));
 
         assertTrue(exception.getMessage().contains("未找到"));
+    }
+
+    @Test
+    void bindStudentRejectsNameMismatchByStudentNo() {
+        StudentEntity student = new StudentEntity();
+        student.setId(10L);
+        student.setInstitutionId(1L);
+        student.setStudentNo("S001");
+        student.setStudentName("小明");
+        when(studentMapper.selectOne(any())).thenReturn(student);
+        when(relMapper.selectCount(any())).thenReturn(0L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "小红", "老大")));
+
+        assertTrue(exception.getMessage().contains("不匹配"));
+        verify(relMapper, never()).insert(any(UserStudentRelEntity.class));
+    }
+
+    @Test
+    void bindStudentRejectsNameMismatchByParentPhone() {
+        StudentParentEntity parent = new StudentParentEntity();
+        parent.setStudentId(10L);
+        when(parentMapper.selectList(any())).thenReturn(List.of(parent));
+        StudentEntity student = new StudentEntity();
+        student.setId(10L);
+        student.setInstitutionId(1L);
+        student.setStudentNo("S001");
+        student.setStudentName("小明");
+        when(studentMapper.selectById(10L)).thenReturn(student);
+        when(relMapper.selectCount(any())).thenReturn(0L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.bindStudent(new BindStudentRequest("PARENT_PHONE", "13800000000", "小红", null)));
+
+        assertTrue(exception.getMessage().contains("不匹配"));
+        verify(relMapper, never()).insert(any(UserStudentRelEntity.class));
     }
 
     @Test
@@ -188,11 +225,30 @@ class MiniappServiceImplTest {
         assertTrue(exception.getMessage().contains("无权查看"));
     }
 
+    @Test
+    void unbindStudentPhysicallyDeletesRelation() {
+        when(relMapper.physicalDelete(1L, 10L)).thenReturn(1);
+
+        service.unbindStudent(10L);
+
+        verify(relMapper).physicalDelete(1L, 10L);
+    }
+
+    @Test
+    void unbindStudentRejectsWhenNotBound() {
+        when(relMapper.physicalDelete(1L, 10L)).thenReturn(0);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.unbindStudent(10L));
+
+        assertTrue(exception.getMessage().contains("未找到该学员的绑定关系"));
+    }
+
     // ---- helpers ----
 
     private void authenticate(Long userId) {
         AuthenticatedUser user = new AuthenticatedUser(
-            userId, 1L, "wx_openid", java.util.Set.of("MINIAPP_PARENT"), java.util.Set.of("miniapp:access"), false);
+            userId, 1L, "wx_openid", java.util.Set.of("MINIAPP_PARENT"), java.util.Set.of("miniapp:access"), false, "parent");
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", java.util.Set.of()));
     }
