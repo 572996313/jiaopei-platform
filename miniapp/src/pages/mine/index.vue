@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { listMyStudents, type StudentBrief } from '@/api/miniapp'
 
 const authStore = useAuthStore()
+const boundStudents = ref<StudentBrief[]>([])
 
 const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '未登录',
@@ -21,6 +24,29 @@ const roleText = computed(() => {
     ? roles.map((code) => ROLE_LABELS[code] ?? code).join('、')
     : '暂无角色'
 })
+
+onShow(() => {
+  if (!authStore.isLoggedIn) {
+    return
+  }
+  loadStudents()
+})
+
+async function loadStudents() {
+  try {
+    boundStudents.value = await listMyStudents()
+  } catch {
+    boundStudents.value = []
+  }
+}
+
+function goAddStudent() {
+  uni.navigateTo({ url: '/pages/bind-student/index' })
+}
+
+function goTimetable(studentId: string) {
+  uni.navigateTo({ url: '/pages/timetable/index?studentId=' + studentId })
+}
 
 function handleLogout() {
   uni.showModal({
@@ -83,6 +109,29 @@ function handleDeregister() {
       <view class="info-row">
         <text class="info-label">所属机构</text>
         <text class="info-value">{{ authStore.userInfo?.institutionId || '-' }}</text>
+      </view>
+    </view>
+
+    <view class="section-title">我的学员</view>
+    <view class="info-card">
+      <view v-if="boundStudents.length === 0" class="empty-row">
+        <text class="empty-text">还没有绑定学员,先去绑定学员档案吧</text>
+      </view>
+      <view
+        v-for="student in boundStudents"
+        :key="student.id"
+        class="student-row"
+        @click="goTimetable(student.id)"
+      >
+        <view class="student-avatar">{{ student.studentName.slice(0, 1) }}</view>
+        <view class="student-meta">
+          <text class="student-name">{{ student.studentName }}</text>
+          <text class="student-class">{{ student.className || '未分班' }}</text>
+        </view>
+        <text class="student-arrow">›</text>
+      </view>
+      <view class="add-row" @click="goAddStudent">
+        <text class="add-text">＋ 绑定学员档案</text>
       </view>
     </view>
 
@@ -162,6 +211,74 @@ function handleDeregister() {
 .info-value {
   font-size: 28rpx;
   color: #111827;
+}
+
+.section-title {
+  margin: 40rpx 0 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.student-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.student-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 32rpx;
+  text-align: center;
+  line-height: 72rpx;
+  margin-right: 24rpx;
+}
+
+.student-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.student-name {
+  font-size: 30rpx;
+  color: #111827;
+  font-weight: 500;
+}
+
+.student-class {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #9ca3af;
+}
+
+.student-arrow {
+  font-size: 36rpx;
+  color: #c4c9d1;
+}
+
+.empty-row {
+  padding: 30rpx 0;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #9ca3af;
+}
+
+.add-row {
+  padding: 26rpx 0 10rpx;
+}
+
+.add-text {
+  font-size: 28rpx;
+  color: #2563eb;
+  text-align: center;
 }
 
 .logout-btn {

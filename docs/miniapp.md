@@ -23,13 +23,16 @@ miniapp/src/
 ├── utils/
 │   ├── auth-session.ts     # 登录态存取(uni storage,key: jiaopei.mini.auth.session)
 │   └── request.ts          # uni.request 封装:ApiResponse 信封解包 + 雪花 ID 精度保护 + 401 统一处理
-├── api/auth.ts             # 微信登录 / 自助注册 / 当前用户 / 退出
+├── api/auth.ts             # 微信登录 / 自助注册 / 注销 / 当前用户
+├── api/miniapp.ts          # 学员档案关联 + 课表查询
 ├── stores/auth.ts          # Pinia 登录态
 └── pages/
     ├── login/index.vue     # 微信一键登录(启动页)
     ├── register/index.vue  # 首次使用选择身份(学生/家长)自动注册
     ├── index/index.vue     # 首页 tab(业务占位)
-    └── mine/index.vue      # 我的 tab(用户信息 + 退出登录)
+    ├── bind-student/index.vue  # 绑定学员档案(按学号/监护人手机号)
+    ├── timetable/index.vue     # 课程表(周视图)
+    └── mine/index.vue      # 我的 tab(学员管理 + 退出/注销)
 ```
 
 ## 后端新增内容
@@ -86,6 +89,16 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 3. 开发者工具右上角 **详情 → 本地设置 → 勾选"不校验合法域名…"**
    (开发阶段直连 `http://127.0.0.1:8080`,正式发布必须 HTTPS 域名)。
 4. 确认本机 MySQL/Redis/后端已启动,模拟器中即可走通登录流程。
+
+| `V28__user_student_rel.sql` | 用户-学员关联表 `jp_user_student_rel`;小程序角色追加 `miniapp:access` 权限码 |
+| `GET/POST /api/miniapp/students` | 绑定学员档案(按学号/监护人手机号)与当前用户已绑学员列表 |
+| `GET /api/miniapp/students/{id}/lessons` | 学员周课表(联查班级/课程/教室/教师),仅限已绑定的当前用户 |
+
+## 档案关联与课程表
+
+- **绑定学员**:「我的」→「绑定学员档案」,支持按**学员编号**或**监护人手机号**两种方式;手机号方式通过 `jp_student_parent.parent_phone` 匹配。一个账号可绑多个学员,一个学员可被多个家长绑定。
+- **数据隔离**:所有 `/api/miniapp` 接口都经 `@RequiresPermission("miniapp:access")` 且按**当前登录用户**过滤——只能查到自己绑定的学员,不能越权看别人。
+- **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` ACTIVE)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师姓名电话。停课(cancelled)课次在页面置灰标识。
 
 ## 登录与注册流程
 
