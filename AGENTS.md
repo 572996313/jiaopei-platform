@@ -105,3 +105,57 @@ grep -cE "@(Get|Post|Put|Delete|Request)Mapping" **/*Controller.java
 
 - 新建接口时同步添加,不留存量。
 - 存量缺失按域逐步补齐;发现总览页"说明"列为空即为漏写,应补。
+
+## 数据库表 / 字段中文注释规范(必填)
+
+本规范为**必填**,建新表或加新列时同步落地,存量按域补齐;缺注释的表/字段视为未完成。
+
+### 背景
+
+小程序端与教育域间新增的关联表(`jp_wechat_binding`、`jp_user_student_rel` 等)表名与
+字段名多为英文拼接(如 `user_id`、`last_login_at`),无自述性;数据库运维、新成员看表结构、
+以及用数据库工具(如 DBX/DataGrip)联查时,没有中文注释就不知道该字段是什么含义,也不
+知道码值(如 `status`、`deleted`)怎么取。
+
+### 约定内容
+
+1. **每张新表必须带表注释**,建表语句末尾 `COMMENT='中文说明'`,或对存量表用
+   `ALTER TABLE \`表名\` COMMENT = '中文说明';`。
+
+2. **每个字段必须带字段注释**,建表 DDL 的列定义后跟 `COMMENT '中文说明'`;
+   对存量表用 `MODIFY COLUMN` 补注释(**必须与原列定义完全一致**:类型、NULL/默认值、
+   DEFAULT,否则 MySQL 会隐式改列)。
+
+3. 表注释说明这张表的**业务用途**;字段注释说明含义,**枚举/布尔类型额外给码值对照**:
+
+   ```sql
+   CREATE TABLE jp_user_student_rel (
+       ...
+       status VARCHAR(32) NOT NULL DEFAULT 'active' COMMENT '状态(active=启用,disabled=停用)',
+       deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标识(0=未删除,1=已删除)',
+       ...
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户-学员档案关联(学生/家长绑定学员)';
+   ```
+
+4. **通用审计字段**(`id`/`created_at`/`created_by`/`updated_at`/`updated_by`/`deleted`)
+   每个表都要有 COMMENT,文案与 `BaseEntity` 的 `@Schema` 保持一致(如
+   `deleted` → 逻辑删除标识(0=未删除,1=已删除))。
+
+5. 与代码侧联动:表/字段注释的中文与对应实体 `@Schema(description=...)` 保持一致,
+   避免"表里一个说法、代码里另一个说法"。
+
+### 落地节奏
+
+- 新建表 / 新增列(SQL 迁移)时**必须**同步 COMMENT,不留存量。
+- 存量表按域补齐;发现新表缺注释即为遗漏,应补。
+- 覆盖度自查(仓库内):
+
+  ```bash
+  # 找出建表语句里没有末行 COMMENT 的表
+  grep -rlE "ENGINE=InnoDB" backend/src/main/resources/db/migration | xargs grep -L "COMMENT"
+  ```
+
+### 验证
+
+重启后端后 `SHOW CREATE TABLE` / 数据库客户端可见表注释与字段注释;`INFORMATION_SCHEMA.COLUMNS`
+的 `COLUMN_COMMENT` 非空。

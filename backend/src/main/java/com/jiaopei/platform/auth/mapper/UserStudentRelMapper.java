@@ -13,4 +13,8 @@ public interface UserStudentRelMapper extends BaseMapper<UserStudentRelEntity> {
      */
     @Delete("DELETE FROM jp_user_student_rel WHERE user_id = #{userId} AND student_id = #{studentId}")
     int physicalDelete(@Param("userId") Long userId, @Param("studentId") Long studentId);
+
+    /** 用户注销时物理删除其全部学员关联 */
+    @Delete("DELETE FROM jp_user_student_rel WHERE user_id = #{userId}")
+    int physicalDeleteByUserId(@Param("userId") Long userId);
 }

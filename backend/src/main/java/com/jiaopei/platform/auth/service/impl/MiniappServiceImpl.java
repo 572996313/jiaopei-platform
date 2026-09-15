@@ -8,10 +8,13 @@ import com.jiaopei.platform.auth.dto.MiniappLessonView;
 import com.jiaopei.platform.auth.dto.StudentBriefView;
 import com.jiaopei.platform.auth.mapper.UserStudentRelMapper;
 import com.jiaopei.platform.auth.service.MiniappService;
+import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
+import com.jiaopei.platform.auth.dto.StudentOwnProfileView;
+import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.common.model.BaseEntity;
-import com.jiaopei.platform.education.domain.entity.ClassStudentEntity;
+import com.jiaopei.platform.system.service.SystemConfigService;import com.jiaopei.platform.education.domain.entity.ClassStudentEntity;
 import com.jiaopei.platform.education.domain.entity.CourseEntity;
 import com.jiaopei.platform.education.domain.entity.ScheduleLessonEntity;
 import com.jiaopei.platform.education.domain.entity.StudentEntity;
@@ -55,11 +58,13 @@ public class MiniappServiceImpl implements MiniappService {
     private final CourseMapper courseMapper;
     private final ClassroomMapper classroomMapper;
     private final TeacherMapper teacherMapper;
+    private final SystemConfigService systemConfigService;
 
     public MiniappServiceImpl(UserStudentRelMapper userStudentRelMapper, StudentMapper studentMapper,
                               StudentParentMapper studentParentMapper, ClassStudentMapper classStudentMapper,
                               TeachingClassMapper teachingClassMapper, ScheduleLessonMapper scheduleLessonMapper,
-                              CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper) {
+                              CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper,
+                              SystemConfigService systemConfigService) {
         this.userStudentRelMapper = userStudentRelMapper;
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
@@ -69,6 +74,7 @@ public class MiniappServiceImpl implements MiniappService {
         this.courseMapper = courseMapper;
         this.classroomMapper = classroomMapper;
         this.teacherMapper = teacherMapper;
+        this.systemConfigService = systemConfigService;
     }
 
     @Override
@@ -176,7 +182,121 @@ public class MiniappServiceImpl implements MiniappService {
         }).toList();
     }
 
+    @Override
+    public StudentOwnProfileView myStudentProfile() {
+        StudentEntity student = myOwnedStudentOrNull();
+        return student == null ? new StudentOwnProfileView(Boolean.FALSE, null, null, null, null, null, null)
+            : toOwnProfile(student);
+    }
+
+    @Override
+    @Transactional
+    public StudentOwnProfileView bindSelfStudent(StudentBindSelfRequest request) {
+        requireStudentPortal();
+        StudentEntity student = studentMapper.selectOne(new LambdaQueryWrapper<StudentEntity>()
+            .eq(StudentEntity::getStudentNo, request.studentNo().trim()));
+        if (student == null || !request.studentName().trim().equals(student.getStudentName())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员信息不匹配,请核对学号与姓名后重试");
+        }
+        Long userId = AuthContext.requireUser().userId();
+        // 该档案已被别人归属:拒绝改绑(绑定即终身)
+        if (student.getUserId() != null && !student.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该档案已归属其他学生账号,无法绑定");
+        }
+        // 已归属当前账号:幂等直接返回
+        if (student.getUserId() != null) {
+            return toOwnProfile(student);
+        }
+        student.setUserId(userId);
+        studentMapper.updateById(student);
+        // 顺带建关联,让学生复用现有课表查询(按 user-student rel 过滤)
+        insertSelfRelation(userId, student.getId(), student.getInstitutionId());
+        return toOwnProfile(student);
+    }
+
+    @Override
+    @Transactional
+    public StudentOwnProfileView saveStudentProfile(StudentProfileSaveRequest request) {
+        requireStudentPortal();
+        Long userId = AuthContext.requireUser().userId();
+        StudentEntity student = myOwnedStudentOrNull();
+        if (student == null) {
+            // 未归档:新建档案并归属自己,学号自动生成
+            StudentEntity created = new StudentEntity();
+            created.setInstitutionId(Long.valueOf(
+                systemConfigService.getIntConfig("auth.register.default_institution_id", 1)));
+            created.setUserId(userId);
+            created.setStudentNo(generateStudentNo());
+            created.setStudentName(request.studentName().trim());
+            created.setGender(request.gender());
+            created.setBirthday(request.birthday());
+            created.setStatus("studying");
+            studentMapper.insert(created);
+            if (created.getId() != null) {
+                insertSelfRelation(userId, created.getId(), created.getInstitutionId());
+            }
+            return toOwnProfile(created);
+        }
+        // 已归属:仅可编辑姓名/性别/生日
+        student.setStudentName(request.studentName().trim());
+        student.setGender(request.gender());
+        student.setBirthday(request.birthday());
+        studentMapper.updateById(student);
+        return toOwnProfile(student);
+    }
+
     // ---- 内部辅助 ----
+
+    /** 仅学生端用户(角色含 MINIAPP_STUDENT)可调用学生档案相关方法 */
+    private void requireStudentPortal() {
+        AuthContext.requireUser().roles().stream()
+            .filter("MINIAPP_STUDENT"::equals)
+            .findAny()
+            .orElseThrow(() -> new BusinessException(ResultCode.FORBIDDEN, "仅学生账号可操作自己的档案"));
+    }
+
+    /** 当前账号归属的学生档案;未归属返回 null */
+    private StudentEntity myOwnedStudentOrNull() {
+        Long userId = AuthContext.requireUser().userId();
+        return studentMapper.selectOne(new LambdaQueryWrapper<StudentEntity>()
+            .eq(StudentEntity::getUserId, userId)
+            .last("LIMIT 1"));
+    }
+
+    private StudentOwnProfileView toOwnProfile(StudentEntity student) {
+        return new StudentOwnProfileView(
+            Boolean.TRUE,
+            student.getId(),
+            student.getStudentNo(),
+            student.getStudentName(),
+            student.getGender(),
+            student.getBirthday(),
+            currentClassName(student.getId())
+        );
+    }
+
+    /** 学生归属自己档案时,顺带建一条用户-学员关联,复用现有课表查询权限 */
+    private void insertSelfRelation(Long userId, Long studentId, Long institutionId) {
+        Long existing = userStudentRelMapper.selectCount(new LambdaQueryWrapper<UserStudentRelEntity>()
+            .eq(UserStudentRelEntity::getUserId, userId)
+            .eq(UserStudentRelEntity::getStudentId, studentId));
+        if (existing != null && existing > 0) {
+            return;
+        }
+        UserStudentRelEntity relation = new UserStudentRelEntity();
+        relation.setInstitutionId(institutionId);
+        relation.setUserId(userId);
+        relation.setStudentId(studentId);
+        userStudentRelMapper.insert(relation);
+    }
+
+    /** 学号自动生成:S + 13位时间戳(yyMMddHHmmss) + 3位随机,机构范围即可防重 */
+    private String generateStudentNo() {
+        String ts = java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"));
+        int rand = (int) (Math.random() * 900) + 100;
+        return "S" + ts + rand;
+    }
 
 private StudentEntity resolveStudent(BindStudentRequest request) {
         String expectedName = request.studentName().trim();

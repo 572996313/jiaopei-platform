@@ -29,11 +29,13 @@ import com.jiaopei.platform.auth.dto.WechatRegisterRequest;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.mapper.UserStudentRelMapper;
 import com.jiaopei.platform.auth.mapper.WechatBindingMapper;
 import com.jiaopei.platform.auth.security.UserAccessTokenService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
 import com.jiaopei.platform.auth.service.impl.WechatAuthServiceImpl;
 import com.jiaopei.platform.common.exception.BusinessException;
+import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.system.service.SystemConfigService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -60,6 +62,8 @@ class WechatAuthServiceImplTest {
     private final UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
     private final UserAccessTokenService userAccessTokenService = mock(UserAccessTokenService.class);
     private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
+    private final UserStudentRelMapper userStudentRelMapper = mock(UserStudentRelMapper.class);
+    private final StudentMapper studentMapper = mock(StudentMapper.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
 
     private WechatAuthServiceImpl service;
@@ -67,7 +71,8 @@ class WechatAuthServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new WechatAuthServiceImpl(wxMaService, wechatBindingMapper, userAccountMapper,
-            roleMapper, userRoleRelMapper, userAccessTokenService, tokenCacheService, systemConfigService);
+            roleMapper, userRoleRelMapper, userStudentRelMapper, studentMapper,
+            userAccessTokenService, tokenCacheService, systemConfigService);
         when(wxMaService.getWxMaConfig()).thenReturn(wxMaConfig);
         when(wxMaConfig.getAppid()).thenReturn("wx1370a4fd669d14d8");
         when(wxMaService.getUserService()).thenReturn(wxMaUserService);
@@ -190,6 +195,9 @@ class WechatAuthServiceImplTest {
         verify(tokenCacheService).invalidateUserTokens(7L);
         verify(userRoleRelMapper).physicalDeleteByUserId(7L);
         verify(wechatBindingMapper).physicalDeleteByUserId(7L);
+        // 注销同时清理档案归属与学生关联
+        verify(studentMapper).releaseOwnerByUserId(7L);
+        verify(userStudentRelMapper).physicalDeleteByUserId(7L);
         verify(userAccountMapper).physicalDeleteById(7L);
     }
 

@@ -15,6 +15,7 @@ import com.jiaopei.platform.auth.dto.WechatRegisterRequest;
 import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
+import com.jiaopei.platform.auth.mapper.UserStudentRelMapper;
 import com.jiaopei.platform.auth.mapper.WechatBindingMapper;
 import com.jiaopei.platform.auth.security.UserAccessTokenService;
 import com.jiaopei.platform.auth.service.TokenCacheService;
@@ -22,6 +23,8 @@ import com.jiaopei.platform.auth.service.WechatAuthService;
 import com.jiaopei.platform.auth.context.AuthContext;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
+import com.jiaopei.platform.education.domain.entity.StudentEntity;
+import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.system.service.SystemConfigService;
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
@@ -50,19 +53,24 @@ public class WechatAuthServiceImpl implements WechatAuthService {
     private final UserAccountMapper userAccountMapper;
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
+    private final UserStudentRelMapper userStudentRelMapper;
+    private final StudentMapper studentMapper;
     private final UserAccessTokenService userAccessTokenService;
     private final TokenCacheService tokenCacheService;
     private final SystemConfigService systemConfigService;
 
     public WechatAuthServiceImpl(WxMaService wxMaService, WechatBindingMapper wechatBindingMapper,
                                  UserAccountMapper userAccountMapper, RoleMapper roleMapper,
-                                 UserRoleRelMapper userRoleRelMapper, UserAccessTokenService userAccessTokenService,
+                                 UserRoleRelMapper userRoleRelMapper, UserStudentRelMapper userStudentRelMapper,
+                                 StudentMapper studentMapper, UserAccessTokenService userAccessTokenService,
                                  TokenCacheService tokenCacheService, SystemConfigService systemConfigService) {
         this.wxMaService = wxMaService;
         this.wechatBindingMapper = wechatBindingMapper;
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
+        this.userStudentRelMapper = userStudentRelMapper;
+        this.studentMapper = studentMapper;
         this.userAccessTokenService = userAccessTokenService;
         this.tokenCacheService = tokenCacheService;
         this.systemConfigService = systemConfigService;
@@ -204,6 +212,10 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         tokenCacheService.invalidateUserTokens(userId);
         userRoleRelMapper.physicalDeleteByUserId(userId);
         wechatBindingMapper.physicalDeleteByUserId(userId);
+        // 清理档案归属与学生关联:该账号归属的学生档案 user_id 清空(档案本身保留,可被后续绑定),
+        // 用户-学员关联行物理删除
+        studentMapper.releaseOwnerByUserId(userId);
+        userStudentRelMapper.physicalDeleteByUserId(userId);
         userAccountMapper.physicalDeleteById(userId);
     }
 }

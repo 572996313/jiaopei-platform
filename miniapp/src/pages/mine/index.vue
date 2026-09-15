@@ -2,17 +2,25 @@
 import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { listMyStudents, unbindStudent, type StudentBrief } from '@/api/miniapp'
+import {
+  fetchMyStudentProfile,
+  listMyStudents,
+  unbindStudent,
+  type StudentBrief,
+  type StudentOwnProfile,
+} from '@/api/miniapp'
 
 const authStore = useAuthStore()
 const boundStudents = ref<StudentBrief[]>([])
+const myProfile = ref<StudentOwnProfile | null>(null)
 
 const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '未登录',
 )
 const avatarChar = computed(() => displayName.value.slice(0, 1) || '客')
+const isStudent = computed(() => authStore.userInfo?.roles?.includes('MINIAPP_STUDENT') ?? false)
 
-// 角色码转中文展示;未映射的角色码原样显示
+// 角色码转中文展示
 const ROLE_LABELS: Record<string, string> = {
   MINIAPP_STUDENT: '学生',
   MINIAPP_PARENT: '家长',
@@ -29,8 +37,20 @@ onShow(() => {
   if (!authStore.isLoggedIn) {
     return
   }
-  loadStudents()
+  if (isStudent.value) {
+    loadMyProfile()
+  } else {
+    loadStudents()
+  }
 })
+
+async function loadMyProfile() {
+  try {
+    myProfile.value = await fetchMyStudentProfile()
+  } catch {
+    myProfile.value = null
+  }
+}
 
 async function loadStudents() {
   try {
@@ -61,11 +81,23 @@ function handleUnbind(student: StudentBrief) {
         await unbindStudent(student.id)
         uni.showToast({ title: '已解绑', icon: 'success' })
         loadStudents()
-      } catch (error) {
+      } catch {
         uni.showToast({ title: '解绑失败,请重试', icon: 'none' })
       }
     },
   })
+}
+
+function goBindSelf() {
+  uni.navigateTo({ url: '/pages/student-profile/index?mode=bind' })
+}
+
+function goCreateSelf() {
+  uni.navigateTo({ url: '/pages/student-profile/index?mode=create' })
+}
+
+function goEditProfile() {
+  uni.navigateTo({ url: '/pages/student-profile/index?mode=edit' })
 }
 
 function handleLogout() {
@@ -102,7 +134,7 @@ function handleDeregister() {
         setTimeout(() => {
           uni.reLaunch({ url: '/pages/login/index' })
         }, 600)
-      } catch (error) {
+      } catch {
         uni.hideLoading()
         uni.showToast({ title: '注销失败,请重试', icon: 'none' })
       }
@@ -123,7 +155,7 @@ function handleDeregister() {
 
     <view class="info-card">
       <view class="info-row">
-        <text class="info-label">角色</text>
+        <text class="info-label">身份</text>
         <text class="info-value">{{ roleText }}</text>
       </view>
       <view class="info-row">
@@ -132,31 +164,81 @@ function handleDeregister() {
       </view>
     </view>
 
-    <view class="section-title">我的学员</view>
-    <view class="info-card">
-      <view v-if="boundStudents.length === 0" class="empty-row">
-        <text class="empty-text">还没有绑定学员,先去绑定学员档案吧</text>
-      </view>
-      <view
-        v-for="student in boundStudents"
-        :key="student.id"
-        class="student-row"
-        @click="goTimetable(student.id)"
-      >
-        <view class="student-avatar">{{ student.studentName.slice(0, 1) }}</view>
-        <view class="student-meta">
-          <text class="student-name">{{ student.studentName }}</text>
-          <text class="student-class">{{ student.className || '未分班' }}</text>
+    <!-- 学生端:未绑定档案 -->
+    <template v-if="isStudent && myProfile && myProfile.bound === false">
+      <view class="section-title">我的档案</view>
+      <view class="info-card">
+        <view class="empty-row">
+          <text class="empty-text">你还没有绑定学员档案</text>
+          <text class="empty-sub-text">绑定后可查看自己的课表,一个学生账号只能绑定一个档案</text>
         </view>
-        <view class="student-actions">
-          <text class="unbind-btn" @click.stop="handleUnbind(student)">解绑</text>
-          <text class="student-arrow">›</text>
+        <view class="add-row" @click="goBindSelf">
+          <text class="add-text">按学号绑定已有档案</text>
+        </view>
+        <view class="add-row" @click="goCreateSelf">
+          <text class="add-text">没有档案?自助创建</text>
         </view>
       </view>
-      <view class="add-row" @click="goAddStudent">
-        <text class="add-text">＋ 绑定学员档案</text>
+    </template>
+
+    <!-- 学生端:已绑定档案 -->
+    <template v-if="isStudent && myProfile && myProfile.bound === true">
+      <view class="section-title">我的档案</view>
+      <view class="info-card">
+        <view class="profile-row">
+          <view class="profile-avatar">{{ (myProfile.studentName || '?').slice(0, 1) }}</view>
+          <view class="profile-meta">
+            <text class="profile-name">{{ myProfile.studentName }}</text>
+            <text class="profile-class">{{ myProfile.className || '未分班' }}</text>
+          </view>
+        </view>
+        <view class="profile-detail">
+          <text class="detail-label">学号</text>
+          <text class="detail-value">{{ myProfile.studentNo || '-' }}</text>
+        </view>
+        <view class="profile-detail">
+          <text class="detail-label">性别</text>
+          <text class="detail-value">{{ myProfile.gender === 'MALE' ? '男' : myProfile.gender === 'FEMALE' ? '女' : '-' }}</text>
+        </view>
+        <view class="profile-detail">
+          <text class="detail-label">生日</text>
+          <text class="detail-value">{{ myProfile.birthday || '-' }}</text>
+        </view>
+        <view class="profile-actions">
+          <text class="action-link timetable" @click="goTimetable(myProfile?.studentId || '')">我的课表</text>
+          <text class="action-link edit" @click="goEditProfile">编辑档案</text>
+        </view>
       </view>
-    </view>
+    </template>
+
+    <!-- 家长端:我的学员 -->
+    <template v-if="!isStudent">
+      <view class="section-title">我的学员</view>
+      <view class="info-card">
+        <view v-if="boundStudents.length === 0" class="empty-row">
+          <text class="empty-text">还没有绑定学员,先去绑定学员档案吧</text>
+        </view>
+        <view
+          v-for="student in boundStudents"
+          :key="student.id"
+          class="student-row"
+          @click="goTimetable(student.id)"
+        >
+          <view class="student-avatar">{{ student.studentName.slice(0, 1) }}</view>
+          <view class="student-meta">
+            <text class="student-name">{{ student.studentName }}</text>
+            <text class="student-class">{{ student.className || '未分班' }}</text>
+          </view>
+          <view class="student-actions">
+            <text class="unbind-btn" @click.stop="handleUnbind(student)">解绑</text>
+            <text class="student-arrow">›</text>
+          </view>
+        </view>
+        <view class="add-row" @click="goAddStudent">
+          <text class="add-text">+ 绑定学员档案</text>
+        </view>
+      </view>
+    </template>
 
     <button class="logout-btn" @click="handleLogout">退出登录</button>
     <button class="deregister-btn" @click="handleDeregister">注销账号</button>
@@ -243,6 +325,79 @@ function handleDeregister() {
   color: #111827;
 }
 
+/* 学生档案 */
+.profile-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.profile-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 36rpx;
+  text-align: center;
+  line-height: 80rpx;
+  margin-right: 24rpx;
+}
+
+.profile-meta {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profile-class {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #9ca3af;
+}
+
+.profile-detail {
+  display: flex;
+  justify-content: space-between;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.detail-label {
+  font-size: 28rpx;
+  color: #6b7280;
+}
+
+.detail-value {
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 22rpx 0 10rpx;
+}
+
+.action-link {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.action-link.timetable {
+  color: #2563eb;
+}
+
+.action-link.edit {
+  color: #6b7280;
+}
+
+/* 家长学员列表 */
 .student-row {
   display: flex;
   align-items: center;
@@ -304,7 +459,14 @@ function handleDeregister() {
 }
 
 .empty-text {
-  font-size: 26rpx;
+  font-size: 28rpx;
+  color: #6b7280;
+}
+
+.empty-sub-text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
   color: #9ca3af;
 }
 
@@ -315,7 +477,6 @@ function handleDeregister() {
 .add-text {
   font-size: 28rpx;
   color: #2563eb;
-  text-align: center;
 }
 
 .logout-btn {

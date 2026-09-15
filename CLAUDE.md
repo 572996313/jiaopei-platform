@@ -99,6 +99,7 @@ pnpm preview
 - Mapper 由 `MybatisPlusConfig` 的 `@MapperScan` 显式扫描四个模块的 `mapper` 包；XML 位置 `classpath*:/mapper/**/*.xml`（当前 `resources/mapper/` 为空，全用 BaseMapper）。
 - 分页用 `PaginationInnerInterceptor`（MySQL 方言）。
 - 所有 schema 变更走 Flyway 迁移：在 `backend/src/main/resources/db/migration/` 加 `V<next>__desc.sql`，表名统一 `jp_` 前缀（如 `jp_class`、`jp_user_account`）。不要手改既有迁移文件。
+- **建表/加列必须带中文注释(必填)**:每张新表建表语句末行 `COMMENT='表说明'`,每个字段列定义后带 `COMMENT '字段说明'`;存量表补注释用 `MODIFY COLUMN` 且必须与原列定义完全一致。枚举/布尔字段在 COMMENT 里给码值对照(如 `deleted` → 逻辑删除标识(0=未删除,1=已删除))。表/字段注释与对应实体 `@Schema(description=...)` 保持一致。详见 `AGENTS.md`「数据库表/字段中文注释规范」。
 
 ### Service 接口签名变更规范
 
@@ -147,3 +148,13 @@ pnpm preview
 ## 实体 / DTO 字段说明规范（软规范）
 
 `domain/entity/*` 与 `dto/*` 公共字段必须加 `@Schema(description="中文")`（已集成 springdoc-openapi 2.8.13）。枚举字段用 `allowableValues` 列码值并在 `description` 给"码=含义"对照；必填字段加 `requiredMode = REQUIRED`；`BaseEntity` 公共字段由基类统一定义，子类不重复声明。Java record DTO 把 `@Schema` 写在组件上。完整约定见 `AGENTS.md`，新字段新增时同步，存量按域逐步补齐（教育域已首批补齐）。
+
+## 数据库表 / 字段中文注释规范(必填)
+
+**建新表 / 加新列时表注释与字段注释必须有**,与实体 `@Schema` 一样属于强制约定,不是可选:
+
+- 新表:建表语句末行 `COMMENT='表说明'`,每个字段列定义后 `COMMENT '字段说明'`。
+- 存量表补注释:`ALTER TABLE \`表名\` COMMENT = '...';` + `MODIFY COLUMN \`col\` 类型 ... COMMENT '...'`(`MODIFY COLUMN` 必须与原列定义完全一致:类型 / NULL / DEFAULT,否则隐式改列)。
+- 枚举 / 布尔字段在 COMMENT 给码值对照,如 `status VARCHAR(32) NOT NULL DEFAULT 'active' COMMENT '状态(active=启用,disabled=停用)'`、`deleted ... COMMENT '逻辑删除标识(0=未删除,1=已删除)'`。
+- 表 / 字段注释的中文与对应实体 `@Schema(description=...)` 保持一致。
+- 自查:`grep -rlE "ENGINE=InnoDB" backend/src/main/resources/db/migration | xargs grep -L "COMMENT"` 可找出漏写注释的表。完整示例见 `V31__add_miniapp_rel_table_notes.sql`。

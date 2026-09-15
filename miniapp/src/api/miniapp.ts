@@ -46,6 +46,33 @@ export function unbindStudent(studentId: string) {
   return requestDelete<void>('/miniapp/students/' + studentId)
 }
 
+export type Gender = 'MALE' | 'FEMALE' | 'UNKNOWN'
+
+export interface StudentOwnProfile {
+  bound: boolean
+  studentId: string | null
+  studentNo: string | null
+  studentName: string | null
+  gender: Gender | null
+  birthday: string | null
+  className: string | null
+}
+
+/** 学生端-我的档案(未绑定 bound=false) */
+export function fetchMyStudentProfile() {
+  return requestGet<StudentOwnProfile>('/miniapp/student/profile')
+}
+
+/** 学生端-绑定自己的档案(学号+姓名,不可换绑) */
+export function bindSelfStudent(studentNo: string, studentName: string) {
+  return requestPost<StudentOwnProfile>('/miniapp/student/bind-self', { studentNo, studentName })
+}
+
+/** 学生端-新建/编辑本人档案(姓名/性别/生日) */
+export function saveStudentProfile(payload: { studentName: string; gender: Gender; birthday?: string }) {
+  return requestPost<StudentOwnProfile>('/miniapp/student/profile', payload)
+}
+
 /** 某位学员在日期范围内的课表 */
 export function fetchStudentLessons(studentId: string, start: string, end: string) {
   return requestGet<MiniappLesson[]>('/miniapp/students/' + studentId + '/lessons', {

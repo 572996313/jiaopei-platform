@@ -2,7 +2,10 @@ package com.jiaopei.platform.auth.service;
 
 import com.jiaopei.platform.auth.dto.BindStudentRequest;
 import com.jiaopei.platform.auth.dto.MiniappLessonView;
+import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
 import com.jiaopei.platform.auth.dto.StudentBriefView;
+import com.jiaopei.platform.auth.dto.StudentOwnProfileView;
+import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,6 +23,15 @@ public interface MiniappService {
     /** 当前用户已关联的学员列表 */
     List<StudentBriefView> listMyStudents();
 
-    /** 当前用户某个学员在指定日期范围内的课表(联查班级/课程/教室/教师) */
+    /** 当前用户某学员在指定日期范围内的课表(联查班级/课程/教室/教师) */
     List<MiniappLessonView> studentLessons(Long studentId, LocalDate start, LocalDate end);
+
+    /** 学生端:查询自己的档案(未归属时 bound=false) */
+    StudentOwnProfileView myStudentProfile();
+
+    /** 学生端:按学号+姓名绑定自己的档案(绑定后不可换绑,重复调用幂等) */
+    StudentOwnProfileView bindSelfStudent(StudentBindSelfRequest request);
+
+    /** 学生端:无档案时新建并归属自己;已归属时编辑本人档案(仅姓名/性别/生日) */
+    StudentOwnProfileView saveStudentProfile(StudentProfileSaveRequest request);
 }
