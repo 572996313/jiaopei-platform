@@ -31,7 +31,7 @@
           <el-table-column label="权限码" min-width="170">
             <template #default="{ row }">
               <el-tooltip v-if="row.permissionCode" :content="row.permissionCode" placement="top">
-                <span>{{ permissionLabel(row.permissionCode) }}</span>
+                <span>{{ permissionOptionLabel(row.permissionCode || '') }}</span>
               </el-tooltip>
               <span v-else>-</span>
             </template>
@@ -158,8 +158,12 @@ import {
   updateSystemMenu,
 } from '@/api/system'
 import type { SystemMenuTreeNode } from '@/api/system'
-import { permissionGroups, permissionLabel } from '@/constants/permissionLabels'
 import { MENU_ICON_OPTIONS, normalizeMenuIconKey, resolveMenuIcon } from '@/constants/menuIcons'
+import {
+  ensurePermissionOptionsLoaded,
+  permissionOptionLabel,
+  usePermissionOptionList,
+} from '@/stores/permissionOptions'
 import {
   ensureStatusDictLoaded,
   menuTypeLabel,
@@ -177,10 +181,7 @@ const permissions = useSystemPermissions()
 const statusOptions = useStatusOptions()
 const statusLabelMap = useStatusLabelMap()
 
-const permissionGroupData = permissionGroups()
-const permissionOptions = permissionGroupData.flatMap((group) =>
-  group.items.map((item) => ({ value: item.code, label: item.label })),
-)
+const permissionOptions = usePermissionOptionList()
 
 const menuTreeLoading = ref(false)
 const menuSectionError = ref('')
@@ -360,6 +361,6 @@ async function handleDeleteMenu(node: SystemMenuTreeNode) {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([ensureStatusDictLoaded(), loadMenuTree()])
+  await Promise.allSettled([ensureStatusDictLoaded(), ensurePermissionOptionsLoaded(), loadMenuTree()])
 })
 </script>

@@ -6,6 +6,7 @@ import com.jiaopei.platform.common.api.ApiResponse;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.server.ServerHttpRequest;
@@ -27,6 +28,11 @@ public class ApiResponseAdvice implements ResponseBodyAdvice<Object> {
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+        // 二进制流(byte[])不参与统一响应包装:springdoc 的 /v3/api-docs 生成的
+        // OpenAPI JSON 正是 byte[] 响应,强包进 ApiResponse 会导致 ClassCastException
+        if (ByteArrayHttpMessageConverter.class.isAssignableFrom(converterType)) {
+            return false;
+        }
         return returnType.hasMethodAnnotation(ResponseBody.class)
             || returnType.getContainingClass().isAnnotationPresent(RestController.class);
     }

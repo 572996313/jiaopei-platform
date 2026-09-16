@@ -39,8 +39,9 @@
         :context="formContext"
         :on-field-change="onFieldChange"
       >
-        <!-- 转发宿主的字段级具名插槽(如 #field-permissionCodes)到 ConfigurableForm -->
-        <template v-for="(_, name) in forwardFieldSlots" :key="name" #[name]="slotProps">
+        <!-- 转发宿主的字段级具名插槽(如 #field-permissionCodes)到 ConfigurableForm。
+             forwardFieldSlots 是数组,数组 v-for 第二变量为下标,遍历须用单变量取插槽名 -->
+        <template v-for="name in forwardFieldSlots" :key="name" #[name]="slotProps">
           <slot :name="name" v-bind="slotProps ?? {}" />
         </template>
       </ConfigurableForm>

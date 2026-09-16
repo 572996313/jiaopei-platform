@@ -1,7 +1,7 @@
 import { defineComponent, h, type PropType, type VNode } from 'vue'
 import { ElTag, ElTooltip } from 'element-plus'
 import { useDictStore } from '@/stores/dict'
-import { permissionLabel } from '@/constants/permissionLabels'
+import { permissionOptionLabel } from '@/stores/permissionOptions'
 import type { ListColumnConfig, QueryOption } from './types'
 
 /**
@@ -42,7 +42,7 @@ const customRenderers: Record<string, CustomRenderer> = {
     renderTagList(
       (Array.isArray(row.permissionCodes) ? row.permissionCodes : []).map((code: string) => ({
         key: code,
-        label: permissionLabel(code),
+        label: permissionOptionLabel(code),
         tooltip: code,
       })),
     ),

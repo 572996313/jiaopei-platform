@@ -17,6 +17,8 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
+      # 挂载建库脚本:创建操作留痕日志独立库 jiaopei_log(镜像 MYSQL_DATABASE 只能建一个库)
+      - ./mysql-init:/docker-entrypoint-initdb.d
 
   redis:
     image: redis:7.4

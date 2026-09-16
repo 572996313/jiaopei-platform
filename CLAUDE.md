@@ -24,6 +24,23 @@ mvn -q dependency:go-offline             # 预拉依赖（Dockerfile 也用这�
 后端默认连 `127.0.0.1:3306` 的 MySQL 与 `127.0.0.1:6379` 的 Redis，账号 `root/1234`（见 `application.yml`，可用 `DB_*` / `REDIS_*` 环境变量覆盖）。Flyway 已启用，迁移位于 `classpath:db/migration`，`baseline-on-migrate=true`。
 
 `JAVA_HOME` 必须指向 JDK 21（不是旧版 JRE/JDK），否则 Maven 起不来。
+**注意:本机系统的默认 `java`/`mvn` 很可能是 JDK 1.8**(`mvn -v` 会显示 `Java version: 1.8.0_...`);本机验证可用的 JDK 21 是 `C:\Users\57299\.posh_sdk\java\21.0.9-oracle`(`java -version` 显示 21.0.x LTS)。编译、打包前先确认并导出环境:
+
+```bash
+java -version                     # 不是 21 就导出环境变量
+export JAVA_HOME="C:/Users/57299/.posh_sdk/java/21.0.9-oracle"
+export PATH="$JAVA_HOME/bin:$PATH"
+cd backend && mvn -q -DskipTests package   # 产物 target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar
+```
+
+**改代码后旧进程不会自动生效,必须停旧进程再起新的**,否则容易产生"改了没效果"的假象:
+
+```bash
+netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"ProcessId=<PID>\" | Select-Object -ExpandProperty CommandLine"
+"C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar &   # 后台起新实例
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 以健康检查 200 判断启动完成,而不是猜日志
+```
 
 ### 前端（Vue 3 / Vite / pnpm，工作目录 `frontend/`）
 
@@ -76,6 +93,21 @@ pnpm preview
 ### 统一响应与全局异常
 
 - 所有 controller 返回值被 `ApiResponseAdvice`（`@ControllerAdvice`）自动包成 `ApiResponse{T}`：`code/success/message/data/timestamp/traceId/path`。controller 里直接返回 data 对象即可，不要手动包 `ApiResponse`（已有分支会跳过重复包装）。`null` 与 `Resource` 不包装。
+
+**`ApiResponseAdvice` 会误伤二进制流,新增 `byte[]` 返回的接口(springdoc 的 `/v3/api-docs`、导出 Excel/图片等)必须绕过统一包装**:springdoc 把 OpenAPI JSON 写成 `byte[]` 用 `ByteArrayHttpMessageConverter` 写出;`ApiResponseAdvice.supports()` 此前没排除它,导致 `beforeBodyWrite` 把 `byte[]` 强包进 `ApiResponse`,而选中的 converter 仍是 ByteArray 类型,强转 `byte[]` 抛 `ClassCastException: ApiResponse cannot be cast to [B`(症状:`/v3/api-docs` 返回 500、Swagger UI 页面正常但文档 JSON 打不开)。已在 `supports()` 开头加了 `ByteArrayHttpMessageConverter` 排除分支:
+
+```java
+@Override
+public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+    if (ByteArrayHttpMessageConverter.class.isAssignableFrom(converterType)) {
+        return false;  // byte[] 二进制流不参与统一响应包装
+    }
+    return returnType.hasMethodAnnotation(ResponseBody.class)
+        || returnType.getContainingClass().isAnnotationPresent(RestController.class);
+}
+```
+
+验证方式:`/v3/api-docs` 应返回 200 JSON(而不是 500)。以后新增二进制响应接口时保持这个分支。
 - `GlobalExceptionHandler`（`@RestControllerAdvice`）把校验异常、`BusinessException`、`AuthenticationException`、`AccessDeniedException`、`NoResourceFoundException` 等统一转成 `ApiResponse.failure(...)`。业务错误请抛 `BusinessException(ResultCode, message)`，不要在 controller 里拼响应。
 - `ResultCode` 是固定枚举（`SUCCESS/BAD_REQUEST/UNAUTHORIZED/FORBIDDEN/NOT_FOUND/VALIDATION_ERROR/INTERNAL_ERROR`）。
 - `TraceIdFilter` 给每个请求打 `traceId`，`ApiResponse` 会带上。

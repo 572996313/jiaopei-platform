@@ -63,7 +63,11 @@ import type { SystemMenuTreeNode, SystemRoleSummary } from '@/api/system'
 import ConfigurableCrudPage from '@/components/ConfigurableCrudPage/index.vue'
 import type { CrudPageOptions } from '@/components/ConfigurableCrudPage/types'
 import type { RenderContext } from '@/components/ConfigurableList/renderers'
-import { permissionGroups } from '@/constants/permissionLabels'
+import {
+  ensurePermissionOptionsLoaded,
+  usePermissionOptionGroups,
+  usePermissionOptionList,
+} from '@/stores/permissionOptions'
 import {
   ensureStatusDictLoaded,
   parseCustomPermissionCodes,
@@ -74,10 +78,8 @@ import {
 
 const statusOptions = useStatusOptions()
 
-const permissionGroupData = permissionGroups()
-const permissionOptions = permissionGroupData.flatMap((group) =>
-  group.items.map((item) => ({ value: item.code, label: item.label })),
-)
+const permissionGroupData = usePermissionOptionGroups()
+const permissionOptions = usePermissionOptionList()
 
 /** 菜单分配弹窗状态 */
 const roleMenuDialogVisible = ref(false)
@@ -179,7 +181,7 @@ const roleCrud: CrudPageOptions = {
   buildInitial: (mode, row) => {
     if (mode === 'edit' && row) {
       const role = row as SystemRoleSummary
-      const knownPermissions = new Set(permissionOptions.map((item) => item.value))
+      const knownPermissions = new Set(permissionOptions.value.map((item) => item.value))
       return {
         roleCode: role.roleCode,
         roleName: role.roleName,
@@ -234,5 +236,6 @@ const roleCrud: CrudPageOptions = {
 
 onMounted(() => {
   void ensureStatusDictLoaded()
+  void ensurePermissionOptionsLoaded()
 })
 </script>

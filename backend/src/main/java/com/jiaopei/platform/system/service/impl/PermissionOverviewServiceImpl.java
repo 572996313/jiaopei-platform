@@ -13,6 +13,7 @@ import com.jiaopei.platform.system.domain.entity.ListConfigEntity;
 import com.jiaopei.platform.system.dto.PermissionConfigButtonRefView;
 import com.jiaopei.platform.system.dto.PermissionEndpointInfoView;
 import com.jiaopei.platform.system.dto.PermissionMenuNodeRefView;
+import com.jiaopei.platform.system.dto.PermissionOptionView;
 import com.jiaopei.platform.system.dto.PermissionOverviewView;
 import com.jiaopei.platform.system.dto.PermissionRoleRefView;
 import com.jiaopei.platform.system.dto.PermissionUsageView;
@@ -118,6 +119,31 @@ public class PermissionOverviewServiceImpl implements PermissionOverviewService 
             .toList();
 
         return new PermissionOverviewView(permissions, unregistered);
+    }
+
+    @Override
+    public List<PermissionOptionView> permissionOptions() {
+        Map<String, List<PermissionEndpointInfoView>> registry = scanRegistry();
+
+        // 启用且带权限码的按钮节点:权限码 → 按钮中文名列表
+        Map<String, List<String>> menuNamesByCode = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenuEntity>()
+                .eq(SystemMenuEntity::getMenuType, "button")
+                .eq(SystemMenuEntity::getStatus, ACTIVE)
+                .isNotNull(SystemMenuEntity::getPermissionCode)
+                .ne(SystemMenuEntity::getPermissionCode, ""))
+            .stream()
+            .collect(Collectors.groupingBy(SystemMenuEntity::getPermissionCode,
+                Collectors.mapping(SystemMenuEntity::getMenuName, Collectors.toList())));
+
+        // 以注解扫描注册表为权威源:每个注册权限码生成一个选项,label 优先按钮中文名,其次码本身
+        return registry.keySet().stream()
+            .map(code -> {
+                List<String> menuNames = menuNamesByCode.getOrDefault(code, List.of());
+                String label = menuNames.isEmpty() ? code : menuNames.get(0);
+                return new PermissionOptionView(code, label, menuNames);
+            })
+            .sorted(Comparator.comparing(PermissionOptionView::code))
+            .toList();
     }
 
     private List<RoleEntity> activeRoles() {

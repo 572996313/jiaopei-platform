@@ -1,5 +1,38 @@
 # 项目开发约定
 
+## 本地运行与重启须知(环境检测先行)
+
+### 编译环境:必须 JDK 21
+
+项目是 Spring Boot 3.5 / Java 21,**本机系统的默认 `java`/`mvn` 很可能是 JDK 1.8**(运行
+`mvn -v` 会显示 `Java version: 1.8.0_...`)。编译、打包前先导出环境,否则 Maven 起不来:
+
+```bash
+java -version                     # 不是 21 就导出环境变量
+export JAVA_HOME="C:/Users/57299/.posh_sdk/java/21.0.9-oracle"
+export PATH="$JAVA_HOME/bin:$PATH"
+cd backend && mvn -q -DskipTests package   # 产物 target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar
+```
+
+### 改代码后要重启后端
+
+**旧进程不会自动加载新代码**,改完不重启就是"改了没效果"的假象。重启流程:
+
+```bash
+netstat -ano | grep ":8080" | grep LISTENING   # 记下监听 8080 的旧 PID
+powershell -NoProfile -Command "Stop-Process -Id <PID> -Force"   # 停旧进程
+cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar &
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health   # 健康检查返 200 才算起来
+```
+
+### 已踩坑:统一响应包装会误伤二进制流
+
+历史教训(2026-09):`/v3/api-docs` 返回 500 `ClassCastException: ApiResponse cannot be cast to [B`,
+根因是全局 `ApiResponseAdvice`(`@ControllerAdvice` 实现 `ResponseBodyAdvice`)把 springdoc 返回的
+`byte[]`(OpenAPI JSON)强包进 `ApiResponse`。已在 `supports()` 开头放行
+`ByteArrayHttpMessageConverter`。**新增 `byte[]` 返回的接口(导出 Excel/图片等)必须避开统一包装**,
+出现类似强转异常时先查 `common/web/ApiResponseAdvice.java`。
+
 ## 实体 / DTO 字段说明规范(软规范)
 
 本规范为**软规范**,不阻塞构建,但作为团队约定在新字段添加、存量补齐时遵循。

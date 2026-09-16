@@ -556,3 +556,65 @@ export interface PermissionOverview {
 export function fetchPermissionOverview() {
   return requestGet<PermissionOverview>('/system/permission-overview')
 }
+
+/** 权限码下拉选项(角色弹窗「预设权限」/菜单按钮权限码下拉/列表权限标签回显的公共数据源) */
+export interface PermissionOption {
+  /** 权限码,如 system:user:manage */
+  code: string
+  /** 中文名:优先按钮节点 menuName,缺失回退为权限码本身 */
+  label: string
+  /** 挂载该权限码的启用按钮节点中文名列表(可空) */
+  menuNames: string[]
+}
+
+export function fetchPermissionOptions() {
+  return requestGet<PermissionOption[]>('/system/permission-options')
+}
+
+// ==================== 操作留痕日志 ====================
+
+export interface OperLogSummary {
+  id: string
+  traceId?: string | null
+  userId?: string | null
+  username?: string | null
+  orgId?: string | null
+  portal?: string | null
+  operation?: string | null
+  actionType?: string | null
+  method?: string | null
+  path?: string | null
+  clientIp?: string | null
+  userAgent?: string | null
+  params?: string | null
+  errorMsg?: string | null
+  success?: boolean | null
+  durationMs?: number | null
+  createdAt?: string | null
+}
+
+export interface OperLogPageParams extends PageParams {
+  username?: string
+  actionType?: string
+  portal?: string
+  operation?: string
+  success?: boolean
+  beginTime?: string
+  endTime?: string
+}
+
+function normalizeOperLog(item: OperLogSummary): OperLogSummary {
+  return {
+    ...item,
+    id: String(item.id),
+    userId: item.userId === null || item.userId === undefined ? null : String(item.userId),
+    orgId: item.orgId === null || item.orgId === undefined ? null : String(item.orgId),
+  }
+}
+
+export function fetchOperLogs(params: OperLogPageParams) {
+  return requestGet<PageResult<OperLogSummary>>('/system/operlogs', { ...params }).then((result) => ({
+    ...result,
+    records: (result.records || []).map(normalizeOperLog),
+  }))
+}

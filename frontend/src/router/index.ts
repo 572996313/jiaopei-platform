@@ -74,6 +74,11 @@ const routes = [
         component: () => import('@/views/system/PermissionOverviewView.vue'),
       },
       {
+        path: 'system/operlogs',
+        name: 'system-operlogs',
+        component: () => import('@/views/system/OperLogView.vue'),
+      },
+      {
         path: 'campus',
         name: 'campus',
         component: () => import('@/views/organization/CampusManagementView.vue'),
