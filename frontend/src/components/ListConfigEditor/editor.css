@@ -1,0 +1,210 @@
+/* 列表配置可视化编辑器共享样式(scoped 复用) */
+
+.editor-blocks {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.block-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+  background: rgba(35, 76, 119, 0.03);
+}
+
+.block-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.block-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #234c77;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block-card-sub {
+  font-size: 12px;
+  color: #94a3b8;
+  flex: none;
+}
+
+.block-card-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.block-card .el-form-item {
+  margin-bottom: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.empty-item {
+  display: none;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.toggle-item .el-form-item__content {
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.block-tip {
+  font-size: 13px;
+  color: #5c6b82;
+  line-height: 1.6;
+}
+
+.block-tip a {
+  color: #234c77;
+  text-decoration: none;
+}
+
+.block-tip a:hover {
+  text-decoration: underline;
+}
+
+.editor-collapse-tip {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* ---------- 表格编辑器(TableEditorShell) ---------- */
+
+.table-editor-wrap {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.table-editor {
+  width: 100%;
+}
+
+/* 行内控件宽度占满单元格,视觉对齐 */
+.table-editor .el-input,
+.table-editor .el-select,
+.table-editor .el-input-number {
+  width: 100%;
+}
+
+.table-editor .el-input-number {
+  --el-input-number-controls-width: 24px;
+}
+
+.te-ops {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.te-expand-body {
+  display: grid;
+  gap: 10px;
+  padding: 4px 8px 10px 40px;
+}
+
+.te-expand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+}
+
+.te-expand-grid .full-span,
+.te-expand-grid > :deep(.full-span) {
+  grid-column: 1 / -1;
+}
+
+.te-expand-grid .el-form-item {
+  margin-bottom: 0;
+}
+
+.te-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.te-add-icon {
+  margin-right: 2px;
+}
+
+/* 行内较窄的列,控件压缩不换行 */
+.te-col-key {
+  min-width: 120px;
+}
+
+.te-col-mid {
+  min-width: 160px;
+}
+
+/* ---------- 弹窗表单编辑器(FormEditor) ---------- */
+
+.form-editor {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.form-page-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+  background: rgba(35, 76, 119, 0.03);
+}
+
+.form-page-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #234c77;
+}
+
+.form-page-item .el-form-item__label {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+/* 展开行内 显示/禁用 两组勾选并排 */
+.te-mode-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
