@@ -194,6 +194,7 @@ ASKPASS_EOF
 fi
 
 # ---------- 2. 拉取最新代码 ----------
+CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 if [ "${SKIP_PULL}" = "true" ]; then
     log_warn "[2/8] 跳过 git pull (--skip-pull)"
 else
@@ -211,7 +212,9 @@ else
             log_warn "--force 已指定,继续重新构建。"
         fi
     else
-        git pull origin "${BRANCH}" || { log_err "git pull 失败"; exit 1; }
+        # fetch 已把 origin/分支 更新到本地,这里只做快进合并,
+        # 不再 git pull(否则会产生第二次网络请求、二次凭据输入)
+        git merge --ff-only "origin/${BRANCH}" || { log_err "git merge --ff-only 失败,本地分支可能与远程分叉,请手动处理"; exit 1; }
         log_ok "代码已更新。"
     fi
 fi
