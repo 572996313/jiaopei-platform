@@ -11,22 +11,26 @@ WORKDIR /workspace/frontend
 
 RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
 
+# CI 模式下 pnpm 检测到 node_modules 缓存失效时直接清空重建,不再因无 TTY 拒绝确认
+# (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)
+ENV CI=true
+
 # 关键:在缓存挂载目录里设 pnpm 的 store 目录,持久化依赖
 # pnpm 用 hardlink 从 store 引用,缓存命中时不消耗双倍磁盘
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="${PNPM_HOME}:${PATH}"
 
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-# 先做一次 prefetch,把所有依赖下载到 store
+# 先做一次 prefetch,把所有依赖下载到 store(fetch 只写 store,不碰 node_modules)
 # 锁文件不变时这一步秒命中缓存
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
-    --mount=type=cache,target=/workspace/frontend/node_modules,id=jiaopei-node-modules-cache \
     pnpm fetch --frozen-lockfile
 
 # 然后做 install(同样会命中 node_modules 缓存)
+# 不加 --offline:store 缓存被 BuildKit 回收后仍要能联网补包
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
     --mount=type=cache,target=/workspace/frontend/node_modules,id=jiaopei-node-modules-cache \
-    pnpm install --frozen-lockfile --offline --prefer-offline
+    pnpm install --frozen-lockfile --prefer-offline
 
 COPY frontend/index.html ./index.html
 COPY frontend/vite.config.ts ./vite.config.ts
