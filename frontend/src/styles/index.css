@@ -226,6 +226,14 @@ body {
   font-size: 13px;
 }
 
+/* 二级目录小标题(系统设置下的 机构与权限/低代码配置/系统运维 分组) */
+.nav-child-group-title {
+  padding: 10px 12px 4px 22px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
 .nav-child-item .nav-item-icon-sub {
   margin-right: 6px;
   font-size: 14px;
@@ -1152,6 +1160,14 @@ body {
   font-size: 14px;
   font-weight: 700;
   color: #14213d;
+}
+
+/* 窄栏浮层内的二级目录小标题 */
+.rail-pop-subgroup-title {
+  padding: 8px 10px 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
 }
 
 .rail-pop-item {

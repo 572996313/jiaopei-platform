@@ -26,18 +26,24 @@
                   <el-icon class="nav-caret"><ArrowDown /></el-icon>
                 </button>
                 <div v-show="isGroupOpen(item)" class="nav-children">
-                  <RouterLink
-                    v-for="child in visibleChildren(item)"
-                    :key="child.key"
-                    :to="child.to"
-                    class="nav-item nav-child-item"
-                    :class="{ 'is-active': isChildActive(child) }"
-                  >
-                    <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"
-                      ><component :is="child.icon"
-                    /></el-icon>
-                    <span class="nav-item-label">{{ child.label }}</span>
-                  </RouterLink>
+                  <template v-for="(child, idx) in visibleChildren(item)" :key="child.key">
+                    <div
+                      v-if="child.groupLabel && child.groupLabel !== prevGroupLabel(item, idx)"
+                      class="nav-child-group-title"
+                    >
+                      {{ child.groupLabel }}
+                    </div>
+                    <RouterLink
+                      :to="child.to"
+                      class="nav-item nav-child-item"
+                      :class="{ 'is-active': isChildActive(child) }"
+                    >
+                      <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"
+                        ><component :is="child.icon"
+                      /></el-icon>
+                      <span class="nav-item-label">{{ child.label }}</span>
+                    </RouterLink>
+                  </template>
                 </div>
               </div>
               <RouterLink
@@ -107,19 +113,25 @@
                   <span class="rail-pop-group">{{ group.label }}</span>
                   <span class="rail-pop-title">{{ item.label }}</span>
                 </div>
-                <RouterLink
-                  v-for="child in item.children"
-                  :key="child.key"
-                  :to="child.to"
-                  class="rail-pop-item"
-                  :class="{ 'is-active': isChildActive(child) }"
-                  @click="handleRailChildClick(item)"
-                >
-                  <el-icon v-if="child.icon" class="rail-pop-icon"
-                    ><component :is="child.icon"
-                  /></el-icon>
-                  <span>{{ child.label }}</span>
-                </RouterLink>
+                <template v-for="(child, idx) in item.children" :key="child.key">
+                  <div
+                    v-if="child.groupLabel && child.groupLabel !== prevRailGroupLabel(item, idx)"
+                    class="rail-pop-subgroup-title"
+                  >
+                    {{ child.groupLabel }}
+                  </div>
+                  <RouterLink
+                    :to="child.to"
+                    class="rail-pop-item"
+                    :class="{ 'is-active': isChildActive(child) }"
+                    @click="handleRailChildClick(item)"
+                  >
+                    <el-icon v-if="child.icon" class="rail-pop-icon"
+                      ><component :is="child.icon"
+                    /></el-icon>
+                    <span>{{ child.label }}</span>
+                  </RouterLink>
+                </template>
               </div>
             </div>
           </div>
@@ -328,6 +340,8 @@ interface SidebarChildDefinition {
   title: string
   prefixes: string[]
   icon?: Component
+  /** 所属二级目录名(空=直属顶层目录);用于侧边栏分组小标题 */
+  groupLabel?: string
 }
 
 interface SidebarDefinition {
@@ -345,17 +359,28 @@ interface SidebarDefinition {
 }
 
 /** 后端菜单节点 → 侧边栏子项结构(名称/顺序/图标来自 sys_menu,可后台配置) */
-function adaptMenuChildren(nodes: SystemMenuTreeNode[]): SidebarChildDefinition[] {
-  return nodes
-    .filter((node) => node.menuType === 'menu' && node.path)
-    .map((node) => ({
-      key: node.menuCode,
-      to: node.path as string,
-      label: node.menuName,
-      title: node.menuName,
-      prefixes: [node.path as string],
-      icon: resolveMenuIcon(node.icon),
-    }))
+function adaptMenuChildren(nodes: SystemMenuTreeNode[], groupLabel = ''): SidebarChildDefinition[] {
+  const flat: SidebarChildDefinition[] = []
+  const walk = (list: SystemMenuTreeNode[], currentGroup: string) => {
+    for (const node of list) {
+      // 目录(catalog)本身不作为可点击子项,但需下钻收集其下的页面菜单,并记录分组名
+      if (node.menuType === 'catalog') {
+        walk(node.children || [], node.menuName)
+      } else if (node.menuType === 'menu' && node.path) {
+        flat.push({
+          key: node.menuCode,
+          to: node.path as string,
+          label: node.menuName,
+          title: node.menuName,
+          prefixes: [node.path as string],
+          icon: resolveMenuIcon(node.icon),
+          groupLabel: currentGroup,
+        })
+      }
+    }
+  }
+  walk(nodes, groupLabel)
+  return flat
 }
 
 /** 当前用户菜单树里 code 对应的节点(含目录与菜单) */
@@ -592,6 +617,22 @@ watch(
 
 function visibleChildren(item: SidebarDefinition) {
   return resolveVisibleChildren(item)
+}
+
+/** 分组小标题判定:与上一个子项的目录名不同才显示标题 */
+function prevGroupLabel(item: SidebarDefinition, idx: number) {
+  if (idx === 0) {
+    return ''
+  }
+  return resolveVisibleChildren(item)[idx - 1]?.groupLabel ?? ''
+}
+
+/** 窄栏浮层分组小标题判定(item.children 已是扁平数组) */
+function prevRailGroupLabel(item: RailItem, idx: number) {
+  if (idx === 0) {
+    return ''
+  }
+  return item.children[idx - 1]?.groupLabel ?? ''
 }
 
 /** ================= 导航模式(完整 / 图标窄栏) ================= */
