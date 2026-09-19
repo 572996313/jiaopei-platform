@@ -78,6 +78,7 @@ export interface TimeSlotSummary {
   slotType?: string | null
   applicableScene?: string | null
   status?: string | null
+  templateId?: string | null
   sortNo?: number | null
   remark?: string | null
 }
@@ -277,4 +278,102 @@ export function updateTimeSlot(id: string, payload: TimeSlotUpdatePayload) {
 
 export function deleteTimeSlot(id: string) {
   return requestDelete<null>(`/organizations/time-slots/${id}`)
+}
+
+/** 单一时段类型的节次参数(节数/时长/课间/首节开始时间) */
+export interface TimeSlotSectionConfig {
+  count: number
+  durationMinutes: number
+  breakMinutes: number
+  startTime: string
+}
+
+/** 大课间参数(afterSection=0 表示不设置) */
+export interface TimeSlotBigBreakConfig {
+  minutes: number
+  afterSection: number
+}
+
+/** 时段模板节次参数快照 */
+export interface TimeSlotConfig {
+  morningStudy: TimeSlotSectionConfig
+  morning: TimeSlotSectionConfig
+  morningBigBreak: TimeSlotBigBreakConfig
+  afternoon: TimeSlotSectionConfig
+  afternoonBigBreak: TimeSlotBigBreakConfig
+  eveningStudy: TimeSlotSectionConfig
+  weekdays: number[]
+}
+
+export interface TimeSlotTemplateSummary {
+  id: string
+  institutionId?: string | null
+  campusId?: string | null
+  templateName: string
+  config: TimeSlotConfig | Record<string, unknown>
+  status?: string | null
+  remark?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface TimeSlotTemplateCreatePayload {
+  institutionId: string
+  campusId?: string | null
+  templateName: string
+  config: TimeSlotConfig
+  remark?: string
+}
+
+export interface TimeSlotTemplateUpdatePayload {
+  templateName?: string
+  config?: TimeSlotConfig
+  status?: string
+  remark?: string
+}
+
+export interface TimeSlotApplySlotPayload {
+  weekday: number
+  slotCode: string
+  slotName: string
+  startTime: string
+  endTime: string
+  slotType?: string
+  sortNo?: number | null
+}
+
+export interface TimeSlotApplyPayload {
+  config?: TimeSlotConfig
+  slots: TimeSlotApplySlotPayload[]
+}
+
+export interface TimeSlotApplyResult {
+  createdCount: number
+  updatedCount: number
+  removedCount: number
+  deactivatedCount: number
+  slots: TimeSlotSummary[]
+}
+
+export function fetchTimeSlotTemplates(institutionId?: string | null, campusId?: string | null) {
+  return requestGet<TimeSlotTemplateSummary[]>(
+    '/organizations/time-slot-templates',
+    institutionId ? { institutionId, campusId: campusId || undefined } : undefined
+  )
+}
+
+export function createTimeSlotTemplate(payload: TimeSlotTemplateCreatePayload) {
+  return requestPost<TimeSlotTemplateSummary>('/organizations/time-slot-templates', payload)
+}
+
+export function updateTimeSlotTemplate(id: string, payload: TimeSlotTemplateUpdatePayload) {
+  return requestPut<TimeSlotTemplateSummary>(`/organizations/time-slot-templates/${id}`, payload)
+}
+
+export function deleteTimeSlotTemplate(id: string) {
+  return requestDelete<null>(`/organizations/time-slot-templates/${id}`)
+}
+
+export function applyTimeSlotTemplate(id: string, payload: TimeSlotApplyPayload) {
+  return requestPost<TimeSlotApplyResult>(`/organizations/time-slot-templates/${id}/apply`, payload)
 }

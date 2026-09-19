@@ -156,7 +156,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
         given(classroomService.listClassrooms(any())).willReturn(List.of());
         given(termService.listTerms(any())).willReturn(List.of());
-        given(timeSlotService.listTimeSlots(any())).willReturn(List.of());
+        given(timeSlotService.listTimeSlots(any(), any())).willReturn(List.of());
         given(teacherService.listTeachers(any(), any())).willReturn(List.of());
         given(studentService.listStudents(any(), any(), any())).willReturn(List.of());
         given(teachingClassService.listClasses(any(), any(), any())).willReturn(List.of());
@@ -187,7 +187,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
                 .param("institutionId", "INST-001")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk());
-        verify(timeSlotService).listTimeSlots(1L);
+        verify(timeSlotService).listTimeSlots(1L, 1L);
     }
 
     @Test
@@ -362,9 +362,9 @@ class SecondThirdMainlineApiCompatibilityWebTest {
             entity.setStatus(request.status());
             return entity;
         });
-        given(timeSlotService.updateTimeSlot(any(), any())).willAnswer(invocation -> {
-            Long id = invocation.getArgument(0);
-            TimeSlotUpdateRequest request = invocation.getArgument(1);
+        given(timeSlotService.updateTimeSlot(any(), any(), any())).willAnswer(invocation -> {
+            Long id = invocation.getArgument(1);
+            TimeSlotUpdateRequest request = invocation.getArgument(2);
             TimeSlotEntity entity = new TimeSlotEntity();
             entity.setId(id);
             entity.setInstitutionId(1L);
@@ -430,7 +430,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
             .andExpect(jsonPath("$.data.id").value(707))
             .andExpect(jsonPath("$.data.slotCode").value("SAT-1"))
             .andExpect(jsonPath("$.data.durationMinutes").value(90));
-        verify(timeSlotService).updateTimeSlot(eq(707L), any());
+        verify(timeSlotService).updateTimeSlot(eq(1L), eq(707L), any());
     }
 
     @Test
@@ -537,7 +537,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message").value("时间段已删除"));
-        verify(timeSlotService).deleteTimeSlot(703L);
+        verify(timeSlotService).deleteTimeSlot(1L, 703L);
 
         mockMvc.perform(delete("/api/education/course-categories/805")
                 .header("Authorization", "Bearer stub-access-token"))

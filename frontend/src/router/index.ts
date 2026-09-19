@@ -89,6 +89,11 @@ const routes = [
         component: () => import('@/views/organization/CampusManagementView.vue'),
       },
       {
+        path: 'time-slots',
+        name: 'time-slots',
+        component: () => import('@/views/organization/TimeSlotTemplateView.vue'),
+      },
+      {
         path: 'teachers',
         name: 'teachers',
         component: () => import('@/views/education/TeacherManagementView.vue'),
@@ -102,6 +107,11 @@ const routes = [
         path: 'classes',
         name: 'classes',
         component: () => import('@/views/education/ClassManagementView.vue'),
+      },
+      {
+        path: 'scheduling',
+        name: 'scheduling',
+        component: () => import('@/views/education/ScheduleManageView.vue'),
       },
       {
         path: 'schedule',

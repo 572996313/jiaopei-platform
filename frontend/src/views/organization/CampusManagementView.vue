@@ -58,7 +58,7 @@
           </div>
           <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
         </div>
-        <el-table :data="campuses" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="campuses" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="campusCode" label="校区编码" width="150" />
           <el-table-column
             prop="campusName"
@@ -96,7 +96,7 @@
           </div>
           <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
         </div>
-        <el-table :data="classrooms" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="classrooms" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="classroomCode" label="教室编码" width="150" />
           <el-table-column
             prop="classroomName"
@@ -142,7 +142,7 @@
           </div>
           <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
         </div>
-        <el-table :data="terms" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="terms" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="termCode" label="学期编码" width="150" />
           <el-table-column prop="termName" label="学期名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="academicYear" label="学年" width="120" />
@@ -178,9 +178,12 @@
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
           </div>
-          <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
+          <div class="resource-head-actions">
+            <el-button @click="router.push('/time-slots')">网格编辑</el-button>
+            <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
+          </div>
         </div>
-        <el-table :data="timeSlots" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="timeSlots" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="slotCode" label="时间段编码" width="150" />
           <el-table-column
             prop="slotName"
@@ -230,7 +233,7 @@
           </div>
           <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
         </div>
-        <el-table :data="courseCategories" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="courseCategories" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="categoryCode" label="分类编码" width="150" />
           <el-table-column
             prop="categoryName"
@@ -281,7 +284,7 @@
             <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
           </div>
         </div>
-        <el-table :data="courses" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="courses" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="courseCode" label="课程编码" width="150" />
           <el-table-column
             prop="courseName"
@@ -334,7 +337,7 @@
           </div>
           <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
         </div>
-        <el-table :data="classTypes" border :height="TABLE_FILL_HEIGHT">
+        <el-table :data="classTypes" border :max-height="TABLE_STACK_MAX_HEIGHT">
           <el-table-column prop="typeCode" label="班型编码" width="150" />
           <el-table-column prop="typeName" label="班型名称" min-width="180" show-overflow-tooltip />
           <el-table-column label="授课方式" width="160">
@@ -734,7 +737,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
+import { useRouter } from 'vue-router'
+import { TABLE_STACK_MAX_HEIGHT } from '@/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -785,6 +789,7 @@ import DictSelect from '@/components/DictSelect.vue'
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
+const router = useRouter()
 const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])

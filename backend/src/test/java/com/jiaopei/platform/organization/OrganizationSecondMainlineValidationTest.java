@@ -111,7 +111,7 @@ class OrganizationSecondMainlineValidationTest {
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         TimeSlotCreateRequest request = timeSlotRequest(45);
-        assertThrows(BusinessException.class, () -> service.createTimeSlot(request));
+        assertThrows(BusinessException.class, () -> service.createTimeSlot(1L, request));
 
         verify(timeSlotMapper, never()).insert(any(TimeSlotEntity.class));
     }
@@ -122,7 +122,7 @@ class OrganizationSecondMainlineValidationTest {
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(timeSlotMapper.selectCount(any())).thenReturn(1L);
 
-        assertThrows(BusinessException.class, () -> service.createTimeSlot(timeSlotRequest(60)));
+        assertThrows(BusinessException.class, () -> service.createTimeSlot(1L, timeSlotRequest(60)));
 
         verify(timeSlotMapper, never()).insert(any(TimeSlotEntity.class));
     }

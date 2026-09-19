@@ -507,12 +507,25 @@ body {
   gap: 12px;
 }
 
-/* 校区资源 7 表:双列铺满整屏,每卡一行,表体在卡内占满并滚动 */
+/* 校区资源 7 表:双列卡片等高排布,整页走文档流滚动;
+   表格统一固定为 10 行档位高度(与 table-view.ts 的 TABLE_STACK_MAX_HEIGHT 同档),
+   数据超出在表体内滚动、表头吸顶,不足则留白,保证各行卡片上下对齐 */
 .resource-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(280px, 1fr);
+  grid-auto-rows: auto;
   gap: 18px;
+  align-items: stretch;
+}
+
+.resource-grid .el-table {
+  min-height: 398px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 内部 wrapper 跟随根元素拉伸,让边框与空白区整体保底 */
+.resource-grid .el-table .el-table__inner-wrapper {
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -532,11 +545,6 @@ body {
   flex-direction: column;
   gap: 16px;
   min-height: 0;
-}
-
-.resource-card .el-table {
-  flex: 1 1 auto;
-  min-height: 180px;
 }
 
 /* min-width:0 阻止 el-table 撑开父容器 */

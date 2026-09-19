@@ -34,20 +34,19 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     }
 
     @Override
-    public List<TimeSlotEntity> listTimeSlots(Long institutionId) {
+    public List<TimeSlotEntity> listTimeSlots(Long operatorInstitutionId, Long institutionId) {
+        Long effectiveInstitutionId = resolveInstitutionId(operatorInstitutionId, institutionId);
         LambdaQueryWrapper<TimeSlotEntity> wrapper = new LambdaQueryWrapper<TimeSlotEntity>()
-            .orderByAsc(TimeSlotEntity::getInstitutionId)
+            .eq(TimeSlotEntity::getInstitutionId, effectiveInstitutionId)
             .orderByAsc(TimeSlotEntity::getWeekday)
             .orderByAsc(TimeSlotEntity::getSortNo)
             .orderByAsc(TimeSlotEntity::getStartTime);
-        if (institutionId != null) {
-            wrapper.eq(TimeSlotEntity::getInstitutionId, institutionId);
-        }
         return timeSlotMapper.selectList(wrapper);
     }
 
     @Override
-    public TimeSlotEntity createTimeSlot(TimeSlotCreateRequest request) {
+    public TimeSlotEntity createTimeSlot(Long operatorInstitutionId, TimeSlotCreateRequest request) {
+        assertSameInstitution(operatorInstitutionId, request.institutionId());
         InstitutionEntity institution = institutionMapper.selectById(request.institutionId());
         if (institution == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
@@ -70,8 +69,8 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         }
         String slotCode = normalize(request.slotCode());
         String slotName = normalize(request.slotName());
-        assertUniqueSlotCode(request.institutionId(), slotCode, null);
-        assertUniqueSlotName(request.institutionId(), request.campusId(), slotName, null);
+        assertUniqueSlotCode(request.institutionId(), request.campusId(), request.weekday(), slotCode, null);
+        assertUniqueSlotName(request.institutionId(), request.campusId(), request.weekday(), slotName, null);
 
         TimeSlotEntity entity = new TimeSlotEntity();
         entity.setInstitutionId(request.institutionId());
@@ -91,14 +90,14 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码或时间段名称已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + request.institutionId());
         }
         return entity;
     }
 
     @Override
-    public TimeSlotEntity updateTimeSlot(Long id, TimeSlotUpdateRequest request) {
-        TimeSlotEntity existing = requireTimeSlot(id);
+    public TimeSlotEntity updateTimeSlot(Long operatorInstitutionId, Long id, TimeSlotUpdateRequest request) {
+        TimeSlotEntity existing = requireTimeSlot(operatorInstitutionId, id);
         Long campusId = request.campusId() == null ? existing.getCampusId() : request.campusId();
         Long validatingCampusId = campusId;
         if (request.campusId() != null && !Objects.equals(existing.getCampusId(), request.campusId())) {
@@ -121,24 +120,25 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         if (minutes != durationMinutes) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "时长(分钟)必须与开始时间和结束时间一致");
         }
+        Integer weekday = request.weekday() == null ? existing.getWeekday() : request.weekday();
+        if (request.weekday() != null && (request.weekday() < 1 || request.weekday() > 7)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "星期必须在1到7之间");
+        }
         if (request.slotCode() != null && !request.slotCode().isBlank()) {
             String slotCode = normalize(request.slotCode());
             if (!Objects.equals(existing.getSlotCode(), slotCode)) {
-                assertUniqueSlotCode(existing.getInstitutionId(), slotCode, id);
+                assertUniqueSlotCode(existing.getInstitutionId(), validatingCampusId, weekday, slotCode, id);
                 existing.setSlotCode(slotCode);
             }
         }
         if (request.slotName() != null && !request.slotName().isBlank()) {
             String slotName = normalize(request.slotName());
             if (!Objects.equals(existing.getSlotName(), slotName)) {
-                assertUniqueSlotName(existing.getInstitutionId(), validatingCampusId, slotName, id);
+                assertUniqueSlotName(existing.getInstitutionId(), validatingCampusId, weekday, slotName, id);
                 existing.setSlotName(slotName);
             }
         }
         if (request.weekday() != null) {
-            if (request.weekday() < 1 || request.weekday() > 7) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "星期必须在1到7之间");
-            }
             existing.setWeekday(request.weekday());
         }
         if (request.startTime() != null) {
@@ -168,53 +168,78 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码或时间段名称已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + existing.getInstitutionId());
         }
         return existing;
     }
 
     @Override
-    public void deleteTimeSlot(Long id) {
-        requireTimeSlot(id);
-        timeSlotMapper.deleteById(id);
+    public void deleteTimeSlot(Long operatorInstitutionId, Long id) {
+        requireTimeSlot(operatorInstitutionId, id);
+        // 唯一键含 deleted,软删残留会永久占用编码/名称;被引用行无法物理删除(外键),引导改用停用
+        if (timeSlotMapper.countLessonRefs(id) > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该时间段已被排课引用,无法删除,请改为停用");
+        }
+        timeSlotMapper.deletePhysically(id);
     }
 
-    private TimeSlotEntity requireTimeSlot(Long id) {
+    private TimeSlotEntity requireTimeSlot(Long operatorInstitutionId, Long id) {
         TimeSlotEntity entity = timeSlotMapper.selectById(id);
         if (entity == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "时间段不存在：" + id);
         }
+        assertSameInstitution(operatorInstitutionId, entity.getInstitutionId());
         return entity;
     }
 
-    private void assertUniqueSlotCode(Long institutionId, String slotCode, Long excludeId) {
-        LambdaQueryWrapper<TimeSlotEntity> wrapper = new LambdaQueryWrapper<TimeSlotEntity>()
-            .eq(TimeSlotEntity::getInstitutionId, institutionId)
-            .eq(TimeSlotEntity::getSlotCode, slotCode);
-        if (excludeId != null) {
-            wrapper.ne(TimeSlotEntity::getId, excludeId);
+    /** 租户隔离:机构级参数只作筛选,与登录用户所属机构不符直接拒绝;缺省回落为登录用户机构 */
+    private Long resolveInstitutionId(Long operatorInstitutionId, Long requestedInstitutionId) {
+        if (requestedInstitutionId == null) {
+            return operatorInstitutionId;
         }
-        Long count = timeSlotMapper.selectCount(wrapper);
-        if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下时间段编码已存在：" + institutionId);
+        assertSameInstitution(operatorInstitutionId, requestedInstitutionId);
+        return requestedInstitutionId;
+    }
+
+    private void assertSameInstitution(Long operatorInstitutionId, Long requestedInstitutionId) {
+        if (operatorInstitutionId == null || !Objects.equals(operatorInstitutionId, requestedInstitutionId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的时间段数据");
         }
     }
 
-    private void assertUniqueSlotName(Long institutionId, Long campusId, String slotName, Long excludeId) {
+    private void assertUniqueSlotCode(Long institutionId, Long campusId, Integer weekday, String slotCode, Long excludeId) {
+        LambdaQueryWrapper<TimeSlotEntity> wrapper = new LambdaQueryWrapper<TimeSlotEntity>()
+            .eq(TimeSlotEntity::getInstitutionId, institutionId)
+            .eq(TimeSlotEntity::getSlotCode, slotCode);
+        applyScope(wrapper, campusId, weekday, excludeId);
+        Long count = timeSlotMapper.selectCount(wrapper);
+        if (count != null && count > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码已存在：" + slotCode);
+        }
+    }
+
+    private void assertUniqueSlotName(Long institutionId, Long campusId, Integer weekday, String slotName, Long excludeId) {
         LambdaQueryWrapper<TimeSlotEntity> wrapper = new LambdaQueryWrapper<TimeSlotEntity>()
             .eq(TimeSlotEntity::getInstitutionId, institutionId)
             .eq(TimeSlotEntity::getSlotName, slotName);
+        applyScope(wrapper, campusId, weekday, excludeId);
+        Long count = timeSlotMapper.selectCount(wrapper);
+        if (count != null && count > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段名称已存在：" + slotName);
+        }
+    }
+
+    private void applyScope(LambdaQueryWrapper<TimeSlotEntity> wrapper, Long campusId, Integer weekday, Long excludeId) {
         if (campusId == null) {
             wrapper.isNull(TimeSlotEntity::getCampusId);
         } else {
             wrapper.eq(TimeSlotEntity::getCampusId, campusId);
         }
+        if (weekday != null) {
+            wrapper.eq(TimeSlotEntity::getWeekday, weekday);
+        }
         if (excludeId != null) {
             wrapper.ne(TimeSlotEntity::getId, excludeId);
-        }
-        Long count = timeSlotMapper.selectCount(wrapper);
-        if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区范围内时间段名称已存在：" + institutionId);
         }
     }
 

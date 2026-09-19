@@ -260,6 +260,7 @@ import {
   OfficeBuilding,
   Reading,
   Setting,
+  Timer,
   User,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
@@ -433,15 +434,16 @@ const sidebarDefinitions: SidebarDefinition[] = [
     alwaysVisible: true,
   },
   {
-    key: 'schedule',
-    to: '/schedule',
-    label: '排课与执行',
-    title: '排课与执行中心',
+    key: 'scheduling',
+    to: '/scheduling',
+    label: '排课中心',
+    title: '排课中心',
     icon: AlarmClock,
     group: 'daily',
     hint: '排课、点名、结课',
-    prefixes: ['/schedule'],
-    alwaysVisible: true,
+    prefixes: ['/scheduling', '/schedule'],
+    // 目录与子项来自 sys_menu(V37),名称/顺序/图标可后台配置
+    menuCatalogCode: 'education_schedule_center',
   },
   {
     key: 'students',
@@ -472,8 +474,19 @@ const sidebarDefinitions: SidebarDefinition[] = [
     title: '机构与教学资源',
     icon: OfficeBuilding,
     group: 'archive',
-    hint: '校区、教室、学期、时间段',
+    hint: '校区、教室、学期',
     prefixes: ['/campus'],
+    alwaysVisible: true,
+  },
+  {
+    key: 'time-slots',
+    to: '/time-slots',
+    label: '时间段设置',
+    title: '时间段设置(节次模板与网格编辑)',
+    icon: Timer,
+    group: 'archive',
+    hint: '按参数生成节次并网格微调',
+    prefixes: ['/time-slots'],
     alwaysVisible: true,
   },
   {

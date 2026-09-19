@@ -7,11 +7,11 @@ import java.util.List;
 
 public interface TimeSlotService {
 
-    List<TimeSlotEntity> listTimeSlots(Long institutionId);
+    List<TimeSlotEntity> listTimeSlots(Long operatorInstitutionId, Long institutionId);
 
-    TimeSlotEntity createTimeSlot(TimeSlotCreateRequest request);
+    TimeSlotEntity createTimeSlot(Long operatorInstitutionId, TimeSlotCreateRequest request);
 
-    TimeSlotEntity updateTimeSlot(Long id, TimeSlotUpdateRequest request);
+    TimeSlotEntity updateTimeSlot(Long operatorInstitutionId, Long id, TimeSlotUpdateRequest request);
 
-    void deleteTimeSlot(Long id);
+    void deleteTimeSlot(Long operatorInstitutionId, Long id);
 }

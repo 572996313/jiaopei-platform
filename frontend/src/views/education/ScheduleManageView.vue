@@ -1,0 +1,685 @@
+<template>
+  <section class="education-page">
+    <article v-if="pageError" class="panel-card">
+      <el-alert :title="pageError" type="error" show-icon :closable="false" />
+    </article>
+
+    <div class="page-toolbar">
+      <div class="page-toolbar-filters" v-loading="lookupLoading">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="handleScopeChange"
+        >
+          <el-option
+            v-for="item in campuses"
+            :key="item.id"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select
+          v-model="termId"
+          placeholder="筛选学期"
+          clearable
+          filterable
+          @change="handleScopeChange"
+        >
+          <el-option
+            v-for="item in terms"
+            :key="item.id"
+            :label="item.termName || item.termCode || `学期 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-select
+          v-model="classId"
+          placeholder="筛选班级"
+          clearable
+          filterable
+          @change="handleClassChange"
+        >
+          <el-option
+            v-for="item in classes"
+            :key="item.id"
+            :label="item.className || item.classCode || `班级 #${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <span class="datebar-label">排课日期</span>
+        <el-date-picker
+          v-model="lessonDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="全部日期"
+          clearable
+          @change="refreshLessons"
+        />
+        <span class="datebar-hint">清空日期可查看全部排课</span>
+      </div>
+      <div class="page-toolbar-actions">
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="lookupLoading || lessonsLoading"
+          @click="refreshLessons"
+        />
+        <el-button @click="goTimetable">查看课表</el-button>
+        <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
+      </div>
+    </div>
+
+    <article class="panel-card education-panel">
+      <div class="education-table-head">
+        <div class="panel-title">
+          排课列表<span class="panel-count">共 {{ lessonTotal }} 条</span>
+        </div>
+        <div class="education-context-text">
+          校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
+            lessonDate || '全部'
+          }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
+        </div>
+      </div>
+
+      <el-table :data="lessons" border v-loading="lessonsLoading" :height="TABLE_FILL_HEIGHT">
+        <el-table-column prop="lessonDate" label="上课日期" width="120" />
+        <el-table-column label="星期" width="100">
+          <template #default="{ row }">
+            {{ weekdayLabel(row.lessonWeekday) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="班级" min-width="160">
+          <template #default="{ row }">
+            {{ formatClass(row.classId) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="教室" min-width="150">
+          <template #default="{ row }">
+            {{ formatClassroom(row.classroomId) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="时段" min-width="170">
+          <template #default="{ row }">
+            {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="教师" min-width="200">
+          <template #default="{ row }">
+            {{ formatTeacherNames(row.teacherIds) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="lessonTitle"
+          label="课程主题"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <div class="lesson-status-cell">
+              <el-tag :type="lessonStatusTagType(row.lessonStatus)">
+                {{ lessonStatusLabel(row.lessonStatus) }}
+              </el-tag>
+              <el-tag v-if="row.pendingMakeup === true" size="small" type="danger" effect="plain"
+                >待补课</el-tag
+              >
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column label="停补关联" min-width="200">
+          <template #default="{ row }">
+            <div class="relation-cell">
+              <span>{{ lessonRelationSummary(row) }}</span>
+              <el-button
+                v-if="relationJumpLabel(row)"
+                link
+                type="primary"
+                @click="jumpToRelatedLesson(row)"
+              >
+                {{ relationJumpLabel(row) }}
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="170" fixed="right">
+          <template #default="{ row }">
+            <div class="system-operation-group">
+              <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+              <el-button
+                link
+                type="danger"
+                :loading="deletingLessonId === row.id"
+                @click="removeLesson(row)"
+              >
+                删除
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="!lessonsLoading && lessons.length === 0" class="education-empty">
+        当前筛选范围下暂无排课记录。
+      </div>
+
+      <el-pagination
+        v-model:current-page="lessonPage"
+        v-model:page-size="lessonPageSize"
+        class="panel-pagination"
+        :total="lessonTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="refreshLessons"
+        @size-change="handleLessonSizeChange"
+      />
+    </article>
+
+    <ScheduleLessonFormDialog
+      v-model="dialogVisible"
+      :mode="dialogMode"
+      :lesson="dialogLesson"
+      :prefill="dialogPrefill"
+      :institution-id="String(institutionId || '')"
+      :scope-campus-id="campusId"
+      :scope-term-id="termId"
+      :scope-class-id="classId"
+      :institutions="institutions"
+      :campuses="campuses"
+      :terms="terms"
+      :classes="classes"
+      :time-slots="timeSlots"
+      :default-date="lessonDate"
+      :format-class="formatClass"
+      @saved="handleLessonSaved"
+    />
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
+import {
+  deleteScheduleLesson,
+  fetchScheduleLesson,
+  fetchScheduleLessonPage,
+  fetchTeachers,
+  type ScheduleLessonRecord,
+  type TeacherSummary,
+} from '@/api/education'
+import {
+  fetchClassrooms,
+  fetchTimeSlots,
+  type ClassroomSummary,
+  type TimeSlotSummary,
+} from '@/api/organization'
+import { useEducationScope } from '@/composables/useEducationScope'
+import { useEducationScopeStore } from '@/stores/educationScope'
+import { useInstitutionStore } from '@/stores/institution'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
+import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
+import {
+  compactTimeRange,
+  formatTeacherIdsAs,
+  lessonStatusLabel,
+  lessonStatusTagType,
+  sortedLessons,
+  timeSlotOptionLabel,
+  toMessage,
+  weekdayLabel,
+} from './components/schedule-utils'
+
+const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const { campusId, termId } = storeToRefs(scopeStore)
+const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
+const route = useRoute()
+const router = useRouter()
+
+const teachers = ref<TeacherSummary[]>([])
+const classrooms = ref<ClassroomSummary[]>([])
+const timeSlots = ref<TimeSlotSummary[]>([])
+
+const classId = ref<string | null>(null)
+const lessonDate = ref<string | null>(null)
+
+const lessons = ref<ScheduleLessonRecord[]>([])
+const lessonPage = ref(1)
+const lessonPageSize = ref(10)
+const lessonTotal = ref(0)
+
+const pageError = ref('')
+const lookupLoading = ref(false)
+const lessonsLoading = ref(false)
+const deletingLessonId = ref<string | null>(null)
+
+const dialogVisible = ref(false)
+const dialogMode = ref<'create' | 'edit'>('create')
+const dialogLesson = ref<ScheduleLessonRecord | null>(null)
+const dialogPrefill = ref<Record<string, string> | null>(null)
+
+// 补课课次的停课原课详情缓存，用于「停补关联」列展示与跳转
+const relatedLessonCache = ref<Record<string, ScheduleLessonRecord>>({})
+
+const campusMap = computed(() => {
+  return new Map(
+    campuses.value.map((item) => [
+      item.id,
+      item.campusName || item.campusCode || `校区 #${item.id}`,
+    ])
+  )
+})
+
+const classMap = computed(() => {
+  return new Map(
+    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
+  )
+})
+
+const classroomMap = computed(() => {
+  return new Map(
+    classrooms.value.map((item) => [
+      item.id,
+      item.classroomName || item.classroomCode || `教室 #${item.id}`,
+    ])
+  )
+})
+
+const teacherMap = computed(() => {
+  return new Map(
+    teachers.value.map((item) => [
+      item.id,
+      item.teacherName || item.teacherCode || `教师 #${item.id}`,
+    ])
+  )
+})
+
+const timeSlotMap = computed(() => {
+  return new Map(timeSlots.value.map((item) => [item.id, item]))
+})
+
+function formatCampus(id?: string | null) {
+  if (!id) {
+    return '未选择'
+  }
+  return campusMap.value.get(id) || `校区 #${id}`
+}
+
+function formatClass(id?: string | null) {
+  if (!id) {
+    return '未选择'
+  }
+  return classMap.value.get(id) || `班级 #${id}`
+}
+
+function formatClassroom(id?: string | null) {
+  if (!id) {
+    return '未选择'
+  }
+  return classroomMap.value.get(id) || `教室 #${id}`
+}
+
+function formatTimeSlot(id?: string | null, startTime?: string | null, endTime?: string | null) {
+  if (id) {
+    const slot = timeSlotMap.value.get(id)
+    if (slot) {
+      return timeSlotOptionLabel(slot.slotName, slot.startTime, slot.endTime, slot.weekday)
+    }
+  }
+  const fallbackRange = compactTimeRange(startTime, endTime)
+  return fallbackRange || (id ? `时间段 #${id}` : '未选择')
+}
+
+function formatTeacherNames(values?: Array<string | number> | null) {
+  return formatTeacherIdsAs(values, teacherMap.value)
+}
+
+function lessonRelationSummary(lesson: ScheduleLessonRecord) {
+  if (lesson.lessonStatus === 'cancelled') {
+    if (lesson.pendingMakeup === true) {
+      return '未关联补课'
+    }
+    return lesson.pendingMakeup === false ? '已安排补课' : '—'
+  }
+  if (lesson.lessonStatus === 'makeup' && lesson.changeType === 'cancelled_makeup') {
+    const related = lesson.relatedLessonId
+      ? relatedLessonCache.value[String(lesson.relatedLessonId)]
+      : null
+    if (!related) {
+      return '补课原课待加载'
+    }
+    return `补 ${related.lessonDate || '未设置日期'} ${formatClass(related.classId)}`
+  }
+  return '—'
+}
+
+function relationJumpLabel(lesson: ScheduleLessonRecord) {
+  if (
+    lesson.lessonStatus === 'makeup' &&
+    lesson.changeType === 'cancelled_makeup' &&
+    lesson.relatedLessonId &&
+    relatedLessonCache.value[String(lesson.relatedLessonId)]
+  ) {
+    return '查看原停课'
+  }
+  return ''
+}
+
+function jumpToRelatedLesson(lesson: ScheduleLessonRecord) {
+  const related = lesson.relatedLessonId
+    ? relatedLessonCache.value[String(lesson.relatedLessonId)]
+    : null
+  if (!related) {
+    ElMessage.warning('未找到关联课次')
+    return
+  }
+  lessonDate.value = related.lessonDate || null
+  if (related.classId && classes.value.some((item) => item.id === related.classId)) {
+    classId.value = related.classId
+  }
+  lessonPage.value = 1
+  void refreshLessons()
+}
+
+async function loadRelatedLessons(values: ScheduleLessonRecord[]) {
+  const missing = Array.from(
+    new Set(
+      values
+        .filter(
+          (lesson) =>
+            lesson.lessonStatus === 'makeup' &&
+            lesson.changeType === 'cancelled_makeup' &&
+            lesson.relatedLessonId &&
+            !relatedLessonCache.value[String(lesson.relatedLessonId)]
+        )
+        .map((lesson) => String(lesson.relatedLessonId))
+    )
+  )
+  if (missing.length === 0) {
+    return
+  }
+  const results = await Promise.allSettled(missing.map((id) => fetchScheduleLesson(id)))
+  const next = { ...relatedLessonCache.value }
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      next[missing[index]] = result.value
+    }
+  })
+  relatedLessonCache.value = next
+}
+
+async function refreshScopeData() {
+  if (!institutionId.value) {
+    campuses.value = []
+    terms.value = []
+    classes.value = []
+    teachers.value = []
+    classrooms.value = []
+    timeSlots.value = []
+    classId.value = null
+    termId.value = null
+    return
+  }
+
+  lookupLoading.value = true
+  pageError.value = ''
+  try {
+    await loadScope(campusId.value, termId.value)
+    await loadSupportingOptions()
+
+    if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
+      campusId.value = null
+      await loadSupportingOptions()
+    }
+    if (termId.value && !terms.value.some((item) => item.id === termId.value)) {
+      termId.value = null
+      await loadScope(campusId.value, termId.value)
+    }
+    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
+      classId.value = null
+    }
+  } catch (error) {
+    pageError.value = toMessage(error, '范围数据加载失败')
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+async function loadSupportingOptions() {
+  if (!institutionId.value) {
+    teachers.value = []
+    classrooms.value = []
+    timeSlots.value = []
+    return
+  }
+
+  const [teacherList, classroomList, timeSlotList] = await Promise.all([
+    fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
+    // 不传校区时后端返回全部教室，保证未选校区时列表仍能显示教室名称
+    fetchClassrooms(campusId.value),
+    fetchTimeSlots(institutionId.value),
+  ])
+
+  teachers.value = teacherList
+  classrooms.value = classroomList
+  timeSlots.value = timeSlotList
+}
+
+async function refreshLessons() {
+  if (!institutionId.value) {
+    lessons.value = []
+    lessonTotal.value = 0
+    return
+  }
+
+  lessonsLoading.value = true
+  pageError.value = ''
+  try {
+    const result = await fetchScheduleLessonPage({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      classId: classId.value,
+      lessonDate: lessonDate.value,
+      page: lessonPage.value,
+      pageSize: lessonPageSize.value,
+    })
+    lessons.value = sortedLessons(result.records)
+    lessonTotal.value = result.total
+    void loadRelatedLessons(lessons.value)
+  } catch (error) {
+    lessons.value = []
+    lessonTotal.value = 0
+    pageError.value = toMessage(error, '排课列表加载失败')
+  } finally {
+    lessonsLoading.value = false
+  }
+}
+
+function handleLessonSizeChange() {
+  lessonPage.value = 1
+  return refreshLessons()
+}
+
+async function handleScopeChange() {
+  classId.value = null
+  lessonPage.value = 1
+  await refreshScopeData()
+  await refreshLessons()
+}
+
+async function handleClassChange() {
+  lessonPage.value = 1
+  await refreshLessons()
+}
+
+function openCreateDialog() {
+  dialogMode.value = 'create'
+  dialogLesson.value = null
+  dialogPrefill.value = null
+  dialogVisible.value = true
+}
+
+function openEditDialog(lesson: ScheduleLessonRecord) {
+  dialogMode.value = 'edit'
+  dialogLesson.value = lesson
+  dialogPrefill.value = null
+  dialogVisible.value = true
+}
+
+function handleLessonSaved(message: string) {
+  ElMessage.success(message)
+  void refreshLessons()
+}
+
+function goTimetable() {
+  router.push({
+    path: '/schedule',
+    query: {
+      ...(lessonDate.value ? { date: lessonDate.value } : {}),
+      ...(classId.value ? { classId: classId.value } : {}),
+    },
+  })
+}
+
+async function removeLesson(lesson: ScheduleLessonRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除 ${lesson.lessonDate || ''} ${formatClass(lesson.classId)} 的排课吗？`,
+      '删除排课',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  deletingLessonId.value = lesson.id
+  try {
+    await deleteScheduleLesson(lesson.id)
+    ElMessage.success('排课已删除')
+    await refreshLessons()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除排课失败'))
+  } finally {
+    deletingLessonId.value = null
+  }
+}
+
+/** 执行页跳转带参：create=1 直接打开新增弹窗（周课表空格点击），editId 直接打开编辑 */
+function applyRouteQuery() {
+  const query = route.query
+  const date = typeof query.date === 'string' && query.date ? query.date : ''
+  const queryClassId = typeof query.classId === 'string' && query.classId ? query.classId : ''
+  if (date) {
+    lessonDate.value = date
+  }
+  if (queryClassId) {
+    classId.value = queryClassId
+  }
+  if (query.create === '1') {
+    dialogMode.value = 'create'
+    dialogLesson.value = null
+    dialogPrefill.value = {
+      ...(date ? { lessonDate: date } : {}),
+      ...(typeof query.timeSlotId === 'string' && query.timeSlotId
+        ? { timeSlotId: query.timeSlotId }
+        : {}),
+      ...(typeof query.classroomId === 'string' && query.classroomId
+        ? { classroomId: query.classroomId }
+        : {}),
+      ...(queryClassId ? { classId: queryClassId } : {}),
+    }
+    dialogVisible.value = true
+    return
+  }
+  if (typeof query.editId === 'string' && query.editId) {
+    const target = lessons.value.find((item) => String(item.id) === query.editId)
+    if (target) {
+      openEditDialog(target)
+    }
+  }
+}
+
+async function initializePage() {
+  lookupLoading.value = true
+  pageError.value = ''
+  try {
+    await institutionStore.loadInstitutions()
+    if (institutionId.value) {
+      await refreshScopeData()
+    }
+    applyRouteQuery()
+    await refreshLessons()
+    // editId 依赖列表加载完成后才能定位目标行
+    if (typeof route.query.editId === 'string' && route.query.editId) {
+      applyRouteQuery()
+    }
+  } catch (error) {
+    pageError.value = toMessage(error, '页面初始化失败')
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    termId.value = null
+    classId.value = null
+    lessonPage.value = 1
+    await refreshScopeData()
+    await refreshLessons()
+  }
+)
+
+// 页面停留时从执行页等入口带参跳转也要生效（初始化时由 initializePage 处理）
+watch(
+  () => route.query,
+  async () => {
+    if (route.name !== 'scheduling') {
+      return
+    }
+    lessonPage.value = 1
+    applyRouteQuery()
+    await refreshLessons()
+    if (typeof route.query.editId === 'string' && route.query.editId) {
+      applyRouteQuery()
+    }
+  }
+)
+
+onMounted(() => {
+  initializePage()
+})
+</script>
+
+<style scoped>
+.relation-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.lesson-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.datebar-label {
+  font-weight: 600;
+  color: #14213d;
+  white-space: nowrap;
+}
+
+.datebar-hint {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+</style>
