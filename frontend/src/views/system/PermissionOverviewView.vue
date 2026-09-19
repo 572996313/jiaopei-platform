@@ -2,9 +2,15 @@
   <section class="education-page">
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">功能权限总览<span class="panel-count">共 {{ overview?.permissions.length || 0 }} 个权限码</span></div>
+        <div class="panel-title">
+          功能权限总览<span class="panel-count"
+            >共 {{ overview?.permissions.length || 0 }} 个权限码</span
+          >
+        </div>
         <div class="table-actions">
-          <span class="education-context-text">权限码与受控接口/持有角色/列表按钮/菜单节点的关系总览,数据实时聚合自代码与配置。</span>
+          <span class="education-context-text"
+            >权限码与受控接口/持有角色/列表按钮/菜单节点的关系总览,数据实时聚合自代码与配置。</span
+          >
           <el-button :loading="loading" @click="loadAll">刷新</el-button>
         </div>
       </div>
@@ -41,12 +47,17 @@
           </article>
           <article class="stat-card">
             <div class="stat-label">悬空码</div>
-            <div class="stat-value" :class="{ 'stat-value-danger': danglingCount > 0 }">{{ danglingCount }}</div>
+            <div class="stat-value" :class="{ 'stat-value-danger': danglingCount > 0 }">
+              {{ danglingCount }}
+            </div>
             <div class="stat-hint">无任何接口使用,配置了也不产生门禁</div>
           </article>
           <article class="stat-card">
             <div class="stat-label">未登记码</div>
-            <div class="stat-value" :class="{ 'stat-value-danger': overview.unregistered.length > 0 }">
+            <div
+              class="stat-value"
+              :class="{ 'stat-value-danger': overview.unregistered.length > 0 }"
+            >
               {{ overview.unregistered.length }}
             </div>
             <div class="stat-hint">被引用但后端注解中不存在</div>
@@ -55,7 +66,12 @@
 
         <div class="permission-overview-layout">
           <div class="panel-card permission-overview-tree">
-            <el-input v-model="keyword" placeholder="搜索权限码/名称/接口路径" clearable class="permission-search" />
+            <el-input
+              v-model="keyword"
+              placeholder="搜索权限码/名称/接口路径"
+              clearable
+              class="permission-search"
+            />
             <el-tree
               :data="treeData"
               node-key="key"
@@ -69,7 +85,11 @@
 
           <div class="permission-overview-detail">
             <template v-if="selectedCards.length">
-              <article v-for="card in selectedCards" :key="card.code" class="panel-card permission-detail-card">
+              <article
+                v-for="card in selectedCards"
+                :key="card.code"
+                class="panel-card permission-detail-card"
+              >
                 <div class="permission-card-head">
                   <el-tag v-if="!card.registered" type="danger">未登记</el-tag>
                   <el-tag v-else-if="card.dangling" type="warning">悬空</el-tag>
@@ -86,7 +106,8 @@
                       :key="role.roleId"
                       size="small"
                       class="permission-tag"
-                    >{{ role.roleName }}({{ role.roleCode }})</el-tag>
+                      >{{ role.roleName }}({{ role.roleCode }})</el-tag
+                    >
                   </template>
                   <span v-else class="education-context-text">暂无角色持有该权限码</span>
                 </div>
@@ -99,7 +120,8 @@
                     size="small"
                     type="info"
                     class="permission-tag"
-                  >{{ name }}</el-tag>
+                    >{{ name }}</el-tag
+                  >
                 </div>
 
                 <div class="permission-card-section">
@@ -111,17 +133,28 @@
                       size="small"
                       type="success"
                       class="permission-tag"
-                    >{{ btn.resourceName }}·{{ btn.label }}({{ btn.position === 'toolbar' ? '上方' : '行内' }})</el-tag>
+                      >{{ btn.resourceName }}·{{ btn.label }}({{
+                        btn.position === 'toolbar' ? '上方' : '行内'
+                      }})</el-tag
+                    >
                   </template>
                   <span v-else class="education-context-text">没有列表页按钮使用该权限码</span>
                 </div>
 
                 <div class="permission-card-section">
                   <span class="permission-section-label">受控接口</span>
-                  <el-table v-if="card.endpoints.length" :data="card.endpoints" size="small" border>
+                  <el-table
+                    v-if="card.endpoints.length"
+                    :data="card.endpoints"
+                    size="small"
+                    border
+                    :max-height="TABLE_VIEWPORT_MAX_HEIGHT"
+                  >
                     <el-table-column label="方法" width="90">
                       <template #default="{ row }">
-                        <el-tag size="small" :type="methodTagType(row.method)">{{ row.method }}</el-tag>
+                        <el-tag size="small" :type="methodTagType(row.method)">{{
+                          row.method
+                        }}</el-tag>
                       </template>
                     </el-table-column>
                     <el-table-column prop="path" label="路径" min-width="240" />
@@ -147,6 +180,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { TABLE_VIEWPORT_MAX_HEIGHT } from '@/utils/table-view'
 import {
   fetchPermissionOverview,
   fetchSystemMenusTree,
@@ -172,7 +206,13 @@ interface PermissionCard {
   endpoints: PermissionEndpointInfo[]
   roles: PermissionRoleRef[]
   menuNodeNames: string[]
-  configButtons: Array<{ resourceCode: string; resourceName: string; action: string; label: string; position: string }>
+  configButtons: Array<{
+    resourceCode: string
+    resourceName: string
+    action: string
+    label: string
+    position: string
+  }>
   dangling: boolean
 }
 
@@ -185,9 +225,11 @@ const keyword = ref('')
 const selectedKeys = ref<string[]>([])
 
 const totalEndpoints = computed(() =>
-  (overview.value?.permissions || []).reduce((sum, item) => sum + item.endpoints.length, 0),
+  (overview.value?.permissions || []).reduce((sum, item) => sum + item.endpoints.length, 0)
 )
-const danglingCount = computed(() => (overview.value?.permissions || []).filter((item) => item.dangling).length)
+const danglingCount = computed(
+  () => (overview.value?.permissions || []).filter((item) => item.dangling).length
+)
 
 /** 权限码中文名:菜单按钮节点名优先(角色勾选后以菜单管理维护为准),前端常量表兜底 */
 function displayName(code: string, menuNodeName?: string) {
@@ -223,7 +265,9 @@ function buildCards(data: PermissionOverview): Map<string, PermissionCard> {
   return cards
 }
 
-const allCards = computed(() => (overview.value ? buildCards(overview.value) : new Map<string, PermissionCard>()))
+const allCards = computed(() =>
+  overview.value ? buildCards(overview.value) : new Map<string, PermissionCard>()
+)
 
 function toTreeNodes(nodes: SystemMenuTreeNode[]): OverviewTreeNode[] {
   return nodes.map((node) => ({
@@ -256,14 +300,16 @@ const treeData = computed<OverviewTreeNode[]>(() => {
         (overview.value?.permissions || []).map((usage) => ({
           code: usage.code,
           label: displayName(usage.code, usage.menuNodes[0]?.menuName),
-        })),
+        }))
       ),
     })
   } else {
     groups.push(...toTreeNodes(menuTree.value))
     // 有后端接口与注解、但 sys_menu 里没有挂任何节点的码(如教务/组织的 read/write),
     // 正常权限,只是暂无树归属,单独成组便于发现
-    const unattached = (overview.value?.permissions || []).filter((usage) => usage.menuNodes.length === 0)
+    const unattached = (overview.value?.permissions || []).filter(
+      (usage) => usage.menuNodes.length === 0
+    )
     if (unattached.length) {
       groups.push({
         key: 'registered-unattached-group',
@@ -272,7 +318,7 @@ const treeData = computed<OverviewTreeNode[]>(() => {
           unattached.map((usage) => ({
             code: usage.code,
             label: displayName(usage.code, usage.menuNodes[0]?.menuName),
-          })),
+          }))
         ),
       })
     }
@@ -311,10 +357,12 @@ const selectedCards = computed<PermissionCard[]>(() => {
       (card) =>
         card.code.toLowerCase().includes(trimmed) ||
         card.label.toLowerCase().includes(trimmed) ||
-        card.endpoints.some((endpoint) => endpoint.path.toLowerCase().includes(trimmed)),
+        card.endpoints.some((endpoint) => endpoint.path.toLowerCase().includes(trimmed))
     )
   }
-  return selectedKeys.value.map((code) => cards.get(code)).filter((card): card is PermissionCard => Boolean(card))
+  return selectedKeys.value
+    .map((code) => cards.get(code))
+    .filter((card): card is PermissionCard => Boolean(card))
 })
 
 function methodTagType(method: string): 'success' | 'warning' | 'danger' | 'info' | 'primary' {
@@ -365,11 +413,14 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 340px 1fr;
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+  /* 视口填充:左树右详情各占一列,内部滚动 */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .permission-overview-tree {
-  max-height: 640px;
+  height: 100%;
   overflow: auto;
 }
 
@@ -381,6 +432,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .permission-detail-card {

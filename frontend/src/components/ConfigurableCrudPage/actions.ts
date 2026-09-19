@@ -38,7 +38,7 @@ export function buildDeleteHandler(
     /** 确认正文模板,{name} 为行展示名,{Resource} 为资源名 */
     confirmMessage?: string
     successMessage?: (row?: Record<string, any>) => string
-  },
+  }
 ): ActionHandler {
   return {
     handler: async (row) => {
@@ -48,7 +48,7 @@ export function buildDeleteHandler(
           .replace('{name}', name)
           .replace('{Resource}', ctx.resourceName),
         options.confirmTitle || '删除确认',
-        { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+        { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
       ).catch(() => null)
       if (confirm === null) {
         return
@@ -56,7 +56,7 @@ export function buildDeleteHandler(
       try {
         await options.deleteApi(String(row?.id))
         ElMessage.success(
-          (options.successMessage ? options.successMessage(row) : '') || `${ctx.resourceName}已删除`,
+          (options.successMessage ? options.successMessage(row) : '') || `${ctx.resourceName}已删除`
         )
         await ctx.reload()
       } catch (error) {
@@ -78,7 +78,7 @@ export function buildToggleStatusHandler(
     /** {name} = 行展示名;{action} = 当前状态文案(停用/启用) */
     confirmMessage?: (row?: Record<string, any>) => string
     successMessage?: (row?: Record<string, any>) => string
-  },
+  }
 ): ActionHandler {
   const statusOf = (row?: Record<string, any>) => row?.[options.statusField || 'status']
   const actionWord = (row?: Record<string, any>) => (statusOf(row) === 'active' ? '停用' : '启用')
@@ -88,9 +88,9 @@ export function buildToggleStatusHandler(
       const name = rowName(ctx, row)
       const word = actionWord(row)
       const confirm = await ElMessageBox.confirm(
-        (options.confirmMessage?.(row) ?? `确定${word}「${name}」吗?`),
+        options.confirmMessage?.(row) ?? `确定${word}「${name}」吗?`,
         '操作确认',
-        { type: 'warning', confirmButtonText: word, cancelButtonText: '取消' },
+        { type: 'warning', confirmButtonText: word, cancelButtonText: '取消' }
       ).catch(() => null)
       if (confirm === null) {
         return

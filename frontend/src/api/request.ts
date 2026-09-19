@@ -16,7 +16,10 @@ export class ApiError extends Error {
   status?: number
   path?: string
 
-  constructor(message: string, options?: { code?: string | number; status?: number; path?: string }) {
+  constructor(
+    message: string,
+    options?: { code?: string | number; status?: number; path?: string }
+  ) {
     super(message)
     this.name = 'ApiError'
     this.code = options?.code
@@ -76,7 +79,9 @@ function sanitizeParams(params?: Record<string, unknown>) {
     return undefined
   }
 
-  const entries = Object.entries(params).filter(([, value]) => value !== null && value !== undefined && value !== '')
+  const entries = Object.entries(params).filter(
+    ([, value]) => value !== null && value !== undefined && value !== ''
+  )
   return entries.length > 0 ? Object.fromEntries(entries) : undefined
 }
 

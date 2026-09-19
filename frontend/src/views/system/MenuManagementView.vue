@@ -6,12 +6,19 @@
       </article>
       <template v-else>
         <div class="education-table-head">
-          <div class="panel-title">菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span></div>
+          <div class="panel-title">
+            菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span>
+          </div>
           <div class="table-actions">
             <span class="education-context-text">
               菜单节点决定页面可见性,按钮节点承载接口权限码;在角色管理的「分配菜单」里勾选按钮即授权。
             </span>
-            <el-button v-if="permissions.canManageMenus" type="primary" @click="openCreateMenuDialog">新增菜单</el-button>
+            <el-button
+              v-if="permissions.canManageMenus"
+              type="primary"
+              @click="openCreateMenuDialog"
+              >新增菜单</el-button
+            >
           </div>
         </div>
 
@@ -21,6 +28,7 @@
           row-key="id"
           :tree-props="{ children: 'children' }"
           v-loading="menuTreeLoading"
+          :height="TABLE_FILL_HEIGHT"
         >
           <el-table-column prop="menuName" label="名称" min-width="180" />
           <el-table-column prop="menuCode" label="编码" width="180" />
@@ -41,7 +49,9 @@
           </el-table-column>
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status, statusLabelMap) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                statusLabel(row.status, statusLabelMap)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="remark" label="备注" min-width="160" />
@@ -57,8 +67,19 @@
       </template>
     </article>
 
-    <el-dialog v-model="menuDialogVisible" :title="menuDialogMode === 'create' ? '新增菜单节点' : '编辑菜单节点'" width="620px">
-      <el-alert v-if="menuFormError" :title="menuFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="menuDialogVisible"
+      :title="menuDialogMode === 'create' ? '新增菜单节点' : '编辑菜单节点'"
+      width="620px"
+    >
+      <el-alert
+        v-if="menuFormError"
+        :title="menuFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <div class="system-form-grid">
@@ -76,11 +97,20 @@
           </el-form-item>
           <el-form-item label="类型">
             <el-select v-model="menuForm.menuType">
-              <el-option v-for="item in menuTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+              <el-option
+                v-for="item in menuTypeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="编码">
-            <el-input v-model="menuForm.menuCode" :disabled="menuDialogMode === 'edit'" placeholder="如 system_users_manage" />
+            <el-input
+              v-model="menuForm.menuCode"
+              :disabled="menuDialogMode === 'edit'"
+              placeholder="如 system_users_manage"
+            />
           </el-form-item>
           <el-form-item label="名称">
             <el-input v-model="menuForm.menuName" placeholder="按钮节点请填写中文权限名" />
@@ -94,17 +124,30 @@
               clearable
               placeholder="按钮节点必填,可从已知码中选择"
             >
-              <el-option v-for="item in permissionOptions" :key="item.value" :label="`${item.label}(${item.value})`" :value="item.value" />
+              <el-option
+                v-for="item in permissionOptions"
+                :key="item.value"
+                :label="`${item.label}(${item.value})`"
+                :value="item.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="排序">
             <el-input-number v-model="menuForm.sortNo" :min="0" :max="9999" />
           </el-form-item>
           <el-form-item label="路径">
-            <el-input v-model="menuForm.path" :disabled="menuForm.menuType === 'button'" placeholder="如 /system/users" />
+            <el-input
+              v-model="menuForm.path"
+              :disabled="menuForm.menuType === 'button'"
+              placeholder="如 /system/users"
+            />
           </el-form-item>
           <el-form-item label="前端组件">
-            <el-input v-model="menuForm.component" :disabled="menuForm.menuType === 'button'" placeholder="如 system/users" />
+            <el-input
+              v-model="menuForm.component"
+              :disabled="menuForm.menuType === 'button'"
+              placeholder="如 system/users"
+            />
           </el-form-item>
           <el-form-item label="图标">
             <el-select
@@ -114,9 +157,16 @@
               placeholder="选择图标,用于侧边栏展示"
               style="width: 100%"
             >
-              <el-option v-for="item in menuIconOptions" :key="item.value" :label="item.label" :value="item.value">
+              <el-option
+                v-for="item in menuIconOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
                 <span class="menu-icon-option">
-                  <el-icon v-if="resolveMenuIcon(item.value)"><component :is="resolveMenuIcon(item.value)" /></el-icon>
+                  <el-icon v-if="resolveMenuIcon(item.value)"
+                    ><component :is="resolveMenuIcon(item.value)"
+                  /></el-icon>
                   <span>{{ item.label }}</span>
                 </span>
               </el-option>
@@ -124,7 +174,12 @@
           </el-form-item>
           <el-form-item label="状态">
             <el-select v-model="menuForm.status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+              <el-option
+                v-for="item in statusOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="侧边栏可见">
@@ -133,7 +188,13 @@
         </div>
 
         <el-form-item label="备注">
-          <el-input v-model="menuForm.remark" type="textarea" :rows="3" maxlength="500" placeholder="补充节点用途说明" />
+          <el-input
+            v-model="menuForm.remark"
+            type="textarea"
+            :rows="3"
+            maxlength="500"
+            placeholder="补充节点用途说明"
+          />
         </el-form-item>
       </el-form>
 
@@ -149,6 +210,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -333,7 +395,10 @@ async function submitMenu() {
     await reloadMenuTree()
     await auth.loadCurrentMenus()
   } catch (error) {
-    menuFormError.value = toMessage(error, menuDialogMode.value === 'create' ? '创建菜单失败' : '编辑菜单失败')
+    menuFormError.value = toMessage(
+      error,
+      menuDialogMode.value === 'create' ? '创建菜单失败' : '编辑菜单失败'
+    )
   } finally {
     menuSubmitting.value = false
   }
@@ -361,6 +426,10 @@ async function handleDeleteMenu(node: SystemMenuTreeNode) {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([ensureStatusDictLoaded(), ensurePermissionOptionsLoaded(), loadMenuTree()])
+  await Promise.allSettled([
+    ensureStatusDictLoaded(),
+    ensurePermissionOptionsLoaded(),
+    loadMenuTree(),
+  ])
 })
 </script>

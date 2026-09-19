@@ -15,7 +15,12 @@
     <el-table-column prop="type" label="控件类型 type" width="160">
       <template #default="{ row }">
         <el-select v-model="row.type" size="small" filterable>
-          <el-option v-for="opt in QUERY_TYPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option
+            v-for="opt in QUERY_TYPE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </template>
     </el-table-column>
@@ -40,14 +45,32 @@
 
         <template v-if="row.type === 'select'">
           <el-form-item label="选项来源" class="full-span">
-            <el-radio-group :model-value="modeOf(row)" @update:model-value="setMode(row, $event as string)">
+            <el-radio-group
+              :model-value="modeOf(row)"
+              @update:model-value="setMode(row, $event as string)"
+            >
               <el-radio value="options">手填选项</el-radio>
               <el-radio value="loader">用现成数据源(optionsLoader)</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item v-if="modeOf(row) === 'loader'" label="数据源 optionsLoader" class="full-span">
-            <el-select v-model="row.optionsLoader" size="small" clearable filterable placeholder="选择数据源">
-              <el-option v-for="opt in OPTIONS_LOADER_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-form-item
+            v-if="modeOf(row) === 'loader'"
+            label="数据源 optionsLoader"
+            class="full-span"
+          >
+            <el-select
+              v-model="row.optionsLoader"
+              size="small"
+              clearable
+              filterable
+              placeholder="选择数据源"
+            >
+              <el-option
+                v-for="opt in OPTIONS_LOADER_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item v-else label="静态选项 options" class="full-span">
@@ -64,7 +87,12 @@
     <template #tip>
       <span class="block-tip">
         field 必须是后端分页接口支持的查询参数,否则填了不生效。
-        <a href="https://element-plus.org/zh-CN/component/select.html" target="_blank" rel="noopener">下拉文档 ↗</a>
+        <a
+          href="https://element-plus.org/zh-CN/component/select.html"
+          target="_blank"
+          rel="noopener"
+          >下拉文档 ↗</a
+        >
       </span>
     </template>
   </TableEditorShell>
@@ -73,11 +101,7 @@
 <script setup lang="ts">
 import KeyValueEditor from './KeyValueEditor.vue'
 import TableEditorShell from './TableEditorShell.vue'
-import {
-  OPTIONS_LOADER_OPTIONS,
-  QUERY_TYPE_OPTIONS,
-  type QueryRow,
-} from './types'
+import { OPTIONS_LOADER_OPTIONS, QUERY_TYPE_OPTIONS, type QueryRow } from './types'
 
 const modelValue = defineModel<QueryRow[]>({ required: true })
 

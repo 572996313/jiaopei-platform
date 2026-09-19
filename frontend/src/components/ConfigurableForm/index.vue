@@ -28,7 +28,9 @@
     >
       <div
         class="configurable-form-grid"
-        :style="gridColumns > 1 ? { gridTemplateColumns: `repeat(${gridColumns}, 1fr)` } : undefined"
+        :style="
+          gridColumns > 1 ? { gridTemplateColumns: `repeat(${gridColumns}, 1fr)` } : undefined
+        "
       >
         <el-form-item
           v-for="field in visibleFields"
@@ -127,7 +129,11 @@
             :disabled="isDisabled(field)"
             @change="handleFieldChange(field, model[field.field])"
           >
-            <el-checkbox v-for="option in optionsFor(field)" :key="option.value" :value="option.value">
+            <el-checkbox
+              v-for="option in optionsFor(field)"
+              :key="option.value"
+              :value="option.value"
+            >
               {{ option.label }}
             </el-checkbox>
           </el-checkbox-group>
@@ -154,7 +160,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { FormInstance, FormItemRule } from 'element-plus'
 import { useListConfigStore } from '@/stores/listConfig'
 import { useDictStore } from '@/stores/dict'
-import { optionLoaders, type RenderContext } from '../ConfigurableList/renderers'
+import { useDataSourceStore } from '@/stores/dataSource'
+import { resolveOptionLoader, type RenderContext } from '../ConfigurableList/renderers'
 import type {
   FormFieldConfig,
   FormMode,
@@ -184,7 +191,7 @@ const props = withDefaults(
     onFieldChange: undefined,
     disabled: false,
     gridColumns: 2,
-  },
+  }
 )
 
 const emit = defineEmits<{
@@ -194,6 +201,7 @@ const emit = defineEmits<{
 
 const listConfigStore = useListConfigStore()
 const dictStore = useDictStore()
+const dataSourceStore = useDataSourceStore()
 
 const configError = ref('')
 const loading = ref(true)
@@ -243,14 +251,13 @@ function isDisabled(field: FormFieldConfig) {
   return props.disabled || Boolean(field.disabledOn?.includes(props.mode))
 }
 
-/** 选项:静态 options 优先,其次 optionsLoader 查注册表 */
+/** 选项:静态 options 优先,其次 optionsLoader 统一解析(context 优先,配置化兜底) */
 function optionsFor(field: FormFieldConfig): QueryOption[] {
   if (field.options?.length) {
     return field.options
   }
   if (field.optionsLoader) {
-    const loader = optionLoaders[field.optionsLoader]
-    return loader ? loader(props.context) : []
+    return resolveOptionLoader(field.optionsLoader, props.context)
   }
   return []
 }
@@ -312,7 +319,10 @@ function notifyFieldHooks() {
 }
 
 /** 由配置 JSON 字符串解析成 FormPageConfig;返回 null 表示未配置 */
-function parseFormJson(raw: string | null | undefined, resourceCode: string): FormPageConfig | null {
+function parseFormJson(
+  raw: string | null | undefined,
+  resourceCode: string
+): FormPageConfig | null {
   if (!raw || !raw.trim()) {
     return null
   }
@@ -349,6 +359,13 @@ async function loadConfig() {
         .map((field) => field.dictType as string)
       if (dictTypes.length) {
         await dictStore.ensureLoaded(dictTypes)
+      }
+      // 预热表单 optionsLoader 引用的配置化数据源(宿主未注入的编码)
+      const loaderCodes = formConfig.value.fields
+        .map((field) => field.optionsLoader)
+        .filter((code): code is string => Boolean(code))
+      if (loaderCodes.length) {
+        await dataSourceStore.preloadCodes(loaderCodes)
       }
     }
     initModel()
@@ -406,7 +423,7 @@ watch(
   () => props.resourceCode,
   () => {
     void loadConfig()
-  },
+  }
 )
 watch(
   () => props.mode,
@@ -414,7 +431,7 @@ watch(
     // 切换 create/edit 时重建可见字段默认值(如仅 create 字段消失)
     initModel()
     formRef.value?.clearValidate()
-  },
+  }
 )
 
 watch(
@@ -424,7 +441,7 @@ watch(
     initModel()
     formRef.value?.clearValidate()
     notifyFieldHooks()
-  },
+  }
 )
 
 defineExpose({

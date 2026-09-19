@@ -6,8 +6,10 @@ import type { PageResult } from '@/api/common'
 import type { ListConfigSummary } from '@/api/system'
 import { useDictStore } from '@/stores/dict'
 import { useListConfigStore } from '@/stores/listConfig'
+import { useDataSourceStore } from '@/stores/dataSource'
 import { useAuthStore } from '@/stores/auth'
-import { ConfigurableCell, collectDictTypes, optionLoaders, type RenderContext } from './renderers'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
+import { ConfigurableCell, collectDictTypes, resolveOptionLoader, type RenderContext } from './renderers'
 import type {
   ActionHandler,
   ListActionConfig,
@@ -30,7 +32,7 @@ const props = withDefaults(
     /** 空态文案(表格无数据时展示),缺省 '暂无数据' */
     emptyText?: string
   }>(),
-  { actionsWidth: 0, emptyText: '暂无数据' },
+  { actionsWidth: 0, emptyText: '暂无数据' }
 )
 
 const emit = defineEmits<{
@@ -38,6 +40,7 @@ const emit = defineEmits<{
 }>()
 
 const listConfigStore = useListConfigStore()
+const dataSourceStore = useDataSourceStore()
 const dictStore = useDictStore()
 const auth = useAuthStore()
 
@@ -106,6 +109,13 @@ async function loadConfig() {
     if (dictTypes.length) {
       await dictStore.ensureLoaded(dictTypes)
     }
+    // 预加载查询区 optionsLoader 引用的配置化数据源(宿主未注入的编码)
+    const loaderCodes = (parsed.queryFields ?? [])
+      .map((field) => field.optionsLoader)
+      .filter((code): code is string => Boolean(code))
+    if (loaderCodes.length) {
+      await dataSourceStore.preloadCodes(loaderCodes)
+    }
     await fetchPage()
   } catch (error) {
     configError.value = toMessage(error, '列表配置加载失败')
@@ -130,7 +140,10 @@ async function fetchPage() {
   const token = ++fetchToken
   loading.value = true
   try {
-    const result = await requestGet<PageResult<Record<string, any>>>(current.endpoint, buildQueryParams())
+    const result = await requestGet<PageResult<Record<string, any>>>(
+      current.endpoint,
+      buildQueryParams()
+    )
     if (token !== fetchToken) {
       return
     }
@@ -179,10 +192,7 @@ function optionsFor(field: QueryFieldConfig): QueryOption[] {
     return field.options
   }
   if (field.optionsLoader) {
-    const loader = optionLoaders[field.optionsLoader]
-    if (loader) {
-      return loader(props.context)
-    }
+    return resolveOptionLoader(field.optionsLoader, props.context)
   }
   return []
 }
@@ -203,7 +213,9 @@ const actionConfigs = computed<ListActionConfig[]>(() => {
   })
 })
 
-const toolbarActions = computed(() => actionConfigs.value.filter((action) => action.position === 'toolbar'))
+const toolbarActions = computed(() =>
+  actionConfigs.value.filter((action) => action.position === 'toolbar')
+)
 const rowActions = computed(() => actionConfigs.value.filter((action) => action.position === 'row'))
 
 /** 配置模式且未显式传宽时,按行按钮文案估算操作列宽(中文约 14px/字 + 内边距余量) */
@@ -214,7 +226,10 @@ const actionColumnWidth = computed(() => {
   if (!hasActionsConfig.value || rowActions.value.length === 0) {
     return undefined
   }
-  const contentWidth = rowActions.value.reduce((sum, action) => sum + action.label.length * 14 + 40, 0)
+  const contentWidth = rowActions.value.reduce(
+    (sum, action) => sum + action.label.length * 14 + 40,
+    0
+  )
   return Math.round(contentWidth + 24)
 })
 
@@ -261,7 +276,7 @@ watch(
   () => props.resourceCode,
   () => {
     void loadConfig()
-  },
+  }
 )
 
 onMounted(() => {
@@ -276,7 +291,14 @@ defineExpose({
 
 <template>
   <div class="configurable-list">
-    <el-alert v-if="configError" :title="configError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-alert
+      v-if="configError"
+      :title="configError"
+      type="error"
+      show-icon
+      :closable="false"
+      class="education-alert"
+    />
 
     <template v-else-if="config">
       <div v-if="toolbarActions.length" class="configurable-list-toolbar">
@@ -341,7 +363,7 @@ defineExpose({
         </el-form-item>
       </el-form>
 
-      <el-table :data="rows" border v-loading="loading">
+      <el-table :data="rows" border v-loading="loading" :height="TABLE_FILL_HEIGHT">
         <template #empty>
           <el-empty :description="props.emptyText" :image-size="70" />
         </template>
@@ -380,7 +402,12 @@ defineExpose({
             </div>
           </template>
         </el-table-column>
-        <el-table-column v-else-if="$slots.actions" label="操作" :width="actionsWidth" fixed="right">
+        <el-table-column
+          v-else-if="$slots.actions"
+          label="操作"
+          :width="actionsWidth"
+          fixed="right"
+        >
           <template #default="{ row }">
             <div class="system-operation-group">
               <slot name="actions" :row="row" />
@@ -404,6 +431,20 @@ defineExpose({
 </template>
 
 <style scoped>
+/* 视口填充:列表占满宿主卡片剩余高度,表格内部滚动 */
+.configurable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.configurable-list .el-table {
+  flex: 1 1 auto;
+  min-height: 200px;
+}
+
 .configurable-list-toolbar {
   display: flex;
   justify-content: flex-start;

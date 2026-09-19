@@ -43,7 +43,11 @@
     </div>
 
     <div v-loading="loading" class="week-grid-scroll">
-      <div class="week-grid-board" :class="`is-${mode}`" :style="{ gridTemplateColumns: boardColumns }">
+      <div
+        class="week-grid-board"
+        :class="`is-${mode}`"
+        :style="{ gridTemplateColumns: boardColumns }"
+      >
         <div class="week-grid-cell is-corner">{{ mode === 'week' ? '时段' : '周次' }}</div>
         <div
           v-for="cell in headerCells"
@@ -56,7 +60,9 @@
         </div>
 
         <template v-for="row in gridRows" :key="row.key">
-          <div class="week-grid-cell is-slot" :class="{ 'is-week-label': !row.isTimeRow }">{{ row.label }}</div>
+          <div class="week-grid-cell is-slot" :class="{ 'is-week-label': !row.isTimeRow }">
+            {{ row.label }}
+          </div>
           <div
             v-for="day in row.days"
             :key="`${row.key}-${day.date}`"
@@ -85,12 +91,18 @@
                     @click.stop
                   >
                     <span class="week-grid-card-title">
-                      <span v-if="mode !== 'week'" class="week-grid-card-time">{{ timeLabel(lesson) }}</span>
+                      <span v-if="mode !== 'week'" class="week-grid-card-time">{{
+                        timeLabel(lesson)
+                      }}</span>
                       <span class="week-grid-card-class">{{ formatClass(lesson.classId) }}</span>
                       <span v-if="hasConflict(lesson)" class="week-grid-card-conflict">撞</span>
                     </span>
-                    <span v-if="mode === 'week'" class="week-grid-card-meta">{{ formatClassroom(lesson.classroomId) }}</span>
-                    <span v-if="mode === 'week'" class="week-grid-card-meta">{{ formatTeachers(lesson.teacherIds) }}</span>
+                    <span v-if="mode === 'week'" class="week-grid-card-meta">{{
+                      formatClassroom(lesson.classroomId)
+                    }}</span>
+                    <span v-if="mode === 'week'" class="week-grid-card-meta">{{
+                      formatTeachers(lesson.teacherIds)
+                    }}</span>
                   </button>
                 </template>
 
@@ -101,11 +113,22 @@
                       {{ statusLabel(lesson.lessonStatus) }}
                     </el-tag>
                   </div>
-                  <div v-if="lesson.lessonTitle" class="week-grid-pop-line">{{ lesson.lessonTitle }}</div>
-                  <div class="week-grid-pop-line">{{ lesson.lessonDate }} {{ timeLabel(lesson) }} / {{ formatClassroom(lesson.classroomId) }}</div>
-                  <div class="week-grid-pop-line">教师：{{ formatTeachers(lesson.teacherIds) }}</div>
-                  <div v-if="relationSummary(lesson) !== '无关联'" class="week-grid-pop-line">{{ relationSummary(lesson) }}</div>
-                  <div v-if="conflictText(lesson)" class="week-grid-pop-conflict">{{ conflictText(lesson) }}</div>
+                  <div v-if="lesson.lessonTitle" class="week-grid-pop-line">
+                    {{ lesson.lessonTitle }}
+                  </div>
+                  <div class="week-grid-pop-line">
+                    {{ lesson.lessonDate }} {{ timeLabel(lesson) }} /
+                    {{ formatClassroom(lesson.classroomId) }}
+                  </div>
+                  <div class="week-grid-pop-line">
+                    教师：{{ formatTeachers(lesson.teacherIds) }}
+                  </div>
+                  <div v-if="relationSummary(lesson) !== '无关联'" class="week-grid-pop-line">
+                    {{ relationSummary(lesson) }}
+                  </div>
+                  <div v-if="conflictText(lesson)" class="week-grid-pop-conflict">
+                    {{ conflictText(lesson) }}
+                  </div>
                   <div class="week-grid-pop-actions">
                     <el-button
                       size="small"
@@ -116,13 +139,31 @@
                     >
                       点名
                     </el-button>
-                    <el-button size="small" link type="warning" :disabled="!canComplete(lesson)" @click="emitAction('complete', lesson)">
+                    <el-button
+                      size="small"
+                      link
+                      type="warning"
+                      :disabled="!canComplete(lesson)"
+                      @click="emitAction('complete', lesson)"
+                    >
                       结课
                     </el-button>
-                    <el-button size="small" link type="primary" @click="emitAction('reschedule', lesson)">调课</el-button>
-                    <el-button size="small" link type="info" @click="emitAction('cancel', lesson)">停课</el-button>
-                    <el-button size="small" link type="danger" @click="emitAction('makeup', lesson)">补课</el-button>
-                    <el-button size="small" link type="primary" @click="emitAction('edit', lesson)">编辑</el-button>
+                    <el-button
+                      size="small"
+                      link
+                      type="primary"
+                      @click="emitAction('reschedule', lesson)"
+                      >调课</el-button
+                    >
+                    <el-button size="small" link type="info" @click="emitAction('cancel', lesson)"
+                      >停课</el-button
+                    >
+                    <el-button size="small" link type="danger" @click="emitAction('makeup', lesson)"
+                      >补课</el-button
+                    >
+                    <el-button size="small" link type="primary" @click="emitAction('edit', lesson)"
+                      >编辑</el-button
+                    >
                   </div>
                 </div>
               </el-popover>
@@ -148,7 +189,8 @@ export interface WeekGridDay {
   dimmed?: boolean
 }
 
-export type WeekLessonActionType = 'attendance' | 'complete' | 'reschedule' | 'cancel' | 'makeup' | 'edit'
+export type WeekLessonActionType =
+  'attendance' | 'complete' | 'reschedule' | 'cancel' | 'makeup' | 'edit'
 
 export interface WeekLessonAction {
   type: WeekLessonActionType
@@ -198,7 +240,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'lesson-action', payload: WeekLessonAction): void
-  (event: 'cell-click', payload: { date: string; timeSlotId?: string | null; classroomId?: string | null }): void
+  (
+    event: 'cell-click',
+    payload: { date: string; timeSlotId?: string | null; classroomId?: string | null }
+  ): void
 }>()
 
 const view = ref<'date' | 'classroom' | 'teacher'>('date')
@@ -221,7 +266,9 @@ const visibleLessons = computed(() => {
   }
   if (view.value === 'teacher' && focusTeacherId.value) {
     const teacherId = focusTeacherId.value
-    return props.lessons.filter((lesson) => normalizeTeacherIds(lesson.teacherIds).includes(teacherId))
+    return props.lessons.filter((lesson) =>
+      normalizeTeacherIds(lesson.teacherIds).includes(teacherId)
+    )
   }
   return props.lessons
 })
@@ -274,7 +321,7 @@ const timeRows = computed<TimeRow[]>(() => {
   }
 
   return Array.from(rows.values()).sort(
-    (left, right) => left.start.localeCompare(right.start) || left.end.localeCompare(right.end),
+    (left, right) => left.start.localeCompare(right.start) || left.end.localeCompare(right.end)
   )
 })
 
@@ -326,7 +373,9 @@ const gridRows = computed<GridRow[]>(() => {
   return calendarRows.value
 })
 
-const boardColumns = computed(() => `92px repeat(7, minmax(${props.mode === 'week' ? 128 : 104}px, 1fr))`)
+const boardColumns = computed(
+  () => `92px repeat(7, minmax(${props.mode === 'week' ? 128 : 104}px, 1fr))`
+)
 
 // 客户端近似冲突检测：同一天内同教室 / 同教师时段重叠（提交时仍以服务端校验为准）
 const conflictReasons = computed(() => {
@@ -364,7 +413,9 @@ const conflictReasons = computed(() => {
           push(right, reason)
         }
         const leftTeachers = normalizeTeacherIds(left.teacherIds)
-        const sharedTeachers = leftTeachers.filter((id) => normalizeTeacherIds(right.teacherIds).includes(id))
+        const sharedTeachers = leftTeachers.filter((id) =>
+          normalizeTeacherIds(right.teacherIds).includes(id)
+        )
         if (sharedTeachers.length > 0) {
           const reason = `教师 ${sharedTeachers.map((id) => props.formatTeachers([id])).join('、')} 时段重叠`
           push(left, reason)
@@ -437,7 +488,11 @@ function cardClass(lesson: ScheduleLessonRecord) {
 
 // 调课/补课课次仍要实际上课，可结课；停课课次不产生考勤
 function canComplete(lesson: Pick<ScheduleLessonRecord, 'lessonStatus'>) {
-  return lesson.lessonStatus === 'scheduled' || lesson.lessonStatus === 'rescheduled' || lesson.lessonStatus === 'makeup'
+  return (
+    lesson.lessonStatus === 'scheduled' ||
+    lesson.lessonStatus === 'rescheduled' ||
+    lesson.lessonStatus === 'makeup'
+  )
 }
 
 function timeLabel(lesson: ScheduleLessonRecord) {
@@ -454,7 +509,8 @@ function emitAction(type: WeekLessonActionType, lesson: ScheduleLessonRecord) {
 }
 
 function emitCellClick(date: string, row: GridRow) {
-  const classroomId = view.value === 'classroom' && focusClassroomId.value ? focusClassroomId.value : null
+  const classroomId =
+    view.value === 'classroom' && focusClassroomId.value ? focusClassroomId.value : null
   emit('cell-click', { date, timeSlotId: row.isTimeRow ? row.slotId || null : null, classroomId })
 }
 </script>
@@ -555,7 +611,9 @@ function emitCellClick(date: string, row: GridRow) {
   gap: 4px;
   padding: 6px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .week-grid-cell.is-slot-cell:hover {

@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="handleCampusChange"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -14,7 +20,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="termId" placeholder="筛选学期" clearable filterable @change="handleTermChange">
+        <el-select
+          v-model="termId"
+          placeholder="筛选学期"
+          clearable
+          filterable
+          @change="handleTermChange"
+        >
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -22,7 +34,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="classId" placeholder="筛选班级" clearable filterable @change="loadRecords">
+        <el-select
+          v-model="classId"
+          placeholder="筛选班级"
+          clearable
+          filterable
+          @change="loadRecords"
+        >
           <el-option
             v-for="item in classes"
             :key="item.id"
@@ -30,7 +48,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="studentId" placeholder="筛选学员" clearable filterable @change="loadRecords">
+        <el-select
+          v-model="studentId"
+          placeholder="筛选学员"
+          clearable
+          filterable
+          @change="loadRecords"
+        >
           <el-option
             v-for="item in students"
             :key="item.id"
@@ -42,9 +66,16 @@
       <div class="page-toolbar-actions">
         <el-button @click="statsVisible = !statsVisible">
           统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+            ><ArrowDown
+          /></el-icon>
         </el-button>
-        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading" @click="refreshAll" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="lookupLoading || tableLoading"
+          @click="refreshAll"
+        />
       </div>
     </div>
 
@@ -62,17 +93,21 @@
       <article class="stat-card">
         <div class="stat-label">报名记录</div>
         <div class="stat-value">{{ records.length }}</div>
-        <div class="stat-hint">{{ classId ? '按当前班级筛选' : studentId ? '按当前学员筛选' : '全部报名记录' }}</div>
+        <div class="stat-hint">
+          {{ classId ? '按当前班级筛选' : studentId ? '按当前学员筛选' : '全部报名记录' }}
+        </div>
       </article>
     </div>
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">学员档案<span class="panel-count">共 {{ students.length }} 条</span></div>
+        <div class="panel-title">
+          学员档案<span class="panel-count">共 {{ students.length }} 条</span>
+        </div>
         <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
       </div>
 
-      <el-table :data="students" border v-loading="tableLoading">
+      <el-table :data="students" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="studentNo" label="学号" width="140" />
         <el-table-column prop="studentName" label="姓名" min-width="120" />
         <el-table-column label="性别" width="80">
@@ -106,11 +141,13 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">报名记录<span class="panel-count">共 {{ records.length }} 条</span></div>
+        <div class="panel-title">
+          报名记录<span class="panel-count">共 {{ records.length }} 条</span>
+        </div>
         <el-button type="primary" @click="openDialog">新增报名</el-button>
       </div>
 
-      <el-table :data="records" border v-loading="tableLoading">
+      <el-table :data="records" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="enrollmentNo" label="报名编号" width="160" />
         <el-table-column label="学员" min-width="180">
           <template #default="{ row }">
@@ -143,11 +180,13 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">家长联系人<span class="panel-count">共 {{ studentParents.length }} 条</span></div>
+        <div class="panel-title">
+          家长联系人<span class="panel-count">共 {{ studentParents.length }} 条</span>
+        </div>
         <el-button type="primary" @click="openParentDialog">新增家长联系人</el-button>
       </div>
 
-      <el-table :data="studentParents" border v-loading="tableLoading">
+      <el-table :data="studentParents" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column label="学员" min-width="180">
           <template #default="{ row }">
             {{ formatStudent(row.studentId) }}
@@ -184,8 +223,19 @@
       </div>
     </article>
 
-    <el-dialog v-model="studentDialogVisible" :title="studentDialogMode === 'create' ? '新增学员' : '编辑学员'" width="560px">
-      <el-alert v-if="studentFormError" :title="studentFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="studentDialogVisible"
+      :title="studentDialogMode === 'create' ? '新增学员' : '编辑学员'"
+      width="560px"
+    >
+      <el-alert
+        v-if="studentFormError"
+        :title="studentFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="学号" required>
@@ -243,7 +293,12 @@
           />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="studentForm.remark" type="textarea" :rows="3" placeholder="补充学员说明" />
+          <el-input
+            v-model="studentForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充学员说明"
+          />
         </el-form-item>
       </el-form>
 
@@ -256,7 +311,14 @@
     </el-dialog>
 
     <el-dialog v-model="dialogVisible" title="新增报名" width="540px">
-      <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-alert
+        v-if="formError"
+        :title="formError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="报名班级" required>
@@ -313,7 +375,9 @@
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitEnrollment">提交报名</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitEnrollment"
+          >提交报名</el-button
+        >
       </template>
     </el-dialog>
 
@@ -368,13 +432,20 @@
           <el-switch v-model="parentForm.isEmergencyContact" />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="parentForm.remark" type="textarea" :rows="3" placeholder="补充联系人说明" />
+          <el-input
+            v-model="parentForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充联系人说明"
+          />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="parentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="parentSubmitting" @click="submitStudentParent">提交联系人</el-button>
+        <el-button type="primary" :loading="parentSubmitting" @click="submitStudentParent"
+          >提交联系人</el-button
+        >
       </template>
     </el-dialog>
   </section>
@@ -382,6 +453,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -465,11 +537,18 @@ const parentForm = reactive({
 })
 
 const classMap = computed(() => {
-  return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
+  return new Map(
+    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
+  )
 })
 
 const studentMap = computed(() => {
-  return new Map(students.value.map((item) => [item.id, item.studentName || item.studentNo || `学员 #${item.id}`]))
+  return new Map(
+    students.value.map((item) => [
+      item.id,
+      item.studentName || item.studentNo || `学员 #${item.id}`,
+    ])
+  )
 })
 
 function todayValue() {
@@ -727,7 +806,10 @@ async function submitStudent() {
     await refreshScopeData()
     await loadRecords()
   } catch (error) {
-    studentFormError.value = toMessage(error, studentDialogMode.value === 'create' ? '新增学员失败' : '更新学员失败')
+    studentFormError.value = toMessage(
+      error,
+      studentDialogMode.value === 'create' ? '新增学员失败' : '更新学员失败'
+    )
   } finally {
     studentSubmitting.value = false
   }
@@ -735,9 +817,13 @@ async function submitStudent() {
 
 async function confirmDeleteStudent(row: StudentSummary) {
   try {
-    await ElMessageBox.confirm(`确认删除学员「${row.studentName || row.studentNo}」吗？`, '删除学员', {
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      `确认删除学员「${row.studentName || row.studentNo}」吗？`,
+      '删除学员',
+      {
+        type: 'warning',
+      }
+    )
   } catch {
     return
   }
@@ -934,14 +1020,17 @@ async function initializePage() {
   }
 }
 
-watch(() => institutionStore.currentInstitutionId, async () => {
-  campusId.value = null
-  termId.value = null
-  classId.value = null
-  studentId.value = null
-  await refreshScopeData()
-  await loadRecords()
-})
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    termId.value = null
+    classId.value = null
+    studentId.value = null
+    await refreshScopeData()
+    await loadRecords()
+  }
+)
 
 onMounted(() => {
   initializePage()

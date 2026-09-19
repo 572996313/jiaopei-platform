@@ -2,7 +2,9 @@
   <section class="education-page">
     <div class="page-toolbar">
       <div class="page-toolbar-filters">
-        <span class="education-context-text">先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。</span>
+        <span class="education-context-text"
+          >先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。</span
+        >
       </div>
       <div class="page-toolbar-actions">
         <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
@@ -33,10 +35,13 @@
           <div>
             <div class="panel-title">今日执行清单</div>
             <div class="education-context-text">
-              {{ todayLabel }} / {{ formatInstitution(institutionId) }} / {{ formatCampus(campusId) }}
+              {{ todayLabel }} / {{ formatInstitution(institutionId) }} /
+              {{ formatCampus(campusId) }}
             </div>
           </div>
-          <el-tag type="warning" effect="plain">待点名 {{ pendingAttendanceLessons.length }}</el-tag>
+          <el-tag type="warning" effect="plain"
+            >待点名 {{ pendingAttendanceLessons.length }}</el-tag
+          >
         </div>
 
         <div v-if="todayQueueItems.length === 0" class="education-empty">
@@ -97,9 +102,7 @@
           <el-button link type="primary" @click="goToSchedule('reminders')">查看</el-button>
         </div>
 
-        <div v-if="reminderItems.length === 0" class="education-empty">
-          今天暂无额外变动提醒。
-        </div>
+        <div v-if="reminderItems.length === 0" class="education-empty">今天暂无额外变动提醒。</div>
 
         <div v-else class="mini-list">
           <button
@@ -141,7 +144,8 @@
                 </el-tag>
               </div>
               <div class="lesson-rhythm-text">
-                {{ formatTeacherNames(lesson.teacherIds) }} / {{ formatClassroom(lesson.classroomId) }}
+                {{ formatTeacherNames(lesson.teacherIds) }} /
+                {{ formatClassroom(lesson.classroomId) }}
               </div>
             </div>
             <div class="lesson-rhythm-progress">
@@ -166,7 +170,13 @@
       <article class="panel-card">
         <div class="panel-title">常用入口</div>
         <div class="quick-link-list">
-          <button v-for="item in quickLinks" :key="item.label" class="quick-link-card" type="button" @click="goTo(item.to)">
+          <button
+            v-for="item in quickLinks"
+            :key="item.label"
+            class="quick-link-card"
+            type="button"
+            @click="goTo(item.to)"
+          >
             <div class="quick-link-title">{{ item.label }}</div>
             <div class="quick-link-text">{{ item.hint }}</div>
           </button>
@@ -180,7 +190,14 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
-import { fetchDayTimetable, fetchLessonAttendancePage, fetchTeachers, type AttendanceLessonPage, type ScheduleLessonRecord, type TeacherSummary } from '@/api/education'
+import {
+  fetchDayTimetable,
+  fetchLessonAttendancePage,
+  fetchTeachers,
+  type AttendanceLessonPage,
+  type ScheduleLessonRecord,
+  type TeacherSummary,
+} from '@/api/education'
 import { fetchClassrooms, type ClassroomSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
 import { useAuthStore } from '@/stores/auth'
@@ -217,35 +234,62 @@ const attendancePages = ref<Record<string, AttendanceLessonPage>>({})
 
 const institutionMap = computed(() => {
   return new Map(
-    institutions.value.map((item) => [item.id, item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`]),
+    institutions.value.map((item) => [
+      item.id,
+      item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
+    ])
   )
 })
 
 const campusMap = computed(() => {
-  return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
+  return new Map(
+    campuses.value.map((item) => [
+      item.id,
+      item.campusName || item.campusCode || `校区 #${item.id}`,
+    ])
+  )
 })
 
 const classMap = computed(() => {
-  return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
+  return new Map(
+    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
+  )
 })
 
 const teacherMap = computed(() => {
-  return new Map(teachers.value.map((item) => [item.id, item.teacherName || item.teacherCode || `教师 #${item.id}`]))
+  return new Map(
+    teachers.value.map((item) => [
+      item.id,
+      item.teacherName || item.teacherCode || `教师 #${item.id}`,
+    ])
+  )
 })
 
 const classroomMap = computed(() => {
   return new Map(
-    classrooms.value.map((item) => [item.id, item.classroomName || item.classroomCode || `教室 #${item.id}`]),
+    classrooms.value.map((item) => [
+      item.id,
+      item.classroomName || item.classroomCode || `教室 #${item.id}`,
+    ])
   )
 })
 
 // 与日常教务中心口径一致：调课/补课课次仍要实际上课，可点名可结课；停课不产生考勤
 function isAttendanceAllowedStatus(status?: string | null) {
-  return status === 'scheduled' || status === 'rescheduled' || status === 'makeup' || status === 'completed'
+  return (
+    status === 'scheduled' ||
+    status === 'rescheduled' ||
+    status === 'makeup' ||
+    status === 'completed'
+  )
 }
 
 function canCompleteLesson(lesson: Pick<ScheduleLessonRecord, 'lessonStatus'>) {
-  return lesson.lessonStatus === 'scheduled' || lesson.lessonStatus === 'rescheduled' || lesson.lessonStatus === 'makeup'
+  return (
+    lesson.lessonStatus === 'scheduled' ||
+    lesson.lessonStatus === 'rescheduled' ||
+    lesson.lessonStatus === 'makeup'
+  )
 }
 
 const pendingAttendanceLessons = computed(() => {
@@ -259,7 +303,7 @@ const pendingAttendanceLessons = computed(() => {
         return true
       }
       return page.summary.markedCount < page.summary.expectedCount
-    }),
+    })
   )
 })
 
@@ -270,8 +314,12 @@ const readyToCompleteLessons = computed(() => {
         return false
       }
       const page = attendancePages.value[lesson.id]
-      return Boolean(page && page.summary.expectedCount > 0 && page.summary.markedCount >= page.summary.expectedCount)
-    }),
+      return Boolean(
+        page &&
+        page.summary.expectedCount > 0 &&
+        page.summary.markedCount >= page.summary.expectedCount
+      )
+    })
   )
 })
 
@@ -283,7 +331,8 @@ const reminderItems = computed<ReminderItem[]>(() => {
     if (page?.message) {
       items.push({
         key: `${lesson.id}-attendance-message`,
-        title: `${formatClass(lesson.classId)} ${compactTimeRange(lesson.startTime, lesson.endTime) || ''}`.trim(),
+        title:
+          `${formatClass(lesson.classId)} ${compactTimeRange(lesson.startTime, lesson.endTime) || ''}`.trim(),
         text: page.message,
       })
     }
@@ -307,16 +356,34 @@ const reminderItems = computed<ReminderItem[]>(() => {
 })
 
 const workbenchCards = computed(() => {
-  const nextLesson = sortedLessons(todayLessons.value).find((lesson) => lesson.lessonStatus === 'scheduled')
+  const nextLesson = sortedLessons(todayLessons.value).find(
+    (lesson) => lesson.lessonStatus === 'scheduled'
+  )
 
   return [
-    { label: '今日课次', value: String(todayLessons.value.length), hint: `${todayLabel.value} 的日课表` },
-    { label: '待点名课次', value: String(pendingAttendanceLessons.value.length), hint: '优先处理未完成点名的课次' },
-    { label: '待结课课次', value: String(readyToCompleteLessons.value.length), hint: '点名完成后可直接结课' },
+    {
+      label: '今日课次',
+      value: String(todayLessons.value.length),
+      hint: `${todayLabel.value} 的日课表`,
+    },
+    {
+      label: '待点名课次',
+      value: String(pendingAttendanceLessons.value.length),
+      hint: '优先处理未完成点名的课次',
+    },
+    {
+      label: '待结课课次',
+      value: String(readyToCompleteLessons.value.length),
+      hint: '点名完成后可直接结课',
+    },
     {
       label: '下一节课',
-      value: nextLesson ? compactTimeRange(nextLesson.startTime, nextLesson.endTime) || '待定' : '暂无',
-      hint: nextLesson ? `${formatClass(nextLesson.classId)} / ${formatTeacherNames(nextLesson.teacherIds)}` : '当前没有待执行课次',
+      value: nextLesson
+        ? compactTimeRange(nextLesson.startTime, nextLesson.endTime) || '待定'
+        : '暂无',
+      hint: nextLesson
+        ? `${formatClass(nextLesson.classId)} / ${formatTeacherNames(nextLesson.teacherIds)}`
+        : '当前没有待执行课次',
     },
   ]
 })
@@ -548,10 +615,12 @@ async function loadAttendancePages(lessons: ScheduleLessonRecord[]) {
       } catch {
         return null
       }
-    }),
+    })
   )
 
-  attendancePages.value = Object.fromEntries(pages.filter((item): item is readonly [string, AttendanceLessonPage] => Boolean(item)))
+  attendancePages.value = Object.fromEntries(
+    pages.filter((item): item is readonly [string, AttendanceLessonPage] => Boolean(item))
+  )
 }
 
 async function refreshBoard() {
@@ -571,7 +640,7 @@ async function refreshBoard() {
         institutionId: institutionId.value,
         campusId: campusId.value,
         lessonDate: today.value,
-      }),
+      })
     )
     todayLessons.value = lessons
     await loadAttendancePages(lessons)
@@ -603,7 +672,7 @@ async function initializeBoard() {
           institutionId: institutionId.value,
           campusId: campusId.value,
           lessonDate: today.value,
-        }),
+        })
       )
       todayLessons.value = lessons
       await loadAttendancePages(lessons)
@@ -619,10 +688,13 @@ onMounted(() => {
   initializeBoard()
 })
 
-watch(() => institutionStore.currentInstitutionId, async () => {
-  campusId.value = null
-  await refreshBoard()
-})
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    await refreshBoard()
+  }
+)
 </script>
 
 <style scoped>

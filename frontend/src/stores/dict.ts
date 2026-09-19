@@ -15,7 +15,9 @@ export const useDictStore = defineStore('dict', () => {
   const loadedTypeCodes = computed(() => Object.keys(itemsByType.value))
 
   async function ensureLoaded(typeCodes: string[]) {
-    const missing = Array.from(new Set(typeCodes.filter((code) => code && !(code in itemsByType.value))))
+    const missing = Array.from(
+      new Set(typeCodes.filter((code) => code && !(code in itemsByType.value)))
+    )
     if (missing.length === 0) {
       return
     }
@@ -40,9 +42,7 @@ export const useDictStore = defineStore('dict', () => {
     if (existing) {
       return existing
     }
-    const tracked = pending
-      .catch(() => undefined)
-      .finally(() => loadingPromises.delete(typeCode))
+    const tracked = pending.catch(() => undefined).finally(() => loadingPromises.delete(typeCode))
     loadingPromises.set(typeCode, tracked)
     return tracked
   }

@@ -1,9 +1,5 @@
 <template>
-  <TableEditorShell
-    v-model="modelValue"
-    :create-row="createRow"
-    class="te-col-editor"
-  >
+  <TableEditorShell v-model="modelValue" :create-row="createRow" class="te-col-editor">
     <!-- 主列:字段名 / 标题 / 渲染类型 / 宽度 —— 一行一条,上下对齐方便对比 -->
     <el-table-column prop="prop" label="数据字段名 prop" min-width="140">
       <template #default="{ row }">
@@ -20,20 +16,37 @@
     <el-table-column prop="type" label="渲染类型 type" width="170">
       <template #default="{ row }">
         <el-select v-model="row.type" size="small" filterable>
-          <el-option v-for="opt in COLUMN_TYPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option
+            v-for="opt in COLUMN_TYPE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </template>
     </el-table-column>
 
     <el-table-column prop="width" label="宽度 width" width="110">
       <template #default="{ row }">
-        <el-input-number v-model="row.width" size="small" :min="0" :controls="false" placeholder="自适应" />
+        <el-input-number
+          v-model="row.width"
+          size="small"
+          :min="0"
+          :controls="false"
+          placeholder="自适应"
+        />
       </template>
     </el-table-column>
 
     <el-table-column prop="minWidth" label="最小宽" width="100">
       <template #default="{ row }">
-        <el-input-number v-model="row.minWidth" size="small" :min="0" :controls="false" placeholder="自适应" />
+        <el-input-number
+          v-model="row.minWidth"
+          size="small"
+          :min="0"
+          :controls="false"
+          placeholder="自适应"
+        />
       </template>
     </el-table-column>
 
@@ -76,8 +89,19 @@
         </el-form-item>
 
         <el-form-item label="自定义渲染器 renderer">
-          <el-select v-model="row.renderer" size="small" clearable filterable placeholder="特殊列才需要">
-            <el-option v-for="opt in RENDERER_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-select
+            v-model="row.renderer"
+            size="small"
+            clearable
+            filterable
+            placeholder="特殊列才需要"
+          >
+            <el-option
+              v-for="opt in RENDERER_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
       </div>
@@ -86,7 +110,9 @@
     <template #tip>
       <span class="block-tip">
         prop 必须与后端返回的字段名一致;label 是表头中文。查看
-        <a href="https://element-plus.org/zh-CN/component/table.html" target="_blank" rel="noopener">表格文档 ↗</a>
+        <a href="https://element-plus.org/zh-CN/component/table.html" target="_blank" rel="noopener"
+          >表格文档 ↗</a
+        >
       </span>
     </template>
   </TableEditorShell>

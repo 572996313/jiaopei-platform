@@ -48,7 +48,14 @@ mvn -q dependency:go-offline                               # 预拉依赖（Dock
 
 ### 改代码后必须重启后端
 
-旧进程不会加载新代码，不重启就是“改了没效果”的假象：
+旧进程不会加载新代码，不重启就是“改了没效果”的假象。**直接用仓库脚本**（Git Bash）：
+
+```bash
+scripts/restart-backend.sh              # 停旧进程 -> mvn package -> 后台启动 -> 健康检查轮询
+scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
+```
+
+手工流程（脚本不可用时）：
 
 ```bash
 netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
@@ -57,14 +64,25 @@ cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar target
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 200 才算起来，别猜日志
 ```
 
+### CI 与本地门禁
+
+- `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
+- Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
+- 后端有 **ArchUnit 架构守护测试**（`backend/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包。违反即 `mvn test` 失败，取代人工 grep 自查。
+
 ### 前端（工作目录 `frontend/`）
 
 ```bash
 pnpm install
-pnpm dev        # vite dev server，127.0.0.1:5173，/api 代理到 127.0.0.1:8080
-pnpm build      # vue-tsc 类型检查 + vite build —— 无 lint/单测脚本，build 即类型门禁
+pnpm dev          # vite dev server，127.0.0.1:5173，/api 代理到 127.0.0.1:8080
+pnpm build        # vue-tsc 类型检查 + vite build
+pnpm lint         # ESLint（flat config，eslint.config.js）
+pnpm lint:fix     # ESLint 自动修复
+pnpm format       # Prettier 格式化 src/（.prettierrc.json：无分号/单引号/100 列）
 pnpm preview
 ```
+
+无单测脚本；`pnpm build`（类型）+ `pnpm lint`（规范）共同构成前端门禁。ESLint 存量宽松起步（`no-explicit-any` 关闭），清理完成后逐步收紧。
 
 ### 小程序（工作目录 `miniapp/`）
 

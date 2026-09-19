@@ -17,10 +17,22 @@
       <el-table-column label="操作" width="130" fixed="right" class-name="te-ops-col">
         <template #default="{ row, $index }">
           <div class="te-ops">
-            <el-button text size="small" title="上移" :disabled="$index === 0" @click="move(row, -1)">
+            <el-button
+              text
+              size="small"
+              title="上移"
+              :disabled="$index === 0"
+              @click="move(row, -1)"
+            >
               <el-icon><ArrowUp /></el-icon>
             </el-button>
-            <el-button text size="small" title="下移" :disabled="$index === modelValue.length - 1" @click="move(row, 1)">
+            <el-button
+              text
+              size="small"
+              title="下移"
+              :disabled="$index === modelValue.length - 1"
+              @click="move(row, 1)"
+            >
               <el-icon><ArrowDown /></el-icon>
             </el-button>
             <el-button text size="small" title="复制这一行" @click="duplicate(row)">复制</el-button>

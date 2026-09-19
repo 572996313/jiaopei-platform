@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="loadTeachers">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="loadTeachers"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -18,9 +24,16 @@
       <div class="page-toolbar-actions">
         <el-button @click="statsVisible = !statsVisible">
           统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+            ><ArrowDown
+          /></el-icon>
         </el-button>
-        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading" @click="refreshAll" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="lookupLoading || tableLoading"
+          @click="refreshAll"
+        />
         <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
       </div>
     </div>
@@ -29,7 +42,9 @@
       <article class="stat-card">
         <div class="stat-label">教师数</div>
         <div class="stat-value">{{ teachers.length }}</div>
-        <div class="stat-hint">{{ campusId ? `当前校区：${formatCampus(campusId)}` : '全部校区' }}</div>
+        <div class="stat-hint">
+          {{ campusId ? `当前校区：${formatCampus(campusId)}` : '全部校区' }}
+        </div>
       </article>
       <article class="stat-card">
         <div class="stat-label">校区数</div>
@@ -40,11 +55,15 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">教师列表<span class="panel-count">共 {{ teachers.length }} 条</span></div>
-        <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}</div>
+        <div class="panel-title">
+          教师列表<span class="panel-count">共 {{ teachers.length }} 条</span>
+        </div>
+        <div class="education-context-text">
+          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
+        </div>
       </div>
 
-      <el-table :data="teachers" border v-loading="tableLoading">
+      <el-table :data="teachers" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="teacherCode" label="教师编码" width="160" />
         <el-table-column prop="teacherName" label="教师姓名" min-width="160" />
         <el-table-column label="校区" min-width="160">
@@ -80,8 +99,19 @@
       </div>
     </article>
 
-    <el-dialog v-model="dialogVisible" :title="teacherDialogMode === 'create' ? '新增教师' : '编辑教师'" width="560px">
-      <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="teacherDialogMode === 'create' ? '新增教师' : '编辑教师'"
+      width="560px"
+    >
+      <el-alert
+        v-if="formError"
+        :title="formError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="教师编码">
@@ -133,7 +163,9 @@
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitTeacher">{{ teacherDialogMode === 'create' ? '提交教师' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitTeacher">{{
+          teacherDialogMode === 'create' ? '提交教师' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
   </section>
@@ -141,10 +173,17 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { createTeacher, deleteTeacher, fetchTeachers, updateTeacher, type TeacherSummary } from '@/api/education'
+import {
+  createTeacher,
+  deleteTeacher,
+  fetchTeachers,
+  updateTeacher,
+  type TeacherSummary,
+} from '@/api/education'
 import { fetchCampuses, type CampusSummary } from '@/api/organization'
 import { useEducationScopeStore } from '@/stores/educationScope'
 import { useInstitutionStore } from '@/stores/institution'
@@ -193,7 +232,11 @@ function formatInstitution(id?: string | null) {
 
 function formatCampus(id?: string | null) {
   const target = campuses.value.find((item) => item.id === id)
-  return target ? target.campusName || target.campusCode || `校区 #${id}` : id ? `校区 #${id}` : '未选择'
+  return target
+    ? target.campusName || target.campusCode || `校区 #${id}`
+    : id
+      ? `校区 #${id}`
+      : '未选择'
 }
 
 function employmentTypeLabel(value?: string | null) {
@@ -358,7 +401,10 @@ async function submitTeacher() {
     resetForm()
     await loadTeachers()
   } catch (error) {
-    formError.value = toMessage(error, teacherDialogMode.value === 'create' ? '新增教师失败' : '更新教师失败')
+    formError.value = toMessage(
+      error,
+      teacherDialogMode.value === 'create' ? '新增教师失败' : '更新教师失败'
+    )
   } finally {
     submitting.value = false
   }
@@ -366,11 +412,15 @@ async function submitTeacher() {
 
 async function confirmDeleteTeacher(row: TeacherSummary) {
   try {
-    await ElMessageBox.confirm(`确定删除教师「${row.teacherName || row.teacherCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除教师「${row.teacherName || row.teacherCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -400,10 +450,13 @@ async function initializePage() {
   await loadCampusesAndTeachers()
 }
 
-watch(() => institutionStore.currentInstitutionId, async () => {
-  campusId.value = null
-  await loadCampusesAndTeachers()
-})
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    await loadCampusesAndTeachers()
+  }
+)
 
 onMounted(() => {
   initializePage()

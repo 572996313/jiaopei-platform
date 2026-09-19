@@ -15,7 +15,7 @@ const props = withDefaults(
     placeholder: '请选择',
     clearable: true,
     keepUnknownValue: true,
-  },
+  }
 )
 
 const modelValue = defineModel<string | null>()
@@ -30,19 +30,23 @@ watch(
   () => props.typeCode,
   (code) => {
     void dictStore.ensureLoaded([code])
-  },
+  }
 )
 
 const options = computed(() =>
   dictStore
     .optionsOf(props.typeCode)
     .filter((item) => item.status !== 'disabled')
-    .map((item) => ({ value: item.itemValue, label: item.itemName })),
+    .map((item) => ({ value: item.itemValue, label: item.itemName }))
 )
 
 const mergedOptions = computed(() => {
   const current = modelValue.value
-  if (!props.keepUnknownValue || !current || options.value.some((option) => option.value === current)) {
+  if (
+    !props.keepUnknownValue ||
+    !current ||
+    options.value.some((option) => option.value === current)
+  ) {
     return options.value
   }
   return [{ value: current, label: current }, ...options.value]
@@ -58,6 +62,11 @@ const mergedOptions = computed(() => {
     filterable
     @clear="modelValue = ''"
   >
-    <el-option v-for="option in mergedOptions" :key="option.value" :label="option.label" :value="option.value" />
+    <el-option
+      v-for="option in mergedOptions"
+      :key="option.value"
+      :label="option.label"
+      :value="option.value"
+    />
   </el-select>
 </template>

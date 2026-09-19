@@ -209,8 +209,10 @@ function readPairs(obj: Record<string, unknown>, key: string): KeyValuePair[] | 
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined
   }
-  return Object.entries(value as Record<string, unknown>)
-    .map(([k, v]) => ({ key: k, value: String(v ?? '') }))
+  return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
+    key: k,
+    value: String(v ?? ''),
+  }))
 }
 
 function readStringArray(obj: Record<string, unknown>, key: string): string[] | undefined {
@@ -227,7 +229,9 @@ function readOptionPairs(value: unknown): KeyValuePair[] | undefined {
     return undefined
   }
   return value
-    .map((item) => (isRecord(item) ? { key: String(item.value ?? ''), value: String(item.label ?? '') } : null))
+    .map((item) =>
+      isRecord(item) ? { key: String(item.value ?? ''), value: String(item.label ?? '') } : null
+    )
     .filter((item): item is KeyValuePair => item !== null)
 }
 
@@ -433,7 +437,7 @@ export function actionsToJson(rows: ActionRow[]): string | null {
           item.actionType = row.actionType.trim()
         }
         return item
-      }),
+      })
   )
 }
 
@@ -458,29 +462,30 @@ export function parseForm(json: string | null | undefined): FormConfigState {
       state.gridColumns = gridColumns
     }
     if (Array.isArray(parsed.fields)) {
-      state.fields = parsed.fields
-        .filter(isRecord)
-        .map((obj) => ({
-          field: obj.field ? String(obj.field) : '',
-          label: obj.label ? String(obj.label) : '',
-          type: typeof obj.type === 'string' ? obj.type : 'input',
-          placeholder: readString(obj, 'placeholder'),
-          tip: readString(obj, 'tip'),
-          gridSpan: readNumber(obj, 'gridSpan'),
-          showOn: readStringArray(obj, 'showOn'),
-          disabledOn: readStringArray(obj, 'disabledOn'),
-          options: readOptionPairs(obj.options),
-          optionsLoader: readString(obj, 'optionsLoader'),
-          dictType: readString(obj, 'dictType'),
-          required: readBool(obj, 'required'),
-          defaultValue: obj.defaultValue === undefined || obj.defaultValue === null ? undefined : String(obj.defaultValue),
-          maxlength: readNumber(obj, 'maxlength'),
-          min: readNumber(obj, 'min'),
-          max: readNumber(obj, 'max'),
-          clearable: readBool(obj, 'clearable'),
-          rows: readNumber(obj, 'rows'),
-          onChange: readString(obj, 'onChange'),
-        }))
+      state.fields = parsed.fields.filter(isRecord).map((obj) => ({
+        field: obj.field ? String(obj.field) : '',
+        label: obj.label ? String(obj.label) : '',
+        type: typeof obj.type === 'string' ? obj.type : 'input',
+        placeholder: readString(obj, 'placeholder'),
+        tip: readString(obj, 'tip'),
+        gridSpan: readNumber(obj, 'gridSpan'),
+        showOn: readStringArray(obj, 'showOn'),
+        disabledOn: readStringArray(obj, 'disabledOn'),
+        options: readOptionPairs(obj.options),
+        optionsLoader: readString(obj, 'optionsLoader'),
+        dictType: readString(obj, 'dictType'),
+        required: readBool(obj, 'required'),
+        defaultValue:
+          obj.defaultValue === undefined || obj.defaultValue === null
+            ? undefined
+            : String(obj.defaultValue),
+        maxlength: readNumber(obj, 'maxlength'),
+        min: readNumber(obj, 'min'),
+        max: readNumber(obj, 'max'),
+        clearable: readBool(obj, 'clearable'),
+        rows: readNumber(obj, 'rows'),
+        onChange: readString(obj, 'onChange'),
+      }))
     }
   } catch {
     // 忽略解析错误,由填报方在 JSON 模式下修正
@@ -579,7 +584,13 @@ export function formToJson(state: FormConfigState): string | null {
 /* ----- 页面壳 / 弹窗壳 ----- */
 
 export function parsePageShell(json: string | null | undefined): PageShellState {
-  const fallback = { title: '', description: '', showCount: true, countFormat: '共 {total} 条', emptyText: '暂无数据' }
+  const fallback = {
+    title: '',
+    description: '',
+    showCount: true,
+    countFormat: '共 {total} 条',
+    emptyText: '暂无数据',
+  }
   if (!json || !json.trim()) {
     return { ...fallback }
   }
@@ -647,7 +658,10 @@ export function parseDialogShell(json: string | null | undefined): DialogShellSt
       cancelText: readString(parsed, 'cancelText') ?? fallback.cancelText,
       createMessage: readString(parsed, 'createMessage') ?? '',
       updateMessage: readString(parsed, 'updateMessage') ?? '',
-      reloadAfterSubmit: typeof parsed.reloadAfterSubmit === 'boolean' ? parsed.reloadAfterSubmit : fallback.reloadAfterSubmit,
+      reloadAfterSubmit:
+        typeof parsed.reloadAfterSubmit === 'boolean'
+          ? parsed.reloadAfterSubmit
+          : fallback.reloadAfterSubmit,
     }
   } catch {
     return { ...fallback }
@@ -693,7 +707,13 @@ export function createBlankFormState(): ListConfigFormState {
     query: [{ field: 'keyword', label: '关键字', type: 'input', placeholder: '按名称搜索' }],
     actions: [],
     form: { gridColumns: 2, fields: [] },
-    page: { title: '', description: '', showCount: true, countFormat: '共 {total} 条', emptyText: '暂无数据' },
+    page: {
+      title: '',
+      description: '',
+      showCount: true,
+      countFormat: '共 {total} 条',
+      emptyText: '暂无数据',
+    },
     dialog: {
       width: '640px',
       createTitle: '',

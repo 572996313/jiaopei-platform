@@ -151,6 +151,7 @@ export function useSystemPermissions() {
     canWriteOrganization: auth.hasPermission('organization:write'),
     canManageDicts: auth.hasPermission('system:dict:manage'),
     canManageListConfigs: auth.hasPermission('system:list-config:manage'),
+    canManageDataSources: auth.hasPermission('system:data-source:manage'),
   }))
 }
 

@@ -8,7 +8,11 @@
     <!-- permission-groups 复合控件:按权限分组渲染复选框网格 -->
     <template #field-permissionCodes="{ model, disabled }">
       <el-checkbox-group v-model="model.permissionCodes" :disabled="disabled">
-        <div v-for="group in permissionGroupData" :key="group.group" class="system-permission-group">
+        <div
+          v-for="group in permissionGroupData"
+          :key="group.group"
+          class="system-permission-group"
+        >
           <div class="system-permission-group-title">{{ group.group }}</div>
           <div class="system-permission-grid">
             <el-checkbox v-for="item in group.items" :key="item.code" :value="item.code">
@@ -27,9 +31,18 @@
       <div><strong>角色编码:</strong>{{ selectedMenuRole?.roleCode || '-' }}</div>
     </div>
 
-    <el-alert v-if="roleMenuError" :title="roleMenuError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-alert
+      v-if="roleMenuError"
+      :title="roleMenuError"
+      type="error"
+      show-icon
+      :closable="false"
+      class="education-alert"
+    />
 
-    <div class="education-context-text">勾选按钮节点即授予该角色对应接口权限,保存后需重新登录生效。</div>
+    <div class="education-context-text">
+      勾选按钮节点即授予该角色对应接口权限,保存后需重新登录生效。
+    </div>
 
     <el-tree
       ref="roleMenuTreeRef"
@@ -44,7 +57,9 @@
 
     <template #footer>
       <el-button @click="roleMenuDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="roleMenuSubmitting" @click="submitRoleMenus">保存菜单</el-button>
+      <el-button type="primary" :loading="roleMenuSubmitting" @click="submitRoleMenus"
+        >保存菜单</el-button
+      >
     </template>
   </el-dialog>
 </template>
@@ -186,7 +201,9 @@ const roleCrud: CrudPageOptions = {
         roleCode: role.roleCode,
         roleName: role.roleName,
         permissionCodes: role.permissionCodes.filter((item) => knownPermissions.has(item)),
-        customPermissionCodes: role.permissionCodes.filter((item) => !knownPermissions.has(item)).join(', '),
+        customPermissionCodes: role.permissionCodes
+          .filter((item) => !knownPermissions.has(item))
+          .join(', '),
         status: role.status || 'active',
         remark: role.remark || '',
       }

@@ -9,11 +9,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import {
-  createSystemConfig,
-  deleteSystemConfig,
-  updateSystemConfig,
-} from '@/api/system'
+import { createSystemConfig, deleteSystemConfig, updateSystemConfig } from '@/api/system'
 import type { SystemConfigSummary } from '@/api/system'
 import ConfigurableCrudPage from '@/components/ConfigurableCrudPage/index.vue'
 import type { CrudPageOptions } from '@/components/ConfigurableCrudPage/types'

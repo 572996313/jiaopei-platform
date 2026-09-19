@@ -10,7 +10,11 @@ import {
   type LoginPayload,
 } from '@/api/auth'
 import type { SystemMenuTreeNode } from '@/api/system'
-import { clearStoredAuthSession, getStoredAuthSession, setStoredAuthSession } from '@/utils/auth-session'
+import {
+  clearStoredAuthSession,
+  getStoredAuthSession,
+  setStoredAuthSession,
+} from '@/utils/auth-session'
 
 const storedSession = getStoredAuthSession()
 
@@ -28,7 +32,8 @@ export const useAuthStore = defineStore('auth', {
     hasStoredToken: (state) => Boolean(state.accessToken),
     isAuthenticated: (state) => Boolean(state.accessToken && state.currentUser),
     mustChangePassword: (state) => Boolean(state.currentUser?.forceChangePassword),
-    displayName: (state) => state.currentUser?.displayName || state.currentUser?.username || '未登录',
+    displayName: (state) =>
+      state.currentUser?.displayName || state.currentUser?.username || '未登录',
     permissions: (state) => state.currentUser?.permissions || [],
   },
 

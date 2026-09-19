@@ -15,26 +15,68 @@
 
       <el-form :inline="true" class="operlog-filter-form" @submit.prevent>
         <el-form-item label="操作人">
-          <el-input v-model="query.username" placeholder="账号" clearable style="width: 160px" @keyup.enter="handleSearch" @clear="handleSearch" />
+          <el-input
+            v-model="query.username"
+            placeholder="账号"
+            clearable
+            style="width: 160px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
         </el-form-item>
         <el-form-item label="操作类型">
-          <el-select v-model="query.actionType" placeholder="全部" clearable style="width: 140px" @change="handleSearch">
-            <el-option v-for="item in actionTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select
+            v-model="query.actionType"
+            placeholder="全部"
+            clearable
+            style="width: 140px"
+            @change="handleSearch"
+          >
+            <el-option
+              v-for="item in actionTypeOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="端口">
-          <el-select v-model="query.portal" placeholder="全部" clearable style="width: 140px" @change="handleSearch">
-            <el-option v-for="item in portalOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select
+            v-model="query.portal"
+            placeholder="全部"
+            clearable
+            style="width: 140px"
+            @change="handleSearch"
+          >
+            <el-option
+              v-for="item in portalOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="query.success" placeholder="全部" clearable style="width: 120px" @change="handleSearch">
+          <el-select
+            v-model="query.success"
+            placeholder="全部"
+            clearable
+            style="width: 120px"
+            @change="handleSearch"
+          >
             <el-option label="成功" :value="true" />
             <el-option label="失败" :value="false" />
           </el-select>
         </el-form-item>
         <el-form-item label="操作名称">
-          <el-input v-model="query.operation" placeholder="模糊匹配操作名" clearable style="width: 180px" @keyup.enter="handleSearch" @clear="handleSearch" />
+          <el-input
+            v-model="query.operation"
+            placeholder="模糊匹配操作名"
+            clearable
+            style="width: 180px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
         </el-form-item>
         <el-form-item label="时间范围">
           <el-date-picker
@@ -55,7 +97,13 @@
         </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="records" stripe style="width: 100%">
+      <el-table
+        v-loading="loading"
+        :data="records"
+        stripe
+        style="width: 100%"
+        :height="TABLE_FILL_HEIGHT"
+      >
         <el-table-column prop="createdAt" label="操作时间" width="170" />
         <el-table-column prop="operation" label="操作名称" min-width="140" show-overflow-tooltip />
         <el-table-column prop="username" label="操作人" width="120" show-overflow-tooltip>
@@ -65,7 +113,9 @@
         </el-table-column>
         <el-table-column prop="portal" label="端口" width="90">
           <template #default="{ row }">
-            <el-tag size="small" :type="portalTagType(row.portal)">{{ portalLabel(row.portal) }}</el-tag>
+            <el-tag size="small" :type="portalTagType(row.portal)">{{
+              portalLabel(row.portal)
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="actionType" label="类型" width="90">
@@ -79,7 +129,9 @@
         <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" />
         <el-table-column prop="success" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{ row.success ? '成功' : '失败' }}</el-tag>
+            <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{
+              row.success ? '成功' : '失败'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="80" fixed="right">
@@ -106,7 +158,9 @@
       <el-descriptions :column="1" border v-if="detail">
         <el-descriptions-item label="操作时间">{{ detail.createdAt || '-' }}</el-descriptions-item>
         <el-descriptions-item label="操作名称">{{ detail.operation || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="操作类型">{{ actionTypeLabel(detail.actionType) }}</el-descriptions-item>
+        <el-descriptions-item label="操作类型">{{
+          actionTypeLabel(detail.actionType)
+        }}</el-descriptions-item>
         <el-descriptions-item label="操作人">{{ detail.username || '-' }}</el-descriptions-item>
         <el-descriptions-item label="端口">{{ portalLabel(detail.portal) }}</el-descriptions-item>
         <el-descriptions-item label="请求方法">{{ detail.method || '-' }}</el-descriptions-item>
@@ -114,7 +168,9 @@
         <el-descriptions-item label="客户端IP">{{ detail.clientIp || '-' }}</el-descriptions-item>
         <el-descriptions-item label="耗时">{{ detail.durationMs ?? '-' }} ms</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag size="small" :type="detail.success ? 'success' : 'danger'">{{ detail.success ? '成功' : '失败' }}</el-tag>
+          <el-tag size="small" :type="detail.success ? 'success' : 'danger'">{{
+            detail.success ? '成功' : '失败'
+          }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="链路ID">{{ detail.traceId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="User-Agent">
@@ -135,6 +191,7 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { onMounted, reactive, ref } from 'vue'
 import type { OperLogSummary } from '@/api/system'
 import { fetchOperLogs } from '@/api/system'

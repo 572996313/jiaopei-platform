@@ -274,11 +274,15 @@ function normalizeCurrentInstitution(item: CurrentInstitutionProfile): CurrentIn
 }
 
 export function fetchCurrentInstitution() {
-  return requestGet<CurrentInstitutionProfile>('/system/institution/current').then(normalizeCurrentInstitution)
+  return requestGet<CurrentInstitutionProfile>('/system/institution/current').then(
+    normalizeCurrentInstitution
+  )
 }
 
 export function updateCurrentInstitution(payload: CurrentInstitutionUpdatePayload) {
-  return requestPut<CurrentInstitutionProfile>('/system/institution/current', payload).then(normalizeCurrentInstitution)
+  return requestPut<CurrentInstitutionProfile>('/system/institution/current', payload).then(
+    normalizeCurrentInstitution
+  )
 }
 
 export function fetchSystemUsers() {
@@ -292,10 +296,12 @@ export interface SystemUserPageParams extends PageParams {
 }
 
 export function fetchSystemUserPage(params: SystemUserPageParams) {
-  return requestGet<PageResult<SystemUserSummary>>('/system/users/page', { ...params }).then((result) => ({
-    ...result,
-    records: (result.records || []).map(normalizeUser),
-  }))
+  return requestGet<PageResult<SystemUserSummary>>('/system/users/page', { ...params }).then(
+    (result) => ({
+      ...result,
+      records: (result.records || []).map(normalizeUser),
+    })
+  )
 }
 
 export function createSystemUser(payload: SystemUserCreatePayload) {
@@ -336,7 +342,9 @@ export function updateSystemRole(id: string, payload: SystemRoleUpdatePayload) {
 }
 
 export function fetchSystemMenusTree() {
-  return requestGet<SystemMenuTreeNode[]>('/system/menus/tree').then((items) => items.map(normalizeMenu))
+  return requestGet<SystemMenuTreeNode[]>('/system/menus/tree').then((items) =>
+    items.map(normalizeMenu)
+  )
 }
 
 export function createSystemMenu(payload: SystemMenuCreatePayload) {
@@ -358,11 +366,15 @@ export function deleteSystemMenu(id: string) {
 }
 
 export function fetchSystemRoleMenuIds(roleId: string) {
-  return requestGet<Array<string | number>>(`/system/roles/${roleId}/menus`).then((items) => items.map((item) => String(item)))
+  return requestGet<Array<string | number>>(`/system/roles/${roleId}/menus`).then((items) =>
+    items.map((item) => String(item))
+  )
 }
 
 export function updateSystemRoleMenus(roleId: string, payload: RoleMenuUpdatePayload) {
-  return requestPut<Array<string | number>>(`/system/roles/${roleId}/menus`, payload).then((items) => items.map((item) => String(item)))
+  return requestPut<Array<string | number>>(`/system/roles/${roleId}/menus`, payload).then(
+    (items) => items.map((item) => String(item))
+  )
 }
 
 function normalizeSystemConfig(item: SystemConfigSummary): SystemConfigSummary {
@@ -373,7 +385,9 @@ function normalizeSystemConfig(item: SystemConfigSummary): SystemConfigSummary {
 }
 
 export function fetchSystemConfigs() {
-  return requestGet<SystemConfigSummary[]>('/system/config').then((items) => items.map(normalizeSystemConfig))
+  return requestGet<SystemConfigSummary[]>('/system/config').then((items) =>
+    items.map(normalizeSystemConfig)
+  )
 }
 
 export interface SystemConfigPageParams extends PageParams {
@@ -383,10 +397,12 @@ export interface SystemConfigPageParams extends PageParams {
 }
 
 export function fetchSystemConfigPage(params: SystemConfigPageParams) {
-  return requestGet<PageResult<SystemConfigSummary>>('/system/config/page', { ...params }).then((result) => ({
-    ...result,
-    records: (result.records || []).map(normalizeSystemConfig),
-  }))
+  return requestGet<PageResult<SystemConfigSummary>>('/system/config/page', { ...params }).then(
+    (result) => ({
+      ...result,
+      records: (result.records || []).map(normalizeSystemConfig),
+    })
+  )
 }
 
 export function createSystemConfig(payload: SystemConfigCreatePayload) {
@@ -394,7 +410,9 @@ export function createSystemConfig(payload: SystemConfigCreatePayload) {
 }
 
 export function updateSystemConfig(id: string, payload: SystemConfigUpdatePayload) {
-  return requestPut<SystemConfigSummary>(`/system/config/${id}`, payload).then(normalizeSystemConfig)
+  return requestPut<SystemConfigSummary>(`/system/config/${id}`, payload).then(
+    normalizeSystemConfig
+  )
 }
 
 export function deleteSystemConfig(id: string) {
@@ -402,22 +420,27 @@ export function deleteSystemConfig(id: string) {
 }
 
 export function fetchSystemDictTypes() {
-  return requestGet<DictTypeSummary[]>('/system/dicts/types').then((items) => items.map(normalizeDictType))
+  return requestGet<DictTypeSummary[]>('/system/dicts/types').then((items) =>
+    items.map(normalizeDictType)
+  )
 }
 
 export function fetchSystemDictItems(typeCode: string) {
-  return requestGet<DictItemSummary[]>(`/system/dicts/types/${typeCode}/items`).then((items) => items.map(normalizeDictItem))
+  return requestGet<DictItemSummary[]>(`/system/dicts/types/${typeCode}/items`).then((items) =>
+    items.map(normalizeDictItem)
+  )
 }
 
 export function fetchDictOptions(typeCodes?: string[]) {
-  const query = typeCodes && typeCodes.length > 0
-    ? `?typeCodes=${typeCodes.map((code) => encodeURIComponent(code)).join(',')}`
-    : ''
+  const query =
+    typeCodes && typeCodes.length > 0
+      ? `?typeCodes=${typeCodes.map((code) => encodeURIComponent(code)).join(',')}`
+      : ''
   return requestGet<DictOptionGroupSummary[]>(`/system/dicts/options${query}`).then((groups) =>
     groups.map((group) => ({
       ...group,
       items: (group.items || []).map(normalizeDictItem),
-    })),
+    }))
   )
 }
 
@@ -487,11 +510,15 @@ function normalizeListConfig(item: ListConfigSummary): ListConfigSummary {
 }
 
 export function fetchListConfigByCode(resourceCode: string) {
-  return requestGet<ListConfigSummary>(`/system/list-configs/code/${encodeURIComponent(resourceCode)}`).then(normalizeListConfig)
+  return requestGet<ListConfigSummary>(
+    `/system/list-configs/code/${encodeURIComponent(resourceCode)}`
+  ).then(normalizeListConfig)
 }
 
 export function fetchListConfigs() {
-  return requestGet<ListConfigSummary[]>('/system/list-configs').then((items) => items.map(normalizeListConfig))
+  return requestGet<ListConfigSummary[]>('/system/list-configs').then((items) =>
+    items.map(normalizeListConfig)
+  )
 }
 
 export function createListConfig(payload: ListConfigSavePayload & { resourceCode: string }) {
@@ -499,7 +526,9 @@ export function createListConfig(payload: ListConfigSavePayload & { resourceCode
 }
 
 export function updateListConfig(id: string, payload: ListConfigSavePayload) {
-  return requestPut<ListConfigSummary>(`/system/list-configs/${id}`, payload).then(normalizeListConfig)
+  return requestPut<ListConfigSummary>(`/system/list-configs/${id}`, payload).then(
+    normalizeListConfig
+  )
 }
 
 export function deleteListConfig(id: string) {
@@ -613,8 +642,112 @@ function normalizeOperLog(item: OperLogSummary): OperLogSummary {
 }
 
 export function fetchOperLogs(params: OperLogPageParams) {
-  return requestGet<PageResult<OperLogSummary>>('/system/operlogs', { ...params }).then((result) => ({
-    ...result,
-    records: (result.records || []).map(normalizeOperLog),
-  }))
+  return requestGet<PageResult<OperLogSummary>>('/system/operlogs', { ...params }).then(
+    (result) => ({
+      ...result,
+      records: (result.records || []).map(normalizeOperLog),
+    })
+  )
+}
+
+// ==================== 数据源配置 ====================
+
+/** 数据源配置项(管理视图) */
+export interface DataSourceSummary {
+  id: string
+  sourceCode: string
+  sourceName: string
+  endpoint?: string | null
+  method?: string | null
+  valueKey?: string | null
+  labelKey?: string | null
+  paramDefs?: string | null
+  sourceType: string
+  dictType?: string | null
+  description?: string | null
+  status?: string | null
+  remark?: string | null
+}
+
+/** 数据源定义(消费者视图:前端按编码取定义后,调 endpoint 并组装 {value,label}) */
+export interface DataSourceDefinition {
+  sourceCode: string
+  sourceName: string
+  endpoint?: string | null
+  method?: string | null
+  valueKey?: string | null
+  labelKey?: string | null
+  paramDefs?: string | null
+  sourceType: string
+  dictType?: string | null
+}
+
+export interface DataSourceCreatePayload {
+  sourceCode: string
+  sourceName: string
+  endpoint?: string
+  method?: string
+  valueKey?: string
+  labelKey?: string
+  paramDefs?: string
+  sourceType: string
+  dictType?: string
+  description?: string
+  status: string
+  remark?: string
+}
+
+export interface DataSourceUpdatePayload {
+  sourceName: string
+  endpoint?: string
+  method?: string
+  valueKey?: string
+  labelKey?: string
+  paramDefs?: string
+  sourceType: string
+  dictType?: string
+  description?: string
+  status: string
+  remark?: string
+}
+
+function normalizeDataSource(item: DataSourceSummary): DataSourceSummary {
+  return {
+    ...item,
+    id: String(item.id),
+  }
+}
+
+export function fetchDataSources() {
+  return requestGet<DataSourceSummary[]>('/system/data-sources').then((items) =>
+    items.map(normalizeDataSource)
+  )
+}
+
+export function createDataSource(payload: DataSourceCreatePayload) {
+  return requestPost<DataSourceSummary>('/system/data-sources', payload).then(
+    normalizeDataSource
+  )
+}
+
+export function updateDataSource(id: string, payload: DataSourceUpdatePayload) {
+  return requestPut<DataSourceSummary>(`/system/data-sources/${id}`, payload).then(
+    normalizeDataSource
+  )
+}
+
+export function deleteDataSource(id: string) {
+  return requestDelete<void>(`/system/data-sources/${id}`)
+}
+
+/** 按编码批量取启用的数据源定义(通用组件消费,仅需登录) */
+export function fetchDataSourceDefinitions(codes: string[]) {
+  const unique = Array.from(new Set(codes.filter((code) => code && code.trim()))).join(',')
+  if (!unique) {
+    return Promise.resolve({} as Record<string, DataSourceDefinition>)
+  }
+  return requestGet<Record<string, DataSourceDefinition>>(
+    `/system/data-sources/definitions`,
+    { codes: unique }
+  )
 }

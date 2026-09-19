@@ -15,7 +15,12 @@
     <el-table-column prop="position" label="位置" width="110">
       <template #default="{ row }">
         <el-select v-model="row.position" size="small" filterable>
-          <el-option v-for="opt in ACTION_POSITION_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option
+            v-for="opt in ACTION_POSITION_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </template>
     </el-table-column>
@@ -23,7 +28,12 @@
     <el-table-column prop="buttonType" label="样式" width="110">
       <template #default="{ row }">
         <el-select v-model="row.buttonType" size="small" clearable filterable placeholder="默认">
-          <el-option v-for="opt in ACTION_BUTTON_TYPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option
+            v-for="opt in ACTION_BUTTON_TYPE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </template>
     </el-table-column>
@@ -51,8 +61,19 @@
     <template #expand="{ row }">
       <div class="te-expand-grid">
         <el-form-item label="点击行为 actionType(不填自动按动作名推断)">
-          <el-select v-model="row.actionType" size="small" clearable filterable placeholder="自动推断">
-            <el-option v-for="opt in ACTION_TYPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-select
+            v-model="row.actionType"
+            size="small"
+            clearable
+            filterable
+            placeholder="自动推断"
+          >
+            <el-option
+              v-for="opt in ACTION_TYPE_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
       </div>
@@ -61,7 +82,12 @@
     <template #tip>
       <span class="block-tip">
         action 必须是页面代码里注册的动作名,写错按钮不渲染;权限码控制谁能看到。
-        <a href="https://element-plus.org/zh-CN/component/button.html" target="_blank" rel="noopener">按钮文档 ↗</a>
+        <a
+          href="https://element-plus.org/zh-CN/component/button.html"
+          target="_blank"
+          rel="noopener"
+          >按钮文档 ↗</a
+        >
       </span>
     </template>
   </TableEditorShell>

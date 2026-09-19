@@ -469,7 +469,11 @@ export interface AttendanceLessonBatchSavePayload {
   items: AttendanceLessonBatchItemPayload[]
 }
 
-export function fetchStudents(params?: { institutionId?: string | null; campusId?: string | null; keyword?: string | null }) {
+export function fetchStudents(params?: {
+  institutionId?: string | null
+  campusId?: string | null
+  keyword?: string | null
+}) {
   return requestGet<StudentSummary[]>('/education/students', params ?? undefined)
 }
 
@@ -501,7 +505,10 @@ export function deleteCourseCategory(id: string) {
   return requestDelete<null>(`/education/course-categories/${id}`)
 }
 
-export function fetchCourses(params?: { institutionId?: string | null; categoryId?: string | null }) {
+export function fetchCourses(params?: {
+  institutionId?: string | null
+  categoryId?: string | null
+}) {
   return requestGet<CourseRecord[]>('/education/courses', params ?? undefined)
 }
 
@@ -533,7 +540,10 @@ export function deleteClassType(id: string) {
   return requestDelete<null>(`/education/class-types/${id}`)
 }
 
-export function fetchTeachers(params?: { institutionId?: string | null; campusId?: string | null }) {
+export function fetchTeachers(params?: {
+  institutionId?: string | null
+  campusId?: string | null
+}) {
   return requestGet<TeacherSummary[]>('/education/teachers', params ?? undefined)
 }
 
@@ -581,7 +591,10 @@ export function createEnrollment(payload: EnrollmentCreatePayload) {
   return requestPost<EnrollmentRecord>('/education/enrollments', payload)
 }
 
-export function fetchClassStudents(params?: { classId?: string | null; studentId?: string | null }) {
+export function fetchClassStudents(params?: {
+  classId?: string | null
+  studentId?: string | null
+}) {
   return requestGet<ClassStudentRecord[]>('/education/class-students', params ?? undefined)
 }
 
@@ -593,7 +606,10 @@ export function deleteClassStudent(id: string) {
   return requestDelete<null>(`/education/class-students/${id}`)
 }
 
-export function fetchClassTeachers(params?: { classId?: string | null; teacherId?: string | null }) {
+export function fetchClassTeachers(params?: {
+  classId?: string | null
+  teacherId?: string | null
+}) {
   return requestGet<ClassTeacherRecord[]>('/education/class-teachers', params ?? undefined)
 }
 
@@ -602,7 +618,10 @@ export function fetchClassChangeNotices(params?: {
   classId?: string | null
   noticeStatus?: string | null
 }) {
-  return requestGet<ClassChangeNoticeRecord[]>('/education/class-change-notices', params ?? undefined)
+  return requestGet<ClassChangeNoticeRecord[]>(
+    '/education/class-change-notices',
+    params ?? undefined
+  )
 }
 
 export function createClassTeacher(payload: ClassTeacherCreatePayload) {
@@ -617,7 +636,10 @@ export function deleteClassTeacher(id: string) {
   return requestDelete<null>(`/education/class-teachers/${id}`)
 }
 
-export function fetchStudentParents(params?: { institutionId?: string | null; studentId?: string | null }) {
+export function fetchStudentParents(params?: {
+  institutionId?: string | null
+  studentId?: string | null
+}) {
   return requestGet<StudentParentRecord[]>('/education/student-parents', params ?? undefined)
 }
 

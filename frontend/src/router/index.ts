@@ -74,6 +74,11 @@ const routes = [
         component: () => import('@/views/system/PermissionOverviewView.vue'),
       },
       {
+        path: 'system/data-sources',
+        name: 'system-data-sources',
+        component: () => import('@/views/system/DataSourceManagementView.vue'),
+      },
+      {
         path: 'system/operlogs',
         name: 'system-operlogs',
         component: () => import('@/views/system/OperLogView.vue'),

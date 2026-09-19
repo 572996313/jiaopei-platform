@@ -9,8 +9,16 @@
           </div>
         </div>
         <div class="table-actions">
-          <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile">刷新机构资料</el-button>
-          <el-button v-if="permissions.canWriteOrganization" type="primary" :loading="institutionSubmitting" @click="submitInstitutionProfile">保存机构资料</el-button>
+          <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile"
+            >刷新机构资料</el-button
+          >
+          <el-button
+            v-if="permissions.canWriteOrganization"
+            type="primary"
+            :loading="institutionSubmitting"
+            @click="submitInstitutionProfile"
+            >保存机构资料</el-button
+          >
         </div>
       </div>
 
@@ -32,17 +40,23 @@
           </article>
           <article class="stat-card">
             <div class="stat-label">机构编码</div>
-            <div class="stat-value institution-stat-text">{{ currentInstitution?.orgCode || '-' }}</div>
+            <div class="stat-value institution-stat-text">
+              {{ currentInstitution?.orgCode || '-' }}
+            </div>
             <div class="stat-hint">只读,由后端机构档案返回</div>
           </article>
           <article class="stat-card">
             <div class="stat-label">联系人</div>
-            <div class="stat-value institution-stat-text">{{ currentInstitution?.contactName || '-' }}</div>
+            <div class="stat-value institution-stat-text">
+              {{ currentInstitution?.contactName || '-' }}
+            </div>
             <div class="stat-hint">{{ currentInstitution?.contactPhone || '未设置联系电话' }}</div>
           </article>
           <article class="stat-card">
             <div class="stat-label">机构状态</div>
-            <div class="stat-value institution-stat-text">{{ statusLabel(currentInstitution?.status, statusLabelMap) }}</div>
+            <div class="stat-value institution-stat-text">
+              {{ statusLabel(currentInstitution?.status, statusLabelMap) }}
+            </div>
             <div class="stat-hint">用于当前机构基础启停展示</div>
           </article>
         </div>
@@ -56,29 +70,60 @@
               <el-input v-model="institutionForm.orgCode" disabled placeholder="后端返回机构编码" />
             </el-form-item>
             <el-form-item label="机构名称">
-              <el-input v-model="institutionForm.name" maxlength="120" placeholder="请输入机构名称" />
+              <el-input
+                v-model="institutionForm.name"
+                maxlength="120"
+                placeholder="请输入机构名称"
+              />
             </el-form-item>
             <el-form-item label="机构简称">
-              <el-input v-model="institutionForm.shortName" maxlength="80" placeholder="请输入机构简称" />
+              <el-input
+                v-model="institutionForm.shortName"
+                maxlength="80"
+                placeholder="请输入机构简称"
+              />
             </el-form-item>
             <el-form-item label="联系人">
-              <el-input v-model="institutionForm.contactName" maxlength="80" placeholder="请输入联系人" />
+              <el-input
+                v-model="institutionForm.contactName"
+                maxlength="80"
+                placeholder="请输入联系人"
+              />
             </el-form-item>
             <el-form-item label="联系电话">
-              <el-input v-model="institutionForm.contactPhone" maxlength="40" placeholder="请输入联系电话" />
+              <el-input
+                v-model="institutionForm.contactPhone"
+                maxlength="40"
+                placeholder="请输入联系电话"
+              />
             </el-form-item>
             <el-form-item label="机构状态">
               <el-select v-model="institutionForm.status" placeholder="选择状态">
-                <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+                <el-option
+                  v-for="item in statusOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </el-form-item>
           </div>
 
           <el-form-item label="机构地址">
-            <el-input v-model="institutionForm.address" maxlength="200" placeholder="请输入机构地址" />
+            <el-input
+              v-model="institutionForm.address"
+              maxlength="200"
+              placeholder="请输入机构地址"
+            />
           </el-form-item>
           <el-form-item label="备注">
-            <el-input v-model="institutionForm.remark" type="textarea" :rows="3" maxlength="500" placeholder="补充机构说明" />
+            <el-input
+              v-model="institutionForm.remark"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              placeholder="补充机构说明"
+            />
           </el-form-item>
         </el-form>
       </div>
@@ -138,7 +183,10 @@ function formatInstitution(id?: string | null) {
     return '未设置'
   }
   return currentInstitution.value?.id === id
-    ? currentInstitution.value.name || currentInstitution.value.shortName || currentInstitution.value.orgCode || `机构 #${id}`
+    ? currentInstitution.value.name ||
+        currentInstitution.value.shortName ||
+        currentInstitution.value.orgCode ||
+        `机构 #${id}`
     : `机构 #${id}`
 }
 

@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: #14213d;
-  background: linear-gradient(180deg, #f5f6fa 0%, #eef1f6 100%);
+  background: #f5f6fa;
   line-height: 1.5;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
@@ -85,6 +85,10 @@ body {
   overflow-y: auto;
   color: #f8fafc;
   background: linear-gradient(180deg, #14213d 0%, #223a5e 100%);
+  /* 右缘柔和分界:内侧高光 + 向内容侧浮起投影,不再是一条死直的轮廓线 */
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.1),
+    3px 0 12px rgba(20, 33, 61, 0.1);
 }
 
 .app-sidebar::-webkit-scrollbar-thumb {
@@ -144,7 +148,9 @@ body {
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .nav-item-icon {
@@ -248,8 +254,15 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100vh;
+  height: calc(100vh - 24px);
+  margin: 12px;
   padding: 20px 28px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 8px 24px rgba(20, 33, 61, 0.07);
   overflow: hidden;
 }
 
@@ -356,8 +369,10 @@ body {
 }
 
 .campus-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  min-height: 100%;
 }
 
 .campus-stat-grid {
@@ -365,8 +380,10 @@ body {
 }
 
 .education-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  min-height: 100%;
 }
 
 /* 页面统一工具栏:左侧筛选 + 右侧操作按钮;吸顶常驻,方便随时改筛选 */
@@ -432,8 +449,28 @@ body {
 }
 
 .education-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  /* 视口填充:表格卡片吃掉页面剩余高度,el-table(height=100%) 表内滚动 */
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+
+.education-panel .el-table {
+  flex: 1 1 auto;
+  min-height: 200px;
+}
+
+/* 非表格行(统计卡、工具栏)不参与伸缩 */
+.education-page > .dashboard-grid,
+.education-page > .page-toolbar,
+.education-panel > .education-table-head,
+.education-panel > .el-pagination,
+.configurable-list-toolbar,
+.configurable-list-query,
+.configurable-list-pagination {
+  flex-shrink: 0;
 }
 
 /* min-width:0 阻止面板内 el-table 的固有宽度沿 grid 传导，避免整页被撑出横向滚动 */
@@ -441,9 +478,40 @@ body {
   min-width: 0;
 }
 
+/* Tab 占满视口:排课/考勤这类以 el-tabs 为主体的面板,内容区继承高度 */
+.education-panel > .el-tabs,
+.education-panel .el-tab-pane > .el-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.education-panel .el-tabs__content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.education-panel .el-tab-pane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 校区资源 7 表:双列铺满整屏,每卡一行,表体在卡内占满并滚动 */
 .resource-grid {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(280px, 1fr);
   gap: 18px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 第 7 张卡(班型)独占整行,避免落单留白 */
+.resource-grid > :last-child {
+  grid-column: 1 / -1;
 }
 
 /* min-width:0 阻止面板内 el-table 的固有宽度沿 grid 传导，避免整页被撑出横向滚动 */
@@ -452,8 +520,15 @@ body {
 }
 
 .resource-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  min-height: 0;
+}
+
+.resource-card .el-table {
+  flex: 1 1 auto;
+  min-height: 180px;
 }
 
 /* min-width:0 阻止 el-table 撑开父容器 */
@@ -823,6 +898,20 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+
+/* 字典双列卡片:列内表格占满卡高 */
+.system-dict-grid > * {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.system-dict-grid .el-table {
+  flex: 1 1 auto;
+  min-height: 200px;
 }
 
 .system-dict-current {
@@ -944,7 +1033,9 @@ body {
   background: transparent;
   color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   text-decoration: none;
 }
 
@@ -1027,7 +1118,9 @@ body {
   font-size: 13px;
   color: #374151;
   text-decoration: none;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .rail-pop-item:hover {
@@ -1055,6 +1148,12 @@ body {
 .nav-mode-check {
   margin-right: 2px;
   color: var(--brand-blue);
+}
+
+@media (max-width: 1400px) {
+  .resource-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1280px) {

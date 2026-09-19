@@ -53,7 +53,11 @@ export function useCrudModal(options: () => CrudModalOptions) {
 
   function toMessage(error: unknown, fallback: string): string {
     const t = getOpts().toMessage
-    return t ? t(error, fallback) : error instanceof Error && error.message ? error.message : fallback
+    return t
+      ? t(error, fallback)
+      : error instanceof Error && error.message
+        ? error.message
+        : fallback
   }
 
   /** 把配置文案里的 {name} 替换为资源名(缺省回退传入文案本身) */
@@ -82,7 +86,7 @@ export function useCrudModal(options: () => CrudModalOptions) {
 
   async function submit(
     validate: () => Promise<boolean> | boolean,
-    buildForm: () => Record<string, any>,
+    buildForm: () => Record<string, any>
   ): Promise<void> {
     const valid = await validate()
     if (!valid) {
@@ -121,7 +125,7 @@ export function useCrudModal(options: () => CrudModalOptions) {
         error,
         mode.value === 'create'
           ? render(opts.messages?.createError, `${opts.resourceName ?? ''}创建失败`)
-          : render(opts.messages?.updateError, `${opts.resourceName ?? ''}编辑失败`),
+          : render(opts.messages?.updateError, `${opts.resourceName ?? ''}编辑失败`)
       )
     } finally {
       submitting.value = false

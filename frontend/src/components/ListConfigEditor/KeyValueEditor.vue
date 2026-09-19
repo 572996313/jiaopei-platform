@@ -1,12 +1,7 @@
 <template>
   <div class="kv-editor">
     <div v-for="(pair, index) in items" :key="index" class="kv-row">
-      <el-input
-        v-model="pair.key"
-        :placeholder="keyPlaceholder"
-        size="small"
-        class="kv-key"
-      />
+      <el-input v-model="pair.key" :placeholder="keyPlaceholder" size="small" class="kv-key" />
       <el-input
         v-if="!useValueSelect"
         v-model="pair.value"
@@ -22,9 +17,16 @@
         clearable
         class="kv-value"
       >
-        <el-option v-for="opt in valueOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        <el-option
+          v-for="opt in valueOptions"
+          :key="opt.value"
+          :label="opt.label"
+          :value="opt.value"
+        />
       </el-select>
-      <el-button text type="danger" size="small" class="kv-remove" @click="removeRow(index)">删除</el-button>
+      <el-button text type="danger" size="small" class="kv-remove" @click="removeRow(index)"
+        >删除</el-button
+      >
     </div>
     <el-button size="small" type="primary" plain @click="addRow">添加一行</el-button>
   </div>
@@ -47,7 +49,7 @@ const props = withDefaults(
     keyPlaceholder: '键',
     valuePlaceholder: '值',
     valueOptions: () => [],
-  },
+  }
 )
 
 const modelValue = defineModel<KeyValuePair[] | undefined>()

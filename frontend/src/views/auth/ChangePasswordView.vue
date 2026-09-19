@@ -4,17 +4,25 @@
       <div class="login-kicker">账号安全</div>
       <h1 class="login-title">账号安全校验</h1>
       <p class="login-copy">
-        {{ auth.mustChangePassword ? '当前账号需要先修改密码后才能进入业务首页。' : '可在此主动修改当前登录账号密码。' }}
+        {{
+          auth.mustChangePassword
+            ? '当前账号需要先修改密码后才能进入业务首页。'
+            : '可在此主动修改当前登录账号密码。'
+        }}
       </p>
 
       <div class="login-feature-list">
         <div class="login-feature-card">
           <div class="login-feature-title">强制改密</div>
-          <div class="login-feature-text">登录返回 forceChangePassword=true 时，前端会直接锁定到本页。</div>
+          <div class="login-feature-text">
+            登录返回 forceChangePassword=true 时，前端会直接锁定到本页。
+          </div>
         </div>
         <div class="login-feature-card">
           <div class="login-feature-title">用户态延续</div>
-          <div class="login-feature-text">提交成功后会刷新 /api/auth/me，再决定回到首页还是继续停留。</div>
+          <div class="login-feature-text">
+            提交成功后会刷新 /api/auth/me，再决定回到首页还是继续停留。
+          </div>
         </div>
       </div>
     </section>
@@ -35,22 +43,49 @@
           :closable="false"
           class="education-alert"
         />
-        <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
+        <el-alert
+          v-if="formError"
+          :title="formError"
+          type="error"
+          show-icon
+          :closable="false"
+          class="education-alert"
+        />
 
         <el-form label-position="top" @submit.prevent="submitChangePassword">
           <el-form-item label="当前密码">
-            <el-input v-model="form.oldPassword" type="password" show-password placeholder="请输入当前密码" />
+            <el-input
+              v-model="form.oldPassword"
+              type="password"
+              show-password
+              placeholder="请输入当前密码"
+            />
           </el-form-item>
           <el-form-item label="新密码">
-            <el-input v-model="form.newPassword" type="password" show-password placeholder="请输入新密码" />
+            <el-input
+              v-model="form.newPassword"
+              type="password"
+              show-password
+              placeholder="请输入新密码"
+            />
           </el-form-item>
           <el-form-item label="确认新密码">
-            <el-input v-model="form.confirmPassword" type="password" show-password placeholder="请再次输入新密码" />
+            <el-input
+              v-model="form.confirmPassword"
+              type="password"
+              show-password
+              placeholder="请再次输入新密码"
+            />
           </el-form-item>
 
           <div class="change-password-actions">
             <el-button v-if="!auth.mustChangePassword" @click="goBack">返回系统</el-button>
-            <el-button class="login-submit" type="primary" :loading="submitting" @click="submitChangePassword">
+            <el-button
+              class="login-submit"
+              type="primary"
+              :loading="submitting"
+              @click="submitChangePassword"
+            >
               提交新密码
             </el-button>
           </div>

@@ -16,7 +16,14 @@
       <div><strong>显示名称:</strong>{{ assignRoleUser?.displayName || '-' }}</div>
     </div>
 
-    <el-alert v-if="roleAssignError" :title="roleAssignError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-alert
+      v-if="roleAssignError"
+      :title="roleAssignError"
+      type="error"
+      show-icon
+      :closable="false"
+      class="education-alert"
+    />
 
     <el-checkbox-group v-model="selectedRoleIds" class="system-role-checks">
       <el-checkbox v-for="item in roles" :key="item.id" :label="item.id">
@@ -26,7 +33,9 @@
 
     <template #footer>
       <el-button @click="roleAssignDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="roleAssignSubmitting" @click="submitRoleAssignment">保存角色</el-button>
+      <el-button type="primary" :loading="roleAssignSubmitting" @click="submitRoleAssignment"
+        >保存角色</el-button
+      >
     </template>
   </el-dialog>
 </template>
@@ -87,7 +96,10 @@ const listRenderContext = computed<RenderContext>(() => ({
 function syncInstitutionMaps(list: InstitutionSummary[]) {
   institutions.value = list
   for (const item of list) {
-    institutionMap.set(item.id, item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`)
+    institutionMap.set(
+      item.id,
+      item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`
+    )
   }
 }
 
@@ -113,7 +125,10 @@ const userFormContext = computed<RenderContext>(() => ({
 }))
 
 /** 机构变更联动:重拉当前机构校区,并在所选校区不在新机构下时清空(与旧实现一致) */
-async function syncUserDialogCampuses(institutionId: string, currentCampusId: string | null = null) {
+async function syncUserDialogCampuses(
+  institutionId: string,
+  currentCampusId: string | null = null
+) {
   if (!institutionId) {
     userDialogCampuses.value = []
     return
@@ -127,14 +142,17 @@ async function syncUserDialogCampuses(institutionId: string, currentCampusId: st
     ) {
       userCrudPageRef.value?.formRef?.setFieldValue('defaultCampusId', '')
     }
-  } catch (error) {
+  } catch {
     userDialogCampuses.value = []
     void userCrudPageRef.value?.formRef?.setFieldValue('defaultCampusId', '')
   }
 }
 
 /** 机构变更联动:重拉当前机构校区(读 ConfigurableForm 的 model) */
-const userFormFieldHooks: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void> = {
+const userFormFieldHooks: Record<
+  string,
+  (form: Record<string, any>, field: FormFieldConfig) => void
+> = {
   institutionId: (form) => {
     const institutionId = String(form.institutionId ?? '')
     const currentCampus = form.defaultCampusId ? String(form.defaultCampusId) : null
@@ -149,7 +167,8 @@ const userCrud: CrudPageOptions = {
     // 重置表单(触发 initial 重建与机构联动钩子)
     void userCrudPageRef.value?.formRef?.reset()
     if (mode === 'create') {
-      const defaultInstitutionId = auth.currentUser?.institutionId || institutions.value[0]?.id || ''
+      const defaultInstitutionId =
+        auth.currentUser?.institutionId || institutions.value[0]?.id || ''
       void syncUserDialogCampuses(defaultInstitutionId)
     } else if (row) {
       const user = row as SystemUserSummary
@@ -225,7 +244,7 @@ async function handleResetPassword(user: SystemUserSummary) {
     await ElMessageBox.confirm(
       `确定重置用户「${user.displayName || user.username}」的密码吗?重置后将生成新的初始密码,请及时告知该用户。`,
       '重置密码',
-      { type: 'warning', confirmButtonText: '重置', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '重置', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -238,7 +257,7 @@ async function handleResetPassword(user: SystemUserSummary) {
       '密码已重置',
       {
         confirmButtonText: '知道了',
-      },
+      }
     )
     await userCrudPageRef.value?.reload()
   } catch (error) {

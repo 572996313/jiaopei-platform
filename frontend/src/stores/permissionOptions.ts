@@ -22,7 +22,11 @@ const state = ref<{ loaded: boolean; options: PermissionOption[] }>({ loaded: fa
 let loadPromise: Promise<void> | null = null
 
 /** 静态常量表:code → 原有分组(系统管理/组织档案/教务管理)。未命中(新增码)归入「其他权限」组 */
-const staticGroupByCode = new Map(permissionGroups().flatMap((group) => group.items.map((item) => [item.code, group.group] as const)))
+const staticGroupByCode = new Map(
+  permissionGroups().flatMap((group) =>
+    group.items.map((item) => [item.code, group.group] as const)
+  )
+)
 
 function keepUnique(options: PermissionOption[]): PermissionOption[] {
   const seen = new Set<string>()
@@ -63,13 +67,15 @@ export async function ensurePermissionOptionsLoaded() {
 
 function fallbackOptions(): PermissionOption[] {
   return permissionGroups().flatMap((group) =>
-    group.items.map((item) => ({ code: item.code, label: item.label, menuNames: [item.label] })),
+    group.items.map((item) => ({ code: item.code, label: item.label, menuNames: [item.label] }))
   )
 }
 
 /** 当前选项:接口结果优先,未加载/失败时返回静态常量表(离线兜底) */
 function currentOptions(): PermissionOption[] {
-  return state.value.loaded && state.value.options.length > 0 ? state.value.options : fallbackOptions()
+  return state.value.loaded && state.value.options.length > 0
+    ? state.value.options
+    : fallbackOptions()
 }
 
 /**
@@ -106,7 +112,9 @@ export function permissionOptionLabel(code: string): string {
     return dynamic.label
   }
   const staticLabel = staticGroupByCode.size
-    ? permissionGroups().flatMap((group) => group.items).find((item) => item.code === code)?.label
+    ? permissionGroups()
+        .flatMap((group) => group.items)
+        .find((item) => item.code === code)?.label
     : undefined
   return staticLabel || code
 }

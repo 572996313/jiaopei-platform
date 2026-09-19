@@ -3,9 +3,7 @@
     <section class="login-panel login-panel-brand">
       <div class="login-kicker">教培管理平台</div>
       <h1 class="login-title">线下班课教务中台</h1>
-      <p class="login-copy">
-        聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。
-      </p>
+      <p class="login-copy">聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。</p>
 
       <div class="login-feature-list">
         <div class="login-feature-card">
@@ -27,14 +25,26 @@
           当前已切真实登录接口。默认首个管理员账号：`admin`，初始密码：`Admin@123456`。
         </p>
 
-        <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
+        <el-alert
+          v-if="formError"
+          :title="formError"
+          type="error"
+          show-icon
+          :closable="false"
+          class="education-alert"
+        />
 
         <el-form label-position="top" @submit.prevent="submitLogin">
           <el-form-item label="账号">
             <el-input v-model="form.username" placeholder="请输入账号" />
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" />
+            <el-input
+              v-model="form.password"
+              type="password"
+              show-password
+              placeholder="请输入密码"
+            />
           </el-form-item>
           <el-button class="login-submit" type="primary" :loading="submitting" @click="submitLogin">
             登录系统
@@ -92,9 +102,10 @@ async function submitLogin() {
     } else {
       ElMessage.success('登录成功')
     }
-    const redirect = typeof router.currentRoute.value.query.redirect === 'string'
-      ? router.currentRoute.value.query.redirect
-      : '/dashboard'
+    const redirect =
+      typeof router.currentRoute.value.query.redirect === 'string'
+        ? router.currentRoute.value.query.redirect
+        : '/dashboard'
     router.push(redirect)
   } catch (error) {
     formError.value = error instanceof Error ? error.message : '登录失败'

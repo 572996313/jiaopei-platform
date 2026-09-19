@@ -28,7 +28,12 @@
       <el-table-column prop="type" label="控件类型 type" width="180">
         <template #default="{ row }">
           <el-select v-model="row.type" size="small" filterable>
-            <el-option v-for="opt in FORM_FIELD_TYPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option
+              v-for="opt in FORM_FIELD_TYPE_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </template>
       </el-table-column>
@@ -42,7 +47,12 @@
       <el-table-column prop="gridSpan" label="占位" width="100">
         <template #default="{ row }">
           <el-select v-model="row.gridSpan" size="small" clearable placeholder="默认">
-            <el-option v-for="opt in GRID_SPAN_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option
+              v-for="opt in GRID_SPAN_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </template>
       </el-table-column>
@@ -64,11 +74,19 @@
           </el-form-item>
 
           <el-form-item
-            v-if="row.type === 'select' || row.type === 'radio' || row.type === 'checkbox-group' || row.type === 'dict-select'"
+            v-if="
+              row.type === 'select' ||
+              row.type === 'radio' ||
+              row.type === 'checkbox-group' ||
+              row.type === 'dict-select'
+            "
             label="选项来源"
             class="full-span"
           >
-            <el-radio-group :model-value="modeOf(row)" @update:model-value="setMode(row, $event as string)">
+            <el-radio-group
+              :model-value="modeOf(row)"
+              @update:model-value="setMode(row, $event as string)"
+            >
               <template v-if="row.type === 'dict-select'">
                 <el-radio value="loader">字典(dictType)</el-radio>
               </template>
@@ -80,7 +98,10 @@
           </el-form-item>
 
           <el-form-item
-            v-if="(row.type === 'select' || row.type === 'radio' || row.type === 'checkbox-group') && modeOf(row) === 'options'"
+            v-if="
+              (row.type === 'select' || row.type === 'radio' || row.type === 'checkbox-group') &&
+              modeOf(row) === 'options'
+            "
             label="静态选项 options"
             class="full-span"
           >
@@ -92,7 +113,11 @@
           </el-form-item>
 
           <el-form-item
-            v-if="row.type === 'dict-select' || ((row.type === 'select' || row.type === 'radio' || row.type === 'checkbox-group') && modeOf(row) === 'loader')"
+            v-if="
+              row.type === 'dict-select' ||
+              ((row.type === 'select' || row.type === 'radio' || row.type === 'checkbox-group') &&
+                modeOf(row) === 'loader')
+            "
             :label="row.type === 'dict-select' ? '字典类型 dictType' : '数据源 optionsLoader'"
           >
             <el-select
@@ -104,13 +129,29 @@
               clearable
               placeholder="如 common_status"
             />
-            <el-select v-else v-model="row.optionsLoader" size="small" clearable filterable placeholder="选择数据源">
-              <el-option v-for="opt in OPTIONS_LOADER_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-select
+              v-else
+              v-model="row.optionsLoader"
+              size="small"
+              clearable
+              filterable
+              placeholder="选择数据源"
+            >
+              <el-option
+                v-for="opt in OPTIONS_LOADER_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </el-form-item>
 
           <el-form-item label="默认值 defaultValue">
-            <el-input v-model="row.defaultValue" size="small" :placeholder="defaultValuePlaceholder(row.type)" />
+            <el-input
+              v-model="row.defaultValue"
+              size="small"
+              :placeholder="defaultValuePlaceholder(row.type)"
+            />
           </el-form-item>
 
           <el-form-item label="模式显示/禁用" class="full-span">
@@ -128,16 +169,32 @@
 
           <template v-if="isTextish(row.type)">
             <el-form-item label="最多输入 maxlength">
-              <el-input-number v-model="row.maxlength" size="small" :min="0" :controls="false" placeholder="不限" />
+              <el-input-number
+                v-model="row.maxlength"
+                size="small"
+                :min="0"
+                :controls="false"
+                placeholder="不限"
+              />
             </el-form-item>
           </template>
 
           <template v-if="row.type === 'number'">
             <el-form-item label="最小值 min">
-              <el-input-number v-model="row.min" size="small" :controls="false" placeholder="不限" />
+              <el-input-number
+                v-model="row.min"
+                size="small"
+                :controls="false"
+                placeholder="不限"
+              />
             </el-form-item>
             <el-form-item label="最大值 max">
-              <el-input-number v-model="row.max" size="small" :controls="false" placeholder="不限" />
+              <el-input-number
+                v-model="row.max"
+                size="small"
+                :controls="false"
+                placeholder="不限"
+              />
             </el-form-item>
           </template>
 
@@ -154,7 +211,12 @@
       <template #tip>
         <span class="block-tip">
           field 与保存接口字段一致;type、必填、默认值在此设置。查看
-          <a href="https://element-plus.org/zh-CN/component/form.html" target="_blank" rel="noopener">表单文档 ↗</a>
+          <a
+            href="https://element-plus.org/zh-CN/component/form.html"
+            target="_blank"
+            rel="noopener"
+            >表单文档 ↗</a
+          >
         </span>
       </template>
     </TableEditorShell>

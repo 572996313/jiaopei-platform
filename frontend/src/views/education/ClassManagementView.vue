@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="handleCampusChange"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -14,7 +20,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="classId" placeholder="筛选班级" clearable filterable @change="loadRecords">
+        <el-select
+          v-model="classId"
+          placeholder="筛选班级"
+          clearable
+          filterable
+          @change="loadRecords"
+        >
           <el-option
             v-for="item in classes"
             :key="item.id"
@@ -22,7 +34,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="studentId" placeholder="筛选学员" clearable filterable @change="handleStudentFilterChange">
+        <el-select
+          v-model="studentId"
+          placeholder="筛选学员"
+          clearable
+          filterable
+          @change="handleStudentFilterChange"
+        >
           <el-option
             v-for="item in students"
             :key="item.id"
@@ -34,9 +52,16 @@
       <div class="page-toolbar-actions">
         <el-button @click="statsVisible = !statsVisible">
           统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+            ><ArrowDown
+          /></el-icon>
         </el-button>
-        <el-button :icon="Refresh" circle :loading="lookupLoading || tableLoading || parentLoading" @click="refreshAll" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="lookupLoading || tableLoading || parentLoading"
+          @click="refreshAll"
+        />
         <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
       </div>
     </div>
@@ -58,14 +83,23 @@
       <article class="panel-card">
         <div class="education-table-head">
           <div>
-            <div class="panel-title">班级主档<span class="panel-count">共 {{ classes.length }} 个班级</span></div>
+            <div class="panel-title">
+              班级主档<span class="panel-count">共 {{ classes.length }} 个班级</span>
+            </div>
             <div class="education-context-text">
-              当前班级：{{ formatClass(classId) }} / 课程：{{ formatCourse(currentClass?.courseId) }} / 班型：{{ formatClassType(currentClass?.classTypeId) }}
+              当前班级：{{ formatClass(classId) }} / 课程：{{
+                formatCourse(currentClass?.courseId)
+              }}
+              / 班型：{{ formatClassType(currentClass?.classTypeId) }}
             </div>
           </div>
           <div class="table-actions">
-            <el-button link type="primary" :disabled="!currentClass" @click="openClassProfileDialog">编辑</el-button>
-            <el-button link type="danger" :disabled="!currentClass" @click="confirmDeleteClass">删除</el-button>
+            <el-button link type="primary" :disabled="!currentClass" @click="openClassProfileDialog"
+              >编辑</el-button
+            >
+            <el-button link type="danger" :disabled="!currentClass" @click="confirmDeleteClass"
+              >删除</el-button
+            >
           </div>
         </div>
 
@@ -118,9 +152,7 @@
               <strong>班级主档风险</strong>
               <span>未绑定课程、班型、主讲或人数超容时在此提示。</span>
             </div>
-            <div v-if="!currentClass" class="education-empty">
-              请选择班级后查看班级主档风险。
-            </div>
+            <div v-if="!currentClass" class="education-empty">请选择班级后查看班级主档风险。</div>
             <div v-else-if="classProfileRiskItems.length === 0" class="education-empty">
               当前班级暂无主档风险。
             </div>
@@ -137,9 +169,7 @@
               <strong>班级变动通知</strong>
               <span>系统生成的变动提醒，处理后自动消除。</span>
             </div>
-            <div v-if="!currentClass" class="education-empty">
-              请选择班级后查看班级变动通知。
-            </div>
+            <div v-if="!currentClass" class="education-empty">请选择班级后查看班级变动通知。</div>
             <div v-else-if="noticeError" class="education-empty">
               {{ noticeError }}
             </div>
@@ -150,7 +180,11 @@
               当前班级暂无待处理的变动通知。
             </div>
             <div v-else class="reminder-list">
-              <div v-for="item in classChangeNoticeItems" :key="item.key" class="reminder-item is-notice">
+              <div
+                v-for="item in classChangeNoticeItems"
+                :key="item.key"
+                class="reminder-item is-notice"
+              >
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.text }}</span>
                 <span v-if="item.action" class="reminder-meta">建议动作：{{ item.action }}</span>
@@ -163,11 +197,13 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">班级学员关系<span class="panel-count">共 {{ visibleRecords.length }} 条</span></div>
+        <div class="panel-title">
+          班级学员关系<span class="panel-count">共 {{ visibleRecords.length }} 条</span>
+        </div>
         <el-button type="primary" @click="openDialog">新增入班</el-button>
       </div>
 
-      <el-table :data="visibleRecords" border v-loading="tableLoading">
+      <el-table :data="visibleRecords" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column label="班级" min-width="180">
           <template #default="{ row }">
             {{ formatClass(row.classId) }}
@@ -199,7 +235,9 @@
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
-              <el-button link type="primary" @click="openParentPanel(row.studentId)">联系人</el-button>
+              <el-button link type="primary" @click="openParentPanel(row.studentId)"
+                >联系人</el-button
+              >
               <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
             </div>
           </template>
@@ -223,7 +261,7 @@
           <el-button link type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
         </div>
 
-        <el-table :data="classTeachers" border v-loading="tableLoading">
+        <el-table :data="classTeachers" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
           <el-table-column label="教师" min-width="180">
             <template #default="{ row }">
               {{ formatTeacher(row.teacherId) }}
@@ -242,14 +280,24 @@
           <el-table-column prop="joinedAt" label="生效日期" width="130" />
           <el-table-column prop="status" label="状态" width="110">
             <template #default="{ row }">
-              <el-tag :type="classTeacherStatusTagType(row.status)">{{ classTeacherStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="classTeacherStatusTagType(row.status)">{{
+                classTeacherStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
-                <el-button link type="warning" :disabled="row.isPrimary" @click="promotePrimaryTeacher(row)">设为主讲</el-button>
-                <el-button link type="primary" @click="openTeacherDialog('edit', row)">编辑</el-button>
+                <el-button
+                  link
+                  type="warning"
+                  :disabled="row.isPrimary"
+                  @click="promotePrimaryTeacher(row)"
+                  >设为主讲</el-button
+                >
+                <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+                  >编辑</el-button
+                >
                 <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
               </div>
             </template>
@@ -270,7 +318,9 @@
             </div>
           </div>
           <div class="table-actions">
-            <el-button link type="primary" @click="openParentDialog('create')">新增联系人</el-button>
+            <el-button link type="primary" @click="openParentDialog('create')"
+              >新增联系人</el-button
+            >
           </div>
         </div>
 
@@ -279,7 +329,12 @@
         </div>
 
         <template v-else>
-          <el-table :data="studentParents" border v-loading="parentLoading">
+          <el-table
+            :data="studentParents"
+            border
+            v-loading="parentLoading"
+            :height="TABLE_FILL_HEIGHT"
+          >
             <el-table-column prop="parentName" label="联系人" min-width="140" />
             <el-table-column label="关系" width="110">
               <template #default="{ row }">
@@ -299,14 +354,24 @@
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="studentParentTagType(row.status)">{{ studentParentStatusLabel(row.status) }}</el-tag>
+                <el-tag :type="studentParentTagType(row.status)">{{
+                  studentParentStatusLabel(row.status)
+                }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="220" fixed="right">
               <template #default="{ row }">
                 <div class="table-actions">
-                  <el-button link type="warning" :disabled="row.primaryContact" @click="promotePrimaryParent(row)">设为主联系人</el-button>
-                  <el-button link type="primary" @click="openParentDialog('edit', row)">编辑</el-button>
+                  <el-button
+                    link
+                    type="warning"
+                    :disabled="row.primaryContact"
+                    @click="promotePrimaryParent(row)"
+                    >设为主联系人</el-button
+                  >
+                  <el-button link type="primary" @click="openParentDialog('edit', row)"
+                    >编辑</el-button
+                  >
                   <el-button link type="danger" @click="removeStudentParent(row)">删除</el-button>
                 </div>
               </template>
@@ -321,7 +386,14 @@
     </div>
 
     <el-dialog v-model="dialogVisible" title="新增入班关系" width="520px">
-      <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-alert
+        v-if="formError"
+        :title="formError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="入班班级" required>
@@ -385,12 +457,25 @@
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitClassStudent">提交入班</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitClassStudent"
+          >提交入班</el-button
+        >
       </template>
     </el-dialog>
 
-    <el-dialog v-model="teacherDialogVisible" :title="teacherDialogMode === 'create' ? '新增班级教师' : '编辑班级教师'" width="520px">
-      <el-alert v-if="teacherFormError" :title="teacherFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="teacherDialogVisible"
+      :title="teacherDialogMode === 'create' ? '新增班级教师' : '编辑班级教师'"
+      width="520px"
+    >
+      <el-alert
+        v-if="teacherFormError"
+        :title="teacherFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="所属班级" required>
@@ -430,13 +515,30 @@
           </el-select>
         </el-form-item>
         <el-form-item label="生效日期">
-          <el-date-picker v-model="teacherForm.joinedAt" type="date" value-format="YYYY-MM-DD" placeholder="选择生效日期" style="width: 100%" />
+          <el-date-picker
+            v-model="teacherForm.joinedAt"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择生效日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="结束日期">
-          <el-date-picker v-model="teacherForm.leftAt" type="date" value-format="YYYY-MM-DD" placeholder="选择结束日期" style="width: 100%" />
+          <el-date-picker
+            v-model="teacherForm.leftAt"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择结束日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="teacherForm.remark" type="textarea" :rows="3" placeholder="补充班级教师说明" />
+          <el-input
+            v-model="teacherForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充班级教师说明"
+          />
         </el-form-item>
       </el-form>
 
@@ -451,7 +553,9 @@
     <el-dialog v-model="classProfileDialogVisible" title="编辑班级" width="560px">
       <div class="education-dialog-context">
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
-        <div><strong>主讲：</strong>{{ primaryTeacherLabel }}（主讲切换仍在班级教师关系中维护）</div>
+        <div>
+          <strong>主讲：</strong>{{ primaryTeacherLabel }}（主讲切换仍在班级教师关系中维护）
+        </div>
       </div>
 
       <el-alert
@@ -501,7 +605,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="容量上限">
-          <el-input-number v-model="classProfileForm.capacityLimit" :min="0" :step="1" style="width: 100%" />
+          <el-input-number
+            v-model="classProfileForm.capacityLimit"
+            :min="0"
+            :step="1"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="班级状态">
           <el-select v-model="classProfileForm.status">
@@ -512,13 +621,23 @@
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="classProfileForm.remark" type="textarea" :rows="3" placeholder="补充班级主档说明" />
+          <el-input
+            v-model="classProfileForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充班级主档说明"
+          />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="classProfileDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classProfileSubmitting" @click="submitClassProfileUpdate">保存修改</el-button>
+        <el-button
+          type="primary"
+          :loading="classProfileSubmitting"
+          @click="submitClassProfileUpdate"
+          >保存修改</el-button
+        >
       </template>
     </el-dialog>
 
@@ -570,7 +689,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="班型">
-          <el-select v-model="classCreateForm.classTypeId" clearable filterable placeholder="选择班型">
+          <el-select
+            v-model="classCreateForm.classTypeId"
+            clearable
+            filterable
+            placeholder="选择班型"
+          >
             <el-option
               v-for="item in classTypes"
               :key="item.id"
@@ -580,7 +704,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="主讲教师">
-          <el-select v-model="classCreateForm.teacherId" clearable filterable placeholder="选择主讲教师">
+          <el-select
+            v-model="classCreateForm.teacherId"
+            clearable
+            filterable
+            placeholder="选择主讲教师"
+          >
             <el-option
               v-for="item in teachers"
               :key="item.id"
@@ -590,7 +719,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="容量上限">
-          <el-input-number v-model="classCreateForm.capacityLimit" :min="0" :step="1" style="width: 100%" />
+          <el-input-number
+            v-model="classCreateForm.capacityLimit"
+            :min="0"
+            :step="1"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="班级状态">
           <el-select v-model="classCreateForm.status">
@@ -601,20 +735,37 @@
           </el-select>
         </el-form-item>
         <el-form-item label="开班日期">
-          <el-date-picker v-model="classCreateForm.openedAt" type="date" value-format="YYYY-MM-DD" placeholder="选择开班日期" style="width: 100%" />
+          <el-date-picker
+            v-model="classCreateForm.openedAt"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择开班日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="classCreateForm.remark" type="textarea" :rows="3" placeholder="补充班级主档说明" />
+          <el-input
+            v-model="classCreateForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充班级主档说明"
+          />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="classCreateDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classCreateSubmitting" @click="submitClassCreate">新增班级</el-button>
+        <el-button type="primary" :loading="classCreateSubmitting" @click="submitClassCreate"
+          >新增班级</el-button
+        >
       </template>
     </el-dialog>
 
-    <el-dialog v-model="parentDialogVisible" :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'" width="560px">
+    <el-dialog
+      v-model="parentDialogVisible"
+      :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'"
+      width="560px"
+    >
       <el-alert
         v-if="parentFormError"
         :title="parentFormError"
@@ -665,7 +816,12 @@
           <el-switch v-model="parentForm.isEmergencyContact" />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="parentForm.remark" type="textarea" :rows="3" placeholder="补充联系人说明" />
+          <el-input
+            v-model="parentForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="补充联系人说明"
+          />
         </el-form-item>
       </el-form>
 
@@ -681,6 +837,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
@@ -842,23 +999,39 @@ const parentForm = reactive({
 })
 
 const classMap = computed(() => {
-  return new Map(classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`]))
+  return new Map(
+    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
+  )
 })
 
 const studentMap = computed(() => {
-  return new Map(students.value.map((item) => [item.id, item.studentName || item.studentNo || `学员 #${item.id}`]))
+  return new Map(
+    students.value.map((item) => [
+      item.id,
+      item.studentName || item.studentNo || `学员 #${item.id}`,
+    ])
+  )
 })
 
 const teacherMap = computed(() => {
-  return new Map(teachers.value.map((item) => [item.id, item.teacherName || item.teacherCode || `教师 #${item.id}`]))
+  return new Map(
+    teachers.value.map((item) => [
+      item.id,
+      item.teacherName || item.teacherCode || `教师 #${item.id}`,
+    ])
+  )
 })
 
 const courseMap = computed(() => {
-  return new Map(courses.value.map((item) => [item.id, item.courseName || item.courseCode || `课程 #${item.id}`]))
+  return new Map(
+    courses.value.map((item) => [item.id, item.courseName || item.courseCode || `课程 #${item.id}`])
+  )
 })
 
 const classTypeMap = computed(() => {
-  return new Map(classTypes.value.map((item) => [item.id, item.typeName || item.typeCode || `班型 #${item.id}`]))
+  return new Map(
+    classTypes.value.map((item) => [item.id, item.typeName || item.typeCode || `班型 #${item.id}`])
+  )
 })
 
 const currentClass = computed(() => {
@@ -920,7 +1093,10 @@ const localRiskItems = computed<ReminderItem[]>(() => {
         noticeType: 'missing_primary_teacher',
       })
     }
-    if (typeof currentClass.value.capacityLimit === 'number' && activeClassStudentCount.value > currentClass.value.capacityLimit) {
+    if (
+      typeof currentClass.value.capacityLimit === 'number' &&
+      activeClassStudentCount.value > currentClass.value.capacityLimit
+    ) {
       items.push({
         key: 'capacity-overflow',
         title: '在班人数超过容量上限',
@@ -942,8 +1118,12 @@ const classChangeNoticeItems = computed<NoticeItem[]>(() => {
 })
 
 const classProfileRiskItems = computed<ReminderItem[]>(() => {
-  const noticeTypes = new Set(classChangeNotices.value.map((item) => item.noticeType).filter(Boolean))
-  return localRiskItems.value.filter((item) => !item.noticeType || !noticeTypes.has(item.noticeType))
+  const noticeTypes = new Set(
+    classChangeNotices.value.map((item) => item.noticeType).filter(Boolean)
+  )
+  return localRiskItems.value.filter(
+    (item) => !item.noticeType || !noticeTypes.has(item.noticeType)
+  )
 })
 
 function todayValue() {
@@ -1215,7 +1395,9 @@ function buildClassCreatePayload(): TeachingClassCreatePayload {
     classCode: classCreateForm.classCode.trim(),
     className: classCreateForm.className.trim(),
     teacherId: classCreateForm.teacherId || null,
-    capacityLimit: Number.isFinite(classCreateForm.capacityLimit) ? classCreateForm.capacityLimit : 0,
+    capacityLimit: Number.isFinite(classCreateForm.capacityLimit)
+      ? classCreateForm.capacityLimit
+      : 0,
     status: classCreateForm.status || 'planning',
     openedAt: classCreateForm.openedAt || null,
     remark: trimToUndefined(classCreateForm.remark),
@@ -1269,7 +1451,7 @@ async function confirmDeleteClass() {
     await ElMessageBox.confirm(
       `确定删除班级「${current.className || current.classCode || current.id}」吗？若班级仍有在班学员，删除会被拒绝。`,
       '删除班级',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -1324,7 +1506,9 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
     classCode: classProfileForm.classCode.trim(),
     className: classProfileForm.className.trim(),
     teacherId: target.teacherId || null,
-    capacityLimit: Number.isFinite(classProfileForm.capacityLimit) ? classProfileForm.capacityLimit : 0,
+    capacityLimit: Number.isFinite(classProfileForm.capacityLimit)
+      ? classProfileForm.capacityLimit
+      : 0,
     status: classProfileForm.status,
     openedAt: target.openedAt || null,
     remark: trimToUndefined(classProfileForm.remark),
@@ -1376,7 +1560,10 @@ async function refreshScopeData() {
     if (studentId.value && !students.value.some((item) => item.id === studentId.value)) {
       studentId.value = null
     }
-    if (activeParentStudentId.value && !students.value.some((item) => item.id === activeParentStudentId.value)) {
+    if (
+      activeParentStudentId.value &&
+      !students.value.some((item) => item.id === activeParentStudentId.value)
+    ) {
       activeParentStudentId.value = null
     }
   } catch (error) {
@@ -1582,7 +1769,7 @@ async function removeClassStudent(row: ClassStudentRecord) {
     await ElMessageBox.confirm(
       `确认将 ${formatStudent(row.studentId)} 移出班级 ${formatClass(row.classId)} 吗？`,
       '移出班级',
-      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -1626,7 +1813,10 @@ async function submitClassTeacher() {
     resetTeacherForm()
     await loadRecords()
   } catch (error) {
-    teacherFormError.value = toMessage(error, teacherDialogMode.value === 'create' ? '新增班级教师失败' : '更新班级教师失败')
+    teacherFormError.value = toMessage(
+      error,
+      teacherDialogMode.value === 'create' ? '新增班级教师失败' : '更新班级教师失败'
+    )
   } finally {
     teacherSubmitting.value = false
   }
@@ -1674,7 +1864,7 @@ async function promotePrimaryTeacher(row: ClassTeacherRecord) {
     await ElMessageBox.confirm(
       `确定将 ${formatTeacher(row.teacherId)} 设为班级主讲吗？`,
       '切换主讲',
-      { type: 'warning', confirmButtonText: '设为主讲', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '设为主讲', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -1704,7 +1894,7 @@ async function removeClassTeacher(row: ClassTeacherRecord) {
     await ElMessageBox.confirm(
       `确认删除 ${formatTeacher(row.teacherId)} 的班级教师关系吗？`,
       '删除班级教师',
-      { type: 'warning' },
+      { type: 'warning' }
     )
   } catch {
     return
@@ -1748,7 +1938,10 @@ async function submitStudentParent() {
     resetParentForm()
     await loadParentRecords(contactStudentId.value)
   } catch (error) {
-    parentFormError.value = toMessage(error, parentDialogMode.value === 'create' ? '新增家长联系人失败' : '更新家长联系人失败')
+    parentFormError.value = toMessage(
+      error,
+      parentDialogMode.value === 'create' ? '新增家长联系人失败' : '更新家长联系人失败'
+    )
   } finally {
     parentSubmitting.value = false
   }
@@ -1759,7 +1952,7 @@ async function promotePrimaryParent(row: StudentParentRecord) {
     await ElMessageBox.confirm(
       `确定将「${row.parentName || '该联系人'}」设为主联系人吗？`,
       '切换主联系人',
-      { type: 'warning', confirmButtonText: '设为主联系人', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '设为主联系人', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -1787,11 +1980,9 @@ async function promotePrimaryParent(row: StudentParentRecord) {
 
 async function removeStudentParent(row: StudentParentRecord) {
   try {
-    await ElMessageBox.confirm(
-      `确认删除 ${row.parentName || '该联系人'} 吗？`,
-      '删除家长联系人',
-      { type: 'warning' },
-    )
+    await ElMessageBox.confirm(`确认删除 ${row.parentName || '该联系人'} 吗？`, '删除家长联系人', {
+      type: 'warning',
+    })
   } catch {
     return
   }
@@ -1826,14 +2017,17 @@ async function initializePage() {
   }
 }
 
-watch(() => institutionStore.currentInstitutionId, async () => {
-  campusId.value = null
-  classId.value = null
-  studentId.value = null
-  activeParentStudentId.value = null
-  await refreshScopeData()
-  await loadRecords()
-})
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    classId.value = null
+    studentId.value = null
+    activeParentStudentId.value = null
+    await refreshScopeData()
+    await loadRecords()
+  }
+)
 
 onMounted(() => {
   initializePage()
@@ -1857,6 +2051,20 @@ onUnmounted(() => {
 .class-relation-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
+  /* 视口填充:双列关系卡分食剩余高度 */
+  flex: 1 1 auto;
+  min-height: 260px;
+}
+
+.class-relation-grid > .panel-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.class-relation-grid .el-table {
+  flex: 1 1 auto;
+  min-height: 180px;
 }
 
 @media (max-width: 1280px) {

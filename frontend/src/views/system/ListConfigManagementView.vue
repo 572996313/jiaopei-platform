@@ -6,30 +6,76 @@
       </article>
       <template v-else>
         <div class="education-table-head">
-          <div class="panel-title">列表配置<span class="panel-count">共 {{ listConfigRecords.length }} 条</span></div>
+          <div class="panel-title">
+            列表配置<span class="panel-count">共 {{ listConfigRecords.length }} 条</span>
+          </div>
           <div class="table-actions">
-            <span class="education-context-text">维护列表的展示列与查询条件,保存后立即生效,无需发版。</span>
+            <span class="education-context-text"
+              >维护列表的展示列与查询条件,保存后立即生效,无需发版。</span
+            >
             <el-button @click="guideDialogVisible = true">使用教程</el-button>
-            <el-button v-if="permissions.canManageListConfigs" type="primary" @click="openCreateListConfigDialog">新增配置</el-button>
+            <el-button
+              v-if="permissions.canManageListConfigs"
+              type="primary"
+              @click="openCreateListConfigDialog"
+              >新增配置</el-button
+            >
           </div>
         </div>
 
-        <el-table :data="listConfigRecords" border v-loading="listConfigLoading">
+        <el-table
+          :data="listConfigRecords"
+          border
+          v-loading="listConfigLoading"
+          :height="TABLE_FILL_HEIGHT"
+        >
           <el-table-column prop="resourceCode" label="资源编码" min-width="150" />
           <el-table-column prop="resourceName" label="资源名称" min-width="120" />
           <el-table-column prop="endpoint" label="分页接口" min-width="190" />
+          <el-table-column label="关联数据源" min-width="220">
+            <template #default="{ row }">
+              <template v-if="referencedLoaders(row).length">
+                <el-tooltip
+                  v-for="code in referencedLoaders(row)"
+                  :key="code"
+                  :content="dataSourceEndpointHint(code)"
+                  placement="top"
+                >
+                  <el-tag size="small" class="source-ref-tag" :type="sourceRefTagType(code)">
+                    {{ code }}
+                  </el-tag>
+                </el-tooltip>
+              </template>
+              <span v-else class="education-context-text">-</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="pageSize" label="每页条数" width="90" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status, statusLabelMap) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                statusLabel(row.status, statusLabelMap)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
-          <el-table-column v-if="permissions.canManageListConfigs" label="操作" width="150" fixed="right">
+          <el-table-column
+            v-if="permissions.canManageListConfigs"
+            label="操作"
+            width="150"
+            fixed="right"
+          >
             <template #default="{ row }">
               <div class="system-operation-group">
-                <el-button text type="primary" @click="openEditListConfigDialog(row)">编辑</el-button>
-                <el-button text type="danger" :disabled="seedListConfigIds.has(row.id)" @click="handleDeleteListConfig(row)">删除</el-button>
+                <el-button text type="primary" @click="openEditListConfigDialog(row)"
+                  >编辑</el-button
+                >
+                <el-button
+                  text
+                  type="danger"
+                  :disabled="seedListConfigIds.has(row.id)"
+                  @click="handleDeleteListConfig(row)"
+                  >删除</el-button
+                >
               </div>
             </template>
           </el-table-column>
@@ -43,13 +89,31 @@
       fullscreen
       class="list-config-dialog"
     >
-      <el-alert v-if="listConfigFormError" :title="listConfigFormError" type="error" show-icon :closable="false" class="education-alert" />
+      <el-alert
+        v-if="listConfigFormError"
+        :title="listConfigFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
 
       <!-- 从现有配置复制(仅新增模式) -->
       <div v-if="listConfigDialogMode === 'create'" class="copy-source">
         <span class="copy-source-label">从现有配置复制(推荐新手直接复制改):</span>
-        <el-select v-model="copySourceCode" clearable filterable placeholder="选择要复制的页面配置" style="flex: 1; min-width: 260px">
-          <el-option v-for="item in listConfigRecords" :key="item.id" :label="`${item.resourceName}(${item.resourceCode})`" :value="item.resourceCode" />
+        <el-select
+          v-model="copySourceCode"
+          clearable
+          filterable
+          placeholder="选择要复制的页面配置"
+          style="flex: 1; min-width: 260px"
+        >
+          <el-option
+            v-for="item in listConfigRecords"
+            :key="item.id"
+            :label="`${item.resourceName}(${item.resourceCode})`"
+            :value="item.resourceCode"
+          />
         </el-select>
         <el-button :disabled="!copySourceCode" @click="copyFromExisting">复制</el-button>
       </div>
@@ -57,21 +121,41 @@
       <el-form label-position="top" class="education-form">
         <!-- 基本信息:横排紧凑条,节省纵向空间给配置编辑 -->
         <div class="config-meta-bar">
-          <el-form-item v-if="listConfigDialogMode === 'create'" label="资源编码" class="meta-item meta-code">
-            <el-input v-model="listConfigForm.resourceCode" placeholder="如 system-users,建后不可改" />
+          <el-form-item
+            v-if="listConfigDialogMode === 'create'"
+            label="资源编码"
+            class="meta-item meta-code"
+          >
+            <el-input
+              v-model="listConfigForm.resourceCode"
+              placeholder="如 system-users,建后不可改"
+            />
           </el-form-item>
           <el-form-item label="资源名称" class="meta-item">
-            <el-input v-model="listConfigForm.resourceName" maxlength="64" placeholder="如 用户管理" />
+            <el-input
+              v-model="listConfigForm.resourceName"
+              maxlength="64"
+              placeholder="如 用户管理"
+            />
           </el-form-item>
           <el-form-item label="分页接口路径" class="meta-item meta-endpoint">
-            <el-input v-model="listConfigForm.endpoint" maxlength="128" placeholder="如 /system/users/page" />
+            <el-input
+              v-model="listConfigForm.endpoint"
+              maxlength="128"
+              placeholder="如 /system/users/page"
+            />
           </el-form-item>
           <el-form-item label="每页条数" class="meta-item meta-small">
             <el-input-number v-model="listConfigForm.pageSize" :min="1" :max="100" />
           </el-form-item>
           <el-form-item label="状态" class="meta-item meta-small">
             <el-select v-model="listConfigForm.status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+              <el-option
+                v-for="item in statusOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="备注" class="meta-item meta-remark">
@@ -82,27 +166,37 @@
         <!-- 配置分区编辑:各自独立页签,一次只渲染一个分区 -->
         <el-tabs v-model="activeEditTab" class="editor-tabs" @tab-change="onEditTabChange">
           <el-tab-pane label="表格列" name="columns">
-            <div class="editor-block-desc tab-pane-desc">列表显示哪几列。表格里一行代表一列,可增删、排序、复制。</div>
+            <div class="editor-block-desc tab-pane-desc">
+              列表显示哪几列。表格里一行代表一列,可增删、排序、复制。
+            </div>
             <ColumnEditor v-model="formState.columns" />
           </el-tab-pane>
 
           <el-tab-pane label="查询条件" name="query">
-            <div class="editor-block-desc tab-pane-desc">列表上方的筛选控件,不填则列表不带筛选栏。</div>
+            <div class="editor-block-desc tab-pane-desc">
+              列表上方的筛选控件,不填则列表不带筛选栏。
+            </div>
             <QueryEditor v-model="formState.query" />
           </el-tab-pane>
 
           <el-tab-pane label="按钮" name="actions">
-            <div class="editor-block-desc tab-pane-desc">页面的操作入口,不填则使用页面自带按钮。</div>
+            <div class="editor-block-desc tab-pane-desc">
+              页面的操作入口,不填则使用页面自带按钮。
+            </div>
             <ActionEditor v-model="formState.actions" />
           </el-tab-pane>
 
           <el-tab-pane label="弹窗表单" name="form">
-            <div class="editor-block-desc tab-pane-desc">新增/编辑弹窗里的输入项,不填则弹窗不可用,需先配置字段。</div>
+            <div class="editor-block-desc tab-pane-desc">
+              新增/编辑弹窗里的输入项,不填则弹窗不可用,需先配置字段。
+            </div>
             <FormEditor v-model="formState.form" />
           </el-tab-pane>
 
           <el-tab-pane label="页面与弹窗" name="shell">
-            <div class="editor-block-desc tab-pane-desc">页面标题、计数、弹窗按钮文案等,留空走默认。</div>
+            <div class="editor-block-desc tab-pane-desc">
+              页面标题、计数、弹窗按钮文案等,留空走默认。
+            </div>
             <ShellEditor v-model:page="formState.page" v-model:dialog="formState.dialog" />
           </el-tab-pane>
 
@@ -133,8 +227,9 @@
           <div class="guide-section">
             <h4 class="guide-title">这个功能是什么?</h4>
             <p class="guide-text">
-              「列表配置」把页面的 <b>表格列</b>、<b>查询条件</b>、<b>按钮</b>、<b>新增/编辑弹窗</b> 收敛成一条配置。
-              改完保存立即生效,不用改代码、不用重新发版。系统设置里的「用户管理 / 角色管理 / 系统参数」就是用它搭的(内置配置)。
+              「列表配置」把页面的 <b>表格列</b>、<b>查询条件</b>、<b>按钮</b>、<b>新增/编辑弹窗</b>
+              收敛成一条配置。 改完保存立即生效,不用改代码、不用重新发版。系统设置里的「用户管理 /
+              角色管理 / 系统参数」就是用它搭的(内置配置)。
             </p>
           </div>
           <div v-for="step in guideSteps" :key="step.title" class="guide-section">
@@ -146,8 +241,14 @@
           <div class="guide-section">
             <h4 class="guide-title">常见提醒</h4>
             <ul class="guide-list">
-              <li>所有「字段名 prop / field / action」都必须跟后端/页面代码对得上,写错该列不显示、该按钮不渲染。</li>
-              <li>状态列想显示彩色标签:列类型选 <code>dict</code>,填字典类型(如 <code>common_status</code>),再在标签颜色里给值配颜色。</li>
+              <li>
+                所有「字段名 prop / field /
+                action」都必须跟后端/页面代码对得上,写错该列不显示、该按钮不渲染。
+              </li>
+              <li>
+                状态列想显示彩色标签:列类型选 <code>dict</code>,填字典类型(如
+                <code>common_status</code>),再在标签颜色里给值配颜色。
+              </li>
               <li>不确定怎么做时,先点「新增配置 → 从现有配置复制」,复制一条改,最省事。</li>
             </ul>
           </div>
@@ -158,11 +259,17 @@
             <h4 class="guide-title">{{ group.title }}</h4>
             <table class="guide-table">
               <thead>
-                <tr><th>字段</th><th>含义</th><th>可选值 / 示例</th></tr>
+                <tr>
+                  <th>字段</th>
+                  <th>含义</th>
+                  <th>可选值 / 示例</th>
+                </tr>
               </thead>
               <tbody>
                 <tr v-for="row in group.rows" :key="row.field">
-                  <td><code>{{ row.field }}</code></td>
+                  <td>
+                    <code>{{ row.field }}</code>
+                  </td>
                   <td>{{ row.meaning }}</td>
                   <td>{{ row.values }}</td>
                 </tr>
@@ -175,29 +282,87 @@
           <div class="guide-section">
             <h4 class="guide-title">前端控件长什么样、有哪些属性?</h4>
             <p class="guide-text">
-              本系统的页面是基于 <b>Element Plus</b>(一个 Vue 组件库)搭的。表格、输入框、下拉、按钮、表单的所有显示属性,
-              都以 Element Plus 官方中文文档为准。按需点进对应组件页查:
+              本系统的页面是基于 <b>Element Plus</b>(一个 Vue
+              组件库)搭的。表格、输入框、下拉、按钮、表单的所有显示属性, 都以 Element Plus
+              官方中文文档为准。按需点进对应组件页查:
             </p>
             <ul class="guide-list">
-              <li><a href="https://element-plus.org/zh-CN/" target="_blank" rel="noopener">Element Plus 官方中文文档(总入口)↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/table.html" target="_blank" rel="noopener">表格 Table(查列的宽度/省略/对齐等)↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/form.html" target="_blank" rel="noopener">表单 Form(查字段布局、校验)↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/button.html" target="_blank" rel="noopener">按钮 Button(查颜色/禁用)↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/select.html" target="_blank" rel="noopener">下拉选择 Select↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/date-picker.html" target="_blank" rel="noopener">日期选择 DatePicker↗</a></li>
-              <li><a href="https://element-plus.org/zh-CN/component/tag.html" target="_blank" rel="noopener">标签 Tag(查颜色取值)↗</a></li>
+              <li>
+                <a href="https://element-plus.org/zh-CN/" target="_blank" rel="noopener"
+                  >Element Plus 官方中文文档(总入口)↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/table.html"
+                  target="_blank"
+                  rel="noopener"
+                  >表格 Table(查列的宽度/省略/对齐等)↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/form.html"
+                  target="_blank"
+                  rel="noopener"
+                  >表单 Form(查字段布局、校验)↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/button.html"
+                  target="_blank"
+                  rel="noopener"
+                  >按钮 Button(查颜色/禁用)↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/select.html"
+                  target="_blank"
+                  rel="noopener"
+                  >下拉选择 Select↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/date-picker.html"
+                  target="_blank"
+                  rel="noopener"
+                  >日期选择 DatePicker↗</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://element-plus.org/zh-CN/component/tag.html"
+                  target="_blank"
+                  rel="noopener"
+                  >标签 Tag(查颜色取值)↗</a
+                >
+              </li>
             </ul>
           </div>
           <div class="guide-section">
             <h4 class="guide-title">完全不懂 JSON?</h4>
             <p class="guide-text">表单编辑模式下你不需要写 JSON。但如果想了解 JSON 是什么:</p>
             <ul class="guide-list">
-              <li><a href="https://www.runoob.com/json/json-tutorial.html" target="_blank" rel="noopener">JSON 教程(菜鸟教程,含语法与示例)↗</a></li>
+              <li>
+                <a
+                  href="https://www.runoob.com/json/json-tutorial.html"
+                  target="_blank"
+                  rel="noopener"
+                  >JSON 教程(菜鸟教程,含语法与示例)↗</a
+                >
+              </li>
             </ul>
           </div>
           <div class="guide-section">
             <h4 class="guide-title">完整配置契约文档</h4>
-            <p class="guide-text">仓库内 <code>docs/config-contract.md</code> 有更详细的配置结构说明,交给后端/前端同事对细节即可。</p>
+            <p class="guide-text">
+              仓库内
+              <code>docs/config-contract.md</code>
+              有更详细的配置结构说明,交给后端/前端同事对细节即可。
+            </p>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -207,6 +372,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { onMounted, reactive, ref } from 'vue'
 import { useListConfigStore } from '@/stores/listConfig'
 import {
@@ -248,8 +414,10 @@ import {
   useStatusOptions,
   useSystemPermissions,
 } from './shared'
+import { useDataSourceStore } from '@/stores/dataSource'
 
 const listConfigStore = useListConfigStore()
+const dataSourceStore = useDataSourceStore()
 const permissions = useSystemPermissions()
 const statusOptions = useStatusOptions()
 const statusLabelMap = useStatusLabelMap()
@@ -358,55 +526,120 @@ const fieldGuideGroups: FieldGuideGroup[] = [
     rows: [
       { field: 'prop', meaning: '数据字段名,对应后端返回的字段', values: '如 username、status' },
       { field: 'label', meaning: '列标题,表头显示的中文', values: '如 账号、状态' },
-      { field: 'type', meaning: '渲染类型', values: 'text(默认) / datetime / dict / boolean / tags / map' },
+      {
+        field: 'type',
+        meaning: '渲染类型',
+        values: 'text(默认) / datetime / dict / boolean / tags / map',
+      },
       { field: 'width', meaning: '列固定宽度', values: '数字,如 150' },
       { field: 'minWidth', meaning: '列最小宽度', values: '数字,如 140' },
-      { field: 'showOverflowTooltip', meaning: '内容过长时显示省略 + 悬浮全文', values: 'true / false' },
-      { field: 'dictType', meaning: 'type=dict 时的字典类型编码', values: '如 common_status(启用/停用)' },
-      { field: 'tagTypeMap', meaning: '值 → 标签颜色(配色板见图册)', values: '如 active→success(绿)、disabled→info(灰)' },
-      { field: 'trueLabel / falseLabel', meaning: 'type=boolean 的是/否文案', values: '如 是 / 否' },
+      {
+        field: 'showOverflowTooltip',
+        meaning: '内容过长时显示省略 + 悬浮全文',
+        values: 'true / false',
+      },
+      {
+        field: 'dictType',
+        meaning: 'type=dict 时的字典类型编码',
+        values: '如 common_status(启用/停用)',
+      },
+      {
+        field: 'tagTypeMap',
+        meaning: '值 → 标签颜色(配色板见图册)',
+        values: '如 active→success(绿)、disabled→info(灰)',
+      },
+      {
+        field: 'trueLabel / falseLabel',
+        meaning: 'type=boolean 的是/否文案',
+        values: '如 是 / 否',
+      },
       { field: 'valueMap', meaning: 'type=map 的值翻译映射', values: '如 auth→认证、system→系统' },
-      { field: 'renderer', meaning: '特殊渲染器(普通列不要填)', values: 'institutionName / campusName / permissionTags / passwordStatus' },
+      {
+        field: 'renderer',
+        meaning: '特殊渲染器(普通列不要填)',
+        values: 'institutionName / campusName / permissionTags / passwordStatus',
+      },
     ],
   },
   {
     title: '查询条件(query)',
     rows: [
-      { field: 'field', meaning: '查询参数名,必须后端支持', values: '如 keyword、status、institutionId' },
+      {
+        field: 'field',
+        meaning: '查询参数名,必须后端支持',
+        values: '如 keyword、status、institutionId',
+      },
       { field: 'label', meaning: '筛选框前的文字', values: '如 关键字、状态' },
       { field: 'type', meaning: '控件类型', values: 'input / select / dict-select / date' },
       { field: 'placeholder', meaning: '输入框内的灰色提示', values: '如 请输入账号' },
       { field: 'defaultValue', meaning: '进入页面时默认带上的值', values: '如 active' },
-      { field: 'options / optionsLoader', meaning: '下拉选项:手填列表 / 引用现成数据源', values: '数据源:institutions(机构)/ campuses(校区)/ roles / status' },
+      {
+        field: 'options / optionsLoader',
+        meaning: '下拉选项:手填列表 / 引用现成数据源',
+        values: '数据源:institutions(机构)/ campuses(校区)/ roles / status',
+      },
       { field: 'dictType', meaning: 'type=dict-select 时的字典类型', values: '如 common_status' },
     ],
   },
   {
     title: '按钮(actions)',
     rows: [
-      { field: 'action', meaning: '页面代码里注册的动作名', values: '如 user-create、role-delete (写错不渲染)' },
+      {
+        field: 'action',
+        meaning: '页面代码里注册的动作名',
+        values: '如 user-create、role-delete (写错不渲染)',
+      },
       { field: 'label', meaning: '按钮显示文字', values: '如 新增用户、删除' },
       { field: 'position', meaning: '按钮位置', values: 'toolbar(表格上方) / row(行内)' },
       { field: 'buttonType', meaning: '按钮样式', values: 'primary / default / text / danger' },
-      { field: 'permission', meaning: '可见所需权限码(不填=所有人)', values: '如 system:user:manage' },
-      { field: 'actionType', meaning: '点击后默认行为(不填自动推断)', values: 'create / edit / delete / toggle-status / reset-password / assign-roles / custom' },
+      {
+        field: 'permission',
+        meaning: '可见所需权限码(不填=所有人)',
+        values: '如 system:user:manage',
+      },
+      {
+        field: 'actionType',
+        meaning: '点击后默认行为(不填自动推断)',
+        values: 'create / edit / delete / toggle-status / reset-password / assign-roles / custom',
+      },
     ],
   },
   {
     title: '弹窗表单(form)',
     rows: [
-      { field: 'field', meaning: '表单字段名(与保存接口字段一致)', values: '如 displayName、phone' },
+      {
+        field: 'field',
+        meaning: '表单字段名(与保存接口字段一致)',
+        values: '如 displayName、phone',
+      },
       { field: 'label', meaning: '字段标题', values: '如 显示名称' },
-      { field: 'type', meaning: '控件类型', values: 'input / password / textarea / number / select / dict-select / switch / checkbox-group / radio / permission-groups' },
+      {
+        field: 'type',
+        meaning: '控件类型',
+        values:
+          'input / password / textarea / number / select / dict-select / switch / checkbox-group / radio / permission-groups',
+      },
       { field: 'placeholder', meaning: '输入提示', values: '如 请输入姓名' },
       { field: 'tip', meaning: '字段下方的辅助说明', values: '可空' },
       { field: 'gridSpan', meaning: '占一行 / 半行', values: '1(半行,默认) / 2(整行)' },
-      { field: 'showOn / disabledOn', meaning: '新增/编辑时的显示与禁用', values: '["create"] / ["edit"] / ["create","edit"]' },
-      { field: 'options / optionsLoader', meaning: '下拉/单选/多选的选项来源', values: '同查询条件' },
+      {
+        field: 'showOn / disabledOn',
+        meaning: '新增/编辑时的显示与禁用',
+        values: '["create"] / ["edit"] / ["create","edit"]',
+      },
+      {
+        field: 'options / optionsLoader',
+        meaning: '下拉/单选/多选的选项来源',
+        values: '同查询条件',
+      },
       { field: 'dictType', meaning: 'type=dict-select 的字典类型', values: '如 common_status' },
       { field: 'required', meaning: '是否必填', values: 'true / false' },
       { field: 'defaultValue', meaning: '新增时的初始值', values: '开关填 true/false,数字填数字' },
-      { field: 'maxlength / min / max / rows', meaning: '输入限制(按控件类型显示)', values: '数字' },
+      {
+        field: 'maxlength / min / max / rows',
+        meaning: '输入限制(按控件类型显示)',
+        values: '数字',
+      },
       { field: 'clearable', meaning: '是否可一键清空', values: 'true / false' },
       { field: 'onChange', meaning: '字段联动钩子(普通配置不用填)', values: '页面注册的钩子名' },
     ],
@@ -435,11 +668,85 @@ const fieldGuideGroups: FieldGuideGroup[] = [
 
 /* ---------------- 数据加载 ---------------- */
 
+/**
+ * 提取某条列表配置引用的全部 optionsLoader 数据源编码(列渲染/查询条件/弹窗表单)。
+ * 用于「关联数据源」列:让用户看清这个页面用到了哪些下拉数据接口。
+ */
+function referencedLoaders(row: ListConfigSummary): string[] {
+  const codes = new Set<string>()
+  const scan = (raw: string | null | undefined) => {
+    if (!raw || !raw.trim()) {
+      return
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        return
+      }
+      for (const item of parsed) {
+        if (item && typeof item === 'object') {
+          const loader = (item as Record<string, unknown>).optionsLoader
+          if (typeof loader === 'string' && loader.trim()) {
+            codes.add(loader.trim())
+          }
+        }
+      }
+    } catch {
+      // 忽略单条 JSON 解析失败,不阻断整页
+    }
+  }
+  scan(row.columnsJson)
+  scan(row.queryJson)
+  try {
+    const form = row.formJson ? JSON.parse(row.formJson) : null
+    const fields = form && Array.isArray((form as { fields?: unknown }).fields)
+      ? ((form as { fields: unknown[] }).fields)
+      : []
+    for (const field of fields) {
+      if (field && typeof field === 'object') {
+        const loader = (field as Record<string, unknown>).optionsLoader
+        if (typeof loader === 'string' && loader.trim()) {
+          codes.add(loader.trim())
+        }
+      }
+    }
+  } catch {
+    // 表单 JSON 解析失败忽略
+  }
+  return Array.from(codes).sort()
+}
+
+/** 数据源编码 → 接口路径/字典类型提示(来自已配置的数据源定义) */
+function dataSourceEndpointHint(code: string): string {
+  const definition = dataSourceStore.getDefinition(code)
+  if (definition) {
+    return definition.sourceType === 'dict'
+      ? `${code}:字典 ${definition.dictType || ''}`
+      : `${code}:${definition.endpoint || ''}`
+  }
+  return code
+}
+
+function sourceRefTagType(code: string): 'primary' | 'warning' | 'info' {
+  if (dataSourceStore.getDefinition(code)) {
+    return 'primary'
+  }
+  // 已请求但不存在的数据源(负缓存)标灰;未请求的暂作 info
+  return 'info'
+}
+
 async function loadListConfigs() {
   listConfigLoading.value = true
   listConfigSectionError.value = ''
   try {
     listConfigRecords.value = await fetchListConfigs()
+    // 预加载全部引用的数据源定义,供「关联数据源」列展示接口路径
+    const loaderCodes = listConfigRecords.value
+      .flatMap((row) => referencedLoaders(row))
+      .filter((code) => !dataSourceStore.getDefinition(code))
+    if (loaderCodes.length) {
+      await dataSourceStore.preloadDefinitions(loaderCodes)
+    }
   } catch (error) {
     listConfigRecords.value = []
     listConfigSectionError.value = toMessage(error, '列表配置加载失败')
@@ -574,7 +881,7 @@ function loadFormStateFromKeys(
   actionsJson: string | null,
   formJson: string | null,
   pageJson: string | null,
-  dialogJson: string | null,
+  dialogJson: string | null
 ) {
   jsonText.columns = prettyJson(columnsJson)
   jsonText.query = prettyJson(queryJson)
@@ -624,7 +931,7 @@ function openEditListConfigDialog(row: ListConfigSummary) {
     row.actionsJson ?? null,
     row.formJson ?? null,
     row.pageJson ?? null,
-    row.dialogJson ?? null,
+    row.dialogJson ?? null
   )
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
@@ -646,7 +953,7 @@ function copyFromExisting() {
     source.actionsJson ?? null,
     source.formJson ?? null,
     source.pageJson ?? null,
-    source.dialogJson ?? null,
+    source.dialogJson ?? null
   )
   ElMessage.success(`已复制「${source.resourceName}」的配置,改完记得重新起资源编码`)
 }
@@ -734,7 +1041,10 @@ async function submitListConfig() {
     listConfigStore.invalidate()
     await loadListConfigs()
   } catch (error) {
-    listConfigFormError.value = toMessage(error, listConfigDialogMode.value === 'create' ? '创建列表配置失败' : '保存列表配置失败')
+    listConfigFormError.value = toMessage(
+      error,
+      listConfigDialogMode.value === 'create' ? '创建列表配置失败' : '保存列表配置失败'
+    )
   } finally {
     listConfigSubmitting.value = false
   }
@@ -745,7 +1055,7 @@ async function handleDeleteListConfig(row: ListConfigSummary) {
     await ElMessageBox.confirm(
       `确定删除列表配置「${row.resourceName || row.resourceCode}」吗?使用该配置的列表页将无法展示数据。`,
       '删除确认',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
     )
   } catch {
     return
@@ -772,6 +1082,10 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 400;
   color: var(--text-secondary);
+}
+
+.source-ref-tag {
+  margin: 0 4px 4px 0;
 }
 
 /* 新增弹窗顶部「从现有配置复制」 */

@@ -53,13 +53,7 @@ export interface DialogShellConfig {
 
 /** 按钮的内置动作类型:引擎据此选择默认处理;custom 表示完全由宿主覆写 */
 export type CrudActionType =
-  | 'create'
-  | 'edit'
-  | 'delete'
-  | 'toggle-status'
-  | 'reset-password'
-  | 'assign-roles'
-  | 'custom'
+  'create' | 'edit' | 'delete' | 'toggle-status' | 'reset-password' | 'assign-roles' | 'custom'
 
 /** 动作配置:列表按钮配置原样 + 阶段 A 扩展 actionType */
 export interface CrudActionConfigExt extends ListActionConfig {
@@ -85,7 +79,7 @@ export interface CrudPageConfig {
   list: ParsedListConfig
   /** 表单配置(编辑/新增弹窗),未配置时为空 */
   form: FormPageConfig | null
-/** 页面壳配置(读 page_json,缺省默认值) */
+  /** 页面壳配置(读 page_json,缺省默认值) */
   page: Required<PageShellConfig>
   /** 弹窗壳配置(读 dialog_json,缺省默认值) */
   dialog: Required<DialogShellConfig>
@@ -219,7 +213,11 @@ export function parseDialogShell(raw: string | null | undefined): Required<Dialo
         dialog.cancelText = readString(obj, 'cancelText', '')
         dialog.createMessage = readString(obj, 'createMessage', '')
         dialog.updateMessage = readString(obj, 'updateMessage', '')
-        dialog.reloadAfterSubmit = readBool(obj, 'reloadAfterSubmit', DEFAULT_DIALOG.reloadAfterSubmit)
+        dialog.reloadAfterSubmit = readBool(
+          obj,
+          'reloadAfterSubmit',
+          DEFAULT_DIALOG.reloadAfterSubmit
+        )
       }
     } catch {
       // dialog_json 非法:按默认值渲染
@@ -244,7 +242,8 @@ export function parseActions(actions: ListActionConfig[] | undefined): CrudActio
   }
   return actions.map((action) => ({
     ...action,
-    actionType: (action as CrudActionConfigExt).actionType ?? inferActionType(action.action, action.label),
+    actionType:
+      (action as CrudActionConfigExt).actionType ?? inferActionType(action.action, action.label),
   }))
 }
 
@@ -264,13 +263,19 @@ export function inferActionType(action: string, label?: string): CrudActionType 
   if (/(^|[-_])(delete|remove|del)([-_]|$)/.test(lowerAction)) {
     return 'delete'
   }
-  if (lowerAction.includes('toggle') || (lowerAction.includes('status') && (lowerLabel.includes('停用') || lowerLabel.includes('启用')))) {
+  if (
+    lowerAction.includes('toggle') ||
+    (lowerAction.includes('status') && (lowerLabel.includes('停用') || lowerLabel.includes('启用')))
+  ) {
     return 'toggle-status'
   }
   if (lowerAction.includes('reset') && lowerAction.includes('password')) {
     return 'reset-password'
   }
-  if (lowerAction.includes('assign') && (lowerAction.includes('role') || lowerAction.includes('roles'))) {
+  if (
+    lowerAction.includes('assign') &&
+    (lowerAction.includes('role') || lowerAction.includes('roles'))
+  ) {
     return 'assign-roles'
   }
   return 'custom'
@@ -299,7 +304,10 @@ export function parsePageConfig(summary: ListConfigSummary): CrudPageConfig {
       if (isPlainObject(parsed) && Array.isArray(parsed.fields) && parsed.fields.length > 0) {
         form = {
           resourceCode: summary.resourceCode,
-          labelWidth: typeof parsed.labelWidth === 'string' || typeof parsed.labelWidth === 'number' ? (parsed.labelWidth as string | number) : undefined,
+          labelWidth:
+            typeof parsed.labelWidth === 'string' || typeof parsed.labelWidth === 'number'
+              ? (parsed.labelWidth as string | number)
+              : undefined,
           gridColumns: typeof parsed.gridColumns === 'number' ? parsed.gridColumns : undefined,
           fields: parsed.fields as FormFieldConfig[],
         }

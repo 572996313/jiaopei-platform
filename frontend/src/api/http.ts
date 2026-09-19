@@ -3,7 +3,8 @@ import { getStoredAuthorization } from '@/utils/auth-session'
 
 // 后端雪花 ID 是 19 位 Long，以 JSON 数字传输时超出 JS 安全整数范围会丢精度，
 // 必须转成字符串。按字段名约定（id / *Id / *Ids / *By）匹配，避免白名单漏掉新字段。
-const LARGE_ID_FIELD_PATTERN = /"(id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*By)"\s*:\s*(\d{16,})(?=\s*[,}\]])/g
+const LARGE_ID_FIELD_PATTERN =
+  /"(id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*By)"\s*:\s*(\d{16,})(?=\s*[,}\]])/g
 const LARGE_ID_ARRAY_FIELD_PATTERN = /"(id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*By)"\s*:\s*\[([^\]]*)\]/g
 const LARGE_INTEGER_PATTERN = /^\d{16,}$/
 
@@ -31,9 +32,7 @@ function preserveLargeIds(raw: unknown) {
 export const http = axios.create({
   baseURL: '/api',
   timeout: 10000,
-  transformResponse: [
-    (data) => preserveLargeIds(data),
-  ],
+  transformResponse: [(data) => preserveLargeIds(data)],
 })
 
 http.interceptors.request.use((config) => {
@@ -47,5 +46,5 @@ http.interceptors.request.use((config) => {
 
 http.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 )

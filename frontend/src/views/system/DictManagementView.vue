@@ -6,27 +6,52 @@
     <template v-else>
       <div class="education-table-head">
         <div class="panel-title">字典管理</div>
-        <div class="education-context-text">维护全局字典类型与条目,业务表单的下拉选项与列表回显实时生效。</div>
+        <div class="education-context-text">
+          维护全局字典类型与条目,业务表单的下拉选项与列表回显实时生效。
+        </div>
       </div>
 
       <div class="system-dict-grid">
         <div class="panel-card">
           <div class="education-table-head">
             <div class="panel-title">字典类型</div>
-            <el-button v-if="permissions.canManageDicts" type="primary" size="small" @click="openCreateDictTypeDialog">新增类型</el-button>
+            <el-button
+              v-if="permissions.canManageDicts"
+              type="primary"
+              size="small"
+              @click="openCreateDictTypeDialog"
+              >新增类型</el-button
+            >
           </div>
-          <el-table :data="dictTypes" border highlight-current-row v-loading="dictTypesLoading" @current-change="handleDictTypeChange">
+          <el-table
+            :data="dictTypes"
+            border
+            highlight-current-row
+            v-loading="dictTypesLoading"
+            :height="TABLE_FILL_HEIGHT"
+            @current-change="handleDictTypeChange"
+          >
             <el-table-column prop="typeCode" label="类型编码" min-width="160" />
             <el-table-column prop="typeName" label="类型名称" min-width="180" />
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
-                <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status, statusLabelMap) }}</el-tag>
+                <el-tag :type="statusTagType(row.status)">{{
+                  statusLabel(row.status, statusLabelMap)
+                }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click.stop="openEditDictTypeDialog(row)">编辑</el-button>
-                <el-button link type="danger" size="small" @click.stop="removeDictType(row)">删除</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  @click.stop="openEditDictTypeDialog(row)"
+                  >编辑</el-button
+                >
+                <el-button link type="danger" size="small" @click.stop="removeDictType(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>
@@ -35,25 +60,43 @@
         <div class="panel-card">
           <div class="education-table-head">
             <div class="panel-title">字典条目</div>
-            <el-button v-if="permissions.canManageDicts" type="primary" size="small" :disabled="!selectedDictTypeCode" @click="openCreateDictItemDialog">新增条目</el-button>
+            <el-button
+              v-if="permissions.canManageDicts"
+              type="primary"
+              size="small"
+              :disabled="!selectedDictTypeCode"
+              @click="openCreateDictItemDialog"
+              >新增条目</el-button
+            >
           </div>
           <div class="education-context-text system-dict-current">
             当前类型:{{ selectedDictTypeCode || '未选择' }}
           </div>
-          <el-table :data="selectedDictItems" border v-loading="dictItemsLoading">
+          <el-table
+            :data="selectedDictItems"
+            border
+            v-loading="dictItemsLoading"
+            :height="TABLE_FILL_HEIGHT"
+          >
             <el-table-column prop="itemCode" label="编码" width="140" />
             <el-table-column prop="itemName" label="名称" min-width="140" />
             <el-table-column prop="itemValue" label="值" min-width="140" />
             <el-table-column prop="sortNo" label="排序" width="80" />
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
-                <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status, statusLabelMap) }}</el-tag>
+                <el-tag :type="statusTagType(row.status)">{{
+                  statusLabel(row.status, statusLabelMap)
+                }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="openEditDictItemDialog(row)">编辑</el-button>
-                <el-button link type="danger" size="small" @click="removeDictItem(row)">删除</el-button>
+                <el-button link type="primary" size="small" @click="openEditDictItemDialog(row)"
+                  >编辑</el-button
+                >
+                <el-button link type="danger" size="small" @click="removeDictItem(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>
@@ -61,22 +104,48 @@
       </div>
     </template>
 
-    <el-dialog v-model="dictTypeDialogVisible" :title="dictTypeDialogMode === 'create' ? '新增字典类型' : '编辑字典类型'" width="520px">
-      <el-alert v-if="dictTypeFormError" :title="dictTypeFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="dictTypeDialogVisible"
+      :title="dictTypeDialogMode === 'create' ? '新增字典类型' : '编辑字典类型'"
+      width="520px"
+    >
+      <el-alert
+        v-if="dictTypeFormError"
+        :title="dictTypeFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="类型编码">
-          <el-input v-model="dictTypeForm.typeCode" :disabled="dictTypeDialogMode === 'edit'" placeholder="如 room_type" />
+          <el-input
+            v-model="dictTypeForm.typeCode"
+            :disabled="dictTypeDialogMode === 'edit'"
+            placeholder="如 room_type"
+          />
         </el-form-item>
         <el-form-item label="类型名称">
           <el-input v-model="dictTypeForm.typeName" placeholder="如 教室类型" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="dictTypeForm.status">
-            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="dictTypeForm.remark" type="textarea" :rows="2" maxlength="500" placeholder="选填" />
+          <el-input
+            v-model="dictTypeForm.remark"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            placeholder="选填"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -87,12 +156,27 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="dictItemDialogVisible" :title="dictItemDialogMode === 'create' ? '新增字典条目' : '编辑字典条目'" width="520px">
-      <el-alert v-if="dictItemFormError" :title="dictItemFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="dictItemDialogVisible"
+      :title="dictItemDialogMode === 'create' ? '新增字典条目' : '编辑字典条目'"
+      width="520px"
+    >
+      <el-alert
+        v-if="dictItemFormError"
+        :title="dictItemFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <div class="education-context-text">所属类型:{{ selectedDictTypeCode || '未选择' }}</div>
       <el-form label-position="top" class="education-form">
         <el-form-item label="条目编码">
-          <el-input v-model="dictItemForm.itemCode" :disabled="dictItemDialogMode === 'edit'" placeholder="如 piano" />
+          <el-input
+            v-model="dictItemForm.itemCode"
+            :disabled="dictItemDialogMode === 'edit'"
+            placeholder="如 piano"
+          />
         </el-form-item>
         <el-form-item label="条目名称">
           <el-input v-model="dictItemForm.itemName" placeholder="展示名称,如 琴房" />
@@ -105,11 +189,22 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="dictItemForm.status">
-            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="dictItemForm.remark" type="textarea" :rows="2" maxlength="500" placeholder="选填" />
+          <el-input
+            v-model="dictItemForm.remark"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            placeholder="选填"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -124,6 +219,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDictStore } from '@/stores/dict'
 import {
@@ -280,7 +376,7 @@ async function removeDictType(row: DictTypeSummary) {
     await ElMessageBox.confirm(
       `确定删除字典类型「${row.typeName || row.typeCode}」吗?类型下存在条目时将无法删除。`,
       '删除确认',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -292,7 +388,8 @@ async function removeDictType(row: DictTypeSummary) {
     delete nextItems[row.typeCode]
     dictItemsMap.value = nextItems
     if (selectedDictTypeCode.value === row.typeCode) {
-      selectedDictTypeCode.value = dictTypes.value.find((item) => item.typeCode !== row.typeCode)?.typeCode || ''
+      selectedDictTypeCode.value =
+        dictTypes.value.find((item) => item.typeCode !== row.typeCode)?.typeCode || ''
     }
     await reloadDictTypes(selectedDictTypeCode.value || undefined)
     dictStore.invalidate(row.typeCode)
@@ -394,7 +491,7 @@ async function removeDictItem(row: DictItemSummary) {
     await ElMessageBox.confirm(
       `确定删除字典条目「${row.itemName || row.itemCode}」吗?删除后业务表单将不再出现该选项。`,
       '删除确认',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
   } catch {
     return
@@ -402,7 +499,8 @@ async function removeDictItem(row: DictItemSummary) {
 
   try {
     await deleteSystemDictItem(row.id)
-    const typeCode = dictTypes.value.find((item) => item.id === row.typeId)?.typeCode || selectedDictTypeCode.value
+    const typeCode =
+      dictTypes.value.find((item) => item.id === row.typeId)?.typeCode || selectedDictTypeCode.value
     await loadDictItems(typeCode)
     dictStore.invalidate(typeCode)
     ElMessage.success('字典条目已删除')

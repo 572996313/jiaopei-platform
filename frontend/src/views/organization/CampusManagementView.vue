@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="loadClassrooms">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="loadClassrooms"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -18,7 +24,9 @@
       <div class="page-toolbar-actions">
         <el-button @click="statsVisible = !statsVisible">
           统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"><ArrowDown /></el-icon>
+          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+            ><ArrowDown
+          /></el-icon>
         </el-button>
         <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       </div>
@@ -41,12 +49,16 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">校区列表<span class="panel-count">共 {{ campuses.length }} 条</span></div>
-            <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
+            <div class="panel-title">
+              校区列表<span class="panel-count">共 {{ campuses.length }} 条</span>
+            </div>
+            <div class="education-context-text">
+              当前机构：{{ formatInstitution(institutionId) }}
+            </div>
           </div>
           <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
         </div>
-        <el-table :data="campuses" border>
+        <el-table :data="campuses" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="campusCode" label="校区编码" width="150" />
           <el-table-column prop="campusName" label="校区名称" min-width="180" />
           <el-table-column prop="campusType" label="校区类型" width="120">
@@ -72,12 +84,14 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">教室列表<span class="panel-count">共 {{ classrooms.length }} 条</span></div>
+            <div class="panel-title">
+              教室列表<span class="panel-count">共 {{ classrooms.length }} 条</span>
+            </div>
             <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
           </div>
           <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
         </div>
-        <el-table :data="classrooms" border>
+        <el-table :data="classrooms" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="classroomCode" label="教室编码" width="150" />
           <el-table-column prop="classroomName" label="教室名称" min-width="180" />
           <el-table-column label="类型" width="120">
@@ -87,7 +101,9 @@
           <el-table-column prop="seatCapacity" label="容量" width="100" />
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ classroomStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                classroomStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="可排课" width="100">
@@ -95,7 +111,9 @@
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openClassroomDialog('edit', row)">编辑</el-button>
+              <el-button link type="primary" @click="openClassroomDialog('edit', row)"
+                >编辑</el-button
+              >
               <el-button link type="danger" @click="confirmDeleteClassroom(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -105,12 +123,16 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">学期列表<span class="panel-count">共 {{ terms.length }} 条</span></div>
-            <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
+            <div class="panel-title">
+              学期列表<span class="panel-count">共 {{ terms.length }} 条</span>
+            </div>
+            <div class="education-context-text">
+              当前机构：{{ formatInstitution(institutionId) }}
+            </div>
           </div>
           <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
         </div>
-        <el-table :data="terms" border>
+        <el-table :data="terms" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="termCode" label="学期编码" width="150" />
           <el-table-column prop="termName" label="学期名称" min-width="180" />
           <el-table-column prop="academicYear" label="学年" width="120" />
@@ -118,7 +140,9 @@
             <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
           </el-table-column>
           <el-table-column label="起止日期" min-width="220">
-            <template #default="{ row }">{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template>
+            <template #default="{ row }"
+              >{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template
+            >
           </el-table-column>
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
@@ -137,19 +161,25 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">时间段列表<span class="panel-count">共 {{ timeSlots.length }} 条</span></div>
-            <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
+            <div class="panel-title">
+              时间段列表<span class="panel-count">共 {{ timeSlots.length }} 条</span>
+            </div>
+            <div class="education-context-text">
+              当前机构：{{ formatInstitution(institutionId) }}
+            </div>
           </div>
           <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
         </div>
-        <el-table :data="timeSlots" border>
+        <el-table :data="timeSlots" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="slotCode" label="时间段编码" width="150" />
           <el-table-column prop="slotName" label="时间段名称" min-width="180" />
           <el-table-column label="星期" width="90">
             <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
           </el-table-column>
           <el-table-column label="时间" min-width="180">
-            <template #default="{ row }">{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template>
+            <template #default="{ row }"
+              >{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template
+            >
           </el-table-column>
           <el-table-column prop="durationMinutes" label="时长" width="100" />
           <el-table-column label="类型" width="120">
@@ -157,12 +187,16 @@
           </el-table-column>
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ timeSlotStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                timeSlotStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openTimeSlotDialog('edit', row)">编辑</el-button>
+              <el-button link type="primary" @click="openTimeSlotDialog('edit', row)"
+                >编辑</el-button
+              >
               <el-button link type="danger" @click="confirmDeleteTimeSlot(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -172,25 +206,35 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">课程分类<span class="panel-count">共 {{ courseCategories.length }} 条</span></div>
-            <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
+            <div class="panel-title">
+              课程分类<span class="panel-count">共 {{ courseCategories.length }} 条</span>
+            </div>
+            <div class="education-context-text">
+              当前机构：{{ formatInstitution(institutionId) }}
+            </div>
           </div>
           <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
         </div>
-        <el-table :data="courseCategories" border>
+        <el-table :data="courseCategories" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="categoryCode" label="分类编码" width="150" />
           <el-table-column prop="categoryName" label="分类名称" min-width="180" />
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                enabledStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="sortOrder" label="排序" width="100" />
           <el-table-column prop="remark" label="备注" min-width="180" />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)">编辑</el-button>
-              <el-button link type="danger" @click="confirmDeleteCourseCategory(row)">删除</el-button>
+              <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)"
+                >编辑</el-button
+              >
+              <el-button link type="danger" @click="confirmDeleteCourseCategory(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -199,12 +243,14 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">课程列表<span class="panel-count">共 {{ courses.length }} 条</span></div>
+            <div class="panel-title">
+              课程列表<span class="panel-count">共 {{ courses.length }} 条</span>
+            </div>
             <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
           </div>
           <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
         </div>
-        <el-table :data="courses" border>
+        <el-table :data="courses" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="courseCode" label="课程编码" width="150" />
           <el-table-column prop="courseName" label="课程名称" min-width="180" />
           <el-table-column label="课程分类" min-width="160">
@@ -218,7 +264,9 @@
           </el-table-column>
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                enabledStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
@@ -233,12 +281,14 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">班型列表<span class="panel-count">共 {{ classTypes.length }} 条</span></div>
+            <div class="panel-title">
+              班型列表<span class="panel-count">共 {{ classTypes.length }} 条</span>
+            </div>
             <div class="education-context-text">后续用于成班规则和班级主档承接</div>
           </div>
           <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
         </div>
-        <el-table :data="classTypes" border>
+        <el-table :data="classTypes" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="typeCode" label="班型编码" width="150" />
           <el-table-column prop="typeName" label="班型名称" min-width="180" />
           <el-table-column label="授课方式" width="160">
@@ -248,12 +298,16 @@
           <el-table-column prop="maxStudents" label="最多人数" width="100" />
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+              <el-tag :type="statusTagType(row.status)">{{
+                enabledStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openClassTypeDialog('edit', row)">编辑</el-button>
+              <el-button link type="primary" @click="openClassTypeDialog('edit', row)"
+                >编辑</el-button
+              >
               <el-button link type="danger" @click="confirmDeleteClassType(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -261,8 +315,19 @@
       </article>
     </div>
 
-    <el-dialog v-model="campusDialogVisible" :title="campusDialogMode === 'create' ? '新增校区' : '编辑校区'" width="560px">
-      <el-alert v-if="campusFormError" :title="campusFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="campusDialogVisible"
+      :title="campusDialogMode === 'create' ? '新增校区' : '编辑校区'"
+      width="560px"
+    >
+      <el-alert
+        v-if="campusFormError"
+        :title="campusFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="校区编码"><el-input v-model="campusForm.campusCode" /></el-form-item>
         <el-form-item label="校区名称"><el-input v-model="campusForm.campusName" /></el-form-item>
@@ -275,8 +340,16 @@
         </el-form-item>
         <el-form-item label="负责人"><el-input v-model="campusForm.principalName" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="campusForm.phone" /></el-form-item>
-        <el-form-item label="地址"><el-input v-model="campusForm.address" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="容量上限"><el-input-number v-model="campusForm.capacityLimit" :min="0" :step="10" style="width: 100%" /></el-form-item>
+        <el-form-item label="地址"
+          ><el-input v-model="campusForm.address" type="textarea" :rows="2"
+        /></el-form-item>
+        <el-form-item label="容量上限"
+          ><el-input-number
+            v-model="campusForm.capacityLimit"
+            :min="0"
+            :step="10"
+            style="width: 100%"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="campusForm.status">
             <el-option label="规划中" value="planning" />
@@ -287,12 +360,25 @@
       </el-form>
       <template #footer>
         <el-button @click="campusDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="campusSubmitting" @click="submitCampus">{{ campusDialogMode === 'create' ? '提交校区' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="campusSubmitting" @click="submitCampus">{{
+          campusDialogMode === 'create' ? '提交校区' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="classroomDialogVisible" :title="classroomDialogMode === 'create' ? '新增教室' : '编辑教室'" width="560px">
-      <el-alert v-if="classroomFormError" :title="classroomFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="classroomDialogVisible"
+      :title="classroomDialogMode === 'create' ? '新增教室' : '编辑教室'"
+      width="560px"
+    >
+      <el-alert
+        v-if="classroomFormError"
+        :title="classroomFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="归属校区">
           <el-select v-model="classroomForm.campusId" placeholder="选择校区" filterable>
@@ -304,11 +390,19 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="教室编码"><el-input v-model="classroomForm.classroomCode" /></el-form-item>
-        <el-form-item label="教室名称"><el-input v-model="classroomForm.classroomName" /></el-form-item>
-        <el-form-item label="教室类型"><DictSelect v-model="classroomForm.roomType" type-code="room_type" /></el-form-item>
+        <el-form-item label="教室编码"
+          ><el-input v-model="classroomForm.classroomCode"
+        /></el-form-item>
+        <el-form-item label="教室名称"
+          ><el-input v-model="classroomForm.classroomName"
+        /></el-form-item>
+        <el-form-item label="教室类型"
+          ><DictSelect v-model="classroomForm.roomType" type-code="room_type"
+        /></el-form-item>
         <el-form-item label="楼层"><el-input v-model="classroomForm.floorNo" /></el-form-item>
-        <el-form-item label="座位数"><el-input-number v-model="classroomForm.seatCapacity" :min="0" style="width: 100%" /></el-form-item>
+        <el-form-item label="座位数"
+          ><el-input-number v-model="classroomForm.seatCapacity" :min="0" style="width: 100%"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="classroomForm.status">
             <el-option label="空闲" value="idle" />
@@ -319,22 +413,51 @@
       </el-form>
       <template #footer>
         <el-button @click="classroomDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classroomSubmitting" @click="submitClassroom">{{ classroomDialogMode === 'create' ? '提交教室' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="classroomSubmitting" @click="submitClassroom">{{
+          classroomDialogMode === 'create' ? '提交教室' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="termDialogVisible" :title="termDialogMode === 'create' ? '新增学期' : '编辑学期'" width="560px">
-      <el-alert v-if="termFormError" :title="termFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="termDialogVisible"
+      :title="termDialogMode === 'create' ? '新增学期' : '编辑学期'"
+      width="560px"
+    >
+      <el-alert
+        v-if="termFormError"
+        :title="termFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="学期编码"><el-input v-model="termForm.termCode" /></el-form-item>
         <el-form-item label="学期名称"><el-input v-model="termForm.termName" /></el-form-item>
-        <el-form-item label="学年"><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027" /></el-form-item>
-        <el-form-item label="学季"><DictSelect v-model="termForm.season" type-code="term_season" /></el-form-item>
+        <el-form-item label="学年"
+          ><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027"
+        /></el-form-item>
+        <el-form-item label="学季"
+          ><DictSelect v-model="termForm.season" type-code="term_season"
+        /></el-form-item>
         <el-form-item label="开始日期">
-          <el-date-picker v-model="termForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="选择开始日期" style="width: 100%" />
+          <el-date-picker
+            v-model="termForm.startDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择开始日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="结束日期">
-          <el-date-picker v-model="termForm.endDate" type="date" value-format="YYYY-MM-DD" placeholder="选择结束日期" style="width: 100%" />
+          <el-date-picker
+            v-model="termForm.endDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择结束日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="termForm.status">
@@ -346,12 +469,25 @@
       </el-form>
       <template #footer>
         <el-button @click="termDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="termSubmitting" @click="submitTerm">{{ termDialogMode === 'create' ? '提交学期' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="termSubmitting" @click="submitTerm">{{
+          termDialogMode === 'create' ? '提交学期' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="timeSlotDialogVisible" :title="timeSlotDialogMode === 'create' ? '新增时间段' : '编辑时间段'" width="560px">
-      <el-alert v-if="timeSlotFormError" :title="timeSlotFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="timeSlotDialogVisible"
+      :title="timeSlotDialogMode === 'create' ? '新增时间段' : '编辑时间段'"
+      width="560px"
+    >
+      <el-alert
+        v-if="timeSlotFormError"
+        :title="timeSlotFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="适用校区">
           <el-select v-model="timeSlotForm.campusId" placeholder="选择校区" clearable filterable>
@@ -367,13 +503,35 @@
         <el-form-item label="时间段名称"><el-input v-model="timeSlotForm.slotName" /></el-form-item>
         <el-form-item label="星期">
           <el-select v-model="timeSlotForm.weekday">
-            <el-option v-for="day in weekdays" :key="day.value" :label="day.label" :value="day.value" />
+            <el-option
+              v-for="day in weekdays"
+              :key="day.value"
+              :label="day.label"
+              :value="day.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="开始时间"><el-time-picker v-model="timeSlotForm.startTime" value-format="HH:mm:ss" placeholder="选择开始时间" style="width: 100%" /></el-form-item>
-        <el-form-item label="结束时间"><el-time-picker v-model="timeSlotForm.endTime" value-format="HH:mm:ss" placeholder="选择结束时间" style="width: 100%" /></el-form-item>
+        <el-form-item label="开始时间"
+          ><el-time-picker
+            v-model="timeSlotForm.startTime"
+            value-format="HH:mm:ss"
+            placeholder="选择开始时间"
+            style="width: 100%"
+        /></el-form-item>
+        <el-form-item label="结束时间"
+          ><el-time-picker
+            v-model="timeSlotForm.endTime"
+            value-format="HH:mm:ss"
+            placeholder="选择结束时间"
+            style="width: 100%"
+        /></el-form-item>
         <el-form-item label="时长（分钟）">
-          <el-input-number v-model="timeSlotForm.durationMinutes" :min="1" disabled style="width: 100%" />
+          <el-input-number
+            v-model="timeSlotForm.durationMinutes"
+            :min="1"
+            disabled
+            style="width: 100%"
+          />
           <div class="education-context-text">由开始和结束时间自动计算</div>
         </el-form-item>
         <el-form-item label="状态">
@@ -385,75 +543,144 @@
       </el-form>
       <template #footer>
         <el-button @click="timeSlotDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">{{ timeSlotDialogMode === 'create' ? '提交时间段' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">{{
+          timeSlotDialogMode === 'create' ? '提交时间段' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="courseCategoryDialogVisible" :title="courseCategoryDialogMode === 'create' ? '新增课程分类' : '编辑课程分类'" width="560px">
-      <el-alert v-if="courseCategoryFormError" :title="courseCategoryFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="courseCategoryDialogVisible"
+      :title="courseCategoryDialogMode === 'create' ? '新增课程分类' : '编辑课程分类'"
+      width="560px"
+    >
+      <el-alert
+        v-if="courseCategoryFormError"
+        :title="courseCategoryFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
-        <el-form-item label="分类编码"><el-input v-model="courseCategoryForm.categoryCode" /></el-form-item>
-        <el-form-item label="分类名称"><el-input v-model="courseCategoryForm.categoryName" /></el-form-item>
+        <el-form-item label="分类编码"
+          ><el-input v-model="courseCategoryForm.categoryCode"
+        /></el-form-item>
+        <el-form-item label="分类名称"
+          ><el-input v-model="courseCategoryForm.categoryName"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="courseCategoryForm.status">
             <el-option label="启用" value="active" />
             <el-option label="停用" value="inactive" />
           </el-select>
         </el-form-item>
-        <el-form-item label="排序"><el-input-number v-model="courseCategoryForm.sortOrder" :min="0" style="width: 100%" /></el-form-item>
-        <el-form-item label="备注"><el-input v-model="courseCategoryForm.remark" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="排序"
+          ><el-input-number v-model="courseCategoryForm.sortOrder" :min="0" style="width: 100%"
+        /></el-form-item>
+        <el-form-item label="备注"
+          ><el-input v-model="courseCategoryForm.remark" type="textarea" :rows="2"
+        /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="courseCategoryDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="courseCategorySubmitting" @click="submitCourseCategory">{{ courseCategoryDialogMode === 'create' ? '提交分类' : '保存修改' }}</el-button>
+        <el-button
+          type="primary"
+          :loading="courseCategorySubmitting"
+          @click="submitCourseCategory"
+          >{{ courseCategoryDialogMode === 'create' ? '提交分类' : '保存修改' }}</el-button
+        >
       </template>
     </el-dialog>
 
-    <el-dialog v-model="courseDialogVisible" :title="courseDialogMode === 'create' ? '新增课程' : '编辑课程'" width="560px">
-      <el-alert v-if="courseFormError" :title="courseFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="courseDialogVisible"
+      :title="courseDialogMode === 'create' ? '新增课程' : '编辑课程'"
+      width="560px"
+    >
+      <el-alert
+        v-if="courseFormError"
+        :title="courseFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="课程分类">
           <el-select v-model="courseForm.categoryId" clearable filterable>
-            <el-option v-for="item in courseCategories" :key="item.id" :label="item.categoryName || item.categoryCode || `分类 #${item.id}`" :value="item.id" />
+            <el-option
+              v-for="item in courseCategories"
+              :key="item.id"
+              :label="item.categoryName || item.categoryCode || `分类 #${item.id}`"
+              :value="item.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="课程编码"><el-input v-model="courseForm.courseCode" /></el-form-item>
         <el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item>
         <el-form-item label="学科"><el-input v-model="courseForm.subjectName" /></el-form-item>
-        <el-form-item label="授课方式"><DictSelect v-model="courseForm.teachingMethod" type-code="teaching_method" /></el-form-item>
+        <el-form-item label="授课方式"
+          ><DictSelect v-model="courseForm.teachingMethod" type-code="teaching_method"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="courseForm.status">
             <el-option label="启用" value="active" />
             <el-option label="停用" value="inactive" />
           </el-select>
         </el-form-item>
-        <el-form-item label="备注"><el-input v-model="courseForm.remark" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="备注"
+          ><el-input v-model="courseForm.remark" type="textarea" :rows="2"
+        /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="courseDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="courseSubmitting" @click="submitCourse">{{ courseDialogMode === 'create' ? '提交课程' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="courseSubmitting" @click="submitCourse">{{
+          courseDialogMode === 'create' ? '提交课程' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="classTypeDialogVisible" :title="classTypeDialogMode === 'create' ? '新增班型' : '编辑班型'" width="560px">
-      <el-alert v-if="classTypeFormError" :title="classTypeFormError" type="error" show-icon :closable="false" class="education-alert" />
+    <el-dialog
+      v-model="classTypeDialogVisible"
+      :title="classTypeDialogMode === 'create' ? '新增班型' : '编辑班型'"
+      width="560px"
+    >
+      <el-alert
+        v-if="classTypeFormError"
+        :title="classTypeFormError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
       <el-form label-position="top" class="education-form">
         <el-form-item label="班型编码"><el-input v-model="classTypeForm.typeCode" /></el-form-item>
         <el-form-item label="班型名称"><el-input v-model="classTypeForm.typeName" /></el-form-item>
-        <el-form-item label="授课方式"><DictSelect v-model="classTypeForm.teachingMethod" type-code="teaching_method" /></el-form-item>
-        <el-form-item label="最少人数"><el-input-number v-model="classTypeForm.minStudents" :min="0" style="width: 100%" /></el-form-item>
-        <el-form-item label="最多人数"><el-input-number v-model="classTypeForm.maxStudents" :min="0" style="width: 100%" /></el-form-item>
+        <el-form-item label="授课方式"
+          ><DictSelect v-model="classTypeForm.teachingMethod" type-code="teaching_method"
+        /></el-form-item>
+        <el-form-item label="最少人数"
+          ><el-input-number v-model="classTypeForm.minStudents" :min="0" style="width: 100%"
+        /></el-form-item>
+        <el-form-item label="最多人数"
+          ><el-input-number v-model="classTypeForm.maxStudents" :min="0" style="width: 100%"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="classTypeForm.status">
             <el-option label="启用" value="active" />
             <el-option label="停用" value="inactive" />
           </el-select>
         </el-form-item>
-        <el-form-item label="备注"><el-input v-model="classTypeForm.remark" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="备注"
+          ><el-input v-model="classTypeForm.remark" type="textarea" :rows="2"
+        /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="classTypeDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">{{ classTypeDialogMode === 'create' ? '提交班型' : '保存修改' }}</el-button>
+        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">{{
+          classTypeDialogMode === 'create' ? '提交班型' : '保存修改'
+        }}</el-button>
       </template>
     </el-dialog>
   </section>
@@ -461,6 +688,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -624,7 +852,7 @@ watch(
     if (Number.isFinite(diff) && diff > 0) {
       timeSlotForm.durationMinutes = diff
     }
-  },
+  }
 )
 
 const courseCategoryForm = reactive({
@@ -666,7 +894,12 @@ const weekdays = [
 ]
 
 const campusMap = computed(() => {
-  return new Map(campuses.value.map((item) => [item.id, item.campusName || item.campusCode || `校区 #${item.id}`]))
+  return new Map(
+    campuses.value.map((item) => [
+      item.id,
+      item.campusName || item.campusCode || `校区 #${item.id}`,
+    ])
+  )
 })
 
 function toMessage(error: unknown, fallback: string) {
@@ -954,14 +1187,15 @@ async function loadResources() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    const [campusList, termList, timeSlotList, categoryList, courseList, classTypeList] = await Promise.all([
-      fetchCampuses(institutionId.value),
-      fetchTerms(institutionId.value),
-      fetchTimeSlots(institutionId.value),
-      fetchCourseCategories({ institutionId: institutionId.value }),
-      fetchCourses({ institutionId: institutionId.value }),
-      fetchClassTypes({ institutionId: institutionId.value }),
-    ])
+    const [campusList, termList, timeSlotList, categoryList, courseList, classTypeList] =
+      await Promise.all([
+        fetchCampuses(institutionId.value),
+        fetchTerms(institutionId.value),
+        fetchTimeSlots(institutionId.value),
+        fetchCourseCategories({ institutionId: institutionId.value }),
+        fetchCourses({ institutionId: institutionId.value }),
+        fetchClassTypes({ institutionId: institutionId.value }),
+      ])
 
     campuses.value = campusList
     terms.value = termList
@@ -1124,7 +1358,11 @@ async function submitCampus() {
     campusFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(campusForm.campusCode) || !trimToUndefined(campusForm.campusName) || !trimToUndefined(campusForm.address)) {
+  if (
+    !trimToUndefined(campusForm.campusCode) ||
+    !trimToUndefined(campusForm.campusName) ||
+    !trimToUndefined(campusForm.address)
+  ) {
     campusFormError.value = '请完整填写校区编码、名称和地址'
     return
   }
@@ -1161,7 +1399,10 @@ async function submitCampus() {
     campusDialogVisible.value = false
     await loadResources()
   } catch (error) {
-    campusFormError.value = toMessage(error, campusDialogMode.value === 'create' ? '新增校区失败' : '更新校区失败')
+    campusFormError.value = toMessage(
+      error,
+      campusDialogMode.value === 'create' ? '新增校区失败' : '更新校区失败'
+    )
   } finally {
     campusSubmitting.value = false
   }
@@ -1169,11 +1410,15 @@ async function submitCampus() {
 
 async function confirmDeleteCampus(row: CampusSummary) {
   try {
-    await ElMessageBox.confirm(`确定删除校区「${row.campusName || row.campusCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除校区「${row.campusName || row.campusCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1194,7 +1439,10 @@ async function submitClassroom() {
     classroomFormError.value = '请选择归属校区'
     return
   }
-  if (!trimToUndefined(classroomForm.classroomCode) || !trimToUndefined(classroomForm.classroomName)) {
+  if (
+    !trimToUndefined(classroomForm.classroomCode) ||
+    !trimToUndefined(classroomForm.classroomName)
+  ) {
     classroomFormError.value = '请完整填写教室编码和名称'
     return
   }
@@ -1231,7 +1479,10 @@ async function submitClassroom() {
     }
     await loadClassrooms()
   } catch (error) {
-    classroomFormError.value = toMessage(error, classroomDialogMode.value === 'create' ? '新增教室失败' : '更新教室失败')
+    classroomFormError.value = toMessage(
+      error,
+      classroomDialogMode.value === 'create' ? '新增教室失败' : '更新教室失败'
+    )
   } finally {
     classroomSubmitting.value = false
   }
@@ -1239,11 +1490,15 @@ async function submitClassroom() {
 
 async function confirmDeleteClassroom(row: ClassroomSummary) {
   try {
-    await ElMessageBox.confirm(`确定删除教室「${row.classroomName || row.classroomCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除教室「${row.classroomName || row.classroomCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1261,7 +1516,11 @@ async function submitTerm() {
     termFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(termForm.termCode) || !trimToUndefined(termForm.termName) || !trimToUndefined(termForm.academicYear)) {
+  if (
+    !trimToUndefined(termForm.termCode) ||
+    !trimToUndefined(termForm.termName) ||
+    !trimToUndefined(termForm.academicYear)
+  ) {
     termFormError.value = '请完整填写学期编码、名称和学年'
     return
   }
@@ -1304,7 +1563,10 @@ async function submitTerm() {
     termDialogVisible.value = false
     terms.value = await fetchTerms(institutionId.value)
   } catch (error) {
-    termFormError.value = toMessage(error, termDialogMode.value === 'create' ? '新增学期失败' : '更新学期失败')
+    termFormError.value = toMessage(
+      error,
+      termDialogMode.value === 'create' ? '新增学期失败' : '更新学期失败'
+    )
   } finally {
     termSubmitting.value = false
   }
@@ -1312,11 +1574,15 @@ async function submitTerm() {
 
 async function confirmDeleteTerm(row: TermSummary) {
   try {
-    await ElMessageBox.confirm(`确定删除学期「${row.termName || row.termCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除学期「${row.termName || row.termCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1379,7 +1645,10 @@ async function submitTimeSlot() {
     timeSlotDialogVisible.value = false
     timeSlots.value = await fetchTimeSlots(institutionId.value)
   } catch (error) {
-    timeSlotFormError.value = toMessage(error, timeSlotDialogMode.value === 'create' ? '新增时间段失败' : '更新时间段失败')
+    timeSlotFormError.value = toMessage(
+      error,
+      timeSlotDialogMode.value === 'create' ? '新增时间段失败' : '更新时间段失败'
+    )
   } finally {
     timeSlotSubmitting.value = false
   }
@@ -1387,11 +1656,15 @@ async function submitTimeSlot() {
 
 async function confirmDeleteTimeSlot(row: TimeSlotSummary) {
   try {
-    await ElMessageBox.confirm(`确定删除时间段「${row.slotName || row.slotCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除时间段「${row.slotName || row.slotCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1409,7 +1682,10 @@ async function submitCourseCategory() {
     courseCategoryFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(courseCategoryForm.categoryCode) || !trimToUndefined(courseCategoryForm.categoryName)) {
+  if (
+    !trimToUndefined(courseCategoryForm.categoryCode) ||
+    !trimToUndefined(courseCategoryForm.categoryName)
+  ) {
     courseCategoryFormError.value = '请完整填写分类编码和名称'
     return
   }
@@ -1439,7 +1715,10 @@ async function submitCourseCategory() {
     courseCategoryDialogVisible.value = false
     courseCategories.value = await fetchCourseCategories({ institutionId: institutionId.value })
   } catch (error) {
-    courseCategoryFormError.value = toMessage(error, courseCategoryDialogMode.value === 'create' ? '新增课程分类失败' : '更新课程分类失败')
+    courseCategoryFormError.value = toMessage(
+      error,
+      courseCategoryDialogMode.value === 'create' ? '新增课程分类失败' : '更新课程分类失败'
+    )
   } finally {
     courseCategorySubmitting.value = false
   }
@@ -1447,11 +1726,15 @@ async function submitCourseCategory() {
 
 async function confirmDeleteCourseCategory(row: CourseCategoryRecord) {
   try {
-    await ElMessageBox.confirm(`确定删除分类「${row.categoryName || row.categoryCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除分类「${row.categoryName || row.categoryCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1503,7 +1786,10 @@ async function submitCourse() {
     courseDialogVisible.value = false
     courses.value = await fetchCourses({ institutionId: institutionId.value })
   } catch (error) {
-    courseFormError.value = toMessage(error, courseDialogMode.value === 'create' ? '新增课程失败' : '更新课程失败')
+    courseFormError.value = toMessage(
+      error,
+      courseDialogMode.value === 'create' ? '新增课程失败' : '更新课程失败'
+    )
   } finally {
     courseSubmitting.value = false
   }
@@ -1511,11 +1797,15 @@ async function submitCourse() {
 
 async function confirmDeleteCourse(row: CourseRecord) {
   try {
-    await ElMessageBox.confirm(`确定删除课程「${row.courseName || row.courseCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除课程「${row.courseName || row.courseCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1567,7 +1857,10 @@ async function submitClassType() {
     classTypeDialogVisible.value = false
     classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
   } catch (error) {
-    classTypeFormError.value = toMessage(error, classTypeDialogMode.value === 'create' ? '新增班型失败' : '更新班型失败')
+    classTypeFormError.value = toMessage(
+      error,
+      classTypeDialogMode.value === 'create' ? '新增班型失败' : '更新班型失败'
+    )
   } finally {
     classTypeSubmitting.value = false
   }
@@ -1575,11 +1868,15 @@ async function submitClassType() {
 
 async function confirmDeleteClassType(row: ClassTypeRecord) {
   try {
-    await ElMessageBox.confirm(`确定删除班型「${row.typeName || row.typeCode || row.id}」吗？`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确定删除班型「${row.typeName || row.typeCode || row.id}」吗？`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
   } catch {
     return
   }
@@ -1609,13 +1906,18 @@ async function initializePage() {
   await refreshAll()
 }
 
-watch(() => institutionStore.currentInstitutionId, async () => {
-  campusId.value = null
-  await loadResources()
-})
+watch(
+  () => institutionStore.currentInstitutionId,
+  async () => {
+    campusId.value = null
+    await loadResources()
+  }
+)
 
 onMounted(() => {
-  void dictStore.ensureLoaded(['room_type', 'term_season', 'teaching_method']).catch(() => undefined)
+  void dictStore
+    .ensureLoaded(['room_type', 'term_season', 'teaching_method'])
+    .catch(() => undefined)
   initializePage()
 })
 </script>

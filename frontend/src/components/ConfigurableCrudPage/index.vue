@@ -3,7 +3,8 @@
     <article class="panel-card education-panel">
       <div class="education-table-head">
         <div class="panel-title">
-          {{ pageTitle }}<span v-if="config?.page.showCount" class="panel-count">{{ countText }}</span>
+          {{ pageTitle
+          }}<span v-if="config?.page.showCount" class="panel-count">{{ countText }}</span>
         </div>
         <div v-if="config?.page.description" class="table-actions">
           <span class="education-context-text">{{ config.page.description }}</span>
@@ -83,7 +84,7 @@ const props = withDefaults(
     /** 资源 CRUD 实现画像:api / payload 组装 / 内置动作(含 extraActions 覆盖) */
     crud?: CrudPageOptions
   }>(),
-  { pageTitle: '' },
+  { pageTitle: '' }
 )
 
 const listConfigStore = useListConfigStore()
@@ -96,7 +97,11 @@ const total = ref(0)
 
 function toMessage(error: unknown, fallback: string): string {
   const custom = props.crud?.toMessage
-  return custom ? custom(error, fallback) : error instanceof Error && error.message ? error.message : fallback
+  return custom
+    ? custom(error, fallback)
+    : error instanceof Error && error.message
+      ? error.message
+      : fallback
 }
 
 async function reload() {
@@ -107,7 +112,15 @@ function rowName(row?: Record<string, any>): string {
   if (!row) {
     return '该记录'
   }
-  for (const key of ['name', 'displayName', 'roleName', 'username', 'configKey', 'title', 'label']) {
+  for (const key of [
+    'name',
+    'displayName',
+    'roleName',
+    'username',
+    'configKey',
+    'title',
+    'label',
+  ]) {
     const value = row[key]
     if (value !== null && value !== undefined && String(value).trim() !== '') {
       return String(value)
@@ -116,22 +129,31 @@ function rowName(row?: Record<string, any>): string {
   return row.id != null ? `#${row.id}` : '该记录'
 }
 
-const resourceName = computed(() => props.crud?.resourceName || config.value?.list.resourceName || props.resourceCode)
+const resourceName = computed(
+  () => props.crud?.resourceName || config.value?.list.resourceName || props.resourceCode
+)
 
 /** 页面主标题:page_json.title 优先,其次 pageTitle prop,再 resourceName */
 const pageTitle = computed(
-  () => config.value?.page?.title || props.pageTitle || config.value?.list.resourceName || props.resourceCode,
+  () =>
+    config.value?.page?.title ||
+    props.pageTitle ||
+    config.value?.list.resourceName ||
+    props.resourceCode
 )
 
 const countText = computed(() =>
-  (config.value?.page?.countFormat ?? '共 {total} 条').replace(/\{total\}/g, String(total.value)),
+  (config.value?.page?.countFormat ?? '共 {total} 条').replace(/\{total\}/g, String(total.value))
 )
 
 /** 弹窗标题:create/edit 文案各自替换 {name} 占位符 */
 const dialogTitle = computed(() => {
   const shell = config.value?.dialog
   const template = mode.value === 'create' ? shell?.createTitle : shell?.editTitle
-  return (template || (mode.value === 'create' ? '新增{name}' : '编辑{name}')).replace(/\{name\}/g, resourceName.value)
+  return (template || (mode.value === 'create' ? '新增{name}' : '编辑{name}')).replace(
+    /\{name\}/g,
+    resourceName.value
+  )
 })
 
 /** 弹窗宽度:缺省 640px */
@@ -147,7 +169,9 @@ const dialogSafe = computed(() => {
 })
 
 /** 字段级具名插槽转发名单(仅 field-*),避免把页面壳插槽误传进表单 */
-const forwardFieldSlots = computed(() => Object.keys(slots).filter((name) => name.startsWith('field-')))
+const forwardFieldSlots = computed(() =>
+  Object.keys(slots).filter((name) => name.startsWith('field-'))
+)
 
 /** 打开弹窗后重置表单(create 用默认值重建;edit 靠 initial watch 重建) */
 async function resetForm() {
@@ -200,7 +224,7 @@ function onLoaded(payload: { total: number; records: Record<string, any>[] }) {
 async function submit() {
   await modal.submit(
     () => formRef.value?.validate() ?? Promise.resolve(false),
-    () => formRef.value?.values() ?? {},
+    () => formRef.value?.values() ?? {}
   )
 }
 
@@ -257,7 +281,9 @@ const resolvedActions = computed<Record<string, ActionHandler>>(() => {
         break
       }
       default:
-        console.warn(`[ConfigurableCrudPage] 动作 "${name}" 无内置 actionType,请通过 crud.extraActions 提供`)
+        console.warn(
+          `[ConfigurableCrudPage] 动作 "${name}" 无内置 actionType,请通过 crud.extraActions 提供`
+        )
     }
   }
   return result

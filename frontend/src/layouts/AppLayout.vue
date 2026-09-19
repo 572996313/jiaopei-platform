@@ -19,7 +19,9 @@
                   :class="{ 'is-active': isNavItemActive(item), 'is-open': isGroupOpen(item) }"
                   @click="toggleGroup(item.key)"
                 >
-                  <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
+                  <el-icon v-if="item.icon" class="nav-item-icon"
+                    ><component :is="item.icon"
+                  /></el-icon>
                   <span class="nav-item-label">{{ displayLabel(item) }}</span>
                   <el-icon class="nav-caret"><ArrowDown /></el-icon>
                 </button>
@@ -31,7 +33,9 @@
                     class="nav-item nav-child-item"
                     :class="{ 'is-active': isChildActive(child) }"
                   >
-                    <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"><component :is="child.icon" /></el-icon>
+                    <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"
+                      ><component :is="child.icon"
+                    /></el-icon>
                     <span class="nav-item-label">{{ child.label }}</span>
                   </RouterLink>
                 </div>
@@ -42,7 +46,9 @@
                 class="nav-item"
                 :class="{ 'is-active': isNavItemActive(item) }"
               >
-                <el-icon v-if="item.icon" class="nav-item-icon"><component :is="item.icon" /></el-icon>
+                <el-icon v-if="item.icon" class="nav-item-icon"
+                  ><component :is="item.icon"
+                /></el-icon>
                 <span class="nav-item-label">{{ item.label }}</span>
               </RouterLink>
             </template>
@@ -81,7 +87,10 @@
                 v-else
                 type="button"
                 class="rail-trigger"
-                :class="{ 'is-active': isNavItemActive(item), 'is-pinned': activeRailPopoverKey === item.key }"
+                :class="{
+                  'is-active': isNavItemActive(item),
+                  'is-pinned': activeRailPopoverKey === item.key,
+                }"
                 :title="item.label"
                 @click="toggleRailPin(item)"
               >
@@ -106,7 +115,9 @@
                   :class="{ 'is-active': isChildActive(child) }"
                   @click="handleRailChildClick(item)"
                 >
-                  <el-icon v-if="child.icon" class="rail-pop-icon"><component :is="child.icon" /></el-icon>
+                  <el-icon v-if="child.icon" class="rail-pop-icon"
+                    ><component :is="child.icon"
+                  /></el-icon>
                   <span>{{ child.label }}</span>
                 </RouterLink>
               </div>
@@ -123,14 +134,23 @@
         :type="auth.mustChangePassword ? 'error' : 'warning'"
         show-icon
         :closable="false"
-        :title="auth.mustChangePassword ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。' : '当前账号仍处于初始化密码状态,请尽快完成改密。'"
+        :title="
+          auth.mustChangePassword
+            ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。'
+            : '当前账号仍处于初始化密码状态,请尽快完成改密。'
+        "
       />
 
       <header class="app-header">
         <h1 class="page-title">{{ currentTitle }}</h1>
         <div class="header-actions">
           <div class="header-institution-block">
-            <el-tag v-if="institutionStore.isSingleInstitution" type="info" effect="plain" size="large">
+            <el-tag
+              v-if="institutionStore.isSingleInstitution"
+              type="info"
+              effect="plain"
+              size="large"
+            >
               {{ institutionStore.currentInstitutionName }}
             </el-tag>
             <el-select
@@ -155,7 +175,9 @@
               <span class="header-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
               <div class="header-user-info">
                 <div class="header-user-name">{{ auth.displayName }}</div>
-                <div class="header-user-meta">{{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}</div>
+                <div class="header-user-meta">
+                  {{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}
+                </div>
               </div>
               <el-icon class="header-user-caret"><ArrowDown /></el-icon>
             </div>
@@ -255,7 +277,10 @@ function adaptMenuChildren(nodes: SystemMenuTreeNode[]): SidebarChildDefinition[
 }
 
 /** 当前用户菜单树里 code 对应的节点(含目录与菜单) */
-function findMenuNode(items: SystemMenuTreeNode[] | undefined, code: string): SystemMenuTreeNode | null {
+function findMenuNode(
+  items: SystemMenuTreeNode[] | undefined,
+  code: string
+): SystemMenuTreeNode | null {
   for (const item of items || []) {
     if (item.menuCode === code) {
       return item
@@ -426,7 +451,8 @@ const matchedChild = computed(() => {
 const currentTitle = computed(() => {
   return (
     matchedChild.value?.title ??
-    sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))?.title ??
+    sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))
+      ?.title ??
     '教培管理平台'
   )
 })
@@ -443,7 +469,9 @@ function isChildActive(child: SidebarChildDefinition) {
 const openGroups = ref(new Set<string>())
 
 function isGroupOpen(item: SidebarDefinition) {
-  return openGroups.value.has(item.key) || item.prefixes.some((prefix) => route.path.startsWith(prefix))
+  return (
+    openGroups.value.has(item.key) || item.prefixes.some((prefix) => route.path.startsWith(prefix))
+  )
 }
 
 function toggleGroup(key: string) {

@@ -204,19 +204,31 @@ export function fetchInstitutions() {
 }
 
 export function fetchCampuses(institutionId?: string | null) {
-  return requestGet<CampusSummary[]>('/organizations/campuses', institutionId ? { institutionId } : undefined)
+  return requestGet<CampusSummary[]>(
+    '/organizations/campuses',
+    institutionId ? { institutionId } : undefined
+  )
 }
 
 export function fetchTerms(institutionId?: string | null) {
-  return requestGet<TermSummary[]>('/organizations/terms', institutionId ? { institutionId } : undefined)
+  return requestGet<TermSummary[]>(
+    '/organizations/terms',
+    institutionId ? { institutionId } : undefined
+  )
 }
 
 export function fetchClassrooms(campusId?: string | null) {
-  return requestGet<ClassroomSummary[]>('/organizations/classrooms', campusId ? { campusId } : undefined)
+  return requestGet<ClassroomSummary[]>(
+    '/organizations/classrooms',
+    campusId ? { campusId } : undefined
+  )
 }
 
 export function fetchTimeSlots(institutionId?: string | null) {
-  return requestGet<TimeSlotSummary[]>('/organizations/time-slots', institutionId ? { institutionId } : undefined)
+  return requestGet<TimeSlotSummary[]>(
+    '/organizations/time-slots',
+    institutionId ? { institutionId } : undefined
+  )
 }
 
 export function createCampus(payload: CampusCreatePayload) {
