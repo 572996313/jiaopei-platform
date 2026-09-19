@@ -89,7 +89,10 @@ export const useDataSourceStore = defineStore('dataSource', () => {
    * dict 类型数据源直接读字典缓存。
    * 无参数数据源的选项结果按编码缓存,避免重复请求。
    */
-  async function getOptions(code: string, params?: Record<string, unknown>): Promise<QueryOption[]> {
+  async function getOptions(
+    code: string,
+    params?: Record<string, unknown>
+  ): Promise<QueryOption[]> {
     const hasParams = params && Object.keys(params).length > 0
     if (!hasParams && optionsCache.value[code]) {
       return optionsCache.value[code]
@@ -230,5 +233,14 @@ export const useDataSourceStore = defineStore('dataSource', () => {
     optionsCache.value = {}
   }
 
-  return { definitions, getDefinition, ensureLoaded, getOptions, optionsFor, preloadCodes, preloadDefinitions, invalidate }
+  return {
+    definitions,
+    getDefinition,
+    ensureLoaded,
+    getOptions,
+    optionsFor,
+    preloadCodes,
+    preloadDefinitions,
+    invalidate,
+  }
 })

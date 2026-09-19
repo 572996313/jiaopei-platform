@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import DictSelect from '@/components/DictSelect.vue'
 import { requestGet } from '@/api/request'
 import type { PageResult } from '@/api/common'
@@ -9,7 +10,12 @@ import { useListConfigStore } from '@/stores/listConfig'
 import { useDataSourceStore } from '@/stores/dataSource'
 import { useAuthStore } from '@/stores/auth'
 import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
-import { ConfigurableCell, collectDictTypes, resolveOptionLoader, type RenderContext } from './renderers'
+import {
+  ConfigurableCell,
+  collectDictTypes,
+  resolveOptionLoader,
+  type RenderContext,
+} from './renderers'
 import type {
   ActionHandler,
   ListActionConfig,
@@ -218,6 +224,11 @@ const toolbarActions = computed(() =>
 )
 const rowActions = computed(() => actionConfigs.value.filter((action) => action.position === 'row'))
 
+/** 行内最多直接平铺 3 个按钮,多余的收进「更多」下拉,保证不换行 */
+const MAX_INLINE_ROW_ACTIONS = 3
+const inlineRowActions = computed(() => rowActions.value.slice(0, MAX_INLINE_ROW_ACTIONS))
+const overflowRowActions = computed(() => rowActions.value.slice(MAX_INLINE_ROW_ACTIONS))
+
 /** 配置模式且未显式传宽时,按行按钮文案估算操作列宽(中文约 14px/字 + 内边距余量) */
 const actionColumnWidth = computed(() => {
   if (props.actionsWidth) {
@@ -226,11 +237,12 @@ const actionColumnWidth = computed(() => {
   if (!hasActionsConfig.value || rowActions.value.length === 0) {
     return undefined
   }
-  const contentWidth = rowActions.value.reduce(
+  const contentWidth = inlineRowActions.value.reduce(
     (sum, action) => sum + action.label.length * 14 + 40,
     0
   )
-  return Math.round(contentWidth + 24)
+  const moreWidth = overflowRowActions.value.length ? '更多'.length * 14 + 56 : 0
+  return Math.round(contentWidth + moreWidth + 24)
 })
 
 /** toolbar 缺省 default;text 样式在工具栏无意义,归一到 default */
@@ -270,6 +282,14 @@ function fireAction(action: ListActionConfig, row?: Record<string, any>) {
     return
   }
   handler.handler(row)
+}
+
+/** 「更多」下拉 command 分发:按动作名找回配置再触发 */
+function fireActionByName(name: string, row?: Record<string, any>) {
+  const action = rowActions.value.find((item) => item.action === name)
+  if (action) {
+    fireAction(action, row)
+  }
 }
 
 watch(
@@ -374,13 +394,13 @@ defineExpose({
           :label="column.label"
           :width="column.width"
           :min-width="column.minWidth"
-          :show-overflow-tooltip="column.showOverflowTooltip"
+          :show-overflow-tooltip="column.showOverflowTooltip !== false"
         >
           <template #default="{ row }">
             <ConfigurableCell :column="column" :row="row" :context="context" />
           </template>
         </el-table-column>
-        <!-- 配置模式:按 actions 渲染行按钮;未配置时回退 #actions 插槽 -->
+        <!-- 配置模式:按 actions 渲染行按钮(超过 3 个收进「更多」);未配置时回退 #actions 插槽 -->
         <el-table-column
           v-if="rowActions.length > 0"
           label="操作"
@@ -390,7 +410,7 @@ defineExpose({
           <template #default="{ row }">
             <div class="system-operation-group">
               <el-button
-                v-for="action in rowActions"
+                v-for="action in inlineRowActions"
                 :key="action.action"
                 text
                 :type="rowButtonType(action)"
@@ -399,6 +419,27 @@ defineExpose({
               >
                 {{ actionLabel(action, row) }}
               </el-button>
+              <el-dropdown
+                v-if="overflowRowActions.length"
+                trigger="click"
+                @command="(name: string) => fireActionByName(name, row)"
+              >
+                <el-button text>
+                  更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="action in overflowRowActions"
+                      :key="action.action"
+                      :command="action.action"
+                      :disabled="actionDisabled(action, row)"
+                    >
+                      {{ actionLabel(action, row) }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>

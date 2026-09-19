@@ -551,6 +551,11 @@ body {
   gap: 4px 8px;
 }
 
+/* 表格行内的操作按钮组禁止换行(表头工具区不受影响) */
+.el-table .table-actions {
+  flex-wrap: nowrap;
+}
+
 .education-context-text {
   color: #5c6b82;
   font-size: 14px;
@@ -817,7 +822,8 @@ body {
 
 .system-operation-group {
   display: flex;
-  flex-wrap: wrap;
+  /* 行内操作按钮禁止换行;数量超出时由「更多」下拉收纳 */
+  flex-wrap: nowrap;
   gap: 2px 6px;
 }
 
@@ -937,6 +943,14 @@ body {
 
 .el-table th.el-table__cell {
   font-weight: 600;
+}
+
+/* 表头统一居中;数据单元格保持各自的左右对齐 */
+.el-table th.el-table__cell,
+.el-table th.el-table__cell.is-left,
+.el-table th.el-table__cell.is-center,
+.el-table th.el-table__cell.is-right {
+  text-align: center;
 }
 
 .el-dialog {

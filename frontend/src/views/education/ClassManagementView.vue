@@ -231,7 +231,7 @@
         </el-table-column>
         <el-table-column prop="joinedAt" label="入班日期" width="140" />
         <el-table-column prop="leftAt" label="离班日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="220" />
+        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
@@ -335,7 +335,12 @@
             v-loading="parentLoading"
             :height="TABLE_FILL_HEIGHT"
           >
-            <el-table-column prop="parentName" label="联系人" min-width="140" />
+            <el-table-column
+              prop="parentName"
+              label="联系人"
+              min-width="140"
+              show-overflow-tooltip
+            />
             <el-table-column label="关系" width="110">
               <template #default="{ row }">
                 {{ parentRelationLabel(row.relationType) }}

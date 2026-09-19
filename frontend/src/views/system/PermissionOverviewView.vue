@@ -157,7 +157,12 @@
                         }}</el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="path" label="路径" min-width="240" />
+                    <el-table-column
+                      prop="path"
+                      label="路径"
+                      min-width="240"
+                      show-overflow-tooltip
+                    />
                     <el-table-column label="说明" min-width="150">
                       <template #default="{ row }">{{ row.summary || '-' }}</template>
                     </el-table-column>

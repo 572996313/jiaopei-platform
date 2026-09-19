@@ -109,13 +109,13 @@
 
       <el-table :data="students" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="studentNo" label="学号" width="140" />
-        <el-table-column prop="studentName" label="姓名" min-width="120" />
+        <el-table-column prop="studentName" label="姓名" min-width="120" show-overflow-tooltip />
         <el-table-column label="性别" width="80">
           <template #default="{ row }">
             {{ genderLabel(row.gender) }}
           </template>
         </el-table-column>
-        <el-table-column prop="guardianName" label="监护人" min-width="120" />
+        <el-table-column prop="guardianName" label="监护人" min-width="120" show-overflow-tooltip />
         <el-table-column prop="guardianPhone" label="监护人电话" width="150" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
@@ -125,7 +125,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="enrolledAt" label="入学日期" width="130" />
-        <el-table-column prop="remark" label="备注" min-width="180" />
+        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openStudentDialog('edit', row)">编辑</el-button>
@@ -170,7 +170,7 @@
           <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
         </el-table-column>
         <el-table-column prop="enrolledAt" label="报名日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="220" />
+        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
       </el-table>
 
       <div v-if="!tableLoading && records.length === 0" class="education-empty">
@@ -192,7 +192,7 @@
             {{ formatStudent(row.studentId) }}
           </template>
         </el-table-column>
-        <el-table-column prop="parentName" label="联系人" min-width="140" />
+        <el-table-column prop="parentName" label="联系人" min-width="140" show-overflow-tooltip />
         <el-table-column label="关系" width="120">
           <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
         </el-table-column>
@@ -215,7 +215,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="220" />
+        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
       </el-table>
 
       <div v-if="!tableLoading && studentParents.length === 0" class="education-empty">

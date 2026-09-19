@@ -65,7 +65,12 @@
 
       <el-table :data="teachers" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="teacherCode" label="教师编码" width="160" />
-        <el-table-column prop="teacherName" label="教师姓名" min-width="160" />
+        <el-table-column
+          prop="teacherName"
+          label="教师姓名"
+          min-width="160"
+          show-overflow-tooltip
+        />
         <el-table-column label="校区" min-width="160">
           <template #default="{ row }">
             {{ formatCampus(row.campusId) }}
@@ -85,7 +90,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="hiredAt" label="入职日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="200" />
+        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openTeacherDialog('edit', row)">编辑</el-button>

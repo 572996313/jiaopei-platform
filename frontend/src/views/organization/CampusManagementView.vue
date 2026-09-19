@@ -60,13 +60,18 @@
         </div>
         <el-table :data="campuses" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="campusCode" label="校区编码" width="150" />
-          <el-table-column prop="campusName" label="校区名称" min-width="180" />
+          <el-table-column
+            prop="campusName"
+            label="校区名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column prop="campusType" label="校区类型" width="120">
             <template #default="{ row }">{{ campusTypeLabel(row.campusType) }}</template>
           </el-table-column>
           <el-table-column prop="principalName" label="负责人" width="120" />
           <el-table-column prop="phone" label="联系电话" width="150" />
-          <el-table-column prop="address" label="地址" min-width="220" />
+          <el-table-column prop="address" label="地址" min-width="220" show-overflow-tooltip />
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{ campusStatusLabel(row.status) }}</el-tag>
@@ -93,7 +98,12 @@
         </div>
         <el-table :data="classrooms" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="classroomCode" label="教室编码" width="150" />
-          <el-table-column prop="classroomName" label="教室名称" min-width="180" />
+          <el-table-column
+            prop="classroomName"
+            label="教室名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column label="类型" width="120">
             <template #default="{ row }">{{ roomTypeLabel(row.roomType) }}</template>
           </el-table-column>
@@ -134,7 +144,7 @@
         </div>
         <el-table :data="terms" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="termCode" label="学期编码" width="150" />
-          <el-table-column prop="termName" label="学期名称" min-width="180" />
+          <el-table-column prop="termName" label="学期名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="academicYear" label="学年" width="120" />
           <el-table-column label="学季" width="120">
             <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
@@ -172,7 +182,12 @@
         </div>
         <el-table :data="timeSlots" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="slotCode" label="时间段编码" width="150" />
-          <el-table-column prop="slotName" label="时间段名称" min-width="180" />
+          <el-table-column
+            prop="slotName"
+            label="时间段名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column label="星期" width="90">
             <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
           </el-table-column>
@@ -217,7 +232,12 @@
         </div>
         <el-table :data="courseCategories" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="categoryCode" label="分类编码" width="150" />
-          <el-table-column prop="categoryName" label="分类名称" min-width="180" />
+          <el-table-column
+            prop="categoryName"
+            label="分类名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{
@@ -226,7 +246,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="sortOrder" label="排序" width="100" />
-          <el-table-column prop="remark" label="备注" min-width="180" />
+          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)"
@@ -252,7 +272,12 @@
         </div>
         <el-table :data="courses" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="courseCode" label="课程编码" width="150" />
-          <el-table-column prop="courseName" label="课程名称" min-width="180" />
+          <el-table-column
+            prop="courseName"
+            label="课程名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column label="课程分类" min-width="160">
             <template #default="{ row }">
               {{ courseCategories.find((item) => item.id === row.categoryId)?.categoryName || '-' }}
@@ -290,7 +315,7 @@
         </div>
         <el-table :data="classTypes" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="typeCode" label="班型编码" width="150" />
-          <el-table-column prop="typeName" label="班型名称" min-width="180" />
+          <el-table-column prop="typeName" label="班型名称" min-width="180" show-overflow-tooltip />
           <el-table-column label="授课方式" width="160">
             <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
           </el-table-column>

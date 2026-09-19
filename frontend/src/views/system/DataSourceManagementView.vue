@@ -29,8 +29,13 @@
           v-loading="dataSourceLoading"
           :height="TABLE_FILL_HEIGHT"
         >
-          <el-table-column prop="sourceCode" label="数据源编码" min-width="140" />
-          <el-table-column prop="sourceName" label="名称" min-width="120" />
+          <el-table-column
+            prop="sourceCode"
+            label="数据源编码"
+            min-width="140"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="sourceName" label="名称" min-width="120" show-overflow-tooltip />
           <el-table-column label="类型" width="90">
             <template #default="{ row }">
               <el-tag :type="row.sourceType === 'dict' ? 'warning' : 'primary'" size="small">{{
@@ -40,12 +45,16 @@
           </el-table-column>
           <el-table-column label="接口路径 / 字典类型" min-width="210">
             <template #default="{ row }">
-              <code class="source-endpoint">{{ row.sourceType === 'dict' ? row.dictType : row.endpoint }}</code>
+              <code class="source-endpoint">{{
+                row.sourceType === 'dict' ? row.dictType : row.endpoint
+              }}</code>
             </template>
           </el-table-column>
           <el-table-column label="值/标签字段" min-width="130">
             <template #default="{ row }">
-              <span v-if="row.sourceType === 'api'" class="source-keys">{{ row.valueKey || 'id' }} → {{ row.labelKey }}</span>
+              <span v-if="row.sourceType === 'api'" class="source-keys"
+                >{{ row.valueKey || 'id' }} → {{ row.labelKey }}</span
+              >
               <span v-else>-</span>
             </template>
           </el-table-column>
@@ -103,7 +112,11 @@
             />
           </el-form-item>
           <el-form-item label="名称">
-            <el-input v-model="dataSourceForm.sourceName" maxlength="64" placeholder="如 机构列表" />
+            <el-input
+              v-model="dataSourceForm.sourceName"
+              maxlength="64"
+              placeholder="如 机构列表"
+            />
           </el-form-item>
         </div>
         <el-form-item label="数据源类型">
@@ -181,9 +194,8 @@
       <div class="guide-section">
         <h4 class="guide-title">这是什么?</h4>
         <p class="guide-text">
-          数据源把「页面下拉框、筛选框的选项数据」收敛成一条配置:
-          编码(如 institutions)→ 接口路径 / 字典类型 → 选项的值字段、标签字段。
-          「列表配置」里下拉控件的
+          数据源把「页面下拉框、筛选框的选项数据」收敛成一条配置: 编码(如 institutions)→ 接口路径 /
+          字典类型 → 选项的值字段、标签字段。 「列表配置」里下拉控件的
           <code>optionsLoader</code>
           填的就是数据源编码。
         </p>
@@ -341,7 +353,12 @@ function validateParamDefs(raw: string) {
   }
   for (let i = 0; i < parsed.length; i++) {
     const item = parsed[i]
-    if (typeof item !== 'object' || item === null || typeof item.name !== 'string' || !item.name.trim()) {
+    if (
+      typeof item !== 'object' ||
+      item === null ||
+      typeof item.name !== 'string' ||
+      !item.name.trim()
+    ) {
       throw new Error(`请求参数定义[${i}] 缺少必填字段 name`)
     }
   }

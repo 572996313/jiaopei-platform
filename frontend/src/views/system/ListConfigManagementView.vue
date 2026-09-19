@@ -29,9 +29,19 @@
           v-loading="listConfigLoading"
           :height="TABLE_FILL_HEIGHT"
         >
-          <el-table-column prop="resourceCode" label="资源编码" min-width="150" />
-          <el-table-column prop="resourceName" label="资源名称" min-width="120" />
-          <el-table-column prop="endpoint" label="分页接口" min-width="190" />
+          <el-table-column
+            prop="resourceCode"
+            label="资源编码"
+            min-width="150"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="resourceName"
+            label="资源名称"
+            min-width="120"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="endpoint" label="分页接口" min-width="190" show-overflow-tooltip />
           <el-table-column label="关联数据源" min-width="220">
             <template #default="{ row }">
               <template v-if="referencedLoaders(row).length">
@@ -699,9 +709,10 @@ function referencedLoaders(row: ListConfigSummary): string[] {
   scan(row.queryJson)
   try {
     const form = row.formJson ? JSON.parse(row.formJson) : null
-    const fields = form && Array.isArray((form as { fields?: unknown }).fields)
-      ? ((form as { fields: unknown[] }).fields)
-      : []
+    const fields =
+      form && Array.isArray((form as { fields?: unknown }).fields)
+        ? (form as { fields: unknown[] }).fields
+        : []
     for (const field of fields) {
       if (field && typeof field === 'object') {
         const loader = (field as Record<string, unknown>).optionsLoader

@@ -725,9 +725,7 @@ export function fetchDataSources() {
 }
 
 export function createDataSource(payload: DataSourceCreatePayload) {
-  return requestPost<DataSourceSummary>('/system/data-sources', payload).then(
-    normalizeDataSource
-  )
+  return requestPost<DataSourceSummary>('/system/data-sources', payload).then(normalizeDataSource)
 }
 
 export function updateDataSource(id: string, payload: DataSourceUpdatePayload) {
@@ -746,8 +744,7 @@ export function fetchDataSourceDefinitions(codes: string[]) {
   if (!unique) {
     return Promise.resolve({} as Record<string, DataSourceDefinition>)
   }
-  return requestGet<Record<string, DataSourceDefinition>>(
-    `/system/data-sources/definitions`,
-    { codes: unique }
-  )
+  return requestGet<Record<string, DataSourceDefinition>>(`/system/data-sources/definitions`, {
+    codes: unique,
+  })
 }

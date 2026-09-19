@@ -31,8 +31,18 @@
             :height="TABLE_FILL_HEIGHT"
             @current-change="handleDictTypeChange"
           >
-            <el-table-column prop="typeCode" label="类型编码" min-width="160" />
-            <el-table-column prop="typeName" label="类型名称" min-width="180" />
+            <el-table-column
+              prop="typeCode"
+              label="类型编码"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="typeName"
+              label="类型名称"
+              min-width="180"
+              show-overflow-tooltip
+            />
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)">{{
@@ -79,8 +89,8 @@
             :height="TABLE_FILL_HEIGHT"
           >
             <el-table-column prop="itemCode" label="编码" width="140" />
-            <el-table-column prop="itemName" label="名称" min-width="140" />
-            <el-table-column prop="itemValue" label="值" min-width="140" />
+            <el-table-column prop="itemName" label="名称" min-width="140" show-overflow-tooltip />
+            <el-table-column prop="itemValue" label="值" min-width="140" show-overflow-tooltip />
             <el-table-column prop="sortNo" label="排序" width="80" />
             <el-table-column label="状态" width="110">
               <template #default="{ row }">

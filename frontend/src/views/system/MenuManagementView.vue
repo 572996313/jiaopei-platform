@@ -30,12 +30,12 @@
           v-loading="menuTreeLoading"
           :height="TABLE_FILL_HEIGHT"
         >
-          <el-table-column prop="menuName" label="名称" min-width="180" />
+          <el-table-column prop="menuName" label="名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="menuCode" label="编码" width="180" />
           <el-table-column label="类型" width="90">
             <template #default="{ row }">{{ menuTypeLabel(row.menuType) }}</template>
           </el-table-column>
-          <el-table-column prop="path" label="路径" min-width="160" />
+          <el-table-column prop="path" label="路径" min-width="160" show-overflow-tooltip />
           <el-table-column label="权限码" min-width="170">
             <template #default="{ row }">
               <el-tooltip v-if="row.permissionCode" :content="row.permissionCode" placement="top">
@@ -54,7 +54,7 @@
               }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="160" />
+          <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
           <el-table-column v-if="permissions.canManageMenus" label="操作" width="140" fixed="right">
             <template #default="{ row }">
               <div class="system-operation-group">

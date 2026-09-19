@@ -63,10 +63,18 @@ const customRenderers: Record<string, CustomRenderer> = {
  * 未在 context 中注入的编码会自动走数据源配置(见 renderers.ts 顶部说明)。
  */
 export const optionLoaders: Record<string, (context?: RenderContext) => QueryOption[]> = {
-  institutions: (context) => context?.institutionOptions?.length ? context.institutionOptions : resolveOptionLoader('institutions', context),
-  campuses: (context) => context?.campusOptions?.length ? context.campusOptions : resolveOptionLoader('campuses', context),
-  roles: (context) => context?.roleOptions?.length ? context.roleOptions : resolveOptionLoader('roles', context),
-  status: (context) => context?.statusOptions?.length ? context.statusOptions : resolveOptionLoader('status', context),
+  institutions: (context) =>
+    context?.institutionOptions?.length
+      ? context.institutionOptions
+      : resolveOptionLoader('institutions', context),
+  campuses: (context) =>
+    context?.campusOptions?.length
+      ? context.campusOptions
+      : resolveOptionLoader('campuses', context),
+  roles: (context) =>
+    context?.roleOptions?.length ? context.roleOptions : resolveOptionLoader('roles', context),
+  status: (context) =>
+    context?.statusOptions?.length ? context.statusOptions : resolveOptionLoader('status', context),
 }
 
 /**

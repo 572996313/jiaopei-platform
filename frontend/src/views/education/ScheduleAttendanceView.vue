@@ -356,7 +356,12 @@
                 {{ formatTeacherNames(row.teacherIds) }}
               </template>
             </el-table-column>
-            <el-table-column prop="lessonTitle" label="课程主题" min-width="160" />
+            <el-table-column
+              prop="lessonTitle"
+              label="课程主题"
+              min-width="160"
+              show-overflow-tooltip
+            />
             <el-table-column label="状态" width="120">
               <template #default="{ row }">
                 <div class="lesson-status-cell">
@@ -373,7 +378,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="remark" label="备注" min-width="180" />
+            <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
             <el-table-column label="停补关联" min-width="220">
               <template #default="{ row }">
                 <div class="relation-cell">
@@ -389,9 +394,9 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="420" fixed="right">
+            <el-table-column label="操作" width="240" fixed="right">
               <template #default="{ row }">
-                <div class="table-actions">
+                <div class="system-operation-group">
                   <el-button
                     link
                     type="success"
@@ -408,27 +413,24 @@
                   >
                     结课
                   </el-button>
-                  <el-button
-                    link
-                    type="primary"
-                    @click="openExecutionChangeDialog('rescheduled', row)"
-                    >调课</el-button
-                  >
-                  <el-button link type="info" @click="openExecutionChangeDialog('cancelled', row)"
-                    >停课</el-button
-                  >
-                  <el-button link type="danger" @click="openExecutionChangeDialog('makeup', row)"
-                    >补课</el-button
-                  >
                   <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
-                  <el-button
-                    link
-                    type="danger"
-                    :loading="deletingLessonId === row.id"
-                    @click="removeLesson(row)"
+                  <el-dropdown
+                    trigger="click"
+                    @command="(cmd: string) => runLessonMoreCommand(cmd, row)"
                   >
-                    删除
-                  </el-button>
+                    <el-button link type="primary">
+                      更多
+                      <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="rescheduled">调课</el-dropdown-item>
+                        <el-dropdown-item command="cancelled">停课</el-dropdown-item>
+                        <el-dropdown-item command="makeup">补课</el-dropdown-item>
+                        <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </div>
               </template>
             </el-table-column>
@@ -486,7 +488,12 @@
                     {{ formatTeacherNames(row.teacherIds) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="lessonTitle" label="课程主题" min-width="160" />
+                <el-table-column
+                  prop="lessonTitle"
+                  label="课程主题"
+                  min-width="160"
+                  show-overflow-tooltip
+                />
                 <el-table-column label="状态" width="120">
                   <template #default="{ row }">
                     <div class="lesson-status-cell">
@@ -2455,6 +2462,15 @@ function openExecutionChangeDialog(action: ExecutionAction, lesson: ScheduleLess
   resetExecutionForm()
   populateExecutionForm(action, lesson)
   executionDialogVisible.value = true
+}
+
+/** 排课行「更多」下拉分发:调课/停课/补课走变动弹窗,删除直接执行 */
+function runLessonMoreCommand(cmd: string, lesson: ScheduleLessonRecord) {
+  if (cmd === 'delete') {
+    void removeLesson(lesson)
+    return
+  }
+  openExecutionChangeDialog(cmd as ExecutionAction, lesson)
 }
 
 async function openAttendanceDialog(lesson: ScheduleLessonRecord) {
