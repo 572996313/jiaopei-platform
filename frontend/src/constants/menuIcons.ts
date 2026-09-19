@@ -1,75 +1,40 @@
-import {
-  AlarmClock,
-  Avatar,
-  Calendar,
-  Collection,
-  Grid,
-  House,
-  List,
-  Lock,
-  Management,
-  Menu,
-  Monitor,
-  Notebook,
-  OfficeBuilding,
-  Platform,
-  Reading,
-  Setting,
-  Tools,
-  User,
-  UserFilled,
-} from '@element-plus/icons-vue'
+import * as elementPlusIcons from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 
 /**
- * 侧边栏/菜单管理共用:后台 sys_menu.icon 存的字符串 key → Element Plus 图标组件。
- * 只在此注册允许使用的图标 key;未知 key 返回 undefined(不渲染图标,避免报错)。
+ * 侧边栏/菜单管理共用:后台 sys_menu.icon → Element Plus 图标组件。
+ * 全量放开:任意 Element Plus 图标名均可直接配置(如 connection / Connection / alarm-clock),
+ * 大小写与连字符不敏感;历史非标准值(home/users 等)已由 V35 迁移洗成标准名。
  */
-export const MENU_ICON_COMPONENTS: Record<string, Component> = {
-  setting: Setting,
-  user: User,
-  'user-filled': UserFilled,
-  avatar: Avatar,
-  team: UserFilled,
-  menu: Menu,
-  book: Reading,
-  reading: Reading,
-  tools: Tools,
-  monitor: Monitor,
-  office: OfficeBuilding,
-  'office-building': OfficeBuilding,
-  calendar: Calendar,
-  'alarm-clock': AlarmClock,
-  grid: Grid,
-  list: List,
-  notebook: Notebook,
-  collection: Collection,
-  lock: Lock,
-  house: House,
-  management: Management,
-  platform: Platform,
-}
 
-export function resolveMenuIcon(key?: string | null): Component | undefined {
-  if (!key) {
-    return undefined
+/** 匹配键(去大小写/连字符)→ 标准图标名 */
+const canonicalNameByKey = new Map<string, string>()
+for (const name of Object.keys(elementPlusIcons)) {
+  if (name === 'default') {
+    continue
   }
-  return MENU_ICON_COMPONENTS[key] ?? MENU_ICON_COMPONENTS[key.toLowerCase()]
+  canonicalNameByKey.set(name.toLowerCase().replace(/[^a-z0-9]/g, ''), name)
 }
 
-/** 将历史数据中任意写法(如 'Setting')规整为注册表内的小写 key;不在注册表则原样返回 */
+/** 把任意写法(大小写 Connection / 连字符 alarm-clock)解析为标准图标名,解析不到原样返回 */
 export function normalizeMenuIconKey(key?: string | null): string {
   if (!key) {
     return ''
   }
-  if (MENU_ICON_COMPONENTS[key]) {
-    return key
-  }
-  const lowered = key.toLowerCase()
-  return MENU_ICON_COMPONENTS[lowered] ? lowered : key
+  const raw = key.trim()
+  return canonicalNameByKey.get(raw.toLowerCase().replace(/[^a-z0-9]/g, '')) ?? raw
 }
 
-export const MENU_ICON_OPTIONS = Object.keys(MENU_ICON_COMPONENTS).map((key) => ({
-  value: key,
-  label: key,
+/** 图标 key → 组件;未知 key 返回 undefined(不渲染图标,避免报错) */
+export function resolveMenuIcon(key?: string | null): Component | undefined {
+  const canonical = normalizeMenuIconKey(key)
+  return canonical
+    ? (elementPlusIcons[canonical as keyof typeof elementPlusIcons] as Component)
+    : undefined
+}
+
+/** 菜单管理图标下拉:全量 Element Plus 图标(按名称排序) */
+export const MENU_ICON_OPTIONS = [...canonicalNameByKey.values()].sort().map((name) => ({
+  value: name,
+  label: name,
 }))
