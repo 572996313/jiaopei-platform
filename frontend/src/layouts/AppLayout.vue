@@ -194,7 +194,8 @@
                   <el-icon v-if="navMode === 'rail'" class="nav-mode-check"><Check /></el-icon>
                   <span>图标导航</span>
                 </el-dropdown-item>
-                <el-dropdown-item command="change-password" divided>修改密码</el-dropdown-item>
+                <el-dropdown-item command="menu-preferences" divided>菜单偏好</el-dropdown-item>
+                <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -206,11 +207,37 @@
         <RouterView />
       </main>
     </div>
+
+    <!-- ============ 菜单偏好设置 ============ -->
+    <el-dialog v-model="menuPreferencesVisible" title="菜单偏好" width="460px">
+      <p class="menu-pref-tip">偏好仅保存在当前浏览器，不随账号同步。</p>
+      <div class="menu-pref-group">
+        <div class="menu-pref-label">组展开策略（完整导航）</div>
+        <el-radio-group v-model="menuPreferences.groupExpand" class="menu-pref-options">
+          <el-radio value="smart"
+            >智能：自动展开当前组，可手动收起，点击页面其他区域自动收起</el-radio
+          >
+          <el-radio value="classic">经典：进入子页面后父组保持展开，无法收起</el-radio>
+          <el-radio value="manual">手动：仅点击展开，不自动展开</el-radio>
+        </el-radio-group>
+      </div>
+      <div class="menu-pref-group">
+        <div class="menu-pref-label">浮层行为（图标导航）</div>
+        <el-radio-group v-model="menuPreferences.railPopover" class="menu-pref-options">
+          <el-radio value="pin-outside">悬停展开，点击钉住，点击其他区域收起</el-radio>
+          <el-radio value="hover">仅悬停展开，移出即收起</el-radio>
+          <el-radio value="pin">悬停展开，点击钉住后常开</el-radio>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <el-button @click="menuPreferencesVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, type Component } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   AlarmClock,
@@ -236,6 +263,61 @@ const institutionStore = useInstitutionStore()
 onMounted(() => {
   institutionStore.loadInstitutions()
 })
+
+/** ================= 菜单偏好(本机 localStorage,不同操作习惯可自选) ================= */
+
+/** 宽栏组展开策略:classic=路由命中强制展开(旧行为),smart=自动展开当前组+可收起+开一收其余+点侧栏外自动收起,manual=纯手动点击展开 */
+type GroupExpandMode = 'classic' | 'smart' | 'manual'
+/** 窄栏浮层行为:hover=悬停展开移出即收,pin-outside=点击钉住且点外部收起(默认),pin=点击钉住常开(旧行为) */
+type RailPopoverMode = 'hover' | 'pin-outside' | 'pin'
+
+interface MenuPreferences {
+  groupExpand: GroupExpandMode
+  railPopover: RailPopoverMode
+}
+
+const MENU_PREFS_STORAGE_KEY = 'jiaopei-menu-preferences'
+const defaultMenuPreferences: MenuPreferences = { groupExpand: 'smart', railPopover: 'pin-outside' }
+
+function pickValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback
+}
+
+function readStoredMenuPreferences(): MenuPreferences {
+  if (typeof window === 'undefined') {
+    return { ...defaultMenuPreferences }
+  }
+  try {
+    const stored: Partial<MenuPreferences> = JSON.parse(
+      window.localStorage.getItem(MENU_PREFS_STORAGE_KEY) || '{}'
+    )
+    return {
+      groupExpand: pickValue(
+        stored.groupExpand,
+        ['classic', 'smart', 'manual'] as const,
+        defaultMenuPreferences.groupExpand
+      ),
+      railPopover: pickValue(
+        stored.railPopover,
+        ['hover', 'pin-outside', 'pin'] as const,
+        defaultMenuPreferences.railPopover
+      ),
+    }
+  } catch {
+    return { ...defaultMenuPreferences }
+  }
+}
+
+const menuPreferences = ref<MenuPreferences>(readStoredMenuPreferences())
+const menuPreferencesVisible = ref(false)
+
+watch(
+  menuPreferences,
+  (prefs) => {
+    window.localStorage.setItem(MENU_PREFS_STORAGE_KEY, JSON.stringify(prefs))
+  },
+  { deep: true }
+)
 
 /** ================= 导航数据模型(宽窄两态共用) ================= */
 
@@ -465,13 +547,18 @@ function isChildActive(child: SidebarChildDefinition) {
   return child.prefixes.some((prefix) => route.path.startsWith(prefix))
 }
 
-/** 完整模式:可展开父菜单的展开态(默认收起,当前路径在父项前缀内自动展开) */
+/** 完整模式:可展开父菜单的展开态,策略由「菜单偏好-组展开策略」控制 */
 const openGroups = ref(new Set<string>())
 
+function routeMatchesItem(item: { prefixes: string[] }) {
+  return item.prefixes.some((prefix) => route.path.startsWith(prefix))
+}
+
 function isGroupOpen(item: SidebarDefinition) {
-  return (
-    openGroups.value.has(item.key) || item.prefixes.some((prefix) => route.path.startsWith(prefix))
-  )
+  if (menuPreferences.value.groupExpand === 'classic') {
+    return openGroups.value.has(item.key) || routeMatchesItem(item)
+  }
+  return openGroups.value.has(item.key)
 }
 
 function toggleGroup(key: string) {
@@ -479,10 +566,29 @@ function toggleGroup(key: string) {
   if (next.has(key)) {
     next.delete(key)
   } else {
+    if (menuPreferences.value.groupExpand === 'smart') {
+      // 手风琴:展开一个组时收起其余组
+      next.clear()
+    }
     next.add(key)
   }
   openGroups.value = next
 }
+
+/** smart 模式下 openGroups 是展开态唯一来源:路由切换/菜单树就绪时只展开当前页所在组 */
+watch(
+  [() => route.path, () => auth.currentMenus, () => menuPreferences.value.groupExpand],
+  () => {
+    if (menuPreferences.value.groupExpand !== 'smart') {
+      return
+    }
+    const activeParent = sidebarDefinitions.find(
+      (item) => hasVisibleChild(item) && routeMatchesItem(item)
+    )
+    openGroups.value = activeParent ? new Set([activeParent.key]) : new Set()
+  },
+  { immediate: true }
+)
 
 function visibleChildren(item: SidebarDefinition) {
   return resolveVisibleChildren(item)
@@ -577,6 +683,10 @@ function toggleRailPin(item: RailItem) {
     hoveredRailKey.value = null
     return
   }
+  // hover 模式:浮层只跟随鼠标,点击不钉住
+  if (menuPreferences.value.railPopover === 'hover') {
+    return
+  }
   if (pinnedRailKey.value === item.key) {
     pinnedRailKey.value = null
   } else {
@@ -591,6 +701,30 @@ function handleRailChildClick(item: RailItem) {
   }
 }
 
+/** 点击侧边栏之外的区域:收起钉住的窄栏浮层(pin-outside)与 smart 模式下展开的组 */
+function handleDocumentClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  const insideSidebar = !!target?.closest('.app-sidebar')
+  if (
+    pinnedRailKey.value &&
+    menuPreferences.value.railPopover === 'pin-outside' &&
+    !insideSidebar
+  ) {
+    pinnedRailKey.value = null
+  }
+  if (menuPreferences.value.groupExpand === 'smart' && !insideSidebar && openGroups.value.size) {
+    openGroups.value = new Set()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
+
 /** ================= 顶栏用户操作 ================= */
 
 function handleUserCommand(command: string | number | object) {
@@ -598,6 +732,8 @@ function handleUserCommand(command: string | number | object) {
     setNavMode('full')
   } else if (command === 'nav-mode:rail') {
     setNavMode('rail')
+  } else if (command === 'menu-preferences') {
+    menuPreferencesVisible.value = true
   } else if (command === 'change-password') {
     router.push('/change-password')
   } else if (command === 'logout') {
@@ -611,3 +747,27 @@ async function handleLogout() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+.menu-pref-tip {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.menu-pref-group {
+  margin-bottom: 16px;
+}
+
+.menu-pref-label {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.menu-pref-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+</style>

@@ -1,4 +1,5 @@
 import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
+import type { PageParams, PageResult } from '@/api/common'
 
 export interface StudentSummary {
   id: string
@@ -724,4 +725,128 @@ export function fetchWeekTimetable(params: {
 
 export function checkScheduleConflicts(payload: ScheduleConflictCheckPayload) {
   return requestPost<ScheduleConflictCheckResult>('/education/schedules/conflicts/check', payload)
+}
+
+/** 报名记录分页视图,后端已回带学员与班级名称,无需再用全量学员/班级做名称回显 */
+export interface EnrollmentViewRecord {
+  id: string
+  institutionId?: string | null
+  studentId?: string | null
+  studentNo?: string | null
+  studentName?: string | null
+  classId?: string | null
+  className?: string | null
+  enrollmentNo?: string | null
+  channel?: string | null
+  status?: string | null
+  enrolledAt?: string | null
+  remark?: string | null
+}
+
+export interface EnrollmentPageParams extends PageParams {
+  institutionId?: string | null
+  classId?: string | null
+  studentId?: string | null
+}
+
+export function fetchEnrollmentPage(params: EnrollmentPageParams) {
+  return requestGet<PageResult<EnrollmentViewRecord>>('/education/enrollments/page', { ...params })
+}
+
+/** 家长联系人分页视图,后端已回带学员名称 */
+export interface StudentParentViewRecord {
+  id: string
+  institutionId?: string | null
+  studentId?: string | null
+  studentNo?: string | null
+  studentName?: string | null
+  parentName?: string | null
+  relationType?: string | null
+  parentPhone?: string | null
+  wechatNo?: string | null
+  isPrimary?: boolean | null
+  isEmergencyContact?: boolean | null
+  status?: string | null
+  remark?: string | null
+}
+
+export interface StudentParentPageParams extends PageParams {
+  institutionId?: string | null
+  studentId?: string | null
+}
+
+export function fetchStudentParentPage(params: StudentParentPageParams) {
+  return requestGet<PageResult<StudentParentViewRecord>>('/education/student-parents/page', {
+    ...params,
+  })
+}
+
+export interface StudentPageParams extends PageParams {
+  institutionId?: string | null
+  campusId?: string | null
+  keyword?: string | null
+  status?: string | null
+}
+
+export function fetchStudentPage(params: StudentPageParams) {
+  return requestGet<PageResult<StudentSummary>>('/education/students/page', { ...params })
+}
+
+export interface TeacherPageParams extends PageParams {
+  institutionId?: string | null
+  campusId?: string | null
+  keyword?: string | null
+  status?: string | null
+}
+
+export function fetchTeacherPage(params: TeacherPageParams) {
+  return requestGet<PageResult<TeacherSummary>>('/education/teachers/page', { ...params })
+}
+
+export interface CoursePageParams extends PageParams {
+  institutionId?: string | null
+  categoryId?: string | null
+  keyword?: string | null
+  status?: string | null
+}
+
+export function fetchCoursePage(params: CoursePageParams) {
+  return requestGet<PageResult<CourseRecord>>('/education/courses/page', { ...params })
+}
+
+export interface ScheduleLessonPageParams extends PageParams {
+  institutionId?: string | null
+  campusId?: string | null
+  classId?: string | null
+  lessonDate?: string | null
+}
+
+export function fetchScheduleLessonPage(params: ScheduleLessonPageParams) {
+  return requestGet<PageResult<ScheduleLessonRecord>>('/education/schedules/lessons/page', {
+    ...params,
+  })
+}
+
+export function fetchPendingMakeupLessonPage(params: ScheduleLessonPageParams) {
+  return requestGet<PageResult<ScheduleLessonRecord>>(
+    '/education/schedules/lessons/pending-makeup-page',
+    { ...params }
+  )
+}
+
+/** 课次点名进度,日课表批量拉取用,替代逐课次请求点名页 */
+export interface LessonAttendanceProgress {
+  lessonId: string
+  expectedCount: number
+  markedCount: number
+  presentCount: number
+  absentCount: number
+  leaveCount: number
+  lateCount: number
+}
+
+export function fetchLessonAttendanceProgress(lessonIds: string[]) {
+  return requestGet<LessonAttendanceProgress[]>('/education/attendance/lesson-progress', {
+    lessonIds: lessonIds.join(','),
+  })
 }

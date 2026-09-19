@@ -1,17 +1,24 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.StudentEntity;
 import com.jiaopei.platform.education.domain.entity.StudentParentEntity;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
+import com.jiaopei.platform.education.dto.StudentParentPageQuery;
+import com.jiaopei.platform.education.dto.StudentParentView;
 import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.education.mapper.StudentParentMapper;
 import com.jiaopei.platform.education.service.StudentParentService;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +49,57 @@ public class StudentParentServiceImpl implements StudentParentService {
             wrapper.eq(StudentParentEntity::getStudentId, studentId);
         }
         return studentParentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<StudentParentView> pageStudentParents(StudentParentPageQuery query) {
+        LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<StudentParentEntity>()
+            .orderByAsc(StudentParentEntity::getStudentId)
+            .orderByDesc(StudentParentEntity::getIsPrimary)
+            .orderByAsc(StudentParentEntity::getId);
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(StudentParentEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getStudentId() != null) {
+            wrapper.eq(StudentParentEntity::getStudentId, query.getStudentId());
+        }
+        Page<StudentParentEntity> page = studentParentMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, toViews(page.getRecords()));
+    }
+
+    /** 批量回带学员名称,前端分页列表无需再全量加载学员做名称回显 */
+    private List<StudentParentView> toViews(List<StudentParentEntity> entities) {
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, StudentEntity> studentMap = studentMapper.selectBatchIds(entities.stream()
+                .map(StudentParentEntity::getStudentId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList())
+            .stream()
+            .collect(Collectors.toMap(StudentEntity::getId, Function.identity()));
+        return entities.stream()
+            .map(entity -> {
+                StudentEntity student = studentMap.get(entity.getStudentId());
+                return new StudentParentView(
+                    entity.getId(),
+                    entity.getInstitutionId(),
+                    entity.getStudentId(),
+                    student == null ? null : student.getStudentNo(),
+                    student == null ? null : student.getStudentName(),
+                    entity.getParentName(),
+                    entity.getRelationType(),
+                    entity.getParentPhone(),
+                    entity.getWechatNo(),
+                    entity.getIsPrimary(),
+                    entity.getIsEmergencyContact(),
+                    entity.getStatus(),
+                    entity.getRemark()
+                );
+            })
+            .toList();
     }
 
     @Override

@@ -2,8 +2,10 @@ package com.jiaopei.platform.education.controller;
 
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.common.api.ApiResponse;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.education.dto.ScheduleConflictCheckRequest;
 import com.jiaopei.platform.education.dto.ScheduleConflictCheckResponse;
+import com.jiaopei.platform.education.dto.ScheduleLessonPageQuery;
 import com.jiaopei.platform.education.dto.ScheduleLessonRequest;
 import com.jiaopei.platform.education.dto.ScheduleLessonView;
 import com.jiaopei.platform.education.service.ScheduleLessonService;
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +49,21 @@ public class ScheduleLessonController {
                                                        @RequestParam(required = false) Boolean pendingMakeupOnly) {
         return ApiResponse.success("排课列表已加载",
             scheduleLessonService.listLessons(institutionId, campusId, classId, lessonDate, pendingMakeupOnly));
+    }
+
+    @Operation(summary = "排课课次分页列表", description = "按机构/校区/班级/日期筛选,分页返回历史课次")
+    @GetMapping("/lessons/page")
+    @RequiresPermission("education:read")
+    public ApiResponse<PageResult<ScheduleLessonView>> page(@Valid @ParameterObject ScheduleLessonPageQuery query) {
+        return ApiResponse.success("排课分页列表已加载", scheduleLessonService.pageLessons(query));
+    }
+
+    @Operation(summary = "待补课课次分页列表", description = "仅返回已停课且未安排补课的课次,SQL 层收敛,分页返回")
+    @GetMapping("/lessons/pending-makeup-page")
+    @RequiresPermission("education:read")
+    public ApiResponse<PageResult<ScheduleLessonView>> pendingMakeupPage(
+        @Valid @ParameterObject ScheduleLessonPageQuery query) {
+        return ApiResponse.success("待补课分页列表已加载", scheduleLessonService.pagePendingMakeupLessons(query));
     }
 
     @Operation(summary = "获取排课详情")

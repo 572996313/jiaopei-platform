@@ -1,6 +1,8 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.ScheduleLessonEntity;
@@ -9,6 +11,7 @@ import com.jiaopei.platform.education.domain.entity.TeacherEntity;
 import com.jiaopei.platform.education.domain.entity.TeachingClassEntity;
 import com.jiaopei.platform.education.dto.ScheduleConflictCheckRequest;
 import com.jiaopei.platform.education.dto.ScheduleConflictCheckResponse;
+import com.jiaopei.platform.education.dto.ScheduleLessonPageQuery;
 import com.jiaopei.platform.education.dto.ScheduleLessonRequest;
 import com.jiaopei.platform.education.dto.ScheduleLessonView;
 import com.jiaopei.platform.education.mapper.ScheduleLessonMapper;
@@ -76,6 +79,48 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             wrapper.eq(ScheduleLessonEntity::getLessonDate, lessonDate);
         }
         return toViews(lessonMapper.selectList(wrapper), pendingMakeupOnly);
+    }
+
+    @Override
+    public PageResult<ScheduleLessonView> pageLessons(ScheduleLessonPageQuery query) {
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder();
+        applyScopeFilters(wrapper, query);
+        Page<ScheduleLessonEntity> page = lessonMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, toViews(page.getRecords(), Boolean.FALSE));
+    }
+
+    @Override
+    public PageResult<ScheduleLessonView> pagePendingMakeupLessons(ScheduleLessonPageQuery query) {
+        // 待补课 = 已停课且没有任何"停课补课"课次关联,直接在 SQL 层收敛,避免全量拉取后内存过滤
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder()
+            .eq(ScheduleLessonEntity::getLessonStatus, CANCELLED)
+            .notExists("""
+                SELECT 1 FROM schedule_lesson linked
+                WHERE linked.deleted = 0
+                  AND linked.lesson_status = 'makeup'
+                  AND linked.change_type = 'cancelled_makeup'
+                  AND linked.related_lesson_id = schedule_lesson.id
+                """);
+        applyScopeFilters(wrapper, query);
+        Page<ScheduleLessonEntity> page = lessonMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, toViews(page.getRecords(), Boolean.FALSE));
+    }
+
+    private void applyScopeFilters(LambdaQueryWrapper<ScheduleLessonEntity> wrapper, ScheduleLessonPageQuery query) {
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(ScheduleLessonEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getCampusId() != null) {
+            wrapper.eq(ScheduleLessonEntity::getCampusId, query.getCampusId());
+        }
+        if (query.getClassId() != null) {
+            wrapper.eq(ScheduleLessonEntity::getClassId, query.getClassId());
+        }
+        if (query.getLessonDate() != null) {
+            wrapper.eq(ScheduleLessonEntity::getLessonDate, query.getLessonDate());
+        }
     }
 
     @Override

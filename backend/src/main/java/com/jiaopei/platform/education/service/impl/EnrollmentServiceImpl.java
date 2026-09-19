@@ -1,12 +1,16 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.EnrollmentEntity;
 import com.jiaopei.platform.education.domain.entity.StudentEntity;
 import com.jiaopei.platform.education.domain.entity.TeachingClassEntity;
 import com.jiaopei.platform.education.dto.EnrollmentCreateRequest;
+import com.jiaopei.platform.education.dto.EnrollmentPageQuery;
+import com.jiaopei.platform.education.dto.EnrollmentView;
 import com.jiaopei.platform.education.mapper.EnrollmentMapper;
 import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.education.mapper.TeachingClassMapper;
@@ -14,7 +18,10 @@ import com.jiaopei.platform.education.service.EnrollmentService;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -50,6 +57,67 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             wrapper.eq(EnrollmentEntity::getStudentId, studentId);
         }
         return enrollmentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<EnrollmentView> pageEnrollments(EnrollmentPageQuery query) {
+        LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<EnrollmentEntity>()
+            .orderByAsc(EnrollmentEntity::getInstitutionId)
+            .orderByAsc(EnrollmentEntity::getClassId)
+            .orderByAsc(EnrollmentEntity::getStudentId);
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(EnrollmentEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getClassId() != null) {
+            wrapper.eq(EnrollmentEntity::getClassId, query.getClassId());
+        }
+        if (query.getStudentId() != null) {
+            wrapper.eq(EnrollmentEntity::getStudentId, query.getStudentId());
+        }
+        Page<EnrollmentEntity> page = enrollmentMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, toViews(page.getRecords()));
+    }
+
+    /** 批量回带学员与班级名称,前端分页列表无需再全量加载学员/班级做名称回显 */
+    private List<EnrollmentView> toViews(List<EnrollmentEntity> entities) {
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, StudentEntity> studentMap = studentMapper.selectBatchIds(entities.stream()
+                .map(EnrollmentEntity::getStudentId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList())
+            .stream()
+            .collect(Collectors.toMap(StudentEntity::getId, Function.identity()));
+        Map<Long, TeachingClassEntity> classMap = teachingClassMapper.selectBatchIds(entities.stream()
+                .map(EnrollmentEntity::getClassId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList())
+            .stream()
+            .collect(Collectors.toMap(TeachingClassEntity::getId, Function.identity()));
+        return entities.stream()
+            .map(entity -> {
+                StudentEntity student = studentMap.get(entity.getStudentId());
+                TeachingClassEntity teachingClass = classMap.get(entity.getClassId());
+                return new EnrollmentView(
+                    entity.getId(),
+                    entity.getInstitutionId(),
+                    entity.getStudentId(),
+                    student == null ? null : student.getStudentNo(),
+                    student == null ? null : student.getStudentName(),
+                    entity.getClassId(),
+                    teachingClass == null ? null : teachingClass.getClassName(),
+                    entity.getEnrollmentNo(),
+                    entity.getChannel(),
+                    entity.getStatus(),
+                    entity.getEnrolledAt(),
+                    entity.getRemark()
+                );
+            })
+            .toList();
     }
 
     @Override

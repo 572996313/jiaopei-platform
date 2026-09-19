@@ -133,7 +133,7 @@
       </article>
       <article class="stat-card">
         <div class="stat-label">待补课</div>
-        <div class="stat-value">{{ pendingMakeupLessons.length }}</div>
+        <div class="stat-value">{{ pendingMakeupTotal }}</div>
         <div class="stat-hint">全部已停课待安排补课的原课次（不限当日）</div>
       </article>
       <article class="stat-card">
@@ -320,7 +320,7 @@
         <el-tab-pane label="排课管理" name="management">
           <div class="education-table-head">
             <div class="panel-title">
-              排课列表<span class="panel-count">共 {{ lessons.length }} 条</span>
+              排课列表<span class="panel-count">共 {{ lessonTotal }} 条</span>
             </div>
             <div class="education-context-text">
               校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
@@ -439,6 +439,17 @@
           <div v-if="!lessonsLoading && lessons.length === 0" class="education-empty">
             当前筛选范围下暂无排课记录。
           </div>
+
+          <el-pagination
+            v-model:current-page="lessonPage"
+            v-model:page-size="lessonPageSize"
+            class="panel-pagination"
+            :total="lessonTotal"
+            :page-sizes="[10, 20, 50]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @current-change="refreshLessons"
+            @size-change="handleLessonSizeChange"
+          />
         </el-tab-pane>
 
         <el-tab-pane label="课表视图" name="timetable">
@@ -455,7 +466,7 @@
                     v-if="dayAttendanceMissing > 0"
                     link
                     type="warning"
-                    @click="retryDayAttendancePages"
+                    @click="retryDayAttendanceProgress"
                   >
                     {{ dayAttendanceMissing }} 节课点名进度加载失败，点击重试
                   </el-button>
@@ -1092,14 +1103,17 @@ import {
   deleteScheduleLesson,
   fetchDayTimetable,
   fetchLessonAttendancePage,
+  fetchLessonAttendanceProgress,
+  fetchPendingMakeupLessonPage,
   fetchScheduleLesson,
-  fetchScheduleLessons,
+  fetchScheduleLessonPage,
   fetchTeachers,
   fetchWeekTimetable,
   saveLessonAttendanceBatch,
   updateScheduleLesson,
   type AttendanceLessonPage,
   type AttendanceLessonStudent,
+  type LessonAttendanceProgress,
   type ScheduleConflictCheckResult,
   type ScheduleLessonPayload,
   type ScheduleLessonRecord,
@@ -1153,6 +1167,12 @@ const dayLessons = ref<ScheduleLessonRecord[]>([])
 const weekLessons = ref<ScheduleLessonRecord[]>([])
 const pendingMakeupLessons = ref<ScheduleLessonRecord[]>([])
 
+// 分页状态:排课列表服务端分页;待补课全局数取服务端总数
+const lessonPage = ref(1)
+const lessonPageSize = ref(10)
+const lessonTotal = ref(0)
+const pendingMakeupTotal = ref(0)
+
 const pageError = ref('')
 const formError = ref('')
 const dialogVisible = ref(false)
@@ -1173,7 +1193,7 @@ const attendanceError = ref('')
 const attendancePage = ref<AttendanceLessonPage | null>(null)
 const attendanceRows = ref<AttendanceEditorRow[]>([])
 const completingLesson = ref(false)
-const dayAttendancePages = ref<Record<string, AttendanceLessonPage>>({})
+const dayAttendanceProgress = ref<Record<string, LessonAttendanceProgress>>({})
 const dayAttendanceMissing = ref(0)
 const executionDialogVisible = ref(false)
 const executionSubmitting = ref(false)
@@ -1445,13 +1465,14 @@ const scheduleChangeReminders = computed<ScheduleReminderItem[]>(() => {
         lessonId: lesson.id,
       })
     }
-    const page = dayAttendancePages.value[lesson.id]
-    if (page?.message) {
+    // 批量进度接口不再返回点名页 message,应到 0 等价于原"该班级没有在班学员"提示
+    const progress = dayAttendanceProgress.value[lesson.id]
+    if (progress && progress.expectedCount === 0) {
       items.push({
-        key: `${lesson.id}-attendance-message`,
+        key: `${lesson.id}-empty-roster`,
         title:
           `${formatClass(lesson.classId)} ${compactTimeRange(lesson.startTime, lesson.endTime) || ''}`.trim(),
-        text: page.message,
+        text: '该班级没有在班学员',
         lessonId: lesson.id,
       })
     }
@@ -1683,24 +1704,24 @@ function compactTimeRange(startTime?: string | null, endTime?: string | null) {
   return startTime?.slice(0, 5) || endTime?.slice(0, 5) || ''
 }
 
-function attendancePageFor(lessonId: string) {
-  return dayAttendancePages.value[lessonId]
+function attendanceProgressFor(lessonId: string) {
+  return dayAttendanceProgress.value[lessonId]
 }
 
 function attendanceExpectedCount(lesson: ScheduleLessonRecord) {
-  return attendancePageFor(lesson.id)?.summary.expectedCount || 0
+  return attendanceProgressFor(lesson.id)?.expectedCount || 0
 }
 
 function attendanceMarkedCount(lesson: ScheduleLessonRecord) {
-  return attendancePageFor(lesson.id)?.summary.markedCount || 0
+  return attendanceProgressFor(lesson.id)?.markedCount || 0
 }
 
 function attendanceProgressText(lesson: ScheduleLessonRecord) {
-  const page = attendancePageFor(lesson.id)
-  if (!page) {
+  const progress = attendanceProgressFor(lesson.id)
+  if (!progress) {
     return lesson.lessonStatus === 'completed' ? '已结课，待回查点名' : '待加载点名进度'
   }
-  return `已点 ${page.summary.markedCount} / 应到 ${page.summary.expectedCount}`
+  return `已点 ${progress.markedCount} / 应到 ${progress.expectedCount}`
 }
 
 function isPendingMakeupLesson(lesson?: ScheduleLessonRecord | null) {
@@ -2205,46 +2226,58 @@ async function refreshScopeData() {
 async function refreshLessons() {
   if (!institutionId.value) {
     lessons.value = []
+    lessonTotal.value = 0
     return
   }
 
   lessonsLoading.value = true
   pageError.value = ''
   try {
-    lessons.value = sortedLessons(
-      await fetchScheduleLessons({
-        institutionId: institutionId.value,
-        campusId: campusId.value,
-        classId: classId.value,
-        lessonDate: lessonDate.value,
-      })
-    )
+    const result = await fetchScheduleLessonPage({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      classId: classId.value,
+      lessonDate: lessonDate.value,
+      page: lessonPage.value,
+      pageSize: lessonPageSize.value,
+    })
+    lessons.value = sortedLessons(result.records)
+    lessonTotal.value = result.total
   } catch (error) {
     lessons.value = []
+    lessonTotal.value = 0
     pageError.value = toMessage(error, '排课列表加载失败')
   } finally {
     lessonsLoading.value = false
   }
 }
 
-// 待补课按全局口径拉取（不限当天），统计卡展示全局数，执行分区内再按日过滤
+function handleLessonSizeChange() {
+  lessonPage.value = 1
+  return refreshLessons()
+}
+
+// 待补课按全局口径拉取（不限当天），统计卡用服务端总数，执行分区内再按日过滤
 async function refreshPendingMakeupLessons() {
   if (!institutionId.value) {
     pendingMakeupLessons.value = []
+    pendingMakeupTotal.value = 0
     return
   }
 
   try {
-    pendingMakeupLessons.value = sortedLessons(
-      await fetchScheduleLessons({
-        institutionId: institutionId.value,
-        campusId: campusId.value,
-        classId: classId.value,
-        pendingMakeupOnly: true,
-      })
-    )
+    const result = await fetchPendingMakeupLessonPage({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      classId: classId.value,
+      page: 1,
+      pageSize: 100,
+    })
+    pendingMakeupLessons.value = sortedLessons(result.records)
+    pendingMakeupTotal.value = result.total
   } catch (error) {
     pendingMakeupLessons.value = []
+    pendingMakeupTotal.value = 0
     pageError.value = toMessage(error, '待补课聚合加载失败')
   }
 }
@@ -2252,7 +2285,7 @@ async function refreshPendingMakeupLessons() {
 async function refreshDayTimetable() {
   if (!lessonDate.value) {
     dayLessons.value = []
-    dayAttendancePages.value = {}
+    dayAttendanceProgress.value = {}
     return
   }
 
@@ -2267,10 +2300,10 @@ async function refreshDayTimetable() {
         lessonDate: lessonDate.value,
       })
     )
-    await loadDayAttendancePages(dayLessons.value)
+    await loadDayAttendanceProgress(dayLessons.value)
   } catch (error) {
     dayLessons.value = []
-    dayAttendancePages.value = {}
+    dayAttendanceProgress.value = {}
     pageError.value = toMessage(error, '日课表加载失败')
   } finally {
     dayLoading.value = false
@@ -2304,6 +2337,8 @@ async function refreshRangeTimetable() {
 }
 
 async function refreshLessonsAndDay() {
+  // 日期变化后列表回到第一页
+  lessonPage.value = 1
   await Promise.all([refreshLessons(), refreshDayTimetable(), refreshPendingMakeupLessons()])
 }
 
@@ -2318,18 +2353,21 @@ async function refreshAll() {
 
 async function handleCampusChange() {
   classId.value = null
+  lessonPage.value = 1
   await refreshScopeData()
   await refreshAll()
 }
 
 async function handleTermChange() {
   classId.value = null
+  lessonPage.value = 1
   await refreshScopeData()
   await refreshAll()
 }
 
 async function handleClassChange() {
   // 课表请求已带 classId（服务端过滤，客户端过滤兜底），班级变化后需整体重拉
+  lessonPage.value = 1
   await refreshAll()
 }
 
@@ -2553,43 +2591,42 @@ async function saveAttendance() {
   }
 }
 
-async function loadDayAttendancePages(values: ScheduleLessonRecord[], merge = false) {
-  if (values.length === 0) {
+// 点名进度改走批量接口,替代原先逐课次拉点名页的 N+1;停课课次不产生考勤,不计入缺失
+async function loadDayAttendanceProgress(values: ScheduleLessonRecord[], merge = false) {
+  const allowed = values.filter((lesson) => isAttendanceAllowedStatus(lesson.lessonStatus))
+  if (allowed.length === 0) {
     if (!merge) {
-      dayAttendancePages.value = {}
+      dayAttendanceProgress.value = {}
       dayAttendanceMissing.value = 0
     }
     return
   }
 
-  const items = await Promise.all(
-    values.map(async (lesson) => {
-      try {
-        return [lesson.id, await fetchLessonAttendancePage(lesson.id)] as const
-      } catch {
-        return null
-      }
-    })
-  )
-
-  const loaded = items.filter((item): item is readonly [string, AttendanceLessonPage] =>
-    Boolean(item)
-  )
-  dayAttendancePages.value = merge
-    ? { ...dayAttendancePages.value, ...Object.fromEntries(loaded) }
-    : Object.fromEntries(loaded)
-  dayAttendanceMissing.value = values.length - loaded.length
+  let progressMap: Record<string, LessonAttendanceProgress> = {}
+  try {
+    const list = await fetchLessonAttendanceProgress(allowed.map((lesson) => String(lesson.id)))
+    progressMap = Object.fromEntries(list.map((item) => [String(item.lessonId), item]))
+  } catch {
+    progressMap = {}
+  }
+  dayAttendanceProgress.value = merge
+    ? { ...dayAttendanceProgress.value, ...progressMap }
+    : progressMap
+  dayAttendanceMissing.value = allowed.filter((lesson) => !progressMap[String(lesson.id)]).length
 }
 
-async function retryDayAttendancePages() {
-  const missing = dayLessons.value.filter((lesson) => !dayAttendancePages.value[lesson.id])
+async function retryDayAttendanceProgress() {
+  const missing = dayLessons.value.filter(
+    (lesson) =>
+      isAttendanceAllowedStatus(lesson.lessonStatus) && !dayAttendanceProgress.value[lesson.id]
+  )
   if (missing.length === 0) {
     dayAttendanceMissing.value = 0
     return
   }
   dayLoading.value = true
   try {
-    await loadDayAttendancePages(missing, true)
+    await loadDayAttendanceProgress(missing, true)
   } finally {
     dayLoading.value = false
   }
@@ -2840,6 +2877,7 @@ watch(
     campusId.value = null
     termId.value = null
     classId.value = null
+    lessonPage.value = 1
     await refreshScopeData()
     await refreshAll()
   }
@@ -2853,6 +2891,7 @@ watch(
       return
     }
     applyRoutePreferences()
+    lessonPage.value = 1
     await refreshAll()
   }
 )

@@ -1,10 +1,13 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.StudentEntity;
 import com.jiaopei.platform.education.dto.StudentCreateRequest;
+import com.jiaopei.platform.education.dto.StudentPageQuery;
 import com.jiaopei.platform.education.dto.StudentUpdateRequest;
 import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.education.service.StudentService;
@@ -50,6 +53,34 @@ public class StudentServiceImpl implements StudentService {
                 .like(StudentEntity::getStudentNo, keyword));
         }
         return studentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<StudentEntity> pageStudents(StudentPageQuery query) {
+        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
+            .orderByAsc(StudentEntity::getInstitutionId)
+            .orderByAsc(StudentEntity::getCampusId)
+            .orderByAsc(StudentEntity::getStudentNo);
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(StudentEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getCampusId() != null) {
+            wrapper.eq(StudentEntity::getCampusId, query.getCampusId());
+        }
+        String keyword = normalize(query.getKeyword());
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w
+                .like(StudentEntity::getStudentName, keyword)
+                .or()
+                .like(StudentEntity::getStudentNo, keyword));
+        }
+        String status = normalize(query.getStatus());
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(StudentEntity::getStatus, status);
+        }
+        Page<StudentEntity> page = studentMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, page.getRecords());
     }
 
     @Override

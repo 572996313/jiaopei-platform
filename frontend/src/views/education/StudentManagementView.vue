@@ -82,7 +82,7 @@
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">学员数</div>
-        <div class="stat-value">{{ students.length }}</div>
+        <div class="stat-value">{{ studentTotal }}</div>
         <div class="stat-hint">{{ campusId ? '按当前校区筛选' : '全部校区' }}</div>
       </article>
       <article class="stat-card">
@@ -92,7 +92,7 @@
       </article>
       <article class="stat-card">
         <div class="stat-label">报名记录</div>
-        <div class="stat-value">{{ records.length }}</div>
+        <div class="stat-value">{{ enrollmentTotal }}</div>
         <div class="stat-hint">
           {{ classId ? '按当前班级筛选' : studentId ? '按当前学员筛选' : '全部报名记录' }}
         </div>
@@ -102,12 +102,23 @@
     <article class="panel-card education-panel">
       <div class="education-table-head">
         <div class="panel-title">
-          学员档案<span class="panel-count">共 {{ students.length }} 条</span>
+          学员档案<span class="panel-count">共 {{ studentTotal }} 条</span>
         </div>
-        <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+        <div class="panel-head-actions">
+          <el-input
+            v-model="studentKeyword"
+            placeholder="学号/姓名"
+            clearable
+            size="small"
+            class="panel-search-input"
+            @keyup.enter="searchStudents"
+            @clear="searchStudents"
+          />
+          <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+        </div>
       </div>
 
-      <el-table :data="students" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
+      <el-table :data="pagedStudents" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column prop="studentNo" label="学号" width="140" />
         <el-table-column prop="studentName" label="姓名" min-width="120" show-overflow-tooltip />
         <el-table-column label="性别" width="80">
@@ -134,15 +145,26 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!tableLoading && students.length === 0" class="education-empty">
+      <div v-if="!tableLoading && pagedStudents.length === 0" class="education-empty">
         当前筛选范围下暂无学员，点击"新增学员"录入。
       </div>
+
+      <el-pagination
+        v-model:current-page="studentPage"
+        v-model:page-size="studentPageSize"
+        class="panel-pagination"
+        :total="studentTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="loadStudents"
+        @size-change="handleStudentSizeChange"
+      />
     </article>
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
         <div class="panel-title">
-          报名记录<span class="panel-count">共 {{ records.length }} 条</span>
+          报名记录<span class="panel-count">共 {{ enrollmentTotal }} 条</span>
         </div>
         <el-button type="primary" @click="openDialog">新增报名</el-button>
       </div>
@@ -151,12 +173,12 @@
         <el-table-column prop="enrollmentNo" label="报名编号" width="160" />
         <el-table-column label="学员" min-width="180">
           <template #default="{ row }">
-            {{ formatStudent(row.studentId) }}
+            {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
           </template>
         </el-table-column>
         <el-table-column label="班级" min-width="180">
           <template #default="{ row }">
-            {{ formatClass(row.classId) }}
+            {{ row.className || formatClass(row.classId) }}
           </template>
         </el-table-column>
         <el-table-column label="状态" width="120">
@@ -176,12 +198,23 @@
       <div v-if="!tableLoading && records.length === 0" class="education-empty">
         当前筛选范围下暂无报名记录。
       </div>
+
+      <el-pagination
+        v-model:current-page="enrollmentPage"
+        v-model:page-size="enrollmentPageSize"
+        class="panel-pagination"
+        :total="enrollmentTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="loadEnrollments"
+        @size-change="handleEnrollmentSizeChange"
+      />
     </article>
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
         <div class="panel-title">
-          家长联系人<span class="panel-count">共 {{ studentParents.length }} 条</span>
+          家长联系人<span class="panel-count">共 {{ parentTotal }} 条</span>
         </div>
         <el-button type="primary" @click="openParentDialog">新增家长联系人</el-button>
       </div>
@@ -189,7 +222,7 @@
       <el-table :data="studentParents" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
         <el-table-column label="学员" min-width="180">
           <template #default="{ row }">
-            {{ formatStudent(row.studentId) }}
+            {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
           </template>
         </el-table-column>
         <el-table-column prop="parentName" label="联系人" min-width="140" show-overflow-tooltip />
@@ -200,12 +233,12 @@
         <el-table-column prop="wechatNo" label="微信号" width="160" />
         <el-table-column label="主联系人" width="100">
           <template #default="{ row }">
-            {{ row.primaryContact ? '是' : '否' }}
+            {{ row.isPrimary ? '是' : '否' }}
           </template>
         </el-table-column>
         <el-table-column label="紧急联系" width="100">
           <template #default="{ row }">
-            {{ row.emergencyContact ? '是' : '否' }}
+            {{ row.isEmergencyContact ? '是' : '否' }}
           </template>
         </el-table-column>
         <el-table-column label="状态" width="120">
@@ -221,6 +254,17 @@
       <div v-if="!tableLoading && studentParents.length === 0" class="education-empty">
         当前筛选范围下暂无家长联系人。
       </div>
+
+      <el-pagination
+        v-model:current-page="parentPage"
+        v-model:page-size="parentPageSize"
+        class="panel-pagination"
+        :total="parentTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="loadParents"
+        @size-change="handleParentSizeChange"
+      />
     </article>
 
     <el-dialog
@@ -462,11 +506,12 @@ import {
   createStudent,
   createStudentParent,
   deleteStudent,
-  fetchEnrollments,
-  fetchStudentParents,
+  fetchEnrollmentPage,
+  fetchStudentPage,
+  fetchStudentParentPage,
   updateStudent,
-  type EnrollmentRecord,
-  type StudentParentRecord,
+  type EnrollmentViewRecord,
+  type StudentParentViewRecord,
   type StudentSummary,
 } from '@/api/education'
 import { useEducationScope } from '@/composables/useEducationScope'
@@ -483,8 +528,21 @@ const studentId = ref<string | null>(null)
 
 const statsVisible = ref(false)
 
-const records = ref<EnrollmentRecord[]>([])
-const studentParents = ref<StudentParentRecord[]>([])
+const pagedStudents = ref<StudentSummary[]>([])
+const records = ref<EnrollmentViewRecord[]>([])
+const studentParents = ref<StudentParentViewRecord[]>([])
+
+// 分页状态:学员档案/报名记录/家长联系人各自独立翻页
+const studentPage = ref(1)
+const studentPageSize = ref(10)
+const studentTotal = ref(0)
+const studentKeyword = ref('')
+const enrollmentPage = ref(1)
+const enrollmentPageSize = ref(10)
+const enrollmentTotal = ref(0)
+const parentPage = ref(1)
+const parentPageSize = ref(10)
+const parentTotal = ref(0)
 const pageError = ref('')
 const formError = ref('')
 const parentFormError = ref('')
@@ -804,7 +862,7 @@ async function submitStudent() {
     studentDialogVisible.value = false
     resetStudentForm()
     await refreshScopeData()
-    await loadRecords()
+    await Promise.all([loadStudents(), loadRecords()])
   } catch (error) {
     studentFormError.value = toMessage(
       error,
@@ -831,7 +889,7 @@ async function confirmDeleteStudent(row: StudentSummary) {
     await deleteStudent(row.id)
     ElMessage.success('学员已删除')
     await refreshScopeData()
-    await loadRecords()
+    await Promise.all([loadStudents(), loadRecords()])
   } catch (error) {
     ElMessage.error(toMessage(error, '删除学员失败'))
   }
@@ -862,42 +920,131 @@ async function refreshScopeData() {
   }
 }
 
-async function loadRecords() {
+let tableLoadCount = 0
+
+async function withTableLoading(load: () => Promise<void>) {
+  tableLoadCount += 1
+  tableLoading.value = true
+  try {
+    await load()
+  } finally {
+    tableLoadCount -= 1
+    if (tableLoadCount === 0) {
+      tableLoading.value = false
+    }
+  }
+}
+
+async function loadStudents() {
   if (!institutionId.value) {
-    records.value = []
+    pagedStudents.value = []
+    studentTotal.value = 0
     return
   }
+  await withTableLoading(async () => {
+    pageError.value = ''
+    try {
+      const result = await fetchStudentPage({
+        institutionId: institutionId.value,
+        campusId: campusId.value,
+        keyword: trimToUndefined(studentKeyword.value),
+        page: studentPage.value,
+        pageSize: studentPageSize.value,
+      })
+      pagedStudents.value = result.records
+      studentTotal.value = result.total
+    } catch (error) {
+      pagedStudents.value = []
+      studentTotal.value = 0
+      pageError.value = toMessage(error, '学员数据加载失败')
+    }
+  })
+}
 
-  tableLoading.value = true
-  pageError.value = ''
-  try {
-    const [enrollments, parents] = await Promise.all([
-      fetchEnrollments({
+async function loadEnrollments() {
+  if (!institutionId.value) {
+    records.value = []
+    enrollmentTotal.value = 0
+    return
+  }
+  await withTableLoading(async () => {
+    pageError.value = ''
+    try {
+      const result = await fetchEnrollmentPage({
         institutionId: institutionId.value,
         classId: classId.value,
         studentId: studentId.value,
-      }),
-      fetchStudentParents({
+        page: enrollmentPage.value,
+        pageSize: enrollmentPageSize.value,
+      })
+      records.value = result.records
+      enrollmentTotal.value = result.total
+    } catch (error) {
+      records.value = []
+      enrollmentTotal.value = 0
+      pageError.value = toMessage(error, '报名数据加载失败')
+    }
+  })
+}
+
+async function loadParents() {
+  if (!institutionId.value) {
+    studentParents.value = []
+    parentTotal.value = 0
+    return
+  }
+  await withTableLoading(async () => {
+    pageError.value = ''
+    try {
+      const result = await fetchStudentParentPage({
         institutionId: institutionId.value,
         studentId: studentId.value,
-      }),
-    ])
-    records.value = enrollments
-    studentParents.value = parents
-  } catch (error) {
-    records.value = []
-    studentParents.value = []
-    pageError.value = toMessage(error, '报名与联系人数据加载失败')
-  } finally {
-    tableLoading.value = false
-  }
+        page: parentPage.value,
+        pageSize: parentPageSize.value,
+      })
+      studentParents.value = result.records
+      parentTotal.value = result.total
+    } catch (error) {
+      studentParents.value = []
+      parentTotal.value = 0
+      pageError.value = toMessage(error, '家长联系人数据加载失败')
+    }
+  })
+}
+
+// 筛选变化时报名/家长联动重载,并回到第一页
+async function loadRecords() {
+  enrollmentPage.value = 1
+  parentPage.value = 1
+  await Promise.all([loadEnrollments(), loadParents()])
+}
+
+function searchStudents() {
+  studentPage.value = 1
+  return loadStudents()
+}
+
+function handleStudentSizeChange() {
+  studentPage.value = 1
+  return loadStudents()
+}
+
+function handleEnrollmentSizeChange() {
+  enrollmentPage.value = 1
+  return loadEnrollments()
+}
+
+function handleParentSizeChange() {
+  parentPage.value = 1
+  return loadParents()
 }
 
 async function handleCampusChange() {
   classId.value = null
   studentId.value = null
+  studentPage.value = 1
   await refreshScopeData()
-  await loadRecords()
+  await Promise.all([loadStudents(), loadRecords()])
 }
 
 async function handleTermChange() {
@@ -951,7 +1098,7 @@ async function submitEnrollment() {
     ElMessage.success('报名记录已新增')
     dialogVisible.value = false
     resetForm()
-    await loadRecords()
+    await loadEnrollments()
   } catch (error) {
     formError.value = toMessage(error, '新增报名失败')
   } finally {
@@ -991,7 +1138,7 @@ async function submitStudentParent() {
     ElMessage.success('家长联系人已新增')
     parentDialogVisible.value = false
     resetParentForm()
-    await loadRecords()
+    await loadParents()
   } catch (error) {
     parentFormError.value = toMessage(error, '新增家长联系人失败')
   } finally {
@@ -1001,7 +1148,7 @@ async function submitStudentParent() {
 
 async function refreshAll() {
   await refreshScopeData()
-  await loadRecords()
+  await Promise.all([loadStudents(), loadRecords()])
 }
 
 async function initializePage() {
@@ -1012,7 +1159,7 @@ async function initializePage() {
     if (institutionId.value) {
       await loadScope(campusId.value, termId.value)
     }
-    await loadRecords()
+    await Promise.all([loadStudents(), loadRecords()])
   } catch (error) {
     pageError.value = toMessage(error, '页面初始化失败')
   } finally {
@@ -1027,8 +1174,12 @@ watch(
     termId.value = null
     classId.value = null
     studentId.value = null
+    studentKeyword.value = ''
+    studentPage.value = 1
+    enrollmentPage.value = 1
+    parentPage.value = 1
     await refreshScopeData()
-    await loadRecords()
+    await Promise.all([loadStudents(), loadRecords()])
   }
 )
 

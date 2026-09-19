@@ -13,6 +13,7 @@ import com.jiaopei.platform.education.dto.AttendanceCreateRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonBatchSaveRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonInfoView;
 import com.jiaopei.platform.education.dto.AttendanceLessonPageView;
+import com.jiaopei.platform.education.dto.AttendanceLessonProgressView;
 import com.jiaopei.platform.education.dto.AttendanceLessonStudentView;
 import com.jiaopei.platform.education.dto.AttendanceLessonSummaryView;
 import com.jiaopei.platform.education.mapper.AttendanceMapper;
@@ -97,6 +98,72 @@ public class AttendanceServiceImpl implements AttendanceService {
             wrapper.eq(AttendanceEntity::getAttendanceDate, attendanceDate);
         }
         return attendanceMapper.selectList(wrapper);
+    }
+
+    @Override
+    public List<AttendanceLessonProgressView> listLessonProgress(List<Long> lessonIds) {
+        if (lessonIds == null || lessonIds.isEmpty()) {
+            return List.of();
+        }
+        List<ScheduleLessonEntity> lessons = scheduleLessonMapper.selectBatchIds(lessonIds);
+        if (lessons.isEmpty()) {
+            return List.of();
+        }
+        List<Long> classIds = lessons.stream()
+            .map(ScheduleLessonEntity::getClassId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        Map<Long, List<ClassStudentEntity>> rosterByClass = classStudentMapper.selectList(
+                new LambdaQueryWrapper<ClassStudentEntity>()
+                    .in(!classIds.isEmpty(), ClassStudentEntity::getClassId, classIds)
+                    .eq(ClassStudentEntity::getStatus, "active"))
+            .stream()
+            .collect(Collectors.groupingBy(ClassStudentEntity::getClassId));
+        Map<Long, List<AttendanceEntity>> attendanceByLesson = attendanceMapper.selectList(
+                new LambdaQueryWrapper<AttendanceEntity>()
+                    .in(AttendanceEntity::getLessonId, lessonIds))
+            .stream()
+            .filter(item -> item.getLessonId() != null)
+            .collect(Collectors.groupingBy(AttendanceEntity::getLessonId));
+
+        List<AttendanceLessonProgressView> progressList = new ArrayList<>();
+        for (ScheduleLessonEntity lesson : lessons) {
+            if (!ATTENDANCE_ALLOWED_LESSON_STATUSES.contains(lesson.getLessonStatus())) {
+                continue;
+            }
+            List<ClassStudentEntity> roster = rosterByClass.getOrDefault(lesson.getClassId(), List.of()).stream()
+                .filter(item -> item.getJoinedAt() == null || !item.getJoinedAt().isAfter(lesson.getLessonDate()))
+                .filter(item -> item.getLeftAt() == null || !item.getLeftAt().isBefore(lesson.getLessonDate()))
+                .toList();
+            Map<Long, AttendanceEntity> attendanceByStudent = attendanceByLesson
+                .getOrDefault(lesson.getId(), List.of()).stream()
+                .collect(Collectors.toMap(AttendanceEntity::getStudentId, item -> item, (left, right) -> right));
+            int markedCount = 0;
+            int presentCount = 0;
+            int absentCount = 0;
+            int leaveCount = 0;
+            int lateCount = 0;
+            for (ClassStudentEntity classStudent : roster) {
+                AttendanceEntity attendance = attendanceByStudent.get(classStudent.getStudentId());
+                String status = attendance == null ? null : attendance.getAttendanceStatus();
+                if (isBlank(status)) {
+                    continue;
+                }
+                markedCount++;
+                switch (status) {
+                    case ATTENDANCE_STATUS_PRESENT -> presentCount++;
+                    case ATTENDANCE_STATUS_ABSENT -> absentCount++;
+                    case ATTENDANCE_STATUS_LEAVE -> leaveCount++;
+                    case ATTENDANCE_STATUS_LATE -> lateCount++;
+                    default -> {
+                    }
+                }
+            }
+            progressList.add(new AttendanceLessonProgressView(
+                lesson.getId(), roster.size(), markedCount, presentCount, absentCount, leaveCount, lateCount));
+        }
+        return progressList;
     }
 
     @Override

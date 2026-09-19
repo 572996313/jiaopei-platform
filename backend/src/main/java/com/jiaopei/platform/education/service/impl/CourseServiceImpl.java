@@ -1,11 +1,14 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.CourseCategoryEntity;
 import com.jiaopei.platform.education.domain.entity.CourseEntity;
 import com.jiaopei.platform.education.dto.CourseCreateRequest;
+import com.jiaopei.platform.education.dto.CoursePageQuery;
 import com.jiaopei.platform.education.dto.CourseUpdateRequest;
 import com.jiaopei.platform.education.mapper.CourseCategoryMapper;
 import com.jiaopei.platform.education.mapper.CourseMapper;
@@ -43,6 +46,36 @@ public class CourseServiceImpl implements CourseService {
             wrapper.eq(CourseEntity::getCategoryId, categoryId);
         }
         return courseMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<CourseEntity> pageCourses(CoursePageQuery query) {
+        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<CourseEntity>()
+            .orderByAsc(CourseEntity::getInstitutionId)
+            .orderByAsc(CourseEntity::getCategoryId)
+            .orderByAsc(CourseEntity::getCourseCode);
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(CourseEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getCategoryId() != null) {
+            wrapper.eq(CourseEntity::getCategoryId, query.getCategoryId());
+        }
+        String keyword = normalize(query.getKeyword());
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w
+                .like(CourseEntity::getCourseName, keyword)
+                .or()
+                .like(CourseEntity::getCourseCode, keyword)
+                .or()
+                .like(CourseEntity::getSubjectName, keyword));
+        }
+        String status = normalize(query.getStatus());
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(CourseEntity::getStatus, status);
+        }
+        Page<CourseEntity> page = courseMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, page.getRecords());
     }
 
     @Override

@@ -264,11 +264,22 @@
         <div class="resource-head">
           <div>
             <div class="panel-title">
-              课程列表<span class="panel-count">共 {{ courses.length }} 条</span>
+              课程列表<span class="panel-count">共 {{ courseTotal }} 条</span>
             </div>
             <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
           </div>
-          <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
+          <div class="panel-head-actions">
+            <el-input
+              v-model="courseKeyword"
+              placeholder="编码/名称/学科"
+              clearable
+              size="small"
+              class="panel-search-input"
+              @keyup.enter="searchCourses"
+              @clear="searchCourses"
+            />
+            <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
+          </div>
         </div>
         <el-table :data="courses" border :height="TABLE_FILL_HEIGHT">
           <el-table-column prop="courseCode" label="课程编码" width="150" />
@@ -301,6 +312,16 @@
             </template>
           </el-table-column>
         </el-table>
+        <el-pagination
+          v-model:current-page="coursePage"
+          v-model:page-size="coursePageSize"
+          class="panel-pagination"
+          :total="courseTotal"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="loadCourses"
+          @size-change="handleCourseSizeChange"
+        />
       </article>
 
       <article class="panel-card resource-card">
@@ -725,7 +746,7 @@ import {
   deleteCourse,
   deleteCourseCategory,
   fetchClassTypes,
-  fetchCourses,
+  fetchCoursePage,
   fetchCourseCategories,
   updateClassType,
   updateCourse,
@@ -773,6 +794,12 @@ const timeSlots = ref<TimeSlotSummary[]>([])
 const courseCategories = ref<CourseCategoryRecord[]>([])
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
+
+// 分页状态:课程列表服务端分页
+const coursePage = ref(1)
+const coursePageSize = ref(10)
+const courseTotal = ref(0)
+const courseKeyword = ref('')
 
 const statsVisible = ref(false)
 
@@ -1218,7 +1245,12 @@ async function loadResources() {
         fetchTerms(institutionId.value),
         fetchTimeSlots(institutionId.value),
         fetchCourseCategories({ institutionId: institutionId.value }),
-        fetchCourses({ institutionId: institutionId.value }),
+        fetchCoursePage({
+          institutionId: institutionId.value,
+          keyword: trimToUndefined(courseKeyword.value),
+          page: coursePage.value,
+          pageSize: coursePageSize.value,
+        }),
         fetchClassTypes({ institutionId: institutionId.value }),
       ])
 
@@ -1226,7 +1258,8 @@ async function loadResources() {
     terms.value = termList
     timeSlots.value = timeSlotList
     courseCategories.value = categoryList
-    courses.value = courseList
+    courses.value = courseList.records
+    courseTotal.value = courseList.total
     classTypes.value = classTypeList
 
     if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
@@ -1243,6 +1276,39 @@ async function loadResources() {
   } finally {
     lookupLoading.value = false
   }
+}
+
+async function loadCourses() {
+  if (!institutionId.value) {
+    courses.value = []
+    courseTotal.value = 0
+    return
+  }
+  try {
+    const result = await fetchCoursePage({
+      institutionId: institutionId.value,
+      keyword: trimToUndefined(courseKeyword.value),
+      page: coursePage.value,
+      pageSize: coursePageSize.value,
+    })
+    courses.value = result.records
+    courseTotal.value = result.total
+  } catch (error) {
+    courses.value = []
+    courseTotal.value = 0
+    pageError.value = toMessage(error, '课程列表加载失败')
+  }
+}
+
+// 关键词/翻页变化后重查课程列表
+function searchCourses() {
+  coursePage.value = 1
+  return loadCourses()
+}
+
+function handleCourseSizeChange() {
+  coursePage.value = 1
+  return loadCourses()
 }
 
 function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
@@ -1809,7 +1875,7 @@ async function submitCourse() {
       ElMessage.success('课程已更新')
     }
     courseDialogVisible.value = false
-    courses.value = await fetchCourses({ institutionId: institutionId.value })
+    await loadCourses()
   } catch (error) {
     courseFormError.value = toMessage(
       error,
@@ -1837,7 +1903,7 @@ async function confirmDeleteCourse(row: CourseRecord) {
   try {
     await deleteCourse(row.id)
     ElMessage.success('课程已删除')
-    courses.value = await fetchCourses({ institutionId: institutionId.value })
+    await loadCourses()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除课程失败'))
   }
@@ -1935,6 +2001,8 @@ watch(
   () => institutionStore.currentInstitutionId,
   async () => {
     campusId.value = null
+    courseKeyword.value = ''
+    coursePage.value = 1
     await loadResources()
   }
 )

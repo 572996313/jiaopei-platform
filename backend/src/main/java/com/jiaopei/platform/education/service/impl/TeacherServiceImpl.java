@@ -1,10 +1,13 @@
 package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.education.domain.entity.TeacherEntity;
 import com.jiaopei.platform.education.dto.TeacherCreateRequest;
+import com.jiaopei.platform.education.dto.TeacherPageQuery;
 import com.jiaopei.platform.education.dto.TeacherUpdateRequest;
 import com.jiaopei.platform.education.mapper.TeacherMapper;
 import com.jiaopei.platform.education.service.TeacherService;
@@ -44,6 +47,36 @@ public class TeacherServiceImpl implements TeacherService {
             wrapper.eq(TeacherEntity::getCampusId, campusId);
         }
         return teacherMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<TeacherEntity> pageTeachers(TeacherPageQuery query) {
+        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
+            .orderByAsc(TeacherEntity::getInstitutionId)
+            .orderByAsc(TeacherEntity::getCampusId)
+            .orderByAsc(TeacherEntity::getTeacherCode);
+        if (query.getInstitutionId() != null) {
+            wrapper.eq(TeacherEntity::getInstitutionId, query.getInstitutionId());
+        }
+        if (query.getCampusId() != null) {
+            wrapper.eq(TeacherEntity::getCampusId, query.getCampusId());
+        }
+        String keyword = normalize(query.getKeyword());
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w
+                .like(TeacherEntity::getTeacherName, keyword)
+                .or()
+                .like(TeacherEntity::getTeacherCode, keyword)
+                .or()
+                .like(TeacherEntity::getPhone, keyword));
+        }
+        String status = normalize(query.getStatus());
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(TeacherEntity::getStatus, status);
+        }
+        Page<TeacherEntity> page = teacherMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
+        return PageResult.of(page, page.getRecords());
     }
 
     @Override

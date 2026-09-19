@@ -2,14 +2,18 @@ package com.jiaopei.platform.education.controller;
 
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.common.api.ApiResponse;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.StudentParentEntity;
 import com.jiaopei.platform.education.dto.StudentParentCreateRequest;
+import com.jiaopei.platform.education.dto.StudentParentPageQuery;
+import com.jiaopei.platform.education.dto.StudentParentView;
 import com.jiaopei.platform.education.service.StudentParentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +44,13 @@ public class StudentParentController {
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(studentId, "studentId")
         ));
+    }
+
+    @Operation(summary = "家长联系人分页列表", description = "按机构/学员筛选,分页返回,已回带学员名称")
+    @GetMapping("/page")
+    @RequiresPermission("education:read")
+    public ApiResponse<PageResult<StudentParentView>> page(@Valid @ParameterObject StudentParentPageQuery query) {
+        return ApiResponse.success("家长联系人分页列表已加载", studentParentService.pageStudentParents(query));
     }
 
     @Operation(summary = "创建家长联系人")

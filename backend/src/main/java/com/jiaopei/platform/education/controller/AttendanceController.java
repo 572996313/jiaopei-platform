@@ -7,6 +7,7 @@ import com.jiaopei.platform.education.domain.entity.AttendanceEntity;
 import com.jiaopei.platform.education.dto.AttendanceCreateRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonBatchSaveRequest;
 import com.jiaopei.platform.education.dto.AttendanceLessonPageView;
+import com.jiaopei.platform.education.dto.AttendanceLessonProgressView;
 import com.jiaopei.platform.education.service.AttendanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,6 +56,13 @@ public class AttendanceController {
     public ApiResponse<AttendanceLessonPageView> lessonPage(@RequestParam String lessonId) {
         return ApiResponse.success("课次点名页已加载",
             attendanceService.getLessonAttendancePage(ExternalIdParser.parseRequired(lessonId, "lessonId")));
+    }
+
+    @Operation(summary = "批量获取课次点名进度", description = "按课次 ID 列表返回应到/已点名人数,供日课表一次拉取,避免逐课次请求点名页")
+    @GetMapping("/lesson-progress")
+    @RequiresPermission("education:read")
+    public ApiResponse<List<AttendanceLessonProgressView>> lessonProgress(@RequestParam List<Long> lessonIds) {
+        return ApiResponse.success("课次点名进度已加载", attendanceService.listLessonProgress(lessonIds));
     }
 
     @Operation(summary = "创建考勤")

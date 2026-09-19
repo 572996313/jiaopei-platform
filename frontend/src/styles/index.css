@@ -568,6 +568,37 @@ body {
   gap: 16px;
 }
 
+/* 面板标题右侧操作组:搜索框 + 新建按钮 */
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-search-input {
+  width: 180px;
+}
+
+/* 顶部工具栏内的关键词搜索框 */
+.toolbar-search-input {
+  width: 200px;
+}
+
+/* 面板底部分页条:右对齐,不参与表格伸缩 */
+.education-panel > .el-pagination,
+.resource-card > .el-pagination {
+  flex-shrink: 0;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+/* 通用分页条类:挂在 tabs 等嵌套容器内时也生效 */
+.panel-pagination {
+  flex-shrink: 0;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
 .education-empty {
   padding: 12px 14px;
   border-radius: var(--radius-block);

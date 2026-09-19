@@ -2,15 +2,18 @@ package com.jiaopei.platform.education.controller;
 
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.common.api.ApiResponse;
+import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.web.ExternalIdParser;
 import com.jiaopei.platform.education.domain.entity.StudentEntity;
 import com.jiaopei.platform.education.dto.StudentCreateRequest;
+import com.jiaopei.platform.education.dto.StudentPageQuery;
 import com.jiaopei.platform.education.dto.StudentUpdateRequest;
 import com.jiaopei.platform.education.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,6 +46,13 @@ public class StudentController {
             ExternalIdParser.parseOptional(campusId, "campusId"),
             keyword
         ));
+    }
+
+    @Operation(summary = "学员分页列表", description = "按机构/校区筛选,关键字模糊匹配学号/姓名,分页返回")
+    @GetMapping("/page")
+    @RequiresPermission("education:read")
+    public ApiResponse<PageResult<StudentEntity>> page(@Valid @ParameterObject StudentPageQuery query) {
+        return ApiResponse.success("学员分页列表已加载", studentService.pageStudents(query));
     }
 
     @Operation(summary = "创建学员")

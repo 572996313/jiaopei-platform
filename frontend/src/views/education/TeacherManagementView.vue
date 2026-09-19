@@ -11,7 +11,7 @@
           placeholder="筛选校区"
           clearable
           filterable
-          @change="loadTeachers"
+          @change="searchTeachers"
         >
           <el-option
             v-for="item in campuses"
@@ -20,6 +20,14 @@
             :value="item.id"
           />
         </el-select>
+        <el-input
+          v-model="teacherKeyword"
+          placeholder="编码/姓名/手机号"
+          clearable
+          class="toolbar-search-input"
+          @keyup.enter="searchTeachers"
+          @clear="searchTeachers"
+        />
       </div>
       <div class="page-toolbar-actions">
         <el-button @click="statsVisible = !statsVisible">
@@ -41,7 +49,7 @@
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">教师数</div>
-        <div class="stat-value">{{ teachers.length }}</div>
+        <div class="stat-value">{{ teacherTotal }}</div>
         <div class="stat-hint">
           {{ campusId ? `当前校区：${formatCampus(campusId)}` : '全部校区' }}
         </div>
@@ -56,7 +64,7 @@
     <article class="panel-card education-panel">
       <div class="education-table-head">
         <div class="panel-title">
-          教师列表<span class="panel-count">共 {{ teachers.length }} 条</span>
+          教师列表<span class="panel-count">共 {{ teacherTotal }} 条</span>
         </div>
         <div class="education-context-text">
           当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
@@ -102,6 +110,17 @@
       <div v-if="!tableLoading && teachers.length === 0" class="education-empty">
         当前筛选范围下暂无教师数据。
       </div>
+
+      <el-pagination
+        v-model:current-page="teacherPage"
+        v-model:page-size="teacherPageSize"
+        class="panel-pagination"
+        :total="teacherTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="loadTeachers"
+        @size-change="handleTeacherSizeChange"
+      />
     </article>
 
     <el-dialog
@@ -185,7 +204,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createTeacher,
   deleteTeacher,
-  fetchTeachers,
+  fetchTeacherPage,
   updateTeacher,
   type TeacherSummary,
 } from '@/api/education'
@@ -199,6 +218,12 @@ const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
 const teachers = ref<TeacherSummary[]>([])
+
+// 分页状态:教师列表服务端分页
+const teacherPage = ref(1)
+const teacherPageSize = ref(10)
+const teacherTotal = ref(0)
+const teacherKeyword = ref('')
 
 const statsVisible = ref(false)
 
@@ -317,22 +342,40 @@ async function loadCampusesAndTeachers() {
 async function loadTeachers() {
   if (!institutionId.value) {
     teachers.value = []
+    teacherTotal.value = 0
     return
   }
 
   tableLoading.value = true
   pageError.value = ''
   try {
-    teachers.value = await fetchTeachers({
+    const result = await fetchTeacherPage({
       institutionId: institutionId.value,
       campusId: campusId.value,
+      keyword: trimToUndefined(teacherKeyword.value),
+      page: teacherPage.value,
+      pageSize: teacherPageSize.value,
     })
+    teachers.value = result.records
+    teacherTotal.value = result.total
   } catch (error) {
     teachers.value = []
+    teacherTotal.value = 0
     pageError.value = toMessage(error, '教师列表加载失败')
   } finally {
     tableLoading.value = false
   }
+}
+
+// 筛选/关键词变化后回到第一页重新查
+function searchTeachers() {
+  teacherPage.value = 1
+  return loadTeachers()
+}
+
+function handleTeacherSizeChange() {
+  teacherPage.value = 1
+  return loadTeachers()
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
@@ -459,6 +502,8 @@ watch(
   () => institutionStore.currentInstitutionId,
   async () => {
     campusId.value = null
+    teacherKeyword.value = ''
+    teacherPage.value = 1
     await loadCampusesAndTeachers()
   }
 )
