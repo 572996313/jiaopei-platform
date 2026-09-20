@@ -15,7 +15,7 @@ public class OperLogPageQuery extends PageQuery {
     @Schema(description = "操作类型(CREATE=新增,UPDATE=修改,DELETE=删除,LOGIN=登录,LOGOUT=登出,OTHER=其他)", allowableValues = {"CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "OTHER"})
     private String actionType;
 
-    @Schema(description = "操作端口(admin=管理后台,student=学生,parent=家长)", allowableValues = {"admin", "student", "parent"})
+    @Schema(description = "操作端口(admin=管理后台;业务模块可自行扩展,本项目小程序端为 student/parent)")
     private String portal;
 
     @Schema(description = "操作名称(模糊匹配,来自@Operation.summary)")

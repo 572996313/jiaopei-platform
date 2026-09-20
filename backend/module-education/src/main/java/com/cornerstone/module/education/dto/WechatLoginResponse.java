@@ -1,5 +1,6 @@
-package com.cornerstone.core.auth.dto;
+package com.cornerstone.module.education.dto;
 
+import com.cornerstone.core.auth.dto.LoginResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "微信小程序登录响应")

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
@@ -54,12 +55,19 @@ class ArchitectureRulesTest {
             }
         };
 
-    /** auth 自助接口（登录/登出/改密/小程序绑定）按设计不带权限注解，靠身份态自身兜底 */
+    /**
+     * auth 自助接口（登录/登出/改密/小程序登录注册注销）按设计不带权限注解，靠身份态自身兜底。
+     * 按挂载路径判定而不是 Java 包：这类接口归属哪个模块都可能实现（小程序登录在教务模块），
+     * 只要仍挂在 /api/auth 下就沿用同一豁免口径。
+     */
     private static final DescribedPredicate<JavaClass> NOT_AUTH_CONTROLLER =
-        new DescribedPredicate<>("非 auth 自助接口包") {
+        new DescribedPredicate<>("类级路径不以 /api/auth 开头") {
             @Override
             public boolean test(JavaClass javaClass) {
-                return !javaClass.getPackageName().equals("com.cornerstone.core.auth.controller");
+                String[] paths = javaClass.tryGetAnnotationOfType(RequestMapping.class)
+                    .map(RequestMapping::value)
+                    .orElse(new String[0]);
+                return paths.length == 0 || !paths[0].startsWith("/api/auth");
             }
         };
 

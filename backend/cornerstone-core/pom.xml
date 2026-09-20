@@ -65,9 +65,5 @@
             <artifactId>jjwt-jackson</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <dependency>
-            <groupId>com.github.binarywang</groupId>
-            <artifactId>wx-java-miniapp-spring-boot-starter</artifactId>
-        </dependency>
     </dependencies>
 </project>

@@ -1,10 +1,12 @@
-package com.cornerstone.core.auth.controller;
+package com.cornerstone.module.education.controller;
 
 import com.cornerstone.core.auth.dto.LoginResponse;
-import com.cornerstone.core.auth.dto.WechatLoginRequest;
-import com.cornerstone.core.auth.dto.WechatLoginResponse;
-import com.cornerstone.core.auth.dto.WechatRegisterRequest;
-import com.cornerstone.core.auth.service.WechatAuthService;
+import com.cornerstone.core.audit.annotation.OperateLog;
+import com.cornerstone.core.audit.domain.ActionType;
+import com.cornerstone.module.education.dto.WechatLoginRequest;
+import com.cornerstone.module.education.dto.WechatLoginResponse;
+import com.cornerstone.module.education.dto.WechatRegisterRequest;
+import com.cornerstone.module.education.service.WechatAuthService;
 import com.cornerstone.core.common.api.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +29,8 @@ public class WechatAuthController {
 
     @Operation(summary = "小程序微信登录",
         description = "使用 wx.login 获取的 code 登录;openid 已注册时直接签发令牌,未注册时返回 registered=false,由前端引导进入身份选择注册页")
+    // 留痕的操作类型由注解决定,底座不再按接口路径硬编码识别登录
+    @OperateLog(actionType = ActionType.LOGIN)
     @PostMapping("/login")
     public ApiResponse<WechatLoginResponse> login(@Valid @RequestBody WechatLoginRequest request) {
         return ApiResponse.success("登录成功", wechatAuthService.login(request));

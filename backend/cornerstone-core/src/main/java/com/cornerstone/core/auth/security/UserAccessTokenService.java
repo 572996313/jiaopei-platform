@@ -10,6 +10,7 @@ import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.service.AuthApplicationService;
+import com.cornerstone.core.auth.service.PortalResolver;
 import com.cornerstone.core.auth.service.TokenCacheService;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
@@ -35,11 +36,14 @@ public class UserAccessTokenService {
     private final JwtTokenService jwtTokenService;
     private final SystemConfigService systemConfigService;
     private final SystemMenuService systemMenuService;
+    /** 各业务模块提供的端判定，按装配顺序取第一个非空结果 */
+    private final List<PortalResolver> portalResolvers;
 
     public UserAccessTokenService(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                   UserRoleRelMapper userRoleRelMapper, TokenCacheService tokenCacheService,
                                   JwtTokenService jwtTokenService, SystemConfigService systemConfigService,
-                                  SystemMenuService systemMenuService) {
+                                  SystemMenuService systemMenuService,
+                                  List<PortalResolver> portalResolvers) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
@@ -47,6 +51,7 @@ public class UserAccessTokenService {
         this.jwtTokenService = jwtTokenService;
         this.systemConfigService = systemConfigService;
         this.systemMenuService = systemMenuService;
+        this.portalResolvers = portalResolvers;
     }
 
     public LoginResponse issue(UserAccountEntity user) {
@@ -84,19 +89,17 @@ public class UserAccessTokenService {
     }
 
     /**
-     * 端归属:小程序注册+学生角色 → student + 家长角色 → parent;其余(后台账号)一律 admin。
-     * 端是比角色高一级的维度,决定该用户看到哪一套功能清单(菜单树)。
+     * 端归属:端是比角色高一级的维度,决定该用户看到哪一套功能清单(菜单树)。
+     * 底座只认识 admin,具体归属交给各业务模块注册的 {@link PortalResolver}。
      */
     private String resolvePortal(String registerSource, Set<String> roleCodes) {
-        if ("WECHAT_MINIAPP".equals(registerSource)) {
-            if (roleCodes.contains("MINIAPP_STUDENT")) {
-                return "student";
-            }
-            if (roleCodes.contains("MINIAPP_PARENT")) {
-                return "parent";
+        for (PortalResolver resolver : portalResolvers) {
+            String portal = resolver.resolve(registerSource, roleCodes);
+            if (portal != null && !portal.isBlank()) {
+                return portal;
             }
         }
-        return "admin";
+        return PortalResolver.ADMIN;
     }
 
     /**

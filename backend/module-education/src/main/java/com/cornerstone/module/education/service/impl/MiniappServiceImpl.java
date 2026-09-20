@@ -250,7 +250,7 @@ public class MiniappServiceImpl implements MiniappService {
     /** 仅学生端用户(角色含 MINIAPP_STUDENT)可调用学生档案相关方法 */
     private void requireStudentPortal() {
         AuthContext.requireUser().roles().stream()
-            .filter("MINIAPP_STUDENT"::equals)
+            .filter(MiniappPortalResolver.ROLE_CODE_STUDENT::equals)
             .findAny()
             .orElseThrow(() -> new BusinessException(ResultCode.FORBIDDEN, "仅学生账号可操作自己的档案"));
     }

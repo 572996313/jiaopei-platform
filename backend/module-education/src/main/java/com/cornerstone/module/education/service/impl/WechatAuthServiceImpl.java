@@ -1,4 +1,4 @@
-package com.cornerstone.core.auth.service.impl;
+package com.cornerstone.module.education.service.impl;
 
 import cn.binarywang.wx.miniapp.api.WxMaService;
 import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
@@ -7,19 +7,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
-import com.cornerstone.core.auth.domain.WechatBindingEntity;
+import com.cornerstone.module.education.domain.entity.WechatBindingEntity;
 import com.cornerstone.core.auth.dto.LoginResponse;
-import com.cornerstone.core.auth.dto.WechatLoginRequest;
-import com.cornerstone.core.auth.dto.WechatLoginResponse;
-import com.cornerstone.core.auth.dto.WechatRegisterRequest;
+import com.cornerstone.module.education.dto.WechatLoginRequest;
+import com.cornerstone.module.education.dto.WechatLoginResponse;
+import com.cornerstone.module.education.dto.WechatRegisterRequest;
 import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.event.UserAccountDeregisteredEvent;
-import com.cornerstone.core.auth.mapper.WechatBindingMapper;
+import com.cornerstone.module.education.mapper.WechatBindingMapper;
 import com.cornerstone.core.auth.security.UserAccessTokenService;
 import com.cornerstone.core.auth.service.TokenCacheService;
-import com.cornerstone.core.auth.service.WechatAuthService;
+import com.cornerstone.module.education.service.WechatAuthService;
 import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
@@ -38,10 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WechatAuthServiceImpl implements WechatAuthService {
 
     private static final String ACTIVE = "active";
-    private static final String REGISTER_SOURCE_MINIAPP = "WECHAT_MINIAPP";
     private static final String DEFAULT_DISPLAY_NAME = "微信用户";
-    private static final String ROLE_CODE_MINIAPP_STUDENT = "MINIAPP_STUDENT";
-    private static final String ROLE_CODE_MINIAPP_PARENT = "MINIAPP_PARENT";
     private static final String DEFAULT_INSTITUTION_CONFIG_KEY = "auth.register.default_institution_id";
 
     // 微信真实登录凭证为字母数字组合(如 081Kk0ll2xxx);含空格等字符必然是无效值
@@ -124,7 +121,7 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         user.setUsername("wx_" + session.getOpenid());
         user.setDisplayName(resolveDisplayName(request.nickname()));
         user.setStatus(ACTIVE);
-        user.setRegisterSource(REGISTER_SOURCE_MINIAPP);
+        user.setRegisterSource(MiniappPortalResolver.REGISTER_SOURCE_MINIAPP);
         // 无密码账号:不设任何改密标志,账号密码登录在入口处直接拒绝
         user.setPasswordResetRequired(Boolean.FALSE);
         user.setForceChangePassword(Boolean.FALSE);
@@ -133,7 +130,9 @@ public class WechatAuthServiceImpl implements WechatAuthService {
     }
 
     private String resolveRoleCode(String role) {
-        return "STUDENT".equals(role) ? ROLE_CODE_MINIAPP_STUDENT : ROLE_CODE_MINIAPP_PARENT;
+        return "STUDENT".equals(role)
+            ? MiniappPortalResolver.ROLE_CODE_STUDENT
+            : MiniappPortalResolver.ROLE_CODE_PARENT;
     }
 
     private void attachRole(Long userId, String roleCode) {
@@ -203,7 +202,7 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         if (user == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "账号不存在");
         }
-        if (!REGISTER_SOURCE_MINIAPP.equals(user.getRegisterSource())) {
+        if (!MiniappPortalResolver.REGISTER_SOURCE_MINIAPP.equals(user.getRegisterSource())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "该账号不支持自助注销");
         }
         // 先清令牌,再物理删除账号数据,注销后同一微信可重新注册为全新账号

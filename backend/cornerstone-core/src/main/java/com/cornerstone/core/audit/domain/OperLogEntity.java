@@ -35,7 +35,7 @@ public class OperLogEntity {
     @Schema(description = "操作人所属机构ID")
     private Long orgId;
 
-    @Schema(description = "操作端口(admin=管理后台,student=学生,parent=家长)", allowableValues = {"admin", "student", "parent"})
+    @Schema(description = "操作端口(admin=管理后台;业务模块可自行扩展,本项目小程序端为 student/parent)")
     private String portal;
 
     @Schema(description = "操作名称(来自Controller @Operation.summary)")

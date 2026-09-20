@@ -15,7 +15,7 @@ public record CurrentUserResponse(
     @Schema(description = "权限码列表") List<String> permissions,
     @Schema(description = "密码重置标记") Boolean passwordResetRequired,
     @Schema(description = "强制改密生效值") Boolean forceChangePassword,
-    @Schema(description = "所属端(admin=平台用户,student=学生端,parent=家长端)", allowableValues = {"admin", "student", "parent"})
+    @Schema(description = "所属端(admin=平台用户/管理后台;其余取值由业务模块注册的 PortalResolver 判定,本项目小程序端为 student/parent)")
     String portal
 ) {
 }

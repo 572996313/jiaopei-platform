@@ -1,7 +1,7 @@
-package com.cornerstone.core.auth.mapper;
+package com.cornerstone.module.education.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.cornerstone.core.auth.domain.WechatBindingEntity;
+import com.cornerstone.module.education.domain.entity.WechatBindingEntity;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
 

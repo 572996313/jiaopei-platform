@@ -19,6 +19,7 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,9 @@ class AuthApplicationServiceImplTest {
         tokenCacheService,
         jwtTokenService,
         systemConfigService,
-        mock(SystemMenuService.class)
+        mock(SystemMenuService.class),
+        // 无业务模块注册端判定时，签发结果落回 admin
+        List.of()
     );
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
         userAccountMapper,

@@ -12,8 +12,7 @@ import lombok.EqualsAndHashCode;
 @Schema(description = "系统菜单")
 public class SystemMenuEntity extends BaseEntity {
 
-    @Schema(description = "所属端(admin=平台用户/管理后台,student=学生端,parent=家长端)",
-            allowableValues = {"admin", "student", "parent"})
+    @Schema(description = "菜单归属端(admin=平台用户/管理后台;业务模块注册的 PortalResolver 可扩展其他端,本项目小程序端为 student/parent)")
     private String portal;
 
     @Schema(description = "父菜单ID")

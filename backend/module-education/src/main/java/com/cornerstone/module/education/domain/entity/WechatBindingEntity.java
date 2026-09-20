@@ -1,4 +1,4 @@
-package com.cornerstone.core.auth.domain;
+package com.cornerstone.module.education.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cornerstone.core.common.model.BaseEntity;

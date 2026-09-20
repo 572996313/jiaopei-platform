@@ -142,7 +142,7 @@ public class OperateLogAspect {
 
     /** 操作类型:登录/登出接口固定分类,其余按 HTTP 方法推断;GET/OPTIONS 等返回 null 表示不记录。 */
     private ActionType resolveActionType(String httpMethod, String path, ProceedingJoinPoint joinPoint) {
-        if ("/api/auth/login".equals(path) || path.endsWith("/api/auth/wechat/login")) {
+        if ("/api/auth/login".equals(path)) {
             return ActionType.LOGIN;
         }
         if ("/api/auth/logout".equals(path)) {
