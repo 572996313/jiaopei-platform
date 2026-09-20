@@ -25,9 +25,6 @@ ON jp_time_slot (
 
 -- 4) 重建名称唯一键
 ALTER TABLE jp_time_slot
-    DROP INDEX uk_jp_time_slot_name;
-
-ALTER TABLE jp_time_slot
 ADD UNIQUE KEY uk_jp_time_slot_name (
     institution_id,
     campus_id,
