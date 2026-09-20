@@ -207,9 +207,12 @@ import {
   fetchTeacherPage,
   updateTeacher,
   type TeacherSummary,
-} from '@/api/education'
-import { fetchCampuses, type CampusSummary } from '@/api/organization'
-import { useEducationScopeStore } from '@/stores/educationScope'
+} from '@cornerstone/module-education/api/education'
+import {
+  fetchCampuses,
+  type CampusSummary,
+} from '@cornerstone/module-organization/api/organization'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 const institutionStore = useInstitutionStore()

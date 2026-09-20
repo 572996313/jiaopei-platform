@@ -8,7 +8,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@cornerstone/core/*": ["packages/core/src/*"],
+      "@cornerstone/module-organization": ["packages/module-organization/src/index.ts"],
       "@cornerstone/module-organization/*": ["packages/module-organization/src/*"],
+      "@cornerstone/module-education": ["packages/module-education/src/index.ts"],
       "@cornerstone/module-education/*": ["packages/module-education/src/*"]
     },
 

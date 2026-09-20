@@ -1,34 +1,17 @@
 import type { RouteRecordRaw } from 'vue-router'
-import {
-  onInstitutionReset,
-  registerDirectory,
-} from '@cornerstone/core/extension/module-extensions'
-import { fetchCampuses } from '@/api/organization'
-import { useEducationScopeStore } from '@/stores/educationScope'
-import { businessChildRoutes } from './router/business-routes'
+import { educationRoutes } from '@cornerstone/module-education'
+import { organizationRoutes } from '@cornerstone/module-organization'
 
 /**
- * 壳工程的项目装配清单：本教培项目挂了哪些业务模块、工作台用哪个首页、
- * 底座扩展点由哪个模块来填。换业务方向时改这一个文件（+ 删对应业务代码），
- * 底座包不动。
+ * 壳工程的项目装配清单：本项目挂了哪些业务模块、工作台用哪个首页。
+ * 换业务方向时改这一个文件（+ 删对应业务包与 package.json 依赖），底座包不动。
  *
- * 这里的 register/on 调用是 import 副作用：必须被路由装配引到才生效，
- * 所以 router/index.ts 顶层 import 本文件，不要改成懒加载。
+ * 两点必须同时成立，少一个就是"装了但没挂上"：
+ * 1. import 模块入口 —— 模块对底座的扩展点注册（数据目录/页面插槽）是 import 副作用；
+ * 2. 路由清单进 projectChildRoutes —— 页面才可访问。
+ * 只留底座时把下面模块清里的条目与 import 一并去掉，pnpm build 产物即不含业务代码。
  */
-
-/** 组织模块：向底座登记校区目录（用户管理页的校区下拉与名称回显） */
-registerDirectory('campus', async (institutionId) => {
-  const campuses = await fetchCampuses(institutionId)
-  return campuses.map((item) => ({
-    id: item.id,
-    label: item.campusName || item.campusCode || `校区 #${item.id}`,
-  }))
-})
-
-/** 教务模块：机构切换/退出登录时清空跨页共享的教学范围（校区/学期） */
-onInstitutionReset(() => {
-  useEducationScopeStore().reset()
-})
+const installedModuleRoutes: RouteRecordRaw[][] = [organizationRoutes, educationRoutes]
 
 /** 项目自有页面（跨模块的工作台等）+ 各业务模块的路由清单 */
 export const projectChildRoutes: RouteRecordRaw[] = [
@@ -37,5 +20,5 @@ export const projectChildRoutes: RouteRecordRaw[] = [
     name: 'dashboard',
     component: () => import('@/views/dashboard/DashboardView.vue'),
   },
-  ...businessChildRoutes,
+  ...installedModuleRoutes.flat(),
 ]

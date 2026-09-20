@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import type { TimeSlotConfig } from '@/api/organization'
+import type { TimeSlotConfig } from '@cornerstone/module-organization/api/organization'
 import { SECTION_GROUPS, WEEKDAY_OPTIONS } from './time-slot-utils'
 
 const props = defineProps<{

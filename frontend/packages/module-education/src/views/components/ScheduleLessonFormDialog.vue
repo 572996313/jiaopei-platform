@@ -238,15 +238,15 @@ import {
   type ScheduleLessonRecord,
   type TeacherSummary,
   type TeachingClassSummary,
-} from '@/api/education'
+} from '@cornerstone/module-education/api/education'
 import {
   fetchClassrooms,
   type CampusSummary,
   type ClassroomSummary,
-  type InstitutionSummary,
   type TermSummary,
   type TimeSlotSummary,
-} from '@/api/organization'
+} from '@cornerstone/module-organization/api/organization'
+import type { InstitutionSummary } from '@cornerstone/core/api/tenant'
 import {
   compactTimeRange,
   conflictTypeLabel,

@@ -197,9 +197,12 @@ import {
   type AttendanceLessonPage,
   type ScheduleLessonRecord,
   type TeacherSummary,
-} from '@/api/education'
-import { fetchClassrooms, type ClassroomSummary } from '@/api/organization'
-import { useEducationScope } from '@/composables/useEducationScope'
+} from '@cornerstone/module-education/api/education'
+import {
+  fetchClassrooms,
+  type ClassroomSummary,
+} from '@cornerstone/module-organization/api/organization'
+import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 

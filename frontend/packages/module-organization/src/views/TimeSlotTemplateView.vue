@@ -170,10 +170,10 @@ import {
   type TimeSlotConfig,
   type TimeSlotSummary,
   type TimeSlotTemplateSummary,
-} from '@/api/organization'
+} from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import { useEducationScopeStore } from '@/stores/educationScope'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import TimeSlotConfigForm from './components/TimeSlotConfigForm.vue'
 import TimeSlotGridEditor from './components/TimeSlotGridEditor.vue'
 import {

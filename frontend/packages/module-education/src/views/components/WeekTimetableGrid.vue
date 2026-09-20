@@ -200,8 +200,14 @@ export interface WeekLessonAction {
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { ScheduleLessonRecord, TeacherSummary } from '@/api/education'
-import type { ClassroomSummary, TimeSlotSummary } from '@/api/organization'
+import type {
+  ScheduleLessonRecord,
+  TeacherSummary,
+} from '@cornerstone/module-education/api/education'
+import type {
+  ClassroomSummary,
+  TimeSlotSummary,
+} from '@cornerstone/module-organization/api/organization'
 
 interface TimeRow {
   key: string

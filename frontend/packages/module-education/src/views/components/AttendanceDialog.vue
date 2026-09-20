@@ -136,7 +136,7 @@ import {
   saveLessonAttendanceBatch,
   type AttendanceLessonPage,
   type AttendanceLessonStudent,
-} from '@/api/education'
+} from '@cornerstone/module-education/api/education'
 import {
   attendanceStatusLabel,
   attendanceStatusTagType,

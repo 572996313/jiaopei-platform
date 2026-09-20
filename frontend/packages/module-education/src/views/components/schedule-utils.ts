@@ -3,7 +3,7 @@ import {
   fetchScheduleLesson,
   updateScheduleLesson,
   type ScheduleLessonRecord,
-} from '@/api/education'
+} from '@cornerstone/module-education/api/education'
 
 export function todayValue() {
   const now = new Date()

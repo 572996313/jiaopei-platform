@@ -211,15 +211,15 @@ import {
   fetchTeachers,
   type ScheduleLessonRecord,
   type TeacherSummary,
-} from '@/api/education'
+} from '@cornerstone/module-education/api/education'
 import {
   fetchClassrooms,
   fetchTimeSlots,
   type ClassroomSummary,
   type TimeSlotSummary,
-} from '@/api/organization'
-import { useEducationScope } from '@/composables/useEducationScope'
-import { useEducationScopeStore } from '@/stores/educationScope'
+} from '@cornerstone/module-organization/api/organization'
+import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'

@@ -123,11 +123,11 @@ pnpm dev          # vite dev server，127.0.0.1:5173，/api 代理到 127.0.0.1:
 pnpm build        # vue-tsc 类型检查 + vite build
 pnpm lint         # ESLint（flat config，eslint.config.js）
 pnpm lint:fix     # ESLint 自动修复
-pnpm format       # Prettier 格式化 src/（.prettierrc.json：无分号/单引号/100 列）
+pnpm format       # Prettier 格式化 src/ 与 packages/（.prettierrc.json：无分号/单引号/100 列）
 pnpm preview
 ```
 
-无单测脚本；`pnpm build`（类型）+ `pnpm lint`（规范）共同构成前端门禁。ESLint 存量宽松起步（`no-explicit-any` 关闭），清理完成后逐步收紧。
+无单测脚本；`pnpm build`（类型）+ `pnpm lint`（规范）共同构成前端门禁。ESLint 存量宽松起步（`no-explicit-any` 关闭），清理完成后逐步收紧。`pnpm` 命令一律在 `frontend/` 根执行，workspace 会自动带到各包。
 
 ### 小程序（工作目录 `miniapp/`）
 
@@ -225,6 +225,26 @@ pnpm dev:h5            # H5 调试
 - 排课 `jp_schedule_lesson.term_id`：`NOT NULL`，唯一强制学期的实体。
 
 前端范围栏的学期选择器是**筛选条件**，不应作为报名/入班前置校验；只有 `ScheduleAttendanceView.vue` 的排课弹窗校验学期是对的。
+
+## 前端模块划分与装配（阶段三 起为 pnpm workspace）
+
+与后端同构：底座包 + 业务模块包 + 壳工程组装。`frontend/` 是 pnpm workspace，**根目录本身就是壳工程**（`index.html`/`vite.config.ts`/`tsconfig.*` 都在原位不动），换业务方向 = 换挂载的包，底座包不动。
+
+| 包 | 包名 | 内容 | 依赖方向 |
+| --- | --- | --- | --- |
+| `packages/core/` | `@cornerstone/core` | 底座：登录/改密、系统管理（用户/角色/菜单/字典/列表配置/系统参数/审计）、`ConfigurableCrudPage` 等脚手架、`AppLayout`、全局样式、扩展点注册表 | 不依赖任何业务包 |
+| `packages/module-organization/` | `@cornerstone/module-organization` | 业务：校区/教室/学期/时间段页面 + `educationScope` store（范围筛选归此包） | → core |
+| `packages/module-education/` | `@cornerstone/module-education` | 业务：教师/学员/班级/排课/考勤页面 | → core、→ organization |
+| `frontend/src/`（壳） | — | `main.ts`、`router/index.ts`、**装配清单 `modules.ts`**、跨模块工作台 | → 上面三块 |
+
+- **源码级引用，不单独构建各包**：包没有 `dist`，靠 vite `resolve.alias` + tsconfig `paths` 把 `@cornerstone/*` 直接指到 `packages/*/src`。新增包要同时改这两处 + `pnpm-workspace.yaml` 覆盖到的 `packages/*` 位置。**`vite.config.ts` 的 `@` 别名必须排在最后**，否则 `@cornerstone/...` 被 `@` 抢先匹配。
+- **import 写法**：包内/跨包一律写全包名（`@cornerstone/core/api/http`）；`@/` 只允许出现在壳工程 `frontend/src/**`。这条由 `eslint.config.js` 的 `no-restricted-imports` 分块强制（`boundary/core`、`boundary/module-organization`、`boundary/module-education`），写错 `pnpm lint` 直接报错，等价于后端的 ArchUnit 边界规则。依赖方向同后端：core ↛ `module-*`，organization ↛ education。
+- **装配清单 `frontend/src/modules.ts` 两件事必须同时成立**：① `import` 模块入口（模块对底座的扩展点注册是 **import 副作用**，不 import 就是"装了但没挂上"）；② 模块导出的路由清单进 `projectChildRoutes`。只留底座时把这两处的模块条目与 import 一并删掉即可，`pnpm build` 产物不含任何业务 chunk（实测：全挂 54 assets / 13 业务 chunk，只挂 core 33 assets / 0 业务 chunk，且登录与系统管理页全可用）。
+- **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerDirectory`/`loadDirectory`（数据目录 provider，如校区下拉）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。
+  - 页面插槽用于"业务页签注入到别的模块页面"（参照校区管理页里教务侧的课程/课程分类/班型三张卡片：宿主是 organization 的 `CampusManagementView`，内容来自 education 包的 `views/campus/EducationMasterDataCards.vue`）。宿主 `refreshAll` 末尾 `notifyPageRefresh(pageKey)`，插槽子组件订阅并自己拉数；**`onPageRefresh` 返回注销函数，必须在 `onUnmounted` 里调用**，否则订阅者随打开次数累积。
+  - `registerPageSlot` 幂等、按 `order` 排序；插槽子组件依赖全局 `core/src/styles/index.css` 里的 Element Plus 布局类（不在 scoped 样式内），组件不要再自带 reset。
+- **接口归属**：机构（=租户）的列表接口在底座 `core/src/api/tenant.ts`（阶段二A 后端把它从 organization 迁回 tenant，前端同步；请求路径 `/organizations/institutions` 未变）。`module-organization/src/api/organization.ts` 只留校区/教室/学期/时间段。
+- **新增页面落包判断**：换一个行业后还常用 → `packages/core`；否则按域放对应 `module-*`；跨模块聚合页（工作台等）放壳 `frontend/src/views/`。业务模块专属依赖放各自 `package.json`，不要塞进 core。
 
 ## 前端 / 小程序约定
 

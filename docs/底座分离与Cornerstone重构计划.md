@@ -1,6 +1,7 @@
 # 底座分离与 Cornerstone 重构计划
 
-> 状态：**阶段一、二A/二B/二C 已完成（2026-09-20），阶段三（前端 workspace 化）、阶段四（改名 Cornerstone）、阶段五（第二项目验证）待做**。立项背景：项目未来可能更换业务方向（不再做教培），但登录/权限/菜单/多租户这套"架子"要沉淀为可复用底座，且支持不同功能模块的组合装配。
+> 状态：**阶段一、二A/二B/二C、阶段三（前端 workspace 化）已完成（2026-09-20），阶段四（改名 Cornerstone）、阶段五（第二项目验证）待做**。立项背景：项目未来可能更换业务方向（不再做教培），但登录/权限/菜单/多租户这套"架子"要沉淀为可复用底座，且支持不同功能模块的组合装配。
+> 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」「前端模块划分与装配」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3/D5）。
 > 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3/D5）。
 
 ## 1. 目标与非目标
@@ -86,20 +87,23 @@ backend/
 4. **模块注册表**：定义 `ModuleDescriptor` 接口（code/名称/版本/权限前缀），core 的 bootstrap 汇总页与 OpenApiConfig 注入 `List<ModuleDescriptor>` 动态渲染，替换现在硬编码的 `ModuleSummaryView`。
 5. **跨模块规则**：只允许 id 引用，不建跨模块物理外键；core 需感知业务时（如删除前占用检查）用**事件发布（core 定义事件类）+ 业务模块监听**，或 core 定义 SPI 接口、业务模块提供实现 Bean。
 
-### 5.3 前端结构（阶段三）
+### 5.3 前端结构（阶段三，已按此落地）
 
 ```
-frontend/            # 转 pnpm workspace
-├── packages/core/         # @cornerstone/core：http.ts/request.ts/auth-session/AppLayout/
-│                          #   ConfigurableCrudPage/ConfigurableList/路由骨架/字典组件
-├── packages/module-education/   # 导出 views + 路由清单 + 列表配置清单
-├── packages/module-organization/
-└── app/                   # 壳工程：组装模块清单，按清单生成路由
+frontend/                        # pnpm workspace；根目录本身就是壳工程（index.html/vite.config/tsconfig 原位不动）
+├── src/                         # 壳：main.ts、router/index.ts、装配清单 modules.ts、跨模块工作台
+├── packages/core/               # @cornerstone/core：http.ts/request.ts/auth-session/AppLayout/
+│                                #   ConfigurableCrudPage/ConfigurableList/系统管理页/路由骨架/扩展点注册表
+├── packages/module-organization/ # 校区/教室/学期/时间段 + educationScope（范围筛选 store）
+└── packages/module-education/    # 教师/学员/班级/排课/考勤
 ```
 
-- 路由改为**模块清单驱动**：每个模块包导出 `routes: RouteRecordRaw[]`（component 用懒加载），壳工程聚合注册；构建期由 manifest（`.env` 或 `modules.manifest.ts`）决定打入哪些模块，未启用模块代码不进产物。
+- 路由改为**模块清单驱动**：每包 `index.ts` 导出 `xxxRoutes: RouteRecordRaw[]`（component 懒加载），壳工程 `src/modules.ts` 里登记「import 模块入口 + 路由进 `projectChildRoutes`」两件事，缺一即"装了但没挂上"。
+- 构建期模块裁剪：**没有做 `.env` / `modules.manifest.ts` 开关**，装配清单就是 `modules.ts` 这一个是真源的 TS 文件——删掉模块条目与其 import，vite tree-shaking 后产物即不含业务 chunk（实测全挂 54 assets/13 业务 chunk，只挂 core 33 assets/0 业务 chunk）。理由：本仓库当前只有一个壳工程，多一层构建期配置文件换来的是"配置与代码可能不一致"的新风险，收益不足；真出现同仓库多产品形态时再引入 manifest。
+- **源码级引用，不单独构建各包**：包无 `dist`，vite `resolve.alias` + tsconfig `paths` 把 `@cornerstone/*` 指到 `packages/*/src`（别名顺序：`@` 必须排最后）。省掉每包一份构建配置与版本联动，代价是包暂时不能独立发布——与 §5.5"workspace 内先用相对引用"一致。
+- 底座↔模块解耦用**扩展点注册表**（`packages/core/src/extension/module-extensions.ts`，镜像后端事件/SPI）：数据目录 provider（`registerDirectory`/`loadDirectory`）、机构切换广播（`onInstitutionReset`/`notifyInstitutionReset`）、页面插槽 + 刷新广播（`registerPageSlot`/`getPageSlots`/`onPageRefresh`/`notifyPageRefresh`）。注册是各模块 `index.ts` 的 import 副作用。
+- 边界由 ESLint `no-restricted-imports` 分块强制（core ↛ `module-*`、organization ↛ education、`@/*` 只在壳），等价后端 ArchUnit 规则。
 - 菜单显隐仍以 `sys_menu` 下发为准，与后端开关同源。
-- `@` 别名调整为按包引用（`@cornerstone/core`）。
 
 ### 5.4 小程序（miniapp）
 
@@ -162,6 +166,15 @@ frontend/            # 转 pnpm workspace
 **验收**：`mvn -q test` 全绿；模块开关矩阵（全开/只开 core/开 org 不开 edu）三种组合均可启动并冒烟；`scripts/restart-backend.sh` 适配新产物路径。
 
 ### 阶段三：前端 workspace 化（预计 3~4 天，风险中，可与阶段二并行）
+
+> 进度：已完成（2026-09-20，分两次提交：`783ceaf` workspace 骨架 + 抽 core；阶段三(二) 业务包拆分与页面插槽）。
+> - `frontend/` 转 pnpm workspace（`pnpm-workspace.yaml` 声明 `packages/*`），抽 `@cornerstone/core`、`@cornerstone/module-organization`、`@cornerstone/module-education` 三包；壳即 `frontend/` 根（`index.html`/`vite.config.ts`/`tsconfig.*` 原位不动）。
+> - 与计划的差异：① **未建 `app/` 子目录**（原 §5.3 设想把壳挪进 `app/`），把壳留在根可让既有文档、`scripts/`、`frontend/Dockerfile` 路径基本不变，代价是根 `src/` 与 `packages/` 并存；② **源码级引用、各包不单独构建**（无 per-package build / 无 `dist`），跨包靠 vite alias + tsconfig paths 解析，包独立发布推到阶段五真需要时再做；③ **未做构建期 `.env` manifest**，装配清单就是 `frontend/src/modules.ts` 一个文件（见 §5.3）；④ `@` 别名保留给壳工程，不改成按包引用。
+> - 底座解耦三处（core 不再 import 任何业务代码）：机构列表接口迁 `core/src/api/tenant.ts`（对齐后端阶段二A）；校区下拉改扩展点 `registerDirectory('campus')`，由 organization 包注册；机构切换清理范围 store 改 `onInstitutionReset` 广播。
+> - 页面插槽落地两处决策：校区管理页里教务侧的「课程/课程分类/班型」三张卡片改**页签插槽注入**（宿主 organization，内容 education 包 `views/campus/EducationMasterDataCards.vue`，靠 `registerPageSlot`/`notifyPageRefresh` 联动）；范围筛选 store `educationScope`（campusId+termId）**归 module-organization**，教务包复用，避免两侧各存一份。
+> - 边界守护：`eslint.config.js` 新增 `boundary/core`、`boundary/module-organization`、`boundary/module-education` 三块 `no-restricted-imports` 规则（core ↛ `@cornerstone/module-*`、organization ↛ education、`@/*` 仅壳可用），已用探针文件验证会触发报错。
+> - 验收：`pnpm build`（vue-tsc + vite）与 `pnpm lint` 全绿；全挂时产物 54 assets / 13 业务 chunk，临时把 `modules.ts` 改成只挂 core 后 33 assets / **0** 业务 chunk，登录与系统管理（用户/角色/菜单/列表配置/系统参数）页在 dev 上实测可用——校区列降级为 `校区 #{id}`（无目录 provider，属预期的功能裁剪），业务路由整页消失。恢复全挂清单后再次构建通过。
+> - 构建链同步：`frontend/Dockerfile` 已补 `COPY frontend/pnpm-workspace.yaml`、三个包的 `package.json`（install 前）与 `COPY frontend/packages`（build 前），否则 workspace 依赖解析不到；`scripts/ci-check.sh` 无需改（pnpm 命令都在 `frontend/` 根执行）。镜像构建尚未实测（本机无 docker 构建流程在本次范围内）。
 
 1. pnpm workspace 改造，抽 `@cornerstone/core` 包。
 2. 路由改模块清单驱动（§5.3）；构建期模块 manifest。

@@ -1,8 +1,11 @@
+import type { Component } from 'vue'
+
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 底座页面会需要业务维度的数据（用户管理要校区下拉、切机构要清掉业务页的筛选范围），
- * 但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
+ * 提供三类扩展点：数据目录（用户管理要校区下拉）、机构切换广播（清业务筛选范围）、
+ * 页面插槽（业务往别的模块页面里注入内容块）。
+ * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
  * 模块未装配（清单里没挂）时查不到实现，底座按空数据降级而不是报错。
  *
@@ -49,5 +52,51 @@ export function onInstitutionReset(handler: () => void) {
 export function notifyInstitutionReset() {
   for (const handler of institutionResetHandlers) {
     handler()
+  }
+}
+
+/** 页面插槽内容：component 自己取数据、自己管状态，宿主只提供渲染位 */
+export interface PageSlot {
+  name: string
+  order?: number
+  component: Component
+}
+
+const pageSlots = new Map<string, PageSlot[]>()
+
+/** 往某个页面的插槽位注入内容（如教务模块往校区页注入"课程/班型"卡片） */
+export function registerPageSlot(pageKey: string, slot: PageSlot) {
+  const list = pageSlots.get(pageKey) ?? []
+  if (list.some((item) => item.name === slot.name)) {
+    return
+  }
+  list.push(slot)
+  list.sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
+  pageSlots.set(pageKey, list)
+}
+
+/** 宿主页面取插槽内容；注入方未装配时返回空数组，页面自动少这几块 */
+export function getPageSlots(pageKey: string): PageSlot[] {
+  return pageSlots.get(pageKey) ?? []
+}
+
+const refreshHandlers = new Map<string, Array<() => unknown>>()
+
+/** 插槽内容登记自己的刷新逻辑，宿主刷新按钮统一触发；返回注销函数（组件卸载时调用） */
+export function onPageRefresh(pageKey: string, handler: () => unknown): () => void {
+  const list = refreshHandlers.get(pageKey) ?? []
+  list.push(handler)
+  refreshHandlers.set(pageKey, list)
+  return () => {
+    refreshHandlers.set(
+      pageKey,
+      list.filter((item) => item !== handler)
+    )
+  }
+}
+
+export function notifyPageRefresh(pageKey: string) {
+  for (const handler of refreshHandlers.get(pageKey) ?? []) {
+    void handler()
   }
 }

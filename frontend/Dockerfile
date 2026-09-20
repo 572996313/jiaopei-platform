@@ -20,7 +20,12 @@ ENV CI=true
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="${PNPM_HOME}:${PATH}"
 
+# workspace 安装：pnpm 需要 pnpm-workspace.yaml 与各包 package.json 才能解析 workspace:* 依赖
+COPY frontend/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/packages/core/package.json ./packages/core/package.json
+COPY frontend/packages/module-organization/package.json ./packages/module-organization/package.json
+COPY frontend/packages/module-education/package.json ./packages/module-education/package.json
 # 先做一次 prefetch,把所有依赖下载到 store(fetch 只写 store,不碰 node_modules)
 # 锁文件不变时这一步秒命中缓存
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
@@ -28,6 +33,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-stor
 
 # 然后做 install(同样会命中 node_modules 缓存)
 # 不加 --offline:store 缓存被 BuildKit 回收后仍要能联网补包
+# 各包的 node_modules 软链不在根目录缓存挂载内,由 install 每次重建
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
     --mount=type=cache,target=/workspace/frontend/node_modules,id=jiaopei-node-modules-cache \
     pnpm install --frozen-lockfile --prefer-offline
@@ -38,6 +44,8 @@ COPY frontend/tsconfig.json ./tsconfig.json
 COPY frontend/tsconfig.app.json ./tsconfig.app.json
 COPY frontend/tsconfig.node.json ./tsconfig.node.json
 COPY frontend/public ./public
+# 底座包与业务模块包(源码级引用,无各自构建)
+COPY frontend/packages ./packages
 COPY frontend/src ./src
 
 ARG VITE_API_AUTHORIZATION="Bearer stub-access-token"

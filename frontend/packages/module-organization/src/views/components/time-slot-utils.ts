@@ -4,7 +4,7 @@ import type {
   TimeSlotConfig,
   TimeSlotSectionConfig,
   TimeSlotSummary,
-} from '@/api/organization'
+} from '@cornerstone/module-organization/api/organization'
 
 /** 单元格时间区间(HH:mm) */
 export interface TimeRange {

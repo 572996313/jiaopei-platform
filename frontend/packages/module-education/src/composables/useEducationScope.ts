@@ -1,12 +1,17 @@
 import { computed, ref } from 'vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import { fetchCampuses, fetchTerms, type CampusSummary, type TermSummary } from '@/api/organization'
+import {
+  fetchCampuses,
+  fetchTerms,
+  type CampusSummary,
+  type TermSummary,
+} from '@cornerstone/module-organization/api/organization'
 import {
   fetchStudents,
   fetchTeachingClasses,
   type StudentSummary,
   type TeachingClassSummary,
-} from '@/api/education'
+} from '@cornerstone/module-education/api/education'
 
 export function useEducationScope() {
   const institutionStore = useInstitutionStore()

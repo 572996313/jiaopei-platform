@@ -16,13 +16,7 @@ export function getOrganizationSchema() {
   return http.get<OrganizationSchemaResponse>('/organizations/schema')
 }
 
-export interface InstitutionSummary {
-  id: string
-  orgCode?: string | null
-  orgName?: string | null
-  shortName?: string | null
-  status?: string | null
-}
+// 机构（租户）类型与接口在底座 @cornerstone/core/api/tenant，本文件只放组织主数据。
 
 export interface CampusSummary {
   id: string
@@ -198,10 +192,6 @@ export interface TimeSlotUpdatePayload {
   status?: string
   sortNo?: number | null
   remark?: string
-}
-
-export function fetchInstitutions() {
-  return requestGet<InstitutionSummary[]>('/organizations/institutions')
 }
 
 export function fetchCampuses(institutionId?: string | null) {

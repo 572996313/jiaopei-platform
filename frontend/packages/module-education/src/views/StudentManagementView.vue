@@ -513,9 +513,9 @@ import {
   type EnrollmentViewRecord,
   type StudentParentViewRecord,
   type StudentSummary,
-} from '@/api/education'
-import { useEducationScope } from '@/composables/useEducationScope'
-import { useEducationScopeStore } from '@/stores/educationScope'
+} from '@cornerstone/module-education/api/education'
+import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 const institutionStore = useInstitutionStore()
