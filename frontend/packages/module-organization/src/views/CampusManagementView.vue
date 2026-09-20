@@ -221,6 +221,9 @@
         </el-table>
       </article>
 
+      <!-- 账号默认校区偏好：底座用户表已无该列，由本模块按校区维护 -->
+      <CampusDefaultAccountCard :campus-id="campusId" :campuses="campuses" />
+
       <!-- 其他业务模块注入的资源卡片（教务：课程分类/课程/班型） -->
       <component :is="slot.component" v-for="slot in detailSlots" :key="slot.name" />
     </div>
@@ -492,6 +495,7 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import CampusDefaultAccountCard from '@cornerstone/module-organization/views/campus/CampusDefaultAccountCard.vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'

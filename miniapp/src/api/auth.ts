@@ -23,7 +23,6 @@ export interface CurrentUserResponse {
   id: string
   orgId: string | null
   institutionId: string | null
-  defaultCampusId: string | null
   username: string
   displayName: string | null
   roles: string[]

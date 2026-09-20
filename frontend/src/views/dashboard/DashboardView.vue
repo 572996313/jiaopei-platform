@@ -200,10 +200,10 @@ import {
 } from '@cornerstone/module-education/api/education'
 import {
   fetchClassrooms,
+  fetchMyCampusPreference,
   type ClassroomSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
-import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 interface QueueItem {
@@ -222,7 +222,6 @@ interface ReminderItem {
 }
 
 const router = useRouter()
-const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
 const { institutions, institutionId, campuses, classes, students, loadScope } = useEducationScope()
 
@@ -661,7 +660,9 @@ async function initializeBoard() {
   pageError.value = ''
   try {
     await institutionStore.loadInstitutions()
-    campusId.value = auth.currentUser?.defaultCampusId || null
+    // 默认校区已不是底座用户属性，改由组织模块的偏好接口提供
+    const myPreference = await fetchMyCampusPreference()
+    campusId.value = myPreference.campusId || null
 
     if (institutionId.value) {
       await loadScope(campusId.value, null)

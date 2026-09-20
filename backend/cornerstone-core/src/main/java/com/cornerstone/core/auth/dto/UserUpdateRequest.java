@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Size;
 
 public record UserUpdateRequest(
     @NotNull(message = "机构ID不能为空") Long institutionId,
-    Long defaultCampusId,
     @NotBlank(message = "显示名称不能为空") @Size(max = 128, message = "显示名称长度不能超过128个字符") String displayName,
     @Size(max = 32, message = "手机号长度不能超过32个字符") String phone,
     @NotBlank(message = "状态不能为空") @Size(max = 32, message = "状态长度不能超过32个字符") String status,

@@ -193,7 +193,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 >   - **"所属端"泛化**：底座新增 SPI `core.auth.service.PortalResolver`（只认 `admin`），`module-education` 提供 `MiniappPortalResolver`（学生端/家长端判定，同时是小程序注册来源与角色编码的唯一出处）；`UserAccessTokenService` 注入 `List<PortalResolver>` 取第一个非空结果。删除死枚举 `core.audit.domain.Portal`；`OperateLogAspect` 不再按 `/api/auth/wechat/login` 路径识别登录，改由业务控制器标 `@OperateLog(actionType = LOGIN)`。core 六处 `@Schema` 的 `allowableValues={admin,student,parent}` 改为"admin + 业务扩展"口径（DB 列 COMMENT 未变，不加迁移）。
 >   - **ArchUnit 口径修正**：写接口免权限注解的豁免从"包等于 `core.auth.controller`"改为"类级 `@RequestMapping` 以 `/api/auth` 开头"，否则业务模块挂 `/api/auth/**` 的公开登录接口会被误判违规。
 >   - **前端泛化**：`RenderContext` 去掉 `formatCampus`/`campusOptions`，改为通用 `directories`（目录编码 → 选项，底座只按名字透传）；`campusName` 单元格渲染器从 core 移到 `module-organization` 入口，经新扩展点 `registerListRenderer` 登记，`renderCell` 在内置表查不到时回退模块注册表，列表配置编辑器的候选渲染器改为 `rendererChoices()`（内置 + 已装配模块贡献）；`canWriteOrganization` → `canWriteInstitution`（权限串仍是历史的 `organization:write`，改串要动 `sys_menu`/角色种子数据，未纳入本轮）；删掉壳里无人引用的 `HelloWorld.vue`、`views/placeholder/ModulePlaceholderView.vue`。
->   - **仍未收口（阶段五或单排）**：`sys_user.default_campus_id` 是底座表里的业务列，用户管理页因此仍保留 `loadDirectory('campus')` 与 `campuses` 目录编码，前端 `optionsLoader` 候选表也仍列 `campuses`（列全量数据源要 `system:data-source:manage` 权限，列表配置管理员不必然有）；`organization:write` 权限串改名；`AppLayout` 菜单与登录页文案里的校区字样。这三项都要么要迁移/种子数据变更，要么属产品文案，不做表面改名冒充解耦。
+>   - **仍未收口（阶段五或单排）**：~~`sys_user.default_campus_id` 是底座表里的业务列~~（已收口：阶段五-0a 迁成 `module-organization` 的 `jp_user_campus_pref`，用户页不再保留校区列与目录注入）；`organization:write` 权限串改名（→ 阶段五-0c）；`AppLayout` 菜单与登录页文案里的校区字样（属产品文案，不做表面改名冒充解耦）。
 >   - 验证：`mvn test` 全绿（169，含搬包后的 `WechatAuthServiceImplTest`）；`pnpm lint` + `pnpm build` 通过；浏览器实测用户页"默认校区"列仍显示 `古县国锋练字`（业务渲染器生效）、编辑弹窗校区回显正常、列表配置「字段速查」的 renderer 候选显示 `institutionName / permissionTags / passwordStatus / campusName`（末项由组织模块贡献）。
 
 
@@ -202,9 +202,40 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 3. 前端 localStorage key `jiaopei.auth.session`、`VITE_API_AUTHORIZATION` 相关命名同步；`jp_` 表前缀不动（业务自有）。
 4. 文档同步：AGENTS.md、docs/ 各交付说明里的包名与配置前缀。
 
-### 阶段五：第二个项目验证（未来，非本期）
+### 阶段五：第二个项目验证（开工 2026-09-21）
 
-新开一个非教培项目（或 demo 模块），仅依赖 core 搭建，验证"底座可独立迁移"。此阶段暴露的问题回灌 core。**在这一步真实跑通前，不宣布底座可复用。**
+新开一个非教培项目，仅依赖 core 搭建，验证"底座可独立迁移"。此阶段暴露的问题回灌 core。**在这一步真实跑通前，不宣布底座可复用。**
+
+> 本次决策（2026-09-21 与用户确认）：
+> - **形态 = 另建独立仓库真做第二项目**，不做本仓库内的 demo 模块（demo 遮不住真实接入成本）。
+> - **载体 = 成就分发系统**：不做行业化，"有意思的玩具"方向，业务三件套只依赖 `cornerstone-core`；表前缀 `ac_`，库 `achievement_platform` / `achievement_log`。
+> - **发版渠道 = D3 选 A**：`mvn -DskipTests install` + git tag `cornerstone-v0.1.0`，起步不搭 Nexus。
+> - **开工顺序**：先在本仓库做完「底座净身」0a~0f，再建新仓库——否则第二项目会把 `jp_` 底座表、业务权限串、默认校区这类脏东西原样继承过去，验证就不成立了。
+
+**前置收口清单（0a~0f，本仓库内）**
+
+| # | 事项 | 状态 |
+|---|---|---|
+| 0a | "用户默认校区"移出底座表，改业务模块偏好表 | 已完成（2026-09-21，见下方落地记录） |
+| 0b | 底座 `jp_` 表改 `sys_` 前缀（V40 `RENAME TABLE` + `@TableName` 同步）：`jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_user_token` 四张确定改，`jp_institution` 是否同批改在此定（MySQL `RENAME TABLE` 会自动带上子表外键引用，无需先断键） | 待做 |
+| 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41） | 待做 |
+| 0d | core 死代码清理（`UserTokenEntity` 等待核）+ 列表配置 `optionsLoader` 候选表按"core 内置 + 模块贡献"拆分 | 待做 |
+| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
+| 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
+
+<details><summary>0a 实际落地记录（默认校区迁出底座）</summary>
+
+- **数据库（V39，新增脚本，未动 V1~V38）**：新建 `jp_user_campus_pref`（`institution_id`/`user_id`/`campus_id`，`UNIQUE KEY uk(user_id, deleted)`，FK 到 `jp_user_account` 与 `jp_campus`），把 `jp_user_account.default_campus_id` 的非空值按 id 原样搬入，再 `DROP FOREIGN KEY` + `DROP COLUMN`。同一脚本内改 `sys_list_config` 的 `system-users` 种子：`columns_json` 去掉校区列、`form_json` 去掉 `defaultCampusId` 字段与其 `onChange` 联动。
+- **后端**：core 的 `UserAccountEntity`、`CurrentUserResponse`、`UserView`、`UserCreateRequest`、`UserUpdateRequest` 去掉该字段（record 是按位置构造的，测试夹具 `WebMvcSecurityTestConfig` 与 `SystemUserServiceImplTest` 同步改）；`SystemUserServiceImpl` 删两处读写 + 私有校验方法；SPI `CampusBelongingValidator` 与 organization 侧实现**整体删除**（归属校验回归业务侧 `UserCampusPrefServiceImpl.assertCampusInInstitution`，底座不再需要该扩展点）。
+- **新落点**：`module-organization` 的 `UserCampusPrefController` → `/api/organizations/campus-preferences`（列表 `organization:read`、`/me` 仅需登录、`PUT /{userId}` `organization:write`）；租户隔离在 service 内比对登录用户 `orgId()`，越权 403、跨机构校区 400。
+- **前端**：用户管理页删掉校区列、`loadDirectory('campus')` 注入与机构变更钩子；"默认校区"改在校区管理页新增的 `CampusDefaultAccountCard` 维护（候选账号复用 core 的 `fetchSystemUserPage`，避免在业务模块新开一个可枚举账号的接口）；工作台改读 `/campus-preferences/me`。
+- **踩坑**：`updateById` 忽略 null 字段，"取消默认"必须 `LambdaUpdateWrapper.set(campus_id, null)`，否则接口回显正常、库里没变。
+- **验证**：`mvn -o -q test` 全绿；scratch 库回放 V1..V39 通过（仅历史已知的 V13 注释行差异）；重启后端实测 set/clear/me/按校区查询/越权五条路径，DB 复核 `campus_id` 确实置 NULL；测试残留行已清理。
+- **遗留（并入 0d 判定）**：`registerListRenderer('campusName')` 与 `registerDirectory('campus')` 在 V39 后已无消费者（底座用户列表不再含校区列），保留作为"业务资源配置校区列"的能力，去留在 0d 一并定。
+
+</details>
+
+**新仓库侧（1~4）**：后端脚手架（只依赖 core，实测开关与装配）→ 成就分发业务三件套 → 前端接 `@cornerstone/core` → 验收并把问题回灌 core。
 
 ## 7. 固化到 AGENTS.md 的新约定（阶段一随代码提交）
 
@@ -219,9 +250,14 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 |---|---|---|---|
 | D1 | "校区/教室/学期/时间段"归属 | A. 独立 module-organization；B. 并入 module-education；C. 校区留 core | **已定 A**（阶段二B 落地） |
 | D2 | 存量 Flyway V1~V37 拆分后，已部署库如何对齐 | A. 新库用拆后脚本、老库不动不追拆；B. 重新 baseline | **已定 A+基线保留**（阶段二B，迁移暂留 app/） |
-| D3 | 底座版本发布渠道 | A. 先 `mvn install` + git tag；B. 内网 Nexus | 起步 A，出现第二个项目时升 B（未定） |
+| D3 | 底座版本发布渠道 | A. 先 `mvn install` + git tag；B. 内网 Nexus | **已定 A**（阶段五开工确认，出现多下游消费再升 B） |
 | D4 | miniapp 是否本期拆分 | 本期不动 / 一并拆 | **已定不动**（§5.4） |
 | D5 | Redis/localStorage key 改名造成的全员重登录窗口 | 随阶段四 / 推迟 | **已定随阶段四**（代码已改完，等停机窗口发布，见 `docs/生产部署说明.md`） |
+| D6 | 阶段五形态 | A. 本仓库内 demo 模块；B. 另建独立仓库真做第二项目 | **已定 B** |
+| D7 | 第二项目载体 | 行业化 demo / 成就分发系统 | **已定成就分发系统**（表前缀 `ac_`，库 `achievement_platform`） |
+| D8 | 底座表前缀 | A. 保留 `jp_`；B. 改 `sys_` | **已定 B**（阶段五-0b，新增 V40 `RENAME TABLE`，不改存量迁移） |
+| D9 | 用户"默认校区"落点 | A. 底座用户表列；B. 业务模块偏好表 + 校区管理页维护 | **已定 B**（阶段五-0a 已落地） |
+| D10 | 底座机构页权限串 | A. 沿用历史的 `organization:*`；B. 改 `tenant:*` 并裁净角色种子串 | **已定 B**（阶段五-0c） |
 
 ## 9. 风险与对策
 

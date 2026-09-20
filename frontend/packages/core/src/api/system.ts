@@ -4,7 +4,6 @@ import type { PageParams, PageResult } from '@cornerstone/core/api/common'
 export interface SystemUserSummary {
   id: string
   institutionId: string
-  defaultCampusId?: string | null
   username: string
   displayName: string
   phone?: string | null
@@ -152,7 +151,6 @@ export interface CurrentInstitutionUpdatePayload {
 
 export interface SystemUserCreatePayload {
   institutionId: string
-  defaultCampusId?: string | null
   username: string
   displayName: string
   phone?: string
@@ -163,7 +161,6 @@ export interface SystemUserCreatePayload {
 
 export interface SystemUserUpdatePayload {
   institutionId: string
-  defaultCampusId?: string | null
   displayName: string
   phone?: string
   status: string

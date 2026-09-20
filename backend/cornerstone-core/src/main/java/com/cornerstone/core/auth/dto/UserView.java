@@ -6,7 +6,6 @@ import java.util.List;
 public record UserView(
     Long id,
     Long institutionId,
-    Long defaultCampusId,
     String username,
     String displayName,
     String phone,

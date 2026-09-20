@@ -9,13 +9,11 @@ import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.service.AuthApplicationService;
-import com.cornerstone.core.auth.service.CampusBelongingValidator;
 import com.cornerstone.core.auth.service.impl.SystemUserServiceImpl;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -33,15 +31,12 @@ class SystemUserServiceImplTest {
         RoleMapper roleMapper = mock(RoleMapper.class);
         UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
         InstitutionMapper institutionMapper = mock(InstitutionMapper.class);
-        @SuppressWarnings("unchecked")
-        ObjectProvider<CampusBelongingValidator> campusValidator = mock(ObjectProvider.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         SystemUserServiceImpl service = new SystemUserServiceImpl(
             userAccountMapper,
             roleMapper,
             userRoleRelMapper,
             institutionMapper,
-            campusValidator,
             passwordEncoder,
             mock(AuthApplicationService.class)
         );

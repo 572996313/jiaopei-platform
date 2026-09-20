@@ -8,7 +8,6 @@ public record CurrentUserResponse(
     @Schema(description = "用户ID") Long userId,
     @Schema(description = "机构ID") Long orgId,
     @Schema(description = "机构ID(兼容)") Long institutionId,
-    @Schema(description = "默认校区ID") Long defaultCampusId,
     @Schema(description = "用户名") String username,
     @Schema(description = "显示名称") String displayName,
     @Schema(description = "角色码列表") List<String> roles,

@@ -15,7 +15,6 @@ import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.service.AuthApplicationService;
-import com.cornerstone.core.auth.service.CampusBelongingValidator;
 import com.cornerstone.core.auth.service.SystemUserService;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
@@ -28,7 +27,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,20 +42,17 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
     private final InstitutionMapper institutionMapper;
-    private final ObjectProvider<CampusBelongingValidator> campusBelongingValidator;
     private final PasswordEncoder passwordEncoder;
     private final AuthApplicationService authApplicationService;
 
     public SystemUserServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                  UserRoleRelMapper userRoleRelMapper, InstitutionMapper institutionMapper,
-                                 ObjectProvider<CampusBelongingValidator> campusBelongingValidator,
                                  PasswordEncoder passwordEncoder,
                                  AuthApplicationService authApplicationService) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.institutionMapper = institutionMapper;
-        this.campusBelongingValidator = campusBelongingValidator;
         this.passwordEncoder = passwordEncoder;
         this.authApplicationService = authApplicationService;
     }
@@ -96,12 +91,10 @@ public class SystemUserServiceImpl implements SystemUserService {
     public UserView createUser(UserCreateRequest request) {
         Long institutionId = request.institutionId();
         assertInstitutionExists(institutionId);
-        assertCampusBelongsToInstitution(request.defaultCampusId(), institutionId);
         assertUniqueUsername(normalize(request.username()));
 
         UserAccountEntity entity = new UserAccountEntity();
         entity.setInstitutionId(institutionId);
-        entity.setDefaultCampusId(request.defaultCampusId());
         entity.setUsername(normalize(request.username()));
         entity.setPasswordHash(passwordEncoder.encode(initialPassword(request.initialPassword())));
         entity.setDisplayName(normalize(request.displayName()));
@@ -124,12 +117,10 @@ public class SystemUserServiceImpl implements SystemUserService {
     public UserView updateUser(Long id, UserUpdateRequest request) {
         UserAccountEntity entity = requireUser(id);
         assertInstitutionExists(request.institutionId());
-        assertCampusBelongsToInstitution(request.defaultCampusId(), request.institutionId());
 
         String oldStatus = entity.getStatus();
 
         entity.setInstitutionId(request.institutionId());
-        entity.setDefaultCampusId(request.defaultCampusId());
         entity.setDisplayName(normalize(request.displayName()));
         entity.setPhone(normalize(request.phone()));
         entity.setStatus(normalize(request.status()));
@@ -224,7 +215,6 @@ public class SystemUserServiceImpl implements SystemUserService {
         return new UserView(
             entity.getId(),
             entity.getInstitutionId(),
-            entity.getDefaultCampusId(),
             entity.getUsername(),
             entity.getDisplayName(),
             entity.getPhone(),
@@ -257,17 +247,6 @@ public class SystemUserServiceImpl implements SystemUserService {
         InstitutionEntity institution = institutionMapper.selectById(institutionId);
         if (institution == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "机构不存在：" + institutionId);
-        }
-    }
-
-    private void assertCampusBelongsToInstitution(Long campusId, Long institutionId) {
-        if (campusId == null) {
-            return;
-        }
-        // 校区概念由业务模块提供实现；未挂载时（纯底座项目）无校验器，跳过
-        CampusBelongingValidator validator = campusBelongingValidator.getIfAvailable();
-        if (validator != null) {
-            validator.assertCampusBelongsToInstitution(campusId, institutionId);
         }
     }
 

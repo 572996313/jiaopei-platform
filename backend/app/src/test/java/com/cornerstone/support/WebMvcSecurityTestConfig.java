@@ -65,7 +65,6 @@ public class WebMvcSecurityTestConfig {
                     user.userId(),
                     user.orgId(),
                     user.orgId(),
-                    null,
                     user.username(),
                     "平台管理员",
                     new ArrayList<>(user.roles()),

@@ -367,3 +367,34 @@ export function deleteTimeSlotTemplate(id: string) {
 export function applyTimeSlotTemplate(id: string, payload: TimeSlotApplyPayload) {
   return requestPost<TimeSlotApplyResult>(`/organizations/time-slot-templates/${id}/apply`, payload)
 }
+
+/**
+ * 账号默认校区偏好。
+ *
+ * 底座用户表不再有 default_campus_id 列，"账号默认落在哪个校区"由本模块维护。
+ */
+export interface CampusAccountPreference {
+  userId: string
+  username?: string | null
+  displayName?: string | null
+  campusId?: string | null
+}
+
+export function fetchCampusAccountPreferences(campusId?: string) {
+  return requestGet<CampusAccountPreference[]>(
+    '/organizations/campus-preferences',
+    campusId ? { campusId } : {}
+  )
+}
+
+/** 当前登录账号的默认校区，仅需登录态，供工作台初始化范围筛选 */
+export function fetchMyCampusPreference() {
+  return requestGet<CampusAccountPreference>('/organizations/campus-preferences/me')
+}
+
+export function updateCampusAccountPreference(userId: string, campusId: string | null) {
+  return requestPut<CampusAccountPreference>(
+    `/organizations/campus-preferences/${userId}`,
+    { campusId }
+  )
+}

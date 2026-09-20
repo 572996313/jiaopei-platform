@@ -95,7 +95,6 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             user.getId(),
             user.getInstitutionId(),
             user.getInstitutionId(),
-            user.getDefaultCampusId(),
             user.getUsername(),
             user.getDisplayName(),
             new ArrayList<>(authenticatedUser.roles()),

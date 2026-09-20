@@ -5,7 +5,6 @@
     page-title="用户列表"
     :list-context="listRenderContext"
     :form-context="userFormContext"
-    :on-field-change="userFormFieldHooks"
     :crud="userCrud"
   />
 
@@ -53,13 +52,8 @@ import {
 } from '@cornerstone/core/api/system'
 import type { SystemRoleSummary, SystemUserSummary } from '@cornerstone/core/api/system'
 import { fetchInstitutions, type InstitutionSummary } from '@cornerstone/core/api/tenant'
-import { loadDirectory, type DirectoryOption } from '@cornerstone/core/extension/module-extensions'
 import ConfigurableCrudPage from '@cornerstone/core/components/ConfigurableCrudPage/index.vue'
 import type { CrudPageOptions } from '@cornerstone/core/components/ConfigurableCrudPage/types'
-import type {
-  FormFieldConfig,
-  QueryOption,
-} from '@cornerstone/core/components/ConfigurableList/types'
 import type { RenderContext } from '@cornerstone/core/components/ConfigurableList/renderers'
 import {
   ensureStatusDictLoaded,
@@ -76,9 +70,7 @@ const statusOptions = useStatusOptions()
 
 const userCrudPageRef = ref<InstanceType<typeof ConfigurableCrudPage> | null>(null)
 const institutions = ref<InstitutionSummary[]>([])
-const campusDirectory = ref<DirectoryOption[]>([])
 const roles = ref<SystemRoleSummary[]>([])
-const userDialogCampuses = ref<DirectoryOption[]>([])
 
 /** 分配角色弹窗状态(与新增/编辑弹窗分离,宿主独立管理) */
 const roleAssignDialogVisible = ref(false)
@@ -87,19 +79,12 @@ const roleAssignError = ref('')
 const assignRoleUser = ref<SystemUserSummary | null>(null)
 const selectedRoleIds = ref<string[]>([])
 
-function toOptions(list: DirectoryOption[]): QueryOption[] {
-  return list.map((item) => ({ value: item.id, label: item.label }))
-}
-
 const listRenderContext = computed<RenderContext>(() => ({
   formatInstitution,
   institutionOptions: institutions.value.map((item) => ({
     label: item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
     value: item.id,
   })),
-  // 默认校区列的名称回显由 module-organization 注册的渲染器负责,
-  // 宿主只把跨机构拉到的目录数据按列表配置里的编码透传,不认识渲染逻辑
-  directories: { campuses: toOptions(campusDirectory.value) },
 }))
 
 function syncInstitutionMaps(list: InstitutionSummary[]) {
@@ -112,80 +97,27 @@ function syncInstitutionMaps(list: InstitutionSummary[]) {
   }
 }
 
-async function loadCampusDirectory() {
-  const allCampuses = await Promise.all(
-    institutions.value.map((item) => loadDirectory('campus', item.id))
-  )
-  campusDirectory.value = allCampuses.flat()
-}
-
-/** 表单 optionsLoader 数据源:机构 + 当前机构下的校区(弹窗内懒加载)+ 状态字典 */
+/** 表单 optionsLoader 数据源:机构 + 状态字典 */
 const userFormContext = computed<RenderContext>(() => ({
   statusOptions: statusOptions.value,
   institutionOptions: institutions.value.map((item) => ({
     label: item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
     value: item.id,
   })),
-  directories: { campuses: toOptions(userDialogCampuses.value) },
 }))
-
-/** 机构变更联动:重拉当前机构校区,并在所选校区不在新机构下时清空(与旧实现一致) */
-async function syncUserDialogCampuses(
-  institutionId: string,
-  currentCampusId: string | null = null
-) {
-  if (!institutionId) {
-    userDialogCampuses.value = []
-    return
-  }
-  try {
-    userDialogCampuses.value = await loadDirectory('campus', institutionId)
-    if (
-      currentCampusId &&
-      userDialogCampuses.value.length > 0 &&
-      !userDialogCampuses.value.some((item) => item.id === currentCampusId)
-    ) {
-      userCrudPageRef.value?.formRef?.setFieldValue('defaultCampusId', '')
-    }
-  } catch {
-    userDialogCampuses.value = []
-    void userCrudPageRef.value?.formRef?.setFieldValue('defaultCampusId', '')
-  }
-}
-
-/** 机构变更联动:重拉当前机构校区(读 ConfigurableForm 的 model) */
-const userFormFieldHooks: Record<
-  string,
-  (form: Record<string, any>, field: FormFieldConfig) => void
-> = {
-  institutionId: (form) => {
-    const institutionId = String(form.institutionId ?? '')
-    const currentCampus = form.defaultCampusId ? String(form.defaultCampusId) : null
-    void syncUserDialogCampuses(institutionId, currentCampus)
-  },
-}
 
 const userCrud: CrudPageOptions = {
   resourceName: '用户',
-  onOpenReset: async (mode, row) => {
+  onOpenReset: async () => {
     await nextTick()
-    // 重置表单(触发 initial 重建与机构联动钩子)
+    // 重置表单(触发 initial 重建)
     void userCrudPageRef.value?.formRef?.reset()
-    if (mode === 'create') {
-      const defaultInstitutionId =
-        auth.currentUser?.institutionId || institutions.value[0]?.id || ''
-      void syncUserDialogCampuses(defaultInstitutionId)
-    } else if (row) {
-      const user = row as SystemUserSummary
-      await syncUserDialogCampuses(user.institutionId, user.defaultCampusId || null)
-    }
   },
   buildInitial: (mode, row) => {
     if (mode === 'edit' && row) {
       const user = row as SystemUserSummary
       return {
         institutionId: user.institutionId,
-        defaultCampusId: user.defaultCampusId || '',
         username: user.username,
         displayName: user.displayName,
         phone: user.phone || '',
@@ -196,7 +128,6 @@ const userCrud: CrudPageOptions = {
     }
     return {
       institutionId: auth.currentUser?.institutionId || institutions.value[0]?.id || '',
-      defaultCampusId: auth.currentUser?.defaultCampusId || '',
       username: '',
       displayName: '',
       phone: '',
@@ -207,7 +138,6 @@ const userCrud: CrudPageOptions = {
   },
   buildCreatePayload: (form) => ({
     institutionId: String(form.institutionId ?? '').trim(),
-    defaultCampusId: form.defaultCampusId ? String(form.defaultCampusId) : null,
     username: String(form.username ?? '').trim(),
     displayName: String(form.displayName ?? '').trim(),
     phone: trimToUndefined(form.phone),
@@ -217,7 +147,6 @@ const userCrud: CrudPageOptions = {
   }),
   buildUpdatePayload: (form) => ({
     institutionId: String(form.institutionId ?? '').trim(),
-    defaultCampusId: form.defaultCampusId ? String(form.defaultCampusId) : null,
     displayName: String(form.displayName ?? '').trim(),
     phone: trimToUndefined(form.phone),
     status: form.status || 'active',
@@ -228,7 +157,6 @@ const userCrud: CrudPageOptions = {
   toggleStatusApi: (row) =>
     updateSystemUser(row.id, {
       institutionId: row.institutionId,
-      defaultCampusId: row.defaultCampusId || null,
       displayName: row.displayName,
       phone: row.phone || undefined,
       status: row.status === 'active' ? 'disabled' : 'active',
@@ -302,6 +230,6 @@ onMounted(async () => {
   const [institutionList, roleList] = await Promise.all([fetchInstitutions(), fetchSystemRoles()])
   syncInstitutionMaps(institutionList)
   roles.value = roleList
-  await Promise.allSettled([ensureStatusDictLoaded(), loadCampusDirectory()])
+  await ensureStatusDictLoaded()
 })
 </script>

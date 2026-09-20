@@ -144,7 +144,7 @@
 {
   "field": "institutionId",
   "onChange": {
-    "reloadField": "defaultCampusId",
+    "reloadField": "campusId",
     "whenEmptyClear": true
   }
 }

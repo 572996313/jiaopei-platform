@@ -13,7 +13,6 @@ import lombok.EqualsAndHashCode;
 public class UserAccountEntity extends BaseEntity {
 
     private Long institutionId;
-    private Long defaultCampusId;
     private String username;
     private String passwordHash;
     private String displayName;
