@@ -38,7 +38,7 @@ ADD UNIQUE KEY uk_jp_time_slot_name (
 
 
 -- 5) 时段模板表
-CREATE TABLE IF NOT EXISTS jp_time_slot_template (
+CREATE TABLE jp_time_slot_template (
     id BIGINT NOT NULL COMMENT '主键ID',
     institution_id BIGINT NOT NULL COMMENT '机构ID',
     campus_id BIGINT NULL COMMENT '校区ID 空表示机构级模板',
