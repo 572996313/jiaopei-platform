@@ -1,5 +1,5 @@
-import { http } from '@/api/http'
-import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
+import { http } from '@cornerstone/core/api/http'
+import { requestDelete, requestGet, requestPost, requestPut } from '@cornerstone/core/api/request'
 
 export interface OrganizationSchemaResponse {
   code: string

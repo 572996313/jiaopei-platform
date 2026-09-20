@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="loading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="onCampusChange">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="onCampusChange"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -35,7 +41,9 @@
       </div>
       <div class="page-toolbar-actions">
         <el-button v-if="canWrite" type="primary" @click="openCreateDialog">新建模板</el-button>
-        <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate">删除模板</el-button>
+        <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate"
+          >删除模板</el-button
+        >
         <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       </div>
     </div>
@@ -63,7 +71,9 @@
           <div>
             <div class="panel-title">
               节次时间设置
-              <span class="panel-count">{{ rows.length }} 个节次 × {{ config.weekdays.length }} 天</span>
+              <span class="panel-count"
+                >{{ rows.length }} 个节次 × {{ config.weekdays.length }} 天</span
+              >
             </div>
             <div class="education-context-text">
               当前模板:{{ selectedTemplate.templateName }};点击单元格可修改或清空该节该天的时间
@@ -112,10 +122,19 @@
       />
       <el-form label-position="top">
         <el-form-item label="模板名称" required>
-          <el-input v-model="createForm.templateName" placeholder="如:标准工作日课表" maxlength="64" />
+          <el-input
+            v-model="createForm.templateName"
+            placeholder="如:标准工作日课表"
+            maxlength="64"
+          />
         </el-form-item>
         <el-form-item label="适用校区">
-          <el-select v-model="createForm.campusId" placeholder="不选则为机构级模板" clearable filterable>
+          <el-select
+            v-model="createForm.campusId"
+            placeholder="不选则为机构级模板"
+            clearable
+            filterable
+          >
             <el-option
               v-for="item in campuses"
               :key="item.id"
@@ -152,8 +171,8 @@ import {
   type TimeSlotSummary,
   type TimeSlotTemplateSummary,
 } from '@/api/organization'
-import { useAuthStore } from '@/stores/auth'
-import { useInstitutionStore } from '@/stores/institution'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useEducationScopeStore } from '@/stores/educationScope'
 import TimeSlotConfigForm from './components/TimeSlotConfigForm.vue'
 import TimeSlotGridEditor from './components/TimeSlotGridEditor.vue'
@@ -210,7 +229,10 @@ function campusText(id?: string | null) {
 
 function onCampusChange(value: string | null) {
   educationScope.setCampus(value)
-  if (selectedTemplateId.value && !filteredTemplates.value.some((item) => item.id === selectedTemplateId.value)) {
+  if (
+    selectedTemplateId.value &&
+    !filteredTemplates.value.some((item) => item.id === selectedTemplateId.value)
+  ) {
     selectedTemplateId.value = null
     rows.value = []
   }
@@ -277,7 +299,10 @@ async function refreshAll() {
     campuses.value = campusList
     templates.value = templateList
     timeSlots.value = slotList
-    if (selectedTemplateId.value && !templateList.some((item) => item.id === selectedTemplateId.value)) {
+    if (
+      selectedTemplateId.value &&
+      !templateList.some((item) => item.id === selectedTemplateId.value)
+    ) {
       selectedTemplateId.value = null
       rows.value = []
     }

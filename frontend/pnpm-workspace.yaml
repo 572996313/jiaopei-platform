@@ -1,0 +1,4 @@
+# 前端 workspace：底座包与业务模块包各自独立，壳工程（frontend 根本身）组装它们。
+# 新增业务方向 = 新建 packages/module-xxx 并在壳工程模块清单里登记，底座不动。
+packages:
+  - 'packages/*'

@@ -425,10 +425,8 @@
             <div class="education-context-text">
               日期：{{ timetableRange.start }} 至 {{ timetableRange.end }}（{{
                 rangeModeText
-              }}）；班级：{{ formatClass(classId) }}；范围：{{
-                formatInstitution(institutionId)
-              }}
-              / {{ formatCampus(campusId) }}。点击空格可跳转排课管理新增。
+              }}）；班级：{{ formatClass(classId) }}；范围：{{ formatInstitution(institutionId) }} /
+              {{ formatCampus(campusId) }}。点击空格可跳转排课管理新增。
             </div>
           </div>
 
@@ -487,7 +485,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_STACK_MAX_HEIGHT } from '@/utils/table-view'
+import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -510,7 +508,7 @@ import {
 } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
 import { useEducationScopeStore } from '@/stores/educationScope'
-import { useInstitutionStore } from '@/stores/institution'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import WeekTimetableGrid, { type WeekLessonAction } from './components/WeekTimetableGrid.vue'
 import AttendanceDialog from './components/AttendanceDialog.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
@@ -1126,11 +1124,7 @@ async function refreshDayAndMakeup() {
 }
 
 async function refreshAll() {
-  await Promise.all([
-    refreshDayTimetable(),
-    refreshRangeTimetable(),
-    refreshPendingMakeupLessons(),
-  ])
+  await Promise.all([refreshDayTimetable(), refreshRangeTimetable(), refreshPendingMakeupLessons()])
 }
 
 async function handleCampusChange() {

@@ -26,7 +26,9 @@
 
     <el-alert
       v-if="conflictResult?.conflict"
-      :title="isExecutionMode ? '执行变更冲突未通过，请调整后再保存' : '冲突检查未通过，请调整后再保存'"
+      :title="
+        isExecutionMode ? '执行变更冲突未通过，请调整后再保存' : '冲突检查未通过，请调整后再保存'
+      "
       type="warning"
       show-icon
       :closable="false"
@@ -569,7 +571,9 @@ async function runConflictCheck() {
   })
 
   if (conflictResult.value.conflict) {
-    formError.value = isExecutionMode.value ? '存在执行冲突，请调整后重试' : '存在排课冲突，请调整后重试'
+    formError.value = isExecutionMode.value
+      ? '存在执行冲突，请调整后重试'
+      : '存在排课冲突，请调整后重试'
     return false
   }
   return true

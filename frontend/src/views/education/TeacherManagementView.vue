@@ -197,7 +197,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
+import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -210,7 +210,7 @@ import {
 } from '@/api/education'
 import { fetchCampuses, type CampusSummary } from '@/api/organization'
 import { useEducationScopeStore } from '@/stores/educationScope'
-import { useInstitutionStore } from '@/stores/institution'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()

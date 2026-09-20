@@ -738,7 +738,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { TABLE_STACK_MAX_HEIGHT } from '@/utils/table-view'
+import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -782,9 +782,9 @@ import {
   type TimeSlotSummary,
 } from '@/api/organization'
 import { useEducationScopeStore } from '@/stores/educationScope'
-import { useInstitutionStore } from '@/stores/institution'
-import { useDictStore } from '@/stores/dict'
-import DictSelect from '@/components/DictSelect.vue'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useDictStore } from '@cornerstone/core/stores/dict'
+import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()

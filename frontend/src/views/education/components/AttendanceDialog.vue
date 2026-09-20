@@ -14,7 +14,8 @@
           </div>
           <div><strong>日期：</strong>{{ page.lesson.lessonDate || '未设置' }}</div>
           <div>
-            <strong>时段：</strong>{{ compactTimeRange(page.lesson.startTime, page.lesson.endTime) || '未设置' }}
+            <strong>时段：</strong
+            >{{ compactTimeRange(page.lesson.startTime, page.lesson.endTime) || '未设置' }}
           </div>
           <div><strong>主题：</strong>{{ page.lesson.lessonTitle || '未设置' }}</div>
           <div v-if="relationSummary"><strong>停补关联：</strong>{{ relationSummary }}</div>
@@ -68,9 +69,7 @@
         </div>
 
         <div class="attendance-toolbar">
-          <div class="education-context-text">
-            支持再次进入回显；未设置状态的学员不会写入记录。
-          </div>
+          <div class="education-context-text">支持再次进入回显；未设置状态的学员不会写入记录。</div>
           <div class="attendance-toolbar-actions">
             <el-button @click="applyStatusToAll('present')">全员到课</el-button>
             <el-button @click="clearStatuses">清空状态</el-button>
@@ -90,7 +89,10 @@
           </el-table-column>
           <el-table-column label="当前状态" width="120">
             <template #default="{ row }">
-              <el-tag v-if="row.attendanceStatus" :type="attendanceStatusTagType(row.attendanceStatus)">
+              <el-tag
+                v-if="row.attendanceStatus"
+                :type="attendanceStatusTagType(row.attendanceStatus)"
+              >
                 {{ attendanceStatusLabel(row.attendanceStatus) }}
               </el-tag>
               <span v-else class="attendance-empty-text">未点名</span>
@@ -119,11 +121,7 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">关闭</el-button>
-      <el-button
-        type="warning"
-        :loading="submitting || completing"
-        @click="saveAndComplete"
-      >
+      <el-button type="warning" :loading="submitting || completing" @click="saveAndComplete">
         保存并结课
       </el-button>
       <el-button type="primary" :loading="submitting" @click="save">保存点名</el-button>

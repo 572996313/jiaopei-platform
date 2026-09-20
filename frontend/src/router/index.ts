@@ -1,18 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { store } from '@/stores'
-import { useAuthStore } from '@/stores/auth'
-import { publicRoutes, platformChildRoutes } from './platform-routes'
-import { businessChildRoutes } from './business-routes'
+import { store } from '@cornerstone/core/stores'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { publicRoutes, platformChildRoutes } from '@cornerstone/core/router/platform-routes'
+import { projectChildRoutes } from '@/modules'
 
-// 路由组装：底座路由（platform-routes）+ 各业务模块路由清单（business-routes）。
-// 新增业务模块时在 business-routes.ts 中追加对应清单，底座部分零改动。
+// 路由组装：底座路由（@cornerstone/core）+ 壳工程装配清单（@/modules 的项目页与业务模块路由）。
+// 新增业务模块时在 modules.ts 追加对应清单，底座部分零改动。
 const routes = [
   ...publicRoutes,
   {
     path: '/',
-    component: () => import('@/layouts/AppLayout.vue'),
+    component: () => import('@cornerstone/core/layouts/AppLayout.vue'),
     redirect: '/dashboard',
-    children: [...platformChildRoutes, ...businessChildRoutes],
+    children: [...platformChildRoutes, ...projectChildRoutes],
   },
 ]
 

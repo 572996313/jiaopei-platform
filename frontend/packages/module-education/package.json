@@ -1,0 +1,16 @@
+{
+  "name": "@cornerstone/module-education",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "教务业务模块（教师/学员/班级/排课/考勤）：导出页面与路由清单，依赖底座包与组织模块。",
+  "dependencies": {
+    "@cornerstone/core": "workspace:*",
+    "@cornerstone/module-organization": "workspace:*",
+    "@element-plus/icons-vue": "^2.3.2",
+    "element-plus": "^2.14.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.5.1"
+  }
+}

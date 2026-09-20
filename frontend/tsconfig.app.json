@@ -6,7 +6,10 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@cornerstone/core/*": ["packages/core/src/*"],
+      "@cornerstone/module-organization/*": ["packages/module-organization/src/*"],
+      "@cornerstone/module-education/*": ["packages/module-education/src/*"]
     },
 
     /* Linting */

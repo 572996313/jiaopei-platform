@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { useInstitutionStore } from '@/stores/institution'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { fetchCampuses, fetchTerms, type CampusSummary, type TermSummary } from '@/api/organization'
 import {
   fetchStudents,

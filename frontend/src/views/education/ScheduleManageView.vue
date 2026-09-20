@@ -220,8 +220,8 @@ import {
 } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
 import { useEducationScopeStore } from '@/stores/educationScope'
-import { useInstitutionStore } from '@/stores/institution'
-import { TABLE_FILL_HEIGHT } from '@/utils/table-view'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import {
   compactTimeRange,

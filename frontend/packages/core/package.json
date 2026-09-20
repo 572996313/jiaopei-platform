@@ -1,0 +1,15 @@
+{
+  "name": "@cornerstone/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "底座前端包：登录鉴权、系统管理、通用列表/表单脚手架与布局骨架，不依赖任何业务模块。",
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.17.0",
+    "element-plus": "^2.14.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.5.1"
+  }
+}

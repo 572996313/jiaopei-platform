@@ -1,5 +1,5 @@
-import { requestDelete, requestGet, requestPost, requestPut } from '@/api/request'
-import type { PageParams, PageResult } from '@/api/common'
+import { requestDelete, requestGet, requestPost, requestPut } from '@cornerstone/core/api/request'
+import type { PageParams, PageResult } from '@cornerstone/core/api/common'
 
 export interface StudentSummary {
   id: string

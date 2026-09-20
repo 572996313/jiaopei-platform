@@ -144,7 +144,8 @@ function setCellStart(row: SectionRow, day: number, value: string) {
     }
     return
   }
-  const duration = current && current.start && current.end ? Math.max(rangeDuration(current), 1) : 45
+  const duration =
+    current && current.start && current.end ? Math.max(rangeDuration(current), 1) : 45
   row.cells[day] = { start: value, end: toTimeText(start + duration) }
 }
 

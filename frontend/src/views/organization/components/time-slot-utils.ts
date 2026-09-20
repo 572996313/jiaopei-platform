@@ -267,9 +267,8 @@ export function findCellConflicts(rows: SectionRow[], weekdays: number[]): Set<s
   for (const weekday of weekdays) {
     const cells = rows
       .map((row) => ({ row, range: row.cells[weekday] }))
-      .filter(
-        (item): item is { row: SectionRow; range: TimeRange } =>
-          Boolean(item.range && item.range.start && item.range.end)
+      .filter((item): item is { row: SectionRow; range: TimeRange } =>
+        Boolean(item.range && item.range.start && item.range.end)
       )
       .sort((a, b) => toMinutes(a.range.start) - toMinutes(b.range.start))
     for (let i = 1; i < cells.length; i++) {

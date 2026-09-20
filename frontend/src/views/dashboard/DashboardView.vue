@@ -200,8 +200,8 @@ import {
 } from '@/api/education'
 import { fetchClassrooms, type ClassroomSummary } from '@/api/organization'
 import { useEducationScope } from '@/composables/useEducationScope'
-import { useAuthStore } from '@/stores/auth'
-import { useInstitutionStore } from '@/stores/institution'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 interface QueueItem {
   key: string
