@@ -6,7 +6,7 @@ ALTER TABLE jp_time_slot
     ADD COLUMN IF NOT EXISTS template_id BIGINT NULL COMMENT '来源时段模板ID,空表示手工录入'
         AFTER status;
 
-CREATE INDEX IF NOT EXISTS idx_jp_time_slot_template
+CREATE INDEX idx_jp_time_slot_template
 ON jp_time_slot (template_id);
 
 ALTER TABLE jp_time_slot
