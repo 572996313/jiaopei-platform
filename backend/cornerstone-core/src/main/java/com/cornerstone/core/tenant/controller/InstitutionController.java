@@ -28,14 +28,14 @@ public class InstitutionController {
 
     @Operation(summary = "获取机构列表")
     @GetMapping
-    @RequiresPermission("organization:read")
+    @RequiresPermission("tenant:read")
     public ApiResponse<List<InstitutionEntity>> list() {
         return ApiResponse.success("机构列表已加载", institutionService.listInstitutions());
     }
 
     @Operation(summary = "创建机构")
     @PostMapping
-    @RequiresPermission("organization:write")
+    @RequiresPermission("tenant:write")
     public ApiResponse<InstitutionEntity> create(@Valid @RequestBody InstitutionCreateRequest request) {
         return ApiResponse.success("机构已创建", institutionService.createInstitution(request));
     }

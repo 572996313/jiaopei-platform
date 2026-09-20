@@ -17,6 +17,9 @@ export const permissionLabels: PermissionLabelItem[] = [
   { code: 'system:config:read', label: '参数查看', group: '系统管理' },
   { code: 'system:config:write', label: '参数维护', group: '系统管理' },
   { code: 'system:list-config:manage', label: '列表配置维护', group: '系统管理' },
+  { code: 'tenant:read', label: '机构查看', group: '机构(租户)' },
+  { code: 'tenant:write', label: '机构维护', group: '机构(租户)' },
+  // 下面两组是业务模块的码，core 只作展示兜底；正式归属应由各模块贡献标签表（阶段五-0d）
   { code: 'organization:read', label: '组织查看', group: '组织档案' },
   { code: 'organization:write', label: '组织维护', group: '组织档案' },
   { code: 'education:read', label: '教务查看', group: '教务管理' },

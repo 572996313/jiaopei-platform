@@ -147,7 +147,7 @@ pnpm dev:h5            # H5 调试
 - `StubAuthenticationFilter` 读 `Authorization: Bearer <token>`，先验签名与过期，再查 Redis 会话。
 - **过滤器认证失败时“吞异常继续放行”是有意设计**：该过滤器对所有请求生效（含公开路径），直接 `sendError` 会误拦“带过期 token 访问公开接口”。真正鉴权交给下游 `SecurityConfig.authorizeHttpRequests` + `cornerstone.security.public-paths`，不要在 catch 里加 `sendError`/`return`。
 - JWT 密钥 `cornerstone.auth.jwt.secret`，生产必须用 `AUTH_JWT_SECRET` 环境变量覆盖（≥32 字节）。
-- 权限判定：`@RequiresPermission("xxx:read|write")` + `PermissionGuardAspect`；取当前用户用 `AuthContext.requireUser()`。新增受保护接口路由必须加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 命名一致。
+- 权限判定：`@RequiresPermission("xxx:read|write")` + `PermissionGuardAspect`；取当前用户用 `AuthContext.requireUser()`。新增受保护接口路由必须加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 命名一致。**权限码前缀按归属分**：底座机构（=租户）接口用 `tenant:*`，业务模块用自己域名的码（`organization:*`/`education:*`）；底座接口挂业务前缀的码等于逼第二个项目授予一个它没有的模块（阶段五-0c 已把机构接口从 `organization:*` 改到 `tenant:*`，角色种子随之裁成底座码 + 业务码各自一段，见 V41/V42）。
 - **登录失败排障**：`GlobalExceptionHandler` 把所有 `AuthenticationException` 统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`，密码错和 token 失效响应体相同。排查 401 先用已知正确密码单独打 `/api/auth/login` 排除密码问题，再看过滤器/Redis。本地 admin 口令见 `V7__create_auth_user_role_tables.sql`（`{noop}` 前缀 = 明文比对）。
 - **Redis 序列化**：`RedisConfig` 的 ObjectMapper **必须** `activateDefaultTyping(..., EVERYTHING)`（`NON_FINAL` 不给 record 里的 `Set<String>` 写 `@class`，反序列化会报 missing type id）；该 mapper 必须在方法内 new，**不要**做成全局 `@Bean ObjectMapper`，否则顶掉 Spring MVC 默认 mapper 导致 `OffsetDateTime` 序列化报错。序列化格式变更后旧数据无法反序列化，需 `redis-cli FLUSHDB`（所有人重新登录）。
 - **系统参数优先入库**：可运行时调整的配置加到 `sys_system_config`（V14 引入），通过 `SystemConfigService.getConfigValue/getBooleanConfig/getIntConfig` 读取，别再写死进 `application.yml`；`is_system=1` 的配置禁止删除只能改值。当前在用的 key：

@@ -218,8 +218,8 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 |---|---|---|
 | 0a | "用户默认校区"移出底座表，改业务模块偏好表 | 已完成（2026-09-21，见下方落地记录） |
 | 0b | 底座 `jp_` 表改 `sys_` 前缀（V40 `RENAME TABLE` + `@TableName` 同步） | 已完成（2026-09-21，见下方落地记录） |
-| 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41） | 待做 |
-| 0d | 列表配置 `optionsLoader` 候选表按"core 内置 + 模块贡献"拆分；`campusName` 渲染器与 `campus` 目录 provider 去留判定（`UserTokenEntity`/`UserTokenMapper` 已随 0b 删除） | 待做 |
+| 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41/V42） | 已完成（2026-09-21，见下方落地记录） |
+| 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 待做 |
 | 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
 
@@ -243,6 +243,18 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **顺带清掉两处失真**：① `UserTokenEntity`/`UserTokenMapper` 指向的 `jp_user_token` 早在 V14 就被 DROP（登录态走 Redis），两个类零调用方，直接删（不需要迁移，表本来就不存在）；② `OrganizationApplicationServiceImpl.getSchemaView()` 仍把 `jp_institution` 列为组织模块的表（阶段二A 已迁回底座），从清单去掉。
 - **注释同步**：`jp_user_student_rel.user_id`、`jp_wechat_binding.user_id` 两列 COMMENT 里的表出处随 `MODIFY COLUMN`（列定义原样照抄）改为 `sys_user_account.id`，与实体 `@Schema` 一致。
 - **验证**：scratch 库 V1..V40 全量回放通过（仅历史已知的 V13 注释行差异），改名后 `KEY_COLUMN_USAGE` 复核外键指向新名；`mvn -o -q test` 全绿；重启后端实测登录 + 用户列表 + 机构列表 + 角色列表 + 校区偏好 `/me` 五路全 200，dev 库 `flyway_schema_history` V40 success=1。
+
+</details>
+
+<details><summary>0c 实际落地记录（机构权限码改 tenant:* 与角色种子裁净）</summary>
+
+- **改名范围只到"底座自己的接口"**：`InstitutionController`（`/api/organizations/institutions`）与 `SystemInstitutionController`（`/api/system/institution/current`）的 `@RequiresPermission` 由 `organization:read|write` 改 `tenant:read|write`；`module-organization` 的校区/教室/学期/时段/校区偏好接口**继续用 `organization:*`**，那是业务模块自己的域名，不该跟着底座改。
+- **注意遗留**：底座机构接口的 URL 仍挂在 `/api/organizations/**` 前缀下（改了要动前端、nginx 与生产配置，收益不抵风险），所以"路径前缀 = 模块归属"这条判断在本项目不成立，认权限码而不是认路径。
+- **V41（底座段）**：`sys_menu` 108 `机构资料查看` 的码改 `tenant:read`，补 114 `机构资料维护`（`tenant:write`，此前写接口有码无节点，总览页勾不到）并给平台管理员补 `sys_role_menu` 授权行；两条 INSERT 用 `INSERT IGNORE`，让"删历史行重放"不因主键已存在中断；`PLATFORM_ADMIN.permission_codes` 裁成只含 `tenant:*` + `system:*`。
+- **V42（教培业务段，第二个项目不带）**：`CONCAT` 把 `organization:read,organization:write,education:read,education:write` 补回平台管理员。今后新业务模块的码照此由各模块迁移追加，不回写底座种子——这样 0e 生成 core 基线时，底座段是干净的。`CONCAT` 不幂等，重放必须连 V41 一起删（脚本内已注明）。
+- **前端**：core `useSystemPermissions().canWriteInstitution` 改判 `tenant:write`；`permissionLabels` 增 `tenant:read|write`（机构(租户)分组），`organization:*`/`education:*` 两组保留但标注为"业务码、core 只作展示兜底"，归属拆分并入 0d。
+- **发布影响**：权限快照写进了 JWT，已登录的旧令牌不带 `tenant:*`，访问机构接口会 403，**必须重新登录**（与阶段四 Redis 前缀切换同批，那次本来就是全员掉线）。角色码变更属迁移期变更，不走运行时的 `invalidateUserSessions`。
+- **验证**：scratch 库 V1..V42 全量回放，种子结果复核（平台管理员串含 4 个业务码且不重复、菜单 108/114 为新码、`sys_role_menu` 有 114 的授权行）；dev 库另走"删 41/42 历史行 + 重启重放"确认改后脚本可续跑，结果与全新回放一致；`mvn -o -q test` 全绿；`pnpm lint` + `pnpm build` 通过；重启后新登录 `/api/auth/me` 权限含 `tenant:read`/`tenant:write`，`GET|PUT /system/institution/current`、`/organizations/institutions`、`/organizations/campuses` 四路实测通过（PUT 用同值幂等回写，未改数据）。
 
 </details>
 

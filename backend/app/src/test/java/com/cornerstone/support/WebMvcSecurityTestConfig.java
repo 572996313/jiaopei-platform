@@ -97,7 +97,10 @@ public class WebMvcSecurityTestConfig {
                         "system:user:manage",
                         "system:role:manage",
                         "system:menu:manage",
-                        "system:dict:manage"
+                        "system:dict:manage",
+                        // 机构=租户属底座，权限码与业务的 organization:* 分开（阶段五-0c）
+                        "tenant:read",
+                        "tenant:write"
                     )),
                     false,
                     "admin"

@@ -28,7 +28,7 @@ public class SystemInstitutionController {
 
     @Operation(summary = "获取当前机构信息")
     @GetMapping("/current")
-    @RequiresPermission("organization:read")
+    @RequiresPermission("tenant:read")
     public ApiResponse<CurrentInstitutionView> current() {
         Long institutionId = AuthContext.requireUser().orgId();
         return ApiResponse.success("当前机构信息已加载",
@@ -37,7 +37,7 @@ public class SystemInstitutionController {
 
     @Operation(summary = "更新当前机构信息")
     @PutMapping("/current")
-    @RequiresPermission("organization:write")
+    @RequiresPermission("tenant:write")
     public ApiResponse<CurrentInstitutionView> update(@Valid @RequestBody CurrentInstitutionUpdateRequest request) {
         Long institutionId = AuthContext.requireUser().orgId();
         return ApiResponse.success("当前机构信息已更新",

@@ -63,7 +63,7 @@ class SystemInstitutionControllerWebTest {
 
     @Test
     void currentUsesAuthenticatedUserInstitution() throws Exception {
-        given(permissionService.hasPermission(any(), eq("organization:read"))).willReturn(true);
+        given(permissionService.hasPermission(any(), eq("tenant:read"))).willReturn(true);
         given(institutionService.getCurrentInstitution(1L)).willReturn(new CurrentInstitutionView(
             1L,
             "SYS-DEFAULT",
