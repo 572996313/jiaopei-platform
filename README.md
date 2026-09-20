@@ -29,7 +29,7 @@ jiaopei-platform/
 - **education**：教师、学员与家长、课程/班型、班级与开班规则、报名/入班、排课/课次、考勤、班级变动通知
 - **miniapp**：家长/学生端微信登录、课表、考勤
 
-后端模块可按开关装配（`jiaopei.modules.*-enabled`，阶段二C 起为真开关），详见 `docs/底座分离与Cornerstone重构计划.md`。
+后端模块可按开关装配（`cornerstone.modules.*-enabled`，阶段二C 起为真开关，阶段四起配置前缀为 `cornerstone.*`），详见 `docs/底座分离与Cornerstone重构计划.md`。
 
 ## 快速开始
 
