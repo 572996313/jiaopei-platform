@@ -1,10 +1,10 @@
-package com.jiaopei.platform.organization.controller;
+package com.jiaopei.platform.tenant.controller;
 
 import com.jiaopei.platform.auth.annotation.RequiresPermission;
 import com.jiaopei.platform.common.api.ApiResponse;
-import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
-import com.jiaopei.platform.organization.dto.InstitutionCreateRequest;
-import com.jiaopei.platform.organization.service.InstitutionService;
+import com.jiaopei.platform.tenant.domain.InstitutionEntity;
+import com.jiaopei.platform.tenant.dto.InstitutionCreateRequest;
+import com.jiaopei.platform.tenant.service.InstitutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

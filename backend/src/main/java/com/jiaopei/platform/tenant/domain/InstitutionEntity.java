@@ -1,4 +1,4 @@
-package com.jiaopei.platform.organization.domain.entity;
+package com.jiaopei.platform.tenant.domain;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.jiaopei.platform.common.model.BaseEntity;

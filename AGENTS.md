@@ -139,8 +139,8 @@ pnpm dev:h5            # H5 调试
 
 ## 底座边界（Cornerstone 阶段一起步，详见 `docs/底座分离与Cornerstone重构计划.md`）
 
-- 底座包 = `auth` / `system` / `common` / `config`，业务包 = `organization` / `education`。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
-- ArchUnit 强制：底座包不得依赖 `education..`；对 `organization..` 的依赖仅豁免类名含 `Institution` 的租户相关类（阶段二把机构迁回底座后移除豁免）。
+- 底座包 = `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回），业务包 = `organization`（校区/教室/学期/时间段）/ `education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
+- ArchUnit 强制：底座包不得依赖 `organization..` / `education..`（Institution 豁免已随机构迁回移除）。
 - 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`，实现放业务模块，经 `ObjectProvider` 可选注入），不要在底座里直接 import 业务 mapper。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
 

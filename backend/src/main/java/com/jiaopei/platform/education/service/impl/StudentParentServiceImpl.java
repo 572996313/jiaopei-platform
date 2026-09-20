@@ -13,7 +13,7 @@ import com.jiaopei.platform.education.dto.StudentParentView;
 import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.education.mapper.StudentParentMapper;
 import com.jiaopei.platform.education.service.StudentParentService;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;

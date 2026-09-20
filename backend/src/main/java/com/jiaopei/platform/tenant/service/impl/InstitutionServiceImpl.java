@@ -1,14 +1,14 @@
-package com.jiaopei.platform.organization.service.impl;
+package com.jiaopei.platform.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
-import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
-import com.jiaopei.platform.organization.dto.CurrentInstitutionUpdateRequest;
-import com.jiaopei.platform.organization.dto.CurrentInstitutionView;
-import com.jiaopei.platform.organization.dto.InstitutionCreateRequest;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
-import com.jiaopei.platform.organization.service.InstitutionService;
+import com.jiaopei.platform.tenant.domain.InstitutionEntity;
+import com.jiaopei.platform.tenant.dto.CurrentInstitutionUpdateRequest;
+import com.jiaopei.platform.tenant.dto.CurrentInstitutionView;
+import com.jiaopei.platform.tenant.dto.InstitutionCreateRequest;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.service.InstitutionService;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;

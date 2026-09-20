@@ -1,9 +1,9 @@
-package com.jiaopei.platform.organization.service;
+package com.jiaopei.platform.tenant.service;
 
-import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
-import com.jiaopei.platform.organization.dto.CurrentInstitutionUpdateRequest;
-import com.jiaopei.platform.organization.dto.CurrentInstitutionView;
-import com.jiaopei.platform.organization.dto.InstitutionCreateRequest;
+import com.jiaopei.platform.tenant.domain.InstitutionEntity;
+import com.jiaopei.platform.tenant.dto.CurrentInstitutionUpdateRequest;
+import com.jiaopei.platform.tenant.dto.CurrentInstitutionView;
+import com.jiaopei.platform.tenant.dto.InstitutionCreateRequest;
 import java.util.List;
 
 public interface InstitutionService {

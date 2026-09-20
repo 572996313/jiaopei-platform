@@ -105,12 +105,13 @@ class ArchitectureRulesTest {
             .check(productionClasses);
     }
 
-    /** 底座包（auth/system/common/config）：换行业后仍可复用的部分，禁止感知任何教培业务 */
+    /** 底座包（auth/system/common/config/tenant）：换行业后仍可复用的部分，禁止感知任何教培业务 */
     private static final String[] PLATFORM_PACKAGES = {
         "com.jiaopei.platform.auth..",
         "com.jiaopei.platform.system..",
         "com.jiaopei.platform.common..",
-        "com.jiaopei.platform.config.."
+        "com.jiaopei.platform.config..",
+        "com.jiaopei.platform.tenant.."
     };
 
     @Test
@@ -121,22 +122,11 @@ class ArchitectureRulesTest {
             .check(productionClasses);
     }
 
-    // 临时豁免：类名含 Institution 的引用放行——机构属多租户底座概念，
-    // 待阶段二把机构相关类从 organization 包迁回底座后删除此豁免
-    private static final DescribedPredicate<JavaClass> NOT_INSTITUTION_CLASSES =
-        new DescribedPredicate<>("非机构(Institution)相关类") {
-            @Override
-            public boolean test(JavaClass javaClass) {
-                return !javaClass.getSimpleName().contains("Institution");
-            }
-        };
-
     @Test
-    void platformMustNotDependOnOrganizationExceptInstitution() {
+    void platformMustNotDependOnOrganization() {
         noClasses().that().resideInAnyPackage(PLATFORM_PACKAGES)
-            .should().dependOnClassesThat(JavaClass.Predicates
-                .resideInAnyPackage("com.jiaopei.platform.organization..").and(NOT_INSTITUTION_CLASSES))
-            .because("底座边界：auth/system/common/config 不得依赖组织业务包（机构/租户类暂豁免，阶段二收编）")
+            .should().dependOnClassesThat().resideInAnyPackage("com.jiaopei.platform.organization..")
+            .because("底座边界：auth/system/common/config 不得依赖组织业务包（机构已迁至底座 tenant 包）")
             .check(productionClasses);
     }
 }

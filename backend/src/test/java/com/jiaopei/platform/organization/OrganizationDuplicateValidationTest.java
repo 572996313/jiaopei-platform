@@ -2,13 +2,13 @@ package com.jiaopei.platform.organization;
 
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.organization.domain.entity.CampusEntity;
-import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
+import com.jiaopei.platform.tenant.domain.InstitutionEntity;
 import com.jiaopei.platform.organization.dto.CampusCreateRequest;
-import com.jiaopei.platform.organization.dto.InstitutionCreateRequest;
+import com.jiaopei.platform.tenant.dto.InstitutionCreateRequest;
 import com.jiaopei.platform.organization.mapper.CampusMapper;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import com.jiaopei.platform.organization.service.impl.CampusServiceImpl;
-import com.jiaopei.platform.organization.service.impl.InstitutionServiceImpl;
+import com.jiaopei.platform.tenant.service.impl.InstitutionServiceImpl;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

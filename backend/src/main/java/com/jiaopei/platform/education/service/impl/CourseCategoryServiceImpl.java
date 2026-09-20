@@ -8,7 +8,7 @@ import com.jiaopei.platform.education.dto.CourseCategoryCreateRequest;
 import com.jiaopei.platform.education.dto.CourseCategoryUpdateRequest;
 import com.jiaopei.platform.education.mapper.CourseCategoryMapper;
 import com.jiaopei.platform.education.service.CourseCategoryService;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;

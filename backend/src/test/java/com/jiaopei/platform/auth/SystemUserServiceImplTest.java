@@ -11,7 +11,7 @@ import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
 import com.jiaopei.platform.auth.service.CampusBelongingValidator;
 import com.jiaopei.platform.auth.service.impl.SystemUserServiceImpl;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.Test;

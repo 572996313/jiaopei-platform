@@ -36,6 +36,7 @@ import org.springframework.transaction.PlatformTransactionManager;
     basePackages = {
         "com.jiaopei.platform.auth.mapper",
         "com.jiaopei.platform.system.mapper",
+        "com.jiaopei.platform.tenant.mapper",
         "com.jiaopei.platform.organization.mapper",
         "com.jiaopei.platform.education.mapper"
     },

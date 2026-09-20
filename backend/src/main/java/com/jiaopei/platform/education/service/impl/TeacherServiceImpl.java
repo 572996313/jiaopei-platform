@@ -13,7 +13,7 @@ import com.jiaopei.platform.education.mapper.TeacherMapper;
 import com.jiaopei.platform.education.service.TeacherService;
 import com.jiaopei.platform.organization.domain.entity.CampusEntity;
 import com.jiaopei.platform.organization.mapper.CampusMapper;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;

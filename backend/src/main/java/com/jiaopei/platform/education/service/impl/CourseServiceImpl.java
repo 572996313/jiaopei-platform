@@ -13,7 +13,7 @@ import com.jiaopei.platform.education.dto.CourseUpdateRequest;
 import com.jiaopei.platform.education.mapper.CourseCategoryMapper;
 import com.jiaopei.platform.education.mapper.CourseMapper;
 import com.jiaopei.platform.education.service.CourseService;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;

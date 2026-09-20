@@ -15,7 +15,7 @@ import com.jiaopei.platform.education.mapper.EnrollmentMapper;
 import com.jiaopei.platform.education.mapper.StudentMapper;
 import com.jiaopei.platform.education.mapper.TeachingClassMapper;
 import com.jiaopei.platform.education.service.EnrollmentService;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;

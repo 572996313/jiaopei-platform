@@ -2,10 +2,10 @@ package com.jiaopei.platform.organization;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jiaopei.platform.common.exception.BusinessException;
-import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
-import com.jiaopei.platform.organization.dto.CurrentInstitutionUpdateRequest;
-import com.jiaopei.platform.organization.mapper.InstitutionMapper;
-import com.jiaopei.platform.organization.service.impl.InstitutionServiceImpl;
+import com.jiaopei.platform.tenant.domain.InstitutionEntity;
+import com.jiaopei.platform.tenant.dto.CurrentInstitutionUpdateRequest;
+import com.jiaopei.platform.tenant.mapper.InstitutionMapper;
+import com.jiaopei.platform.tenant.service.impl.InstitutionServiceImpl;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

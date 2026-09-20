@@ -1,4 +1,4 @@
-package com.jiaopei.platform.organization.dto;
+package com.jiaopei.platform.tenant.dto;
 
 public record CurrentInstitutionView(
     Long id,

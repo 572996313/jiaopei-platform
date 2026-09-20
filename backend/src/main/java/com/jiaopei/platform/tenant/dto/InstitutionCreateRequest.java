@@ -1,4 +1,4 @@
-package com.jiaopei.platform.organization.dto;
+package com.jiaopei.platform.tenant.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
