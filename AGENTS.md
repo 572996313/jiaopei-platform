@@ -6,10 +6,10 @@
 
 JiaoPei 是线下班课为主的教培管理平台，多模块单体仓库：
 
-- `backend/` — Spring Boot 3.5 / Java 21 / MyBatis-Plus / Flyway / MySQL 8 / Redis
+- `backend/` — Spring Boot 3.5 / Java 21 / MyBatis-Plus / Flyway / MySQL 8 / Redis，Maven 聚合工程（见「后端模块划分」）
 - `frontend/` — Vue 3 + Vite + TypeScript + Element Plus 管理端
 - `miniapp/` — uni-app（Vue 3）微信小程序 + H5
-- `db/`、`docker/`、`docs/` — 初始化脚本、容器编排、交付/架构文档
+- `docker/`、`docs/` — 容器编排、交付/架构文档（原顶层 `db/` 只放过一个占位迁移，已随阶段二B 删除，迁移统一在 `backend/app/src/main/resources/db/migration`）
 
 UI 文案、接口文档、数据库注释、代码注释**统一使用中文**（见「注释与文案语言规范」）。
 
@@ -31,14 +31,31 @@ export JAVA_HOME="C:/Users/57299/.posh_sdk/java/21.0.9-oracle"
 export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
-### 后端（工作目录 `backend/`）
+### 后端模块划分（阶段二B 起为 Maven 多模块）
+
+`backend/` 是聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`），四个子模块：
+
+| 模块 | artifactId | 内容 | 依赖方向 |
+| --- | --- | --- | --- |
+| `cornerstone-core/` | `cornerstone-core` | 底座：`auth` / `system` / `common` / `config` / `tenant` + 全部第三方 starter | 不依赖任何业务模块 |
+| `module-organization/` | `module-organization` | 业务：校区/教室/学期/时间段（`organization` 包） | → core |
+| `module-education/` | `module-education` | 业务：教师/学员/班级/排课/考勤/小程序（`education` 包） | → core、→ organization |
+| `app/` | `jiaopei-platform-backend` | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
+
+- **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
+- `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。
+- 业务专属的第三方依赖（如 `wx-java-miniapp`）目前仍随 core 一起声明，阶段二C 再随模块迁移；core 的 pom 里**不允许**出现 `module-*` 依赖。
+- 新增类放在自己所属模块，不要在 `app/src/main/java` 下写业务代码（该模块只放主类与资源）。
+
+### 后端常用命令（工作目录 `backend/`）
 
 ```bash
 mvn -q test                                                # 全量测试（改动必跑，不只是 mvn compile）
 mvn -q -Dtest=AuthControllerWebTest test                   # 单个测试类
 mvn -q -Dtest=AuthControllerWebTest#方法名 test             # 单个测试方法
-mvn -q -DskipTests package                                 # 打包，产物 target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar
-mvn spring-boot:run                                        # 本地运行（需先起 MySQL/Redis）
+mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar
+mvn -q -pl module-education -am -DskipTests package         # 只构建某业务模块及其依赖（-am 自动带上 core）
+mvn -q -pl app spring-boot:run                             # 本地运行（需先起 MySQL/Redis，且 core/业务模块已 install 到本地仓库）
 mvn -q dependency:go-offline                               # 预拉依赖（Dockerfile 构建也走这一步）
 ```
 
@@ -60,7 +77,7 @@ scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
 ```bash
 netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
 powershell -NoProfile -Command "Stop-Process -Id <PID> -Force"                 # 停旧进程（可先用 Get-CimInstance 查 CommandLine 确认是自己的 java 进程再杀）
-cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar &
+cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar &
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 200 才算起来，别猜日志
 ```
 
@@ -68,7 +85,7 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        #
 
 - `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
 - Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
-- 后端有 **ArchUnit 架构守护测试**（`backend/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包。违反即 `mvn test` 失败，取代人工 grep 自查。
+- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant）不得依赖 organization/education 业务包。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）
 
@@ -118,12 +135,12 @@ pnpm dev:h5            # H5 调试
 
 ## 模块划分与持久化
 
-- 包结构 `com.jiaopei.platform`：`auth` / `organization`（机构/校区/教室/学期/时间段）/ `education`（教师/学员/班级/课程/报名/排课/考勤/变动通知）/ `system`（用户角色菜单字典、bootstrap、health）/ `common` / `config`。
+- 包结构 `com.jiaopei.platform`：`auth` / `system` / `common` / `config` / `tenant`（机构=租户）→ `cornerstone-core`；`organization`（校区/教室/学期/时间段）→ `module-organization`；`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`。
 - 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
-- `JiaopeiProperties.modules.*-enabled` 仅是 bootstrap 展示状态，代码里没有 `@ConditionalOnProperty`，别误当模块开关。
+- `JiaopeiProperties.modules.*-enabled` 仅是 bootstrap 展示状态，代码里没有 `@ConditionalOnProperty`，别误当模块开关（阶段二C 处理）。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
-- Mapper 由 `MybatisPlusConfig` 的 `@MapperScan` 显式扫描四个业务模块的 `mapper` 包；XML 位置 `classpath*:/mapper/**/*.xml`（当前 `resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
-- schema 变更一律走 Flyway：`backend/src/main/resources/db/migration/V<n>__desc.sql`，表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
+- Mapper 由 core 里的 `MybatisPlusConfig` 的 `@MapperScan` 显式扫描五个包的 `mapper`（`auth` / `system` / `tenant` / `organization` / `education`）；新增业务模块时要同步在这里加一行，或等阶段二C 改成各模块自带 `@MapperScan`；XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
+- schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
 
@@ -137,10 +154,10 @@ pnpm dev:h5            # H5 调试
 6. **验证方式**：本地用 scratch 库把 V1..V<n> 全量 source 一遍（`mysql --default-character-set=utf8mb4`，Windows 客户端默认码字符集会报 Data too long），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态（本地服务端与生产同为 8.4，回放即等价验证，无需另找 5.7 环境；语法以 MySQL-5 解析器口径为准）。
 7. **生产修复流程**：迁移失败（`Detected failed migration to version X`）→ 修复脚本后在生产执行 `DELETE FROM flyway_schema_history WHERE version='X' AND success=0`（等价 flyway repair），再重启后端让 Flyway 重放；改过的脚本若已在生产成功过，则不允许原地改，必须新增修复迁移。
 
-## 底座边界（Cornerstone 阶段一起步，详见 `docs/底座分离与Cornerstone重构计划.md`）
+## 底座边界（Cornerstone 阶段二B 起为物理 Maven 隔离，详见 `docs/底座分离与Cornerstone重构计划.md`）
 
 - 底座包 = `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回），业务包 = `organization`（校区/教室/学期/时间段）/ `education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
-- ArchUnit 强制：底座包不得依赖 `organization..` / `education..`（Institution 豁免已随机构迁回移除）。
+- 边界现在有两层保护：Maven 依赖方向（`cornerstone-core` 的 pom 不声明任何 `module-*` 依赖，写错直接编译不过）+ ArchUnit 规则（底座包不得依赖 `organization..` / `education..`，Institution 豁免已随机构迁回移除）。
 - 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`，实现放业务模块，经 `ObjectProvider` 可选注入），不要在底座里直接 import 业务 mapper。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
 
@@ -255,7 +272,7 @@ public ApiResponse<List<TeacherEntity>> list(...) { ... }
 
 ```bash
 # 找没有末行 COMMENT 的建表
-grep -rlE "ENGINE=InnoDB" backend/src/main/resources/db/migration | xargs grep -L "COMMENT"
+grep -rlE "ENGINE=InnoDB" backend/app/src/main/resources/db/migration | xargs grep -L "COMMENT"
 # 列注释非空验证
 # SHOW CREATE TABLE / INFORMATION_SCHEMA.COLUMNS.COLUMN_COMMENT
 ```

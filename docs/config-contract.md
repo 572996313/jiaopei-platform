@@ -108,7 +108,7 @@
 
 对应后端改动:
 
-- 迁移:`backend/src/main/resources/db/migration/V25__add_list_config_page_and_dialog_json.sql`
+- 迁移:`backend/app/src/main/resources/db/migration/V25__add_list_config_page_and_dialog_json.sql`
   (含三个内置资源 system-users / system-roles / system-configs 的种子壳配置)。
 - 实体 / DTO:`ListConfigEntity`、`ListConfigView`、`ListConfigCreateRequest`、
   `ListConfigUpdateRequest` 均已加 `pageJson` / `dialogJson` 字段。

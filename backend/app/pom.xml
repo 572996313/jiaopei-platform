@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jiaopei</groupId>
+        <artifactId>jiaopei-platform-backend-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>jiaopei-platform-backend</artifactId>
+    <name>jiaopei-platform-backend</name>
+    <description>组装启动模块：主类 + application.yml + Flyway 迁移 + 全量测试。更换业务方向时只需增删本模块对业务模块的依赖。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.jiaopei</groupId>
+            <artifactId>cornerstone-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jiaopei</groupId>
+            <artifactId>module-organization</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jiaopei</groupId>
+            <artifactId>module-education</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

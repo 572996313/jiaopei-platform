@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jiaopei</groupId>
+        <artifactId>jiaopei-platform-backend-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>module-education</artifactId>
+    <name>module-education</name>
+    <description>业务模块：教务（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序业务），依赖底座与教务主数据模块。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.jiaopei</groupId>
+            <artifactId>cornerstone-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jiaopei</groupId>
+            <artifactId>module-organization</artifactId>
+        </dependency>
+    </dependencies>
+</project>

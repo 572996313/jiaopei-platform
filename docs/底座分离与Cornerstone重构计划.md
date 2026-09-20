@@ -141,6 +141,12 @@ frontend/            # 转 pnpm workspace
 
 > 进度：二A 已完成（2026-09-20）——`InstitutionEntity/Mapper/Service/Impl、CurrentInstitution*、InstitutionCreateRequest、InstitutionController` 共 8 类从 organization 迁至底座 `com.jiaopei.platform.tenant` 包；`MybatisPlusConfig` @MapperScan 补 `tenant.mapper`；ArchUnit 移除 Institution 豁免并把 `tenant..` 纳入底座包清单；AGENTS.md 同步。全量测试通过。
 > 因生产 V38 半实施恢复进行中，本阶段**不动存量 V1~V38 迁移脚本**（不重排、不搬家），模块专属迁移目录仅对今后新脚本生效（D2 按"A+基线保留"执行）。
+> 进度：二B 已完成（2026-09-20）——`backend/` 改为 Maven 聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`），子模块 `cornerstone-core`（auth/system/common/config/tenant + 全部第三方 starter）、`module-organization`（→core）、`module-education`（→core、→organization）、`app`（主类 + 全部资源 + 全部测试 + `spring-boot-maven-plugin`）。
+> - app 的 artifactId 保留 `jiaopei-platform-backend`，jar 文件名不变，产物路径改为 `backend/app/target/`；`scripts/restart-backend.sh`、`backend/Dockerfile`（按模块分层 COPY pom/src）、`backend/.gitignore`（`/target/` → `target/` 以覆盖各子模块）同步。
+> - 依赖方向已实测：education→organization 5 处、organization→education 0 处，故 org/edu 可分模块。
+> - 与计划的差异：**Flyway 迁移与测试暂全部留在 `app/` 模块**（原计划二B 就把迁移拆到各模块 `META-INF`，因生产 V38 恢复未完成而推迟到二C/阶段五）；`MybatisPlusConfig` 的 `@MapperScan` 仍在 core 里统一扫五个 mapper 包，按模块拆分留到二C。
+> - 验收：`mvn -q test` 166 个测试全绿；`mvn -q -DskipTests install` 四模块成功。开关矩阵（关模块启动）属二C。
+> - 操作提醒：`spring-boot:run` 必须在 `app/` 下或 `-pl app`（不带 `-am`），对 core 执行该 goal 会因无主类失败；改 core/业务模块代码后需先 `install` 再 run，或直接用 `scripts/restart-backend.sh`。
 
 1. 建 parent pom，拆 `cornerstone-core` / `module-*` / `app` 四模块，包随模块迁移（IDE 移动保 git 历史）。
 2. Flyway 存量 V1~V37 按表归属拆分为 core 段与各模块段（新号段重排；**只拆脚本内容归属、不改表结构**，已在环境执行过的库靠 `flyway_schema_history` 按新 location 重新 baseline 的策略需专项设计，见 §8）。

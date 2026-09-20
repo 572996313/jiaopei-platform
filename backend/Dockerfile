@@ -12,11 +12,15 @@ WORKDIR /workspace/backend
 
 COPY backend/settings-docker.xml /root/.m2/settings.xml
 COPY backend/pom.xml ./
+COPY backend/cornerstone-core/pom.xml cornerstone-core/
+COPY backend/module-organization/pom.xml module-organization/
+COPY backend/module-education/pom.xml module-education/
+COPY backend/app/pom.xml app/
 
-# 第一层:只拉依赖(只依赖 pom.xml,源码改了不会重跑这步)
+# 第一层:只拉依赖(只依赖各模块 pom.xml,源码改了不会重跑这步)
 # -q 安静输出,省 IO
 # -fae 失败时继续构建其他模块(Fail At End),不会因一个插件问题卡死
-# -T 1C 每核一个项目线程,后端单模块收益不大但能省一点 plugin 解析时间
+# -T 1C 每核一个项目线程
 RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
     mvn -B -ntp -q -s /root/.m2/settings.xml -DskipTests \
         -Dmaven.wagon.http.retryHandler.count=5 \
@@ -25,7 +29,10 @@ RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
         -Dmaven.plugin.validation=BRIEF \
         dependency:go-offline
 
-COPY backend/src ./src
+COPY backend/cornerstone-core/src cornerstone-core/src
+COPY backend/module-organization/src module-organization/src
+COPY backend/module-education/src module-education/src
+COPY backend/app/src app/src
 
 # 第二层:编译(同时缓存 m2 和 target,源码变更只触发这一步)
 # -Dmaven.test.skip=true 同时跳过测试编译(比 -DskipTests 更彻底)
@@ -46,7 +53,7 @@ WORKDIR /app
 ENV SERVER_PORT=8080
 ENV JAVA_OPTS=""
 
-COPY --from=build /workspace/backend/target/*.jar /app/app.jar
+COPY --from=build /workspace/backend/app/target/*.jar /app/app.jar
 
 EXPOSE 8080
 

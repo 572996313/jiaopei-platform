@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export JAVA_HOME="${JAVA_HOME:-C:/Users/57299/.posh_sdk/java/21.0.9-oracle}"
 export PATH="$JAVA_HOME/bin:$PATH"
-JAR="$ROOT/backend/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar"
+JAR="$ROOT/backend/app/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar"
 LOG_DIR="$ROOT/logs"
 mkdir -p "$LOG_DIR"
 
