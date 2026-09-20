@@ -13,8 +13,6 @@ ALTER TABLE jp_time_slot
     COMMENT = '时间段(每星期每节次一行,由时段模板批量展开或手工录入)';
 
 -- 3) 重建编码唯一键
-DROP INDEX  uk_jp_time_slot_org_code
-ON jp_time_slot;
 
 CREATE UNIQUE INDEX uk_jp_time_slot_code
 ON jp_time_slot (
