@@ -14,9 +14,17 @@ ALTER TABLE jp_time_slot
     COMMENT = '时间段(每星期每节次一行,由时段模板批量展开或手工录入)';
 
 -- 3) 重建编码唯一键(删旧建新放同一条语句,institution 外键始终有前缀索引可用)
-ALTER TABLE jp_time_slot
-    DROP INDEX uk_jp_time_slot_org_code,
-    ADD UNIQUE KEY uk_jp_time_slot_code (institution_id, campus_id, slot_code, weekday, deleted);
+DROP INDEX IF EXISTS uk_jp_time_slot_org_code
+ON jp_time_slot;
+
+CREATE UNIQUE INDEX uk_jp_time_slot_code
+ON jp_time_slot (
+    institution_id,
+    campus_id,
+    slot_code,
+    weekday,
+    deleted
+);
 
 -- 4) 重建名称唯一键(同名替换)
 ALTER TABLE jp_time_slot
