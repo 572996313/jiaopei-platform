@@ -412,6 +412,7 @@ import {
   parsePageShell,
   parseQuery,
   queryToJson,
+  rendererChoices,
   type ListConfigFormState,
 } from '@cornerstone/core/components/ListConfigEditor/types'
 import {
@@ -530,6 +531,11 @@ interface FieldGuideGroup {
   rows: FieldGuideRow[]
 }
 
+/** 说明表里的渲染器名字 = 底座内置 + 已装配业务模块登记的(挂上组织模块会多 campusName) */
+const rendererValues = rendererChoices()
+  .map((item) => item.value)
+  .join(' / ')
+
 const fieldGuideGroups: FieldGuideGroup[] = [
   {
     title: '表格列(columns)',
@@ -567,7 +573,7 @@ const fieldGuideGroups: FieldGuideGroup[] = [
       {
         field: 'renderer',
         meaning: '特殊渲染器(普通列不要填)',
-        values: 'institutionName / campusName / permissionTags / passwordStatus',
+        values: rendererValues,
       },
     ],
   },

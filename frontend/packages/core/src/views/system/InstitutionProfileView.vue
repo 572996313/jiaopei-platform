@@ -13,7 +13,7 @@
             >刷新机构资料</el-button
           >
           <el-button
-            v-if="permissions.canWriteOrganization"
+            v-if="permissions.canWriteInstitution"
             type="primary"
             :loading="institutionSubmitting"
             @click="submitInstitutionProfile"

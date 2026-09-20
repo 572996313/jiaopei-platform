@@ -13,8 +13,8 @@
       />
       <div class="education-context-text">
         每列 prop/label 必填;type 可选 text/datetime/dict/boolean/tags/map;type=dict 需
-        dictType,可配 tagTypeMap;type=map 需 valueMap; renderer 可选
-        institutionName/campusName/permissionTags/passwordStatus。
+        dictType,可配 tagTypeMap;type=map 需 valueMap;renderer 可选
+        {{ rendererNames }}。
       </div>
     </el-form-item>
     <el-form-item label="查询条件 queryJson">
@@ -54,7 +54,7 @@
         可选,描述该资源的"新增/编辑"弹窗;空表示未配置(列表页弹窗会提示先配置)。整体为 JSON
         对象,fields 为非空数组; 每个字段 field/label/type 必填;type 可选
         input/password/textarea/number/select/dict-select/switch/checkbox-group/radio/permission-groups;
-        select 可配 options 或 optionsLoader(institutions/campuses/roles/status);dict-select 需
+        select 可配 options 或 optionsLoader({{ loaderNames }});dict-select 需
         dictType; showOn/disabledOn 可选 create/edit;required 标必填;gridSpan
         1(半行)/2(整行);onChange 填页面注册的联动钩子名。
       </div>
@@ -92,12 +92,20 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { OPTIONS_LOADER_OPTIONS, rendererChoices } from './types'
+
 const columns = defineModel<string>('columns', { required: true })
 const query = defineModel<string>('query', { required: true })
 const actions = defineModel<string>('actions', { required: true })
 const form = defineModel<string>('form', { required: true })
 const page = defineModel<string>('page', { required: true })
 const dialog = defineModel<string>('dialog', { required: true })
+
+/** 帮助文案里的渲染器名字 = 底座内置 + 已装配业务模块登记的 */
+const rendererNames = computed(() => rendererChoices().map((item) => item.value).join('/'))
+
+const loaderNames = OPTIONS_LOADER_OPTIONS.map((item) => item.value).join('/')
 </script>
 
 <style scoped>

@@ -3,6 +3,7 @@ import { ElTag, ElTooltip } from 'element-plus'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useDataSourceStore } from '@cornerstone/core/stores/dataSource'
 import { permissionOptionLabel } from '@cornerstone/core/stores/permissionOptions'
+import { getListRenderer } from '@cornerstone/core/extension/module-extensions'
 import type { ListColumnConfig, QueryOption } from './types'
 
 /**
@@ -12,21 +13,26 @@ import type { ListColumnConfig, QueryOption } from './types'
 export interface RenderContext {
   /** 机构 ID → 名称 */
   formatInstitution?: (id?: string | null) => string
-  /** 校区 ID → 名称 */
-  formatCampus?: (id?: string | null) => string
   /** 机构下拉选项(查询条件 optionsLoader=institutions 使用) */
   institutionOptions?: QueryOption[]
-  /** 校区下拉选项(表单 optionsLoader=campuses,宿主按当前机构动态提供) */
-  campusOptions?: QueryOption[]
   /** 角色下拉选项(表单 optionsLoader=roles) */
   roleOptions?: QueryOption[]
   /** 状态选项(optionsLoader=status,通常来自 common_status 字典) */
   statusOptions?: QueryOption[]
+  /**
+   * 业务数据目录:目录编码(optionsLoader/renderer 引用的名字)→ 该编码的全量选项。
+   * 底座只按名字透传,不认识里面是什么业务;业务渲染器与下拉优先用它,取不到再回退数据源配置。
+   */
+  directories?: Record<string, QueryOption[]>
 }
 
 type ElTagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
-type CustomRenderer = (row: Record<string, any>, context?: RenderContext) => VNode
+type CustomRenderer = (
+  row: Record<string, any>,
+  column: ListColumnConfig,
+  context?: RenderContext
+) => VNode
 
 function renderTag(type: string, label: string): VNode {
   return h(ElTag, { type: type as ElTagType, size: 'small' }, { default: () => label })
@@ -35,11 +41,12 @@ function renderTag(type: string, label: string): VNode {
 /**
  * 代码侧预置渲染器注册表:配置通过 renderer 名字引用。
  * 用于无法用通用类型描述的自定义单元格(如多字段合成、带 tooltip 的标签组)。
+ * 只保留底座自身概念(机构、权限、密码态);业务渲染器由模块经 registerListRenderer 登记,
+ * renderCell 在本表查不到时回退到模块注册表。
  */
 const customRenderers: Record<string, CustomRenderer> = {
-  institutionName: (row, context) =>
+  institutionName: (row, _column, context) =>
     h('span', context?.formatInstitution?.(row.institutionId) ?? '-'),
-  campusName: (row, context) => h('span', context?.formatCampus?.(row.defaultCampusId) ?? '-'),
   permissionTags: (row) =>
     renderTagList(
       (Array.isArray(row.permissionCodes) ? row.permissionCodes : []).map((code: string) => ({
@@ -55,58 +62,35 @@ const customRenderers: Record<string, CustomRenderer> = {
 }
 
 /**
- * 查询条件下拉的选项加载器注册表:配置通过 optionsLoader 名字引用,
- * 优先使用宿主注入的数据(context),避免重复请求;
- * 宿主未注入时回退到配置化的数据源(useDataSourceStore,按 sourceCode 加载)。
- *
- * 新数据源无需在此注册:组件通过 resolveOptionLoader 统一解析,
- * 未在 context 中注入的编码会自动走数据源配置(见 renderers.ts 顶部说明)。
- */
-export const optionLoaders: Record<string, (context?: RenderContext) => QueryOption[]> = {
-  institutions: (context) =>
-    context?.institutionOptions?.length
-      ? context.institutionOptions
-      : resolveOptionLoader('institutions', context),
-  campuses: (context) =>
-    context?.campusOptions?.length
-      ? context.campusOptions
-      : resolveOptionLoader('campuses', context),
-  roles: (context) =>
-    context?.roleOptions?.length ? context.roleOptions : resolveOptionLoader('roles', context),
-  status: (context) =>
-    context?.statusOptions?.length ? context.statusOptions : resolveOptionLoader('status', context),
-}
-
-/**
  * 统一解析 optionsLoader 编码 → 下拉选项:
  * 1. 静态 options(调用方 field.options 已优先返回,此处不处理);
- * 2. 宿主注入的 context 数据(老页面四个编码 institutions/campuses/roles/status);
+ * 2. 宿主注入的 context 数据(底座三编码 institutions/roles/status + 业务注入的 directories);
  * 3. 配置化的数据源(useDataSourceStore.optionsFor,读取已预加载的缓存)。
+ *
+ * 新增数据源编码不用改这里:配置里的编码命中不了 1/2 时自动走数据源配置(sys_data_source)。
  */
 export function resolveOptionLoader(name: string, context?: RenderContext): QueryOption[] {
-  const contextOptions = legacyContextOptions(name, context)
+  const contextOptions = injectedContextOptions(name, context)
   if (contextOptions.length) {
     return contextOptions
   }
   return useDataSourceStore().optionsFor(name)
 }
 
-/** 老页面宿主注入的选项,未注入返回空数组 */
-function legacyContextOptions(name: string, context?: RenderContext): QueryOption[] {
+/** 宿主注入的选项,未注入返回空数组 */
+function injectedContextOptions(name: string, context?: RenderContext): QueryOption[] {
   if (!context) {
     return []
   }
   switch (name) {
     case 'institutions':
       return context.institutionOptions ?? []
-    case 'campuses':
-      return context.campusOptions ?? []
     case 'roles':
       return context.roleOptions ?? []
     case 'status':
       return context.statusOptions ?? []
     default:
-      return []
+      return context.directories?.[name] ?? []
   }
 }
 
@@ -154,6 +138,8 @@ function text(value: unknown): string {
 
 /**
  * 按列配置渲染单元格:renderer 优先,其次按 type 分派,缺省纯文本。
+ * renderer 先查底座内置表,再回退到业务模块经 registerListRenderer 登记的渲染器;
+ * 模块未装配时名字查不到,该列按原始值走通用渲染,不报错。
  */
 export function renderCell(
   column: ListColumnConfig,
@@ -161,9 +147,9 @@ export function renderCell(
   context?: RenderContext
 ): VNode {
   if (column.renderer) {
-    const renderer = customRenderers[column.renderer]
+    const renderer = customRenderers[column.renderer] ?? getListRenderer(column.renderer)
     if (renderer) {
-      return renderer(row, context)
+      return renderer(row, column, context)
     }
   }
 

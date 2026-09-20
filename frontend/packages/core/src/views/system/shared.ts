@@ -148,17 +148,17 @@ export function useSystemPermissions() {
     canManageUsers: auth.hasPermission('system:user:manage'),
     canManageRoles: auth.hasPermission('system:role:manage'),
     canWriteConfigs: auth.hasPermission('system:config:write'),
-    canWriteOrganization: auth.hasPermission('organization:write'),
+    // 机构=租户属底座；权限码沿用历史的 organization:write（改串要动 sys_menu/角色种子数据，未纳入本轮）
+    canWriteInstitution: auth.hasPermission('organization:write'),
     canManageDicts: auth.hasPermission('system:dict:manage'),
     canManageListConfigs: auth.hasPermission('system:list-config:manage'),
     canManageDataSources: auth.hasPermission('system:data-source:manage'),
   }))
 }
 
-/** 机构/校区名称回显与格式化(用户列表 institutionName/campusName 渲染用) */
+/** 机构名称回显与格式化(用户列表 institutionName 渲染用) */
 export function useInstitutionDisplay() {
   const institutionMap = new Map<string, string>()
-  const campusMap = new Map<string, string>()
 
   function formatInstitution(id?: string | null) {
     if (!id) {
@@ -167,12 +167,5 @@ export function useInstitutionDisplay() {
     return institutionMap.get(id) || `机构 #${id}`
   }
 
-  function formatCampus(id?: string | null) {
-    if (!id) {
-      return '未设置'
-    }
-    return campusMap.get(id) || `校区 #${id}`
-  }
-
-  return { institutionMap, campusMap, formatInstitution, formatCampus }
+  return { institutionMap, formatInstitution }
 }

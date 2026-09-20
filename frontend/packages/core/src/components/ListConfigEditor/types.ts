@@ -1,3 +1,5 @@
+import { listRendererChoices } from '@cornerstone/core/extension/module-extensions'
+
 /**
  * 列表配置可视化编辑器 —— 类型定义与 JSON↔可视化状态双向转换。
  *
@@ -164,13 +166,28 @@ export const FORM_FIELD_TYPE_OPTIONS = [
   { value: 'permission-groups', label: 'permission-groups(权限树勾选)' },
 ]
 
-export const RENDERER_OPTIONS = [
+/** 底座自身概念的渲染器(机构、权限、密码态) */
+const BASE_RENDERER_OPTIONS = [
   { value: 'institutionName', label: 'institutionName(机构名称)' },
-  { value: 'campusName', label: 'campusName(校区名称)' },
   { value: 'permissionTags', label: 'permissionTags(权限标签组)' },
   { value: 'passwordStatus', label: 'passwordStatus(密码状态标签)' },
 ]
 
+/**
+ * 渲染器候选 = 底座内置 + 已装配业务模块经 registerListRenderer 登记的名字(如 campusName)。
+ * 业务渲染器不在底座声明,模块没挂时编辑器也不会给出这个选项。
+ */
+export function rendererChoices() {
+  const extra = listRendererChoices().filter(
+    (item) => !BASE_RENDERER_OPTIONS.some((option) => option.value === item.value)
+  )
+  return [...BASE_RENDERER_OPTIONS, ...extra]
+}
+
+/**
+ * optionsLoader 候选：编码本身来自 sys_data_source 配置（列全量编码需要 data-source:manage 权限，
+ * 编辑器不满足前置），所以这里只是常用编码的便利清单；配置里写任何已存在的数据源编码都生效。
+ */
 export const OPTIONS_LOADER_OPTIONS = [
   { value: 'institutions', label: 'institutions(机构列表)' },
   { value: 'campuses', label: 'campuses(校区列表)' },

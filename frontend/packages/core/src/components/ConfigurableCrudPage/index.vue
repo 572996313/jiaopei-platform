@@ -78,11 +78,11 @@ const props = withDefaults(
     resourceCode: string
     /** 页面主标题兜底(优先 page_json.title,再此值,再 resourceName) */
     pageTitle?: string
-    /** 列表渲染上下文(机构/校区名称映射、查询下拉数据源) */
+    /** 列表渲染上下文(机构名称映射、查询下拉数据源、业务数据目录) */
     listContext?: RenderContext
     /** 表单 optionsLoader 数据源上下文 */
     formContext?: RenderContext
-    /** 表单字段联动回调(如机构变化刷新校区),透传给 ConfigurableForm */
+    /** 表单字段联动回调(如机构变化刷新下级下拉),透传给 ConfigurableForm */
     onFieldChange?: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void>
     /** 资源 CRUD 实现画像:api / payload 组装 / 内置动作(含 extraActions 覆盖) */
     crud?: CrudPageOptions

@@ -1,10 +1,12 @@
-import type { Component } from 'vue'
+import type { Component, VNode } from 'vue'
+import type { ListColumnConfig } from '@cornerstone/core/components/ConfigurableList/types'
+import type { RenderContext } from '@cornerstone/core/components/ConfigurableList/renderers'
 
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 提供三类扩展点：数据目录（用户管理要校区下拉）、机构切换广播（清业务筛选范围）、
- * 页面插槽（业务往别的模块页面里注入内容块）。
+ * 提供四类扩展点：数据目录（用户管理要校区下拉）、列表单元格渲染器（校区名称回显）、
+ * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）。
  * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
  * 模块未装配（清单里没挂）时查不到实现，底座按空数据降级而不是报错。
@@ -41,8 +43,44 @@ export async function loadDirectory(
   return loader(institutionId)
 }
 
-const institutionResetHandlers: Array<() => void> = []
+/** 列表单元格渲染器：入参是行数据、列配置与宿主注入的渲染上下文，返回单元格 VNode */
+export type ListCellRenderer = (
+  row: Record<string, any>,
+  column: ListColumnConfig,
+  context?: RenderContext
+) => VNode
 
+export interface ListRendererDefinition {
+  /** 列表配置里 renderer 字段引用的名字（如 campusName），要与 sys_list_config 中已存配置对齐 */
+  name: string
+  /** 配置编辑器下拉里的中文说明 */
+  label: string
+  render: ListCellRenderer
+}
+
+const listRenderers = new Map<string, ListRendererDefinition>()
+
+/**
+ * 业务模块登记自己的列表单元格渲染器（如校区名称回显）。
+ * 底座 renderCell 先查内置渲染器，找不到再按名字回退到这里；模块未装配时该列按普通值渲染。
+ */
+export function registerListRenderer(definition: ListRendererDefinition) {
+  listRenderers.set(definition.name, definition)
+}
+
+export function getListRenderer(name: string): ListCellRenderer | undefined {
+  return listRenderers.get(name)?.render
+}
+
+/** 配置编辑器的候选渲染器列表（底座内置项之外的模块贡献部分） */
+export function listRendererChoices(): Array<{ value: string; label: string }> {
+  return Array.from(listRenderers.values()).map((item) => ({
+    value: item.name,
+    label: item.label,
+  }))
+}
+
+const institutionResetHandlers: Array<() => void> = []
 /** 业务模块登记"机构切换/退出登录后要清空的范围状态" */
 export function onInstitutionReset(handler: () => void) {
   institutionResetHandlers.push(handler)

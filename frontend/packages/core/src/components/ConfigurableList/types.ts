@@ -1,7 +1,7 @@
 /**
  * 可配置列表的配置结构(与后端 sys_list_config 的 columns_json / query_json 对应)。
- * 配置只声明"渲染什么",具体渲染实现由 ConfigurableList 内置渲染器与
- * renderers.ts 的代码侧注册表(render 语义)承担。
+ * 配置只声明"渲染什么",具体渲染实现由 ConfigurableList 内置渲染器承担;
+ * 业务模块的渲染器经 registerListRenderer 登记,底座按名字回退查表。
  */
 
 export type ListColumnType = 'text' | 'datetime' | 'dict' | 'boolean' | 'tags' | 'map'
@@ -25,7 +25,7 @@ export interface ListColumnConfig {
   falseLabel?: string
   /** type=map 时的静态值映射,如 {"auth":"认证"} */
   valueMap?: Record<string, string>
-  /** 代码侧预置渲染器名称(renderers.ts 注册表),优先于 type */
+  /** 自定义渲染器名称(底座内置或业务模块注册),优先于 type */
   renderer?: string
 }
 
@@ -127,7 +127,7 @@ export interface FormFieldConfig {
   disabledOn?: FormMode[]
   /** 静态选项(type=select/radio/checkbox-group) */
   options?: QueryOption[]
-  /** 代码侧选项加载器(renderers.ts 的 optionLoaders 注册表),如 institutions/campuses/status */
+  /** 数据源编码(resolveOptionLoader 解析),如 institutions/roles/status 或 sys_data_source 里配置的编码 */
   optionsLoader?: string
   /** type=dict-select 时的字典类型编码 */
   dictType?: string
@@ -142,7 +142,7 @@ export interface FormFieldConfig {
   max?: number
   clearable?: boolean
   rows?: number
-  /** 组件间联动:值变化时通知宿主(如机构变化刷新校区),宿主导入 onChangeHandlers */
+  /** 组件间联动:值变化时通知宿主(如机构变化刷新下级下拉),宿主导入 onChangeHandlers */
   onChange?: string
 }
 

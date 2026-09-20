@@ -29,7 +29,7 @@ const props = withDefaults(
   defineProps<{
     /** 列表配置资源编码,对应 sys_list_config.resource_code,如 system-users */
     resourceCode: string
-    /** 渲染上下文:宿主页面注入的数据与映射函数(机构/校区名称、机构下拉选项等) */
+    /** 渲染上下文:宿主页面注入的数据与映射函数(机构名称、下拉选项、业务数据目录等) */
     context?: RenderContext
     /** 代码侧按钮动作注册表:配置里 action 名对应的处理器(label/disabled 支持行级动态) */
     actions?: Record<string, ActionHandler>

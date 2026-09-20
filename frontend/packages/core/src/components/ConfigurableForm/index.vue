@@ -179,7 +179,7 @@ const props = withDefaults(
     initial?: Record<string, any>
     /** 选项加载上下文(optionsLoader 数据源,宿主注入) */
     context?: RenderContext
-    /** 字段联动回调:field.field → (form, field) => void(如机构变化刷新校区) */
+    /** 字段联动回调:field.field → (form, field) => void(如机构变化刷新下级下拉) */
     onFieldChange?: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void>
     /** 是否禁用整个表单(如提交中) */
     disabled?: boolean
@@ -305,7 +305,7 @@ function initModel() {
   }
 }
 
-/** 值初始化完成后,通知声明了 onChange 联动钩子的字段(如机构变化刷新校区选项) */
+/** 值初始化完成后,通知声明了 onChange 联动钩子的字段(如机构变化刷新下级下拉选项) */
 function notifyFieldHooks() {
   if (!props.onFieldChange) {
     return

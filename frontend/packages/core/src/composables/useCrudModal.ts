@@ -16,7 +16,7 @@ import type { FormMode } from '@cornerstone/core/components/ConfigurableList/typ
 export interface CrudModalOptions {
   /** 资源显示名,用于 toast 文案 {name} 占位符与空回退 */
   resourceName?: string
-  /** 打开弹窗后、渲染表单前,宿主重置表单与联动缓存(reset + 预载校区等) */
+  /** 打开弹窗后、渲染表单前,宿主重置表单与联动缓存(reset + 预载下级下拉等) */
   onOpenReset?: (mode: FormMode, row: Record<string, any> | null) => void | Promise<void>
   /** 提交前自检(如“至少勾选一个权限码”),返回非空字符串则中止并展示 */
   beforeSubmit?: (form: Record<string, any>, mode: FormMode) => string | null

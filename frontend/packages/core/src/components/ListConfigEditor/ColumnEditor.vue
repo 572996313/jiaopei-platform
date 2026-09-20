@@ -97,7 +97,7 @@
             placeholder="特殊列才需要"
           >
             <el-option
-              v-for="opt in RENDERER_OPTIONS"
+              v-for="opt in rendererOptions"
               :key="opt.value"
               :label="opt.label"
               :value="opt.value"
@@ -119,11 +119,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import KeyValueEditor from './KeyValueEditor.vue'
 import TableEditorShell from './TableEditorShell.vue'
-import { COLUMN_TYPE_OPTIONS, RENDERER_OPTIONS, type ColumnRow } from './types'
+import { COLUMN_TYPE_OPTIONS, rendererChoices, type ColumnRow } from './types'
 
 const modelValue = defineModel<ColumnRow[]>({ required: true })
+
+/** 底座内置渲染器 + 已装配业务模块登记的渲染器(如校区的 campusName);未装配的模块不出现在候选里 */
+const rendererOptions = computed(() => rendererChoices())
 
 function createRow(): ColumnRow {
   return {

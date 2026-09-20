@@ -56,7 +56,10 @@ import { fetchInstitutions, type InstitutionSummary } from '@cornerstone/core/ap
 import { loadDirectory, type DirectoryOption } from '@cornerstone/core/extension/module-extensions'
 import ConfigurableCrudPage from '@cornerstone/core/components/ConfigurableCrudPage/index.vue'
 import type { CrudPageOptions } from '@cornerstone/core/components/ConfigurableCrudPage/types'
-import type { FormFieldConfig } from '@cornerstone/core/components/ConfigurableList/types'
+import type {
+  FormFieldConfig,
+  QueryOption,
+} from '@cornerstone/core/components/ConfigurableList/types'
 import type { RenderContext } from '@cornerstone/core/components/ConfigurableList/renderers'
 import {
   ensureStatusDictLoaded,
@@ -67,7 +70,7 @@ import {
 } from './shared'
 
 const auth = useAuthStore()
-const { institutionMap, campusMap, formatInstitution, formatCampus } = useInstitutionDisplay()
+const { institutionMap, formatInstitution } = useInstitutionDisplay()
 
 const statusOptions = useStatusOptions()
 
@@ -84,13 +87,19 @@ const roleAssignError = ref('')
 const assignRoleUser = ref<SystemUserSummary | null>(null)
 const selectedRoleIds = ref<string[]>([])
 
+function toOptions(list: DirectoryOption[]): QueryOption[] {
+  return list.map((item) => ({ value: item.id, label: item.label }))
+}
+
 const listRenderContext = computed<RenderContext>(() => ({
   formatInstitution,
-  formatCampus,
   institutionOptions: institutions.value.map((item) => ({
     label: item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
     value: item.id,
   })),
+  // 默认校区列的名称回显由 module-organization 注册的渲染器负责,
+  // 宿主只把跨机构拉到的目录数据按列表配置里的编码透传,不认识渲染逻辑
+  directories: { campuses: toOptions(campusDirectory.value) },
 }))
 
 function syncInstitutionMaps(list: InstitutionSummary[]) {
@@ -108,9 +117,6 @@ async function loadCampusDirectory() {
     institutions.value.map((item) => loadDirectory('campus', item.id))
   )
   campusDirectory.value = allCampuses.flat()
-  for (const item of campusDirectory.value) {
-    campusMap.set(item.id, item.label)
-  }
 }
 
 /** 表单 optionsLoader 数据源:机构 + 当前机构下的校区(弹窗内懒加载)+ 状态字典 */
@@ -120,10 +126,7 @@ const userFormContext = computed<RenderContext>(() => ({
     label: item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
     value: item.id,
   })),
-  campusOptions: userDialogCampuses.value.map((item) => ({
-    label: item.label,
-    value: item.id,
-  })),
+  directories: { campuses: toOptions(userDialogCampuses.value) },
 }))
 
 /** 机构变更联动:重拉当前机构校区,并在所选校区不在新机构下时清空(与旧实现一致) */
