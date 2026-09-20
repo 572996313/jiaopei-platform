@@ -3,7 +3,7 @@ DELETE FROM jp_time_slot WHERE deleted = 1;
 
 -- 2) 时间段表加来源模板列
 ALTER TABLE jp_time_slot
-    ADD COLUMN IF NOT EXISTS template_id BIGINT NULL COMMENT '来源时段模板ID,空表示手工录入'
+    ADD COLUMN template_id BIGINT NULL COMMENT '来源时段模板ID,空表示手工录入'
         AFTER status;
 
 CREATE INDEX idx_jp_time_slot_template
