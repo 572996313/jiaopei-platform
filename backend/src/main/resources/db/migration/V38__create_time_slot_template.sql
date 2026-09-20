@@ -61,7 +61,19 @@ ALTER TABLE jp_time_slot
     MODIFY COLUMN `slot_type` varchar(32) NOT NULL DEFAULT 'teaching' COMMENT '时段类型(morning_study=早自习,teaching=授课,break=课间休息,self_study=晚自习)',
     COMMENT = '时间段(每星期每节次一行,由时段模板批量展开或手工录入)';
 
--- 4) 同名旧唯一键若列形状不符,会让第 5 步 ADD 报 Duplicate key name,先删同名且形状不符的;
+-- 4) 先临时摘除 institution 外键:部分半实施状态下,待删旧唯一键可能是 institution_id 唯一的
+--    最左前缀索引,直接删会报 1553 "needed in a foreign key constraint";第 8 步统一回挂
+SET @sql = (SELECT CASE WHEN COUNT(*) > 0
+    THEN 'ALTER TABLE jp_time_slot DROP FOREIGN KEY fk_jp_time_slot_institution'
+    ELSE 'SELECT 1' END
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'jp_time_slot'
+      AND CONSTRAINT_NAME = 'fk_jp_time_slot_institution' AND CONSTRAINT_TYPE = 'FOREIGN KEY');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 5) 同名旧唯一键若列形状不符,会让第 6 步 ADD 报 Duplicate key name,先删同名且形状不符的;
 --    其他名字的旧键(如 V2 的 uk_jp_time_slot_org_code)留到新键建好之后再删
 SET @drop_same = (SELECT GROUP_CONCAT(CONCAT('DROP INDEX ', t.idx) SEPARATOR ', ')
     FROM (SELECT INDEX_NAME AS idx, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS cols
@@ -78,7 +90,7 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- 5) 按目标形状重建两个唯一键(已是目标形状则跳过)
+-- 6) 按目标形状重建两个唯一键(已是目标形状则跳过)
 SET @sql = (SELECT CASE WHEN COUNT(*) = 0
     THEN 'ALTER TABLE jp_time_slot ADD UNIQUE KEY uk_jp_time_slot_code (institution_id, campus_id, slot_code, weekday, deleted)'
     ELSE 'SELECT 1' END
@@ -97,8 +109,7 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- 6) 清理其余形状不符的历史遗留唯一键。此时目标 uk 已含 institution_id 前缀,
---    institution 外键始终有可用前缀索引,删除不会触发 1553 "needed in a foreign key constraint"
+-- 7) 清理其余形状不符的历史遗留唯一键(如 V2 的 uk_jp_time_slot_org_code)
 SET @drop_legacy = (SELECT GROUP_CONCAT(CONCAT('DROP INDEX ', t.idx) SEPARATOR ', ')
     FROM (SELECT INDEX_NAME AS idx
         FROM information_schema.STATISTICS
@@ -110,7 +121,18 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- 7) 时段模板表(半实施重跑时可能已建好,IF NOT EXISTS 后补注释)
+-- 8) 回挂 institution 外键(第 4 步摘除;此时目标 uk 提供 institution_id 前缀索引)
+SET @sql = (SELECT CASE WHEN COUNT(*) = 0
+    THEN 'ALTER TABLE jp_time_slot ADD CONSTRAINT fk_jp_time_slot_institution FOREIGN KEY (institution_id) REFERENCES jp_institution (id)'
+    ELSE 'SELECT 1' END
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'jp_time_slot'
+      AND CONSTRAINT_NAME = 'fk_jp_time_slot_institution' AND CONSTRAINT_TYPE = 'FOREIGN KEY');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 9) 时段模板表(半实施重跑时可能已建好,IF NOT EXISTS 后补注释)
 CREATE TABLE IF NOT EXISTS jp_time_slot_template (
     id BIGINT NOT NULL COMMENT '主键ID',
     institution_id BIGINT NOT NULL COMMENT '机构ID',
