@@ -309,12 +309,12 @@ grep -rlE "ENGINE=InnoDB" backend/app/src/main/resources/db/migration | xargs gr
 
 ## 文档索引
 
-动接口或菜单前先查 `docs/`：
+动接口或菜单前先查 `docs/`（分类索引见 `docs/README.md`）：
 
 - `docs/后端交付说明.md` — 接口/权限矩阵（权限串照此命名）
 - `docs/前端交付说明.md` — 页面/路由与接口映射
-- `docs/核心实体清单.md`、`docs/后端主数据与成班规则落点说明.md`
-- `docs/产品架构与菜单重组方案.md` — 菜单重组主线
+- `docs/核心实体清单.md`（按模块分组的现行表清单）、`docs/后端主数据与成班规则落点说明.md`
 - `docs/miniapp.md`、`docs/list-config-guide.md`、`docs/config-contract.md`
 - `docs/操作留痕与敏感数据说明.md` — 审计与脱敏链路
 - `docs/生产部署说明.md`、`docker/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml` + `deploy.sh`）
+- `docs/archive/` — 历史过程方案归档（首批建模、菜单重组、班级变动提示范围等），勿作为现行口径引用
