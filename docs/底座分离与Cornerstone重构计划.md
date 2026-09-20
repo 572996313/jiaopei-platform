@@ -1,7 +1,7 @@
 # 底座分离与 Cornerstone 重构计划
 
-> 状态：**阶段一、二A/二B/二C、阶段三（前端 workspace 化）已完成（2026-09-20），阶段四（改名 Cornerstone）、阶段五（第二项目验证）待做**。立项背景：项目未来可能更换业务方向（不再做教培），但登录/权限/菜单/多租户这套"架子"要沉淀为可复用底座，且支持不同功能模块的组合装配。
-> 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」「前端模块划分与装配」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3/D5）。
+> 状态：**阶段一、二A/二B/二C、阶段三（前端 workspace 化）、阶段四（改名 Cornerstone）代码已完成（2026-09-20），阶段五（第二项目验证）待做**。阶段四的生产切换（FLUSHDB + 全员重登录）尚未执行，步骤见 `docs/生产部署说明.md`。立项背景：项目未来可能更换业务方向（不再做教培），但登录/权限/菜单/多租户这套"架子"要沉淀为可复用底座，且支持不同功能模块的组合装配。
+> 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」「前端模块划分与装配」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3）。
 
 ## 1. 目标与非目标
 
@@ -181,7 +181,16 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 ### 阶段四：改名 Cornerstone（预计 0.5~1 天，风险低但 diff 大，单独提交）
 
-1. `com.jiaopei.platform` → `com.cornerstone.core.*` / `com.cornerstone.module.<name>.*`，groupId `com.jiaopei` → `com.cornerstone`；`jiaopei.*` 配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`）。artifactId/表前缀/库名/容器与镜像名不动（§8 D6）。
+> 进度：已完成（2026-09-20，三次提交 `18fb553` / `d325498` / `7293100`），**生产切换尚未执行**（需停机窗口，步骤见 `docs/生产部署说明.md`「底座改名（阶段四）发布切换步骤」）。
+> - 包名：`com.jiaopei.platform.{auth,system,common,config,tenant,audit}` → `com.cornerstone.core.*`，`{organization,education}` → `com.cornerstone.module.*`，主类 → `com.cornerstone.CornerstoneApplication`（仍在包根，`@ConfigurationPropertiesScan` 默认扫子包的行为不变；`scanBasePackages` 仍显式列底座六个顶层包，未放宽）。371 个文件按 rename 记录，git 历史可追。
+> - groupId → `com.cornerstone`；配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`，两处 `@Value`、两个模块的 `@ConditionalOnProperty`、Hikari 池名、`cornerstoneOpenApi` bean 名同步）。
+> - 运行时 key → `cornerstone:`（Redis 会话）与 `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences`（管理端）、`cornerstone.mini.auth.session`（小程序）。**不加读旧 key 的兼容分支**：这次切换的目的就是让全员会话失效一次，兼容代码会长期误导。
+> - 与计划的差异（本次决策）：**部署与业务层命名一律不动** —— artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、MySQL 库名 `jiaopei_platform` / 日志库 `jiaopei_log`、MySQL 账号、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`、表前缀 `jp_`/`sys_` 全部保留；环境变量名（`AUTH_JWT_SECRET`/`DATA_ENCRYPT_KEY`/`DB_*`/`MODULE_*_ENABLED`）本来就是中性占位符，生产 `prod.env` 不用改。边界表落在 AGENTS.md「底座边界」。
+> - 原计划第 3 项提到的 `VITE_API_AUTHORIZATION` 未改名：它是构建参数而非底座身份，改了要连 CI/镜像构建参数一起动，收益为零。
+> - 验证：`mvn test` 169 全绿（含 ArchUnit 包白名单与 `ModuleSwitchGuardTest`）；`pnpm lint` + `pnpm build` 通过；本地重启实测 —— 未带 token 时 `/api/health` 200、`/api/system/users` 401（证明 `cornerstone.security.public-paths` 绑定生效），`MODULE_EDUCATION_ENABLED=false` 重启后 bootstrap 清单只剩 auth/organization 且 `/api/education/teachers` 404 而 `/api/organizations/campuses` 仍 200；FLUSHDB 后重新登录，Redis 只出现 `cornerstone:token:{jwt}` 与 `cornerstone:user:tokens:1`，旧 token 复放 401；浏览器改读新 key 后 `/campus` 数据正常渲染。
+> - 遗留（阶段四未做，推阶段五或单排）：`wx-java-miniapp` 依赖仍在 core；core 泛化项（登录/当前用户响应的"所属端"枚举含 student/parent、`RenderContext` 里的 `campusOptions` 业务命名、`views/system/shared.ts` 的 `canWriteOrganization`、壳里未引用的 `ModulePlaceholderView.vue` / `HelloWorld.vue`）。
+
+1. `com.jiaopei.platform` → `com.cornerstone.core.*` / `com.cornerstone.module.<name>.*`，groupId `com.jiaopei` → `com.cornerstone`；`jiaopei.*` 配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`）。artifactId/表前缀/库名/容器与镜像名不动（见上方进度注记的本次决策）。
 2. Redis key 前缀 `jiaopei:` → `cornerstone:`（**切换需 FLUSHDB，全员重新登录**，安排停机窗口）。
 3. 前端 localStorage key `jiaopei.auth.session`、`VITE_API_AUTHORIZATION` 相关命名同步；`jp_` 表前缀不动（业务自有）。
 4. 文档同步：AGENTS.md、docs/ 各交付说明里的包名与配置前缀。
@@ -205,7 +214,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | D2 | 存量 Flyway V1~V37 拆分后，已部署库如何对齐 | A. 新库用拆后脚本、老库不动不追拆；B. 重新 baseline | **已定 A+基线保留**（阶段二B，迁移暂留 app/） |
 | D3 | 底座版本发布渠道 | A. 先 `mvn install` + git tag；B. 内网 Nexus | 起步 A，出现第二个项目时升 B（未定） |
 | D4 | miniapp 是否本期拆分 | 本期不动 / 一并拆 | **已定不动**（§5.4） |
-| D5 | Redis/localStorage key 改名造成的全员重登录窗口 | 随阶段四 / 推迟 | 随阶段四，一次阵痛（未定） |
+| D5 | Redis/localStorage key 改名造成的全员重登录窗口 | 随阶段四 / 推迟 | **已定随阶段四**（代码已改完，等停机窗口发布，见 `docs/生产部署说明.md`） |
 
 ## 9. 风险与对策
 
