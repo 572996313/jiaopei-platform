@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "jiaopei")
-public class JiaopeiProperties {
+@ConfigurationProperties(prefix = "cornerstone")
+public class CornerstoneProperties {
 
     private final Security security = new Security();
     private final Modules modules = new Modules();
@@ -33,7 +33,7 @@ public class JiaopeiProperties {
         private List<String> publicPaths = new ArrayList<>();
 
         /**
-         * 敏感数据加解密密钥(jiaopei.security.data-key),经 SHA-256 派生为 AES-256 密钥。
+         * 敏感数据加解密密钥(cornerstone.security.data-key),经 SHA-256 派生为 AES-256 密钥。
          * 生产环境必须用环境变量 DATA_ENCRYPT_KEY 覆盖,禁止使用 application.yml 中的开发默认值。
          */
         private String dataKey = "";

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.cornerstone.core.auth.context.AuthenticatedUser;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import io.jsonwebtoken.Claims;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -57,8 +57,8 @@ class JwtTokenServiceTest {
             .isInstanceOf(BadCredentialsException.class);
     }
 
-    private static JiaopeiProperties properties() {
-        JiaopeiProperties properties = new JiaopeiProperties();
+    private static CornerstoneProperties properties() {
+        CornerstoneProperties properties = new CornerstoneProperties();
         properties.getAuth().getJwt().setSecret("0123456789abcdef0123456789abcdef-test-secret");
         return properties;
     }

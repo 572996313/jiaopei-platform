@@ -29,7 +29,7 @@ spring:
   audit-datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-jiaopei:
+cornerstone:
   security:
     data-key: ${DATA_ENCRYPT_KEY:jiaopei-dev-only-aes-key-please-change-32bytes!}
     public-paths:

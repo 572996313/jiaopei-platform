@@ -12,13 +12,13 @@ package com.cornerstone.core.system.module;
  */
 public interface ModuleDescriptor {
 
-    /** 模块码，与 {@code jiaopei.modules.<code>-enabled} 开关同名（底座固定能力用 auth）。 */
+    /** 模块码，与 {@code cornerstone.modules.<code>-enabled} 开关同名（底座固定能力用 auth）。 */
     String code();
 
     /** 中文展示名。 */
     String name();
 
-    /** 当前开关状态（读 {@code JiaopeiProperties}，便于排查"以为装了其实没装"）。 */
+    /** 当前开关状态（读 {@code CornerstoneProperties}，便于排查"以为装了其实没装"）。 */
     boolean enabled();
 
     /** 就绪状态说明，展示在启动信息里。 */

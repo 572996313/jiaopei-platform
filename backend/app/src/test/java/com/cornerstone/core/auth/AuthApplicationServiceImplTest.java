@@ -16,7 +16,7 @@ import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.auth.service.TokenCacheService;
 import com.cornerstone.core.auth.service.impl.AuthApplicationServiceImpl;
 import com.cornerstone.core.common.exception.BusinessException;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
 import java.util.Set;
@@ -143,7 +143,7 @@ class AuthApplicationServiceImplTest {
     }
 
     private static JwtTokenService jwtTokenService() {
-        JiaopeiProperties properties = new JiaopeiProperties();
+        CornerstoneProperties properties = new CornerstoneProperties();
         properties.getAuth().getJwt().setSecret("0123456789abcdef0123456789abcdef-test-secret");
         return new JwtTokenService(properties);
     }

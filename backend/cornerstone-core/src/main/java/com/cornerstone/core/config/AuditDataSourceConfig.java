@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.zaxxer.hikari.HikariDataSource;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -39,15 +39,15 @@ public class AuditDataSourceConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AuditDataSourceConfig.class);
 
-    private final JiaopeiProperties jiaopeiProperties;
+    private final CornerstoneProperties cornerstoneProperties;
 
-    public AuditDataSourceConfig(JiaopeiProperties jiaopeiProperties) {
-        this.jiaopeiProperties = jiaopeiProperties;
+    public AuditDataSourceConfig(CornerstoneProperties cornerstoneProperties) {
+        this.cornerstoneProperties = cornerstoneProperties;
     }
 
     @Bean(name = "auditDataSource", destroyMethod = "close")
     public DataSource auditDataSource() {
-        JiaopeiProperties.AuditDb auditDb = jiaopeiProperties.getAuditDb();
+        CornerstoneProperties.AuditDb auditDb = cornerstoneProperties.getAuditDb();
 
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
@@ -60,7 +60,7 @@ public class AuditDataSourceConfig {
         // 日志写入为低频异步操作,连接池规模不宜过大
         dataSource.setMaximumPoolSize(5);
         dataSource.setMinimumIdle(0);
-        dataSource.setPoolName("jiaopei-audit-pool");
+        dataSource.setPoolName("cornerstone-audit-pool");
         return dataSource;
     }
 

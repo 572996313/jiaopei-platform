@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * 可逆对称加密工具(AES-GCM)。密文自带 {@code enc:v1:} 前缀与随机 IV,
  * 再次加密时识别前缀直接返回原值(幂等),解密时自动识别前缀,明文直接原样返回。
  *
- * <p>密钥来源:配置 {@code jiaopei.security.data-key}(环境变量
+ * <p>密钥来源:配置 {@code cornerstone.security.data-key}(环境变量
  * {@code DATA_ENCRYPT_KEY} 覆盖,生产必须配置),经 SHA-256 派生为 32 字节
  * AES-256 密钥,任意长度的配置串均可使用。</p>
  */
@@ -30,14 +30,14 @@ public class SensitiveCipher {
     private final String dataKey;
     private SecretKeySpec secretKey;
 
-    public SensitiveCipher(@Value("${jiaopei.security.data-key:}") String dataKey) {
+    public SensitiveCipher(@Value("${cornerstone.security.data-key:}") String dataKey) {
         this.dataKey = dataKey;
     }
 
     @PostConstruct
     void init() {
         if (dataKey == null || dataKey.isBlank()) {
-            throw new IllegalStateException("jiaopei.security.data-key 未配置,敏感数据加密不可用");
+            throw new IllegalStateException("cornerstone.security.data-key 未配置,敏感数据加密不可用");
         }
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")

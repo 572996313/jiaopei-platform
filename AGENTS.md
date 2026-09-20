@@ -58,7 +58,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 开关（`application.yml`，可用同名环境变量覆盖）：
 
 ```yaml
-jiaopei:
+cornerstone:
   modules:
     organization-enabled: ${MODULE_ORGANIZATION_ENABLED:true}
     education-enabled: ${MODULE_EDUCATION_ENABLED:true}
@@ -66,7 +66,7 @@ jiaopei:
 
 - `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
 - 依赖方向 `education → organization`，**关 organization 必须同时关 education**（只关前者会让后端的模块清单出现"装了但接口没挂上"的半残状态）。
-- 迁移目录由 `jiaopei.flyway.locations`（默认只有 `classpath:db/migration`）拼接；模块要自带脚本时在此追加该 jar 内目录，不改代码。
+- 迁移目录由 `cornerstone.flyway.locations`（默认只有 `classpath:db/migration`）拼接；模块要自带脚本时在此追加该 jar 内目录，不改代码。
 
 必须知道的三个连带约束：
 
@@ -145,8 +145,8 @@ pnpm dev:h5            # H5 调试
 - 登录 `POST /api/auth/login` 由 `JwtTokenService` 签发 HS256 JWT（自包含 userId/角色/权限声明，`exp` 与系统配置 `auth.token.expire_hours` 一致，默认 12 小时），同时写 Redis 会话；登出/踢人靠删会话实现。
 - **Redis key 布局**（`TokenCacheService`，非数据库表）：`jiaopei:token:{token}` → 序列化的 `AuthenticatedUser`（TTL 由 `auth.token.expire_hours` 决定）；`jiaopei:user:tokens:{userId}` → 该用户 token 集合，供强制下线。业务侧统一调 `AuthApplicationService.invalidateUserSessions(userId)`（内部委托 `TokenCacheService.invalidateUserTokens`），改密/禁用账号/微信解绑时触发。
 - `StubAuthenticationFilter` 读 `Authorization: Bearer <token>`，先验签名与过期，再查 Redis 会话。
-- **过滤器认证失败时“吞异常继续放行”是有意设计**：该过滤器对所有请求生效（含公开路径），直接 `sendError` 会误拦“带过期 token 访问公开接口”。真正鉴权交给下游 `SecurityConfig.authorizeHttpRequests` + `jiaopei.security.public-paths`，不要在 catch 里加 `sendError`/`return`。
-- JWT 密钥 `jiaopei.auth.jwt.secret`，生产必须用 `AUTH_JWT_SECRET` 环境变量覆盖（≥32 字节）。
+- **过滤器认证失败时“吞异常继续放行”是有意设计**：该过滤器对所有请求生效（含公开路径），直接 `sendError` 会误拦“带过期 token 访问公开接口”。真正鉴权交给下游 `SecurityConfig.authorizeHttpRequests` + `cornerstone.security.public-paths`，不要在 catch 里加 `sendError`/`return`。
+- JWT 密钥 `cornerstone.auth.jwt.secret`，生产必须用 `AUTH_JWT_SECRET` 环境变量覆盖（≥32 字节）。
 - 权限判定：`@RequiresPermission("xxx:read|write")` + `PermissionGuardAspect`；取当前用户用 `AuthContext.requireUser()`。新增受保护接口路由必须加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 命名一致。
 - **登录失败排障**：`GlobalExceptionHandler` 把所有 `AuthenticationException` 统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`，密码错和 token 失效响应体相同。排查 401 先用已知正确密码单独打 `/api/auth/login` 排除密码问题，再看过滤器/Redis。本地 admin 口令见 `V7__create_auth_user_role_tables.sql`（`{noop}` 前缀 = 明文比对）。
 - **Redis 序列化**：`RedisConfig` 的 ObjectMapper **必须** `activateDefaultTyping(..., EVERYTHING)`（`NON_FINAL` 不给 record 里的 `Set<String>` 写 `@class`，反序列化会报 missing type id）；该 mapper 必须在方法内 new，**不要**做成全局 `@Bean ObjectMapper`，否则顶掉 Spring MVC 默认 mapper 导致 `OffsetDateTime` 序列化报错。序列化格式变更后旧数据无法反序列化，需 `redis-cli FLUSHDB`（所有人重新登录）。
@@ -166,7 +166,7 @@ pnpm dev:h5            # H5 调试
 
 - 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，六个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit`；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
 - 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
-- `JiaopeiProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
+- `CornerstoneProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
 - Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant` 三个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
 - schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。

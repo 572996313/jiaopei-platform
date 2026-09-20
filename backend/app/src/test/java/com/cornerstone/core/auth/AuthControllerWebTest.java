@@ -33,9 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     WebMvcSecurityTestConfig.class
 })
 @TestPropertySource(properties = {
-    "jiaopei.security.public-paths[0]=/api/auth/**",
-    "jiaopei.security.public-paths[1]=/api/system/bootstrap",
-    "jiaopei.security.public-paths[2]=/api/health"
+    "cornerstone.security.public-paths[0]=/api/auth/**",
+    "cornerstone.security.public-paths[1]=/api/system/bootstrap",
+    "cornerstone.security.public-paths[2]=/api/health"
 })
 class AuthControllerWebTest {
 

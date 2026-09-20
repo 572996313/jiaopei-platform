@@ -6,7 +6,7 @@ import com.cornerstone.core.auth.dto.CurrentUserResponse;
 import com.cornerstone.core.auth.dto.LoginRequest;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.auth.service.AuthApplicationService;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.dto.MenuCreateRequest;
 import com.cornerstone.core.system.dto.MenuUpdateRequest;
 import com.cornerstone.core.system.dto.MenuView;
@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.BadCredentialsException;
 
 @TestConfiguration
-@EnableConfigurationProperties(JiaopeiProperties.class)
+@EnableConfigurationProperties(CornerstoneProperties.class)
 public class WebMvcSecurityTestConfig {
 
     @Bean

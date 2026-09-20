@@ -1,6 +1,6 @@
 package com.cornerstone.module.organization.service.impl;
 
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.module.organization.dto.OrganizationBootstrapView;
 import com.cornerstone.module.organization.dto.OrganizationSchemaView;
 import com.cornerstone.module.organization.service.OrganizationApplicationService;
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrganizationApplicationServiceImpl implements OrganizationApplicationService {
 
-    private final JiaopeiProperties properties;
+    private final CornerstoneProperties properties;
 
-    public OrganizationApplicationServiceImpl(JiaopeiProperties properties) {
+    public OrganizationApplicationServiceImpl(CornerstoneProperties properties) {
         this.properties = properties;
     }
 

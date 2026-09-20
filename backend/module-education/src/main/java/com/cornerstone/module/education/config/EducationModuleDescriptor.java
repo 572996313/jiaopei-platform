@@ -1,6 +1,6 @@
 package com.cornerstone.module.education.config;
 
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.module.ModuleDescriptor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
 @Order(30)
 public class EducationModuleDescriptor implements ModuleDescriptor {
 
-    private final JiaopeiProperties properties;
+    private final CornerstoneProperties properties;
 
-    public EducationModuleDescriptor(JiaopeiProperties properties) {
+    public EducationModuleDescriptor(CornerstoneProperties properties) {
         this.properties = properties;
     }
 

@@ -62,7 +62,7 @@ public class MybatisPlusConfig {
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
 
-    @Value("${jiaopei.flyway.locations:classpath:db/migration}")
+    @Value("${cornerstone.flyway.locations:classpath:db/migration}")
     private List<String> flywayLocations;
 
     /**
@@ -78,7 +78,7 @@ public class MybatisPlusConfig {
         config.setJdbcUrl(url);
         config.setUsername(username);
         config.setPassword(password);
-        config.setPoolName("jiaopei-primary-pool");
+        config.setPoolName("cornerstone-primary-pool");
         config.setMaximumPoolSize(10);
         config.setMinimumIdle(1);
         return new HikariDataSource(config);
@@ -119,7 +119,7 @@ public class MybatisPlusConfig {
      * 业务库主 Flyway。引入日志库后 Spring Boot 主 Flyway 自动配置退避,
      * 这里显式声明并绑定主数据源。
      *
-     * <p>迁移目录由 {@code jiaopei.flyway.locations} 拼接:存量 V1~V38 在 app 模块的
+     * <p>迁移目录由 {@code cornerstone.flyway.locations} 拼接:存量 V1~V38 在 app 模块的
      * {@code classpath:db/migration},今后某模块要自带脚本时,在该配置项后追加模块目录即可,
      * 不需要改这里的代码。开关关掉的模块其 jar 不在 classpath,对应目录自然缺失,Flyway 会忽略。</p>
      */

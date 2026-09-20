@@ -27,7 +27,7 @@ public class OpenApiConfig {
     }
 
     @Bean
-    public OpenAPI jiaopeiOpenApi() {
+    public OpenAPI cornerstoneOpenApi() {
         String assembledModules = moduleDescriptors.orderedStream()
             .map(ModuleDescriptor::name)
             .collect(Collectors.joining("、"));

@@ -3,7 +3,7 @@ package com.cornerstone.core.config;
 import com.cornerstone.core.auth.security.StubAuthenticationFilter;
 import com.cornerstone.core.auth.security.RestAccessDeniedHandler;
 import com.cornerstone.core.auth.security.RestAuthenticationEntryPoint;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,12 +17,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JiaopeiProperties properties;
+    private final CornerstoneProperties properties;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final StubAuthenticationFilter stubAuthenticationFilter;
 
-    public SecurityConfig(JiaopeiProperties properties, RestAuthenticationEntryPoint authenticationEntryPoint,
+    public SecurityConfig(CornerstoneProperties properties, RestAuthenticationEntryPoint authenticationEntryPoint,
                           RestAccessDeniedHandler accessDeniedHandler,
                           StubAuthenticationFilter stubAuthenticationFilter) {
         this.properties = properties;

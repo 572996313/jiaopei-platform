@@ -1,7 +1,7 @@
 package com.cornerstone.core.auth.security;
 
 import com.cornerstone.core.auth.context.AuthenticatedUser;
-import com.cornerstone.core.config.properties.JiaopeiProperties;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -26,7 +26,7 @@ public class JwtTokenService {
 
     private final SecretKey secretKey;
 
-    public JwtTokenService(JiaopeiProperties properties) {
+    public JwtTokenService(CornerstoneProperties properties) {
         this.secretKey = Keys.hmacShaKeyFor(
             properties.getAuth().getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
     }
