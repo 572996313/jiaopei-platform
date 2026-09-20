@@ -1,4 +1,4 @@
-package com.jiaopei.platform.auth.domain;
+package com.jiaopei.platform.education.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.jiaopei.platform.common.model.BaseEntity;

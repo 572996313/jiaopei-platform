@@ -67,6 +67,18 @@ CREATE TABLE jp_time_slot_template (
   COLLATE=utf8mb4_unicode_ci
   COMMENT='时段模板(节次参数快照,套用时展开为jp_time_slot行)';
 
--- 若执行到一半失败:用 SHOW INDEX FROM jp_time_slot / SHOW COLUMNS FROM jp_time_slot LIKE 'template_id'
--- 查已执行到哪步,注释掉已执行语句后重跑;最后删除失败记录
--- DELETE FROM flyway_schema_history WHERE version = '38' AND success = 0; 再重启后端续跑。
+-- 半实施恢复(重放报 1060 列已存在 / 1061 键同名 / 1091 待删键不存在时,说明上次已执行过部分语句;
+-- Flyway 每次重启都会从头重放整个脚本,注释掉已执行语句是无效的,正确做法):
+-- 1) 查现状: SHOW COLUMNS FROM jp_time_slot LIKE 'template_id';  SHOW INDEX FROM jp_time_slot;
+--    SHOW TABLES LIKE 'jp_time_slot_template';  把本脚本当"待执行清单",缺哪条就在生产库手工执行哪条
+--    (ADD UNIQUE KEY 若报 1062 撞存量数据,先按第 1 步 DELETE 软删行、再自连接去重:
+--     DELETE t1 FROM jp_time_slot t1 JOIN jp_time_slot t2 ON t1.id > t2.id
+--       AND t1.institution_id = t2.institution_id AND t1.campus_id = t2.campus_id
+--       AND t1.slot_code = t2.slot_code AND t1.weekday = t2.weekday);
+-- 2) 全部补齐后,删除失败记录并手工补插一条成功记录(Flyway 从此认为 V38 已应用,不再重放):
+--    DELETE FROM flyway_schema_history WHERE version = '38' AND success = 0;
+--    INSERT INTO flyway_schema_history
+--      (installed_rank, version, description, type, script, checksum, installed_by, installed_on, execution_time, success)
+--    VALUES ((SELECT MAX(installed_rank) + 1 FROM flyway_schema_history t), '38', 'create time slot template', 'SQL',
+--            'V38__create_time_slot_template.sql', <与部署jar内脚本一致的checksum>, 'root', NOW(), 0, 1);
+-- 3) 重启后端,日志应出现 "Schema `jiaopei_platform` is up to date. No migration necessary."

@@ -1,4 +1,4 @@
-package com.jiaopei.platform.auth;
+package com.jiaopei.platform.education;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,13 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jiaopei.platform.auth.context.AuthenticatedUser;
-import com.jiaopei.platform.auth.domain.UserStudentRelEntity;
-import com.jiaopei.platform.auth.dto.BindStudentRequest;
-import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
-import com.jiaopei.platform.auth.dto.StudentBriefView;
-import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
-import com.jiaopei.platform.auth.mapper.UserStudentRelMapper;
-import com.jiaopei.platform.auth.service.impl.MiniappServiceImpl;
+import com.jiaopei.platform.education.domain.entity.UserStudentRelEntity;
+import com.jiaopei.platform.education.dto.BindStudentRequest;
+import com.jiaopei.platform.education.dto.StudentBindSelfRequest;
+import com.jiaopei.platform.education.dto.StudentBriefView;
+import com.jiaopei.platform.education.dto.StudentProfileSaveRequest;
+import com.jiaopei.platform.education.mapper.UserStudentRelMapper;
+import com.jiaopei.platform.education.service.impl.MiniappServiceImpl;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.system.service.SystemConfigService;
 import com.jiaopei.platform.education.domain.entity.ClassStudentEntity;

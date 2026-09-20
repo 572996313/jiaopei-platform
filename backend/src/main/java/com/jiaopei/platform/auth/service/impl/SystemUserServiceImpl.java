@@ -15,13 +15,12 @@ import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
+import com.jiaopei.platform.auth.service.CampusBelongingValidator;
 import com.jiaopei.platform.auth.service.SystemUserService;
 import com.jiaopei.platform.common.api.PageResult;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
-import com.jiaopei.platform.organization.domain.entity.CampusEntity;
 import com.jiaopei.platform.organization.domain.entity.InstitutionEntity;
-import com.jiaopei.platform.organization.mapper.CampusMapper;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,19 +44,20 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
     private final InstitutionMapper institutionMapper;
-    private final CampusMapper campusMapper;
+    private final ObjectProvider<CampusBelongingValidator> campusBelongingValidator;
     private final PasswordEncoder passwordEncoder;
     private final AuthApplicationService authApplicationService;
 
     public SystemUserServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                  UserRoleRelMapper userRoleRelMapper, InstitutionMapper institutionMapper,
-                                 CampusMapper campusMapper, PasswordEncoder passwordEncoder,
+                                 ObjectProvider<CampusBelongingValidator> campusBelongingValidator,
+                                 PasswordEncoder passwordEncoder,
                                  AuthApplicationService authApplicationService) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.institutionMapper = institutionMapper;
-        this.campusMapper = campusMapper;
+        this.campusBelongingValidator = campusBelongingValidator;
         this.passwordEncoder = passwordEncoder;
         this.authApplicationService = authApplicationService;
     }
@@ -263,9 +264,10 @@ public class SystemUserServiceImpl implements SystemUserService {
         if (campusId == null) {
             return;
         }
-        CampusEntity campus = campusMapper.selectById(campusId);
-        if (campus == null || !institutionId.equals(campus.getInstitutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "默认校区不属于该机构");
+        // 校区概念由业务模块提供实现；未挂载时（纯底座项目）无校验器，跳过
+        CampusBelongingValidator validator = campusBelongingValidator.getIfAvailable();
+        if (validator != null) {
+            validator.assertCampusBelongsToInstitution(campusId, institutionId);
         }
     }
 

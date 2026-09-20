@@ -1,11 +1,11 @@
-package com.jiaopei.platform.auth.service;
+package com.jiaopei.platform.education.service;
 
-import com.jiaopei.platform.auth.dto.BindStudentRequest;
-import com.jiaopei.platform.auth.dto.MiniappLessonView;
-import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
-import com.jiaopei.platform.auth.dto.StudentBriefView;
-import com.jiaopei.platform.auth.dto.StudentOwnProfileView;
-import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
+import com.jiaopei.platform.education.dto.BindStudentRequest;
+import com.jiaopei.platform.education.dto.MiniappLessonView;
+import com.jiaopei.platform.education.dto.StudentBindSelfRequest;
+import com.jiaopei.platform.education.dto.StudentBriefView;
+import com.jiaopei.platform.education.dto.StudentOwnProfileView;
+import com.jiaopei.platform.education.dto.StudentProfileSaveRequest;
 import java.time.LocalDate;
 import java.util.List;
 

@@ -1,124 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { store } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
+import { publicRoutes, platformChildRoutes } from './platform-routes'
+import { businessChildRoutes } from './business-routes'
 
+// 路由组装：底座路由（platform-routes）+ 各业务模块路由清单（business-routes）。
+// 新增业务模块时在 business-routes.ts 中追加对应清单，底座部分零改动。
 const routes = [
-  {
-    path: '/login',
-    name: 'login',
-    meta: {
-      public: true,
-    },
-    component: () => import('@/views/auth/LoginView.vue'),
-  },
-  {
-    path: '/change-password',
-    name: 'change-password',
-    meta: {
-      allowForceChange: true,
-    },
-    component: () => import('@/views/auth/ChangePasswordView.vue'),
-  },
+  ...publicRoutes,
   {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
     redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'dashboard',
-        component: () => import('@/views/dashboard/DashboardView.vue'),
-      },
-      {
-        path: 'system',
-        redirect: '/system/users',
-      },
-      {
-        path: 'system/users',
-        name: 'system-users',
-        component: () => import('@/views/system/UserManagementView.vue'),
-      },
-      {
-        path: 'system/institution',
-        name: 'system-institution',
-        component: () => import('@/views/system/InstitutionProfileView.vue'),
-      },
-      {
-        path: 'system/roles',
-        name: 'system-roles',
-        component: () => import('@/views/system/RoleManagementView.vue'),
-      },
-      {
-        path: 'system/menus',
-        name: 'system-menus',
-        component: () => import('@/views/system/MenuManagementView.vue'),
-      },
-      {
-        path: 'system/config',
-        name: 'system-config',
-        component: () => import('@/views/system/ConfigManagementView.vue'),
-      },
-      {
-        path: 'system/dicts',
-        name: 'system-dicts',
-        component: () => import('@/views/system/DictManagementView.vue'),
-      },
-      {
-        path: 'system/list-configs',
-        name: 'system-list-configs',
-        component: () => import('@/views/system/ListConfigManagementView.vue'),
-      },
-      {
-        path: 'system/permission-overview',
-        name: 'system-permission-overview',
-        component: () => import('@/views/system/PermissionOverviewView.vue'),
-      },
-      {
-        path: 'system/data-sources',
-        name: 'system-data-sources',
-        component: () => import('@/views/system/DataSourceManagementView.vue'),
-      },
-      {
-        path: 'system/operlogs',
-        name: 'system-operlogs',
-        component: () => import('@/views/system/OperLogView.vue'),
-      },
-      {
-        path: 'campus',
-        name: 'campus',
-        component: () => import('@/views/organization/CampusManagementView.vue'),
-      },
-      {
-        path: 'time-slots',
-        name: 'time-slots',
-        component: () => import('@/views/organization/TimeSlotTemplateView.vue'),
-      },
-      {
-        path: 'teachers',
-        name: 'teachers',
-        component: () => import('@/views/education/TeacherManagementView.vue'),
-      },
-      {
-        path: 'students',
-        name: 'students',
-        component: () => import('@/views/education/StudentManagementView.vue'),
-      },
-      {
-        path: 'classes',
-        name: 'classes',
-        component: () => import('@/views/education/ClassManagementView.vue'),
-      },
-      {
-        path: 'scheduling',
-        name: 'scheduling',
-        component: () => import('@/views/education/ScheduleManageView.vue'),
-      },
-      {
-        path: 'schedule',
-        name: 'schedule',
-        component: () => import('@/views/education/ScheduleAttendanceView.vue'),
-      },
-    ],
+    children: [...platformChildRoutes, ...businessChildRoutes],
   },
 ]
 

@@ -1,16 +1,16 @@
-package com.jiaopei.platform.auth.service.impl;
+package com.jiaopei.platform.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jiaopei.platform.auth.context.AuthContext;
-import com.jiaopei.platform.auth.domain.UserStudentRelEntity;
-import com.jiaopei.platform.auth.dto.BindStudentRequest;
-import com.jiaopei.platform.auth.dto.MiniappLessonView;
-import com.jiaopei.platform.auth.dto.StudentBriefView;
-import com.jiaopei.platform.auth.mapper.UserStudentRelMapper;
-import com.jiaopei.platform.auth.service.MiniappService;
-import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
-import com.jiaopei.platform.auth.dto.StudentOwnProfileView;
-import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
+import com.jiaopei.platform.education.domain.entity.UserStudentRelEntity;
+import com.jiaopei.platform.education.dto.BindStudentRequest;
+import com.jiaopei.platform.education.dto.MiniappLessonView;
+import com.jiaopei.platform.education.dto.StudentBriefView;
+import com.jiaopei.platform.education.mapper.UserStudentRelMapper;
+import com.jiaopei.platform.education.service.MiniappService;
+import com.jiaopei.platform.education.dto.StudentBindSelfRequest;
+import com.jiaopei.platform.education.dto.StudentOwnProfileView;
+import com.jiaopei.platform.education.dto.StudentProfileSaveRequest;
 import com.jiaopei.platform.common.api.ResultCode;
 import com.jiaopei.platform.common.exception.BusinessException;
 import com.jiaopei.platform.common.model.BaseEntity;

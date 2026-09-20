@@ -123,7 +123,26 @@ pnpm dev:h5            # H5 调试
 - `JiaopeiProperties.modules.*-enabled` 仅是 bootstrap 展示状态，代码里没有 `@ConditionalOnProperty`，别误当模块开关。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
 - Mapper 由 `MybatisPlusConfig` 的 `@MapperScan` 显式扫描四个业务模块的 `mapper` 包；XML 位置 `classpath*:/mapper/**/*.xml`（当前 `resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
-- schema 变更一律走 Flyway：`backend/src/main/resources/db/migration/V<n>__desc.sql`，表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**。
+- schema 变更一律走 Flyway：`backend/src/main/resources/db/migration/V<n>__desc.sql`，表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
+
+## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
+
+**迁移脚本按 Flyway 的 MySQL-5 语法解析**（2026-09-20 生产日志实证：服务端实为 MySQL 8.4，但 Flyway 11.7.2 支持上限 8.1，对 8.4 退化走 `MySQL-5 SqlParser`，日志 `MySQL-5 SqlParser failed` 即由此而来——限制在解析器，不在服务器版本）。**每个新迁移提交前必须逐条自查以下各项**，任何一条不满足就不许合并：
+
+1. **禁用 MySQL 8.0-only 语法**：CTE（`WITH ... AS`）、窗口函数（`ROW_NUMBER() OVER (...)`）、`JSON_TABLE`、8.0 专属字符集/函数（如 `utf8mb4_0900_ai_ci`）。去重等操作改用 `DELETE t1 FROM t JOIN t t2 ON t1.id > t2.id AND ...` 自连接。
+2. **禁用 MariaDB 方言**：`ALTER TABLE ... ADD COLUMN|DROP INDEX|MODIFY COLUMN IF [NOT] EXISTS` 在 MySQL 任何版本都不存在，只有 `CREATE TABLE IF NOT EXISTS` 合法。
+3. **禁用 `IF(` 函数**：Flyway MySQL-5 解析器会把表达式里的 `IF (` 按存储程序 `IF...THEN...END IF` 块处理而直接报语法错（`IFNULL`/`CONCAT`/`GROUP_CONCAT` 不受影响）。
+4. **迁移保持普通 DDL、一条路径**：不写 `@sql + PREPARE` 动态守卫（审查口径：脚本要一眼读懂）。唯一键重建按"**先建新键、后删旧键**"顺序：新键同样以 institution_id 开头，外键最左前缀索引全程不断（避免 1553）；若新旧键**同名**，先建新会报 1061 Duplicate key name，必须改为先 `DROP INDEX` 旧键再 `ADD` 新键（删建也可合进同一条 ALTER）；软删数据清理用普通 `DELETE`。脚本停在半实施状态时（重放报 1060/1061/1091，说明上次已执行过部分语句）注意：**Flyway 每次重启都从头重放整个脚本，注释掉已执行语句是无效的**——按脚本尾部恢复注释处理：手工补完缺失 DDL，删失败行并补插一条 checksum 与 jar 一致的 `success=1` 历史记录，再重启。
+5. **外键与前缀索引**：删唯一键/索引前确认它是子查询外键列的最左前缀索引，否则先 `DROP FOREIGN KEY`、键调整完再回挂（否则 1553）。
+6. **验证方式**：本地用 scratch 库把 V1..V<n> 全量 source 一遍（`mysql --default-character-set=utf8mb4`，Windows 客户端默认码字符集会报 Data too long），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态（本地服务端与生产同为 8.4，回放即等价验证，无需另找 5.7 环境；语法以 MySQL-5 解析器口径为准）。
+7. **生产修复流程**：迁移失败（`Detected failed migration to version X`）→ 修复脚本后在生产执行 `DELETE FROM flyway_schema_history WHERE version='X' AND success=0`（等价 flyway repair），再重启后端让 Flyway 重放；改过的脚本若已在生产成功过，则不允许原地改，必须新增修复迁移。
+
+## 底座边界（Cornerstone 阶段一起步，详见 `docs/底座分离与Cornerstone重构计划.md`）
+
+- 底座包 = `auth` / `system` / `common` / `config`，业务包 = `organization` / `education`。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
+- ArchUnit 强制：底座包不得依赖 `education..`；对 `organization..` 的依赖仅豁免类名含 `Institution` 的租户相关类（阶段二把机构迁回底座后移除豁免）。
+- 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`，实现放业务模块，经 `ObjectProvider` 可选注入），不要在底座里直接 import 业务 mapper。
+- 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
 
 ## 安全与数据一致性约定（必填）
 

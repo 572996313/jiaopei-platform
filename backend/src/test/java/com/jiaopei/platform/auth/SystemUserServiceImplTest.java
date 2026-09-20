@@ -9,12 +9,13 @@ import com.jiaopei.platform.auth.mapper.RoleMapper;
 import com.jiaopei.platform.auth.mapper.UserAccountMapper;
 import com.jiaopei.platform.auth.mapper.UserRoleRelMapper;
 import com.jiaopei.platform.auth.service.AuthApplicationService;
+import com.jiaopei.platform.auth.service.CampusBelongingValidator;
 import com.jiaopei.platform.auth.service.impl.SystemUserServiceImpl;
-import com.jiaopei.platform.organization.mapper.CampusMapper;
 import com.jiaopei.platform.organization.mapper.InstitutionMapper;
 import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -32,14 +33,15 @@ class SystemUserServiceImplTest {
         RoleMapper roleMapper = mock(RoleMapper.class);
         UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
         InstitutionMapper institutionMapper = mock(InstitutionMapper.class);
-        CampusMapper campusMapper = mock(CampusMapper.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<CampusBelongingValidator> campusValidator = mock(ObjectProvider.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         SystemUserServiceImpl service = new SystemUserServiceImpl(
             userAccountMapper,
             roleMapper,
             userRoleRelMapper,
             institutionMapper,
-            campusMapper,
+            campusValidator,
             passwordEncoder,
             mock(AuthApplicationService.class)
         );

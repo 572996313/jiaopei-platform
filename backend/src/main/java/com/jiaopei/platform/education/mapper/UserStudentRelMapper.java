@@ -1,7 +1,7 @@
-package com.jiaopei.platform.auth.mapper;
+package com.jiaopei.platform.education.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jiaopei.platform.auth.domain.UserStudentRelEntity;
+import com.jiaopei.platform.education.domain.entity.UserStudentRelEntity;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
 

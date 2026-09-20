@@ -1,12 +1,12 @@
-package com.jiaopei.platform.auth.controller;
+package com.jiaopei.platform.education.controller;
 
-import com.jiaopei.platform.auth.dto.BindStudentRequest;
-import com.jiaopei.platform.auth.dto.MiniappLessonView;
-import com.jiaopei.platform.auth.dto.StudentBindSelfRequest;
-import com.jiaopei.platform.auth.dto.StudentBriefView;
-import com.jiaopei.platform.auth.dto.StudentOwnProfileView;
-import com.jiaopei.platform.auth.dto.StudentProfileSaveRequest;
-import com.jiaopei.platform.auth.service.MiniappService;
+import com.jiaopei.platform.education.dto.BindStudentRequest;
+import com.jiaopei.platform.education.dto.MiniappLessonView;
+import com.jiaopei.platform.education.dto.StudentBindSelfRequest;
+import com.jiaopei.platform.education.dto.StudentBriefView;
+import com.jiaopei.platform.education.dto.StudentOwnProfileView;
+import com.jiaopei.platform.education.dto.StudentProfileSaveRequest;
+import com.jiaopei.platform.education.service.MiniappService;
 import com.jiaopei.platform.common.api.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
