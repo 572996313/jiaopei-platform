@@ -8,7 +8,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("jp_institution")
+@TableName("sys_institution")
 public class InstitutionEntity extends BaseEntity {
 
     private String orgCode;

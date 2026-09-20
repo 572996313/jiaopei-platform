@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("jp_user_role_rel")
+@TableName("sys_user_role_rel")
 public class UserRoleRelEntity extends BaseEntity {
 
     private Long userId;

@@ -32,9 +32,10 @@ public class OrganizationApplicationServiceImpl implements OrganizationApplicati
 
     @Override
     public OrganizationSchemaView getSchemaView() {
+        // 机构（sys_institution）阶段二A 已迁回底座 tenant 包，不再列进本模块的表清单
         return new OrganizationSchemaView(
-            List.of("jp_institution", "jp_campus", "jp_classroom", "jp_term", "jp_time_slot"),
-            List.of("institution", "campus", "classroom", "term", "timeSlot"),
+            List.of("jp_campus", "jp_classroom", "jp_term", "jp_time_slot"),
+            List.of("campus", "classroom", "term", "timeSlot"),
             "V2__create_organization_core_tables.sql"
         );
     }

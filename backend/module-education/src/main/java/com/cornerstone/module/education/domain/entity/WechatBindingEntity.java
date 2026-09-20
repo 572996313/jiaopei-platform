@@ -21,7 +21,7 @@ public class WechatBindingEntity extends BaseEntity {
     @Schema(description = "微信unionId,绑定微信开放平台后才有值")
     private String unionId;
 
-    @Schema(description = "绑定的系统用户ID(jp_user_account.id)")
+    @Schema(description = "绑定的系统用户ID(sys_user_account.id)")
     private Long userId;
 
     @Schema(description = "最近一次微信登录时间")

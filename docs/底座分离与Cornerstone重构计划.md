@@ -217,9 +217,9 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | # | 事项 | 状态 |
 |---|---|---|
 | 0a | "用户默认校区"移出底座表，改业务模块偏好表 | 已完成（2026-09-21，见下方落地记录） |
-| 0b | 底座 `jp_` 表改 `sys_` 前缀（V40 `RENAME TABLE` + `@TableName` 同步）：`jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_user_token` 四张确定改，`jp_institution` 是否同批改在此定（MySQL `RENAME TABLE` 会自动带上子表外键引用，无需先断键） | 待做 |
+| 0b | 底座 `jp_` 表改 `sys_` 前缀（V40 `RENAME TABLE` + `@TableName` 同步） | 已完成（2026-09-21，见下方落地记录） |
 | 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41） | 待做 |
-| 0d | core 死代码清理（`UserTokenEntity` 等待核）+ 列表配置 `optionsLoader` 候选表按"core 内置 + 模块贡献"拆分 | 待做 |
+| 0d | 列表配置 `optionsLoader` 候选表按"core 内置 + 模块贡献"拆分；`campusName` 渲染器与 `campus` 目录 provider 去留判定（`UserTokenEntity`/`UserTokenMapper` 已随 0b 删除） | 待做 |
 | 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
 
@@ -232,6 +232,17 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **踩坑**：`updateById` 忽略 null 字段，"取消默认"必须 `LambdaUpdateWrapper.set(campus_id, null)`，否则接口回显正常、库里没变。
 - **验证**：`mvn -o -q test` 全绿；scratch 库回放 V1..V39 通过（仅历史已知的 V13 注释行差异）；重启后端实测 set/clear/me/按校区查询/越权五条路径，DB 复核 `campus_id` 确实置 NULL；测试残留行已清理。
 - **遗留（并入 0d 判定）**：`registerListRenderer('campusName')` 与 `registerDirectory('campus')` 在 V39 后已无消费者（底座用户列表不再含校区列），保留作为"业务资源配置校区列"的能力，去留在 0d 一并定。
+
+</details>
+
+<details><summary>0b 实际落地记录（底座表统一 sys_ 前缀）</summary>
+
+- **范围**：`jp_institution`→`sys_institution`、`jp_user_account`→`sys_user_account`、`jp_role`→`sys_role`、`jp_user_role_rel`→`sys_user_role_rel`（V40，单条 `RENAME TABLE` 多表原子改名）。不动结构、不动数据。
+- **键名保持原样**：`uk_jp_*`/`fk_jp_*`/`chk_jp_*` 不随表改名——逐表 DROP/ADD INDEX 对外键列有 1553 风险且零收益，AGENTS.md 与实体清单都注明属历史遗留。
+- **外键自动跟随**：实测 `RENAME TABLE` 会把 25 条指向这四张表的子表外键（含 `sys_role_menu.role_id`、各业务表 `institution_id`）直接指向新表名，无需先断键再回挂；本机库无视图/存储过程/触发器，改名前用 `INFORMATION_SCHEMA` 确认过。
+- **顺带清掉两处失真**：① `UserTokenEntity`/`UserTokenMapper` 指向的 `jp_user_token` 早在 V14 就被 DROP（登录态走 Redis），两个类零调用方，直接删（不需要迁移，表本来就不存在）；② `OrganizationApplicationServiceImpl.getSchemaView()` 仍把 `jp_institution` 列为组织模块的表（阶段二A 已迁回底座），从清单去掉。
+- **注释同步**：`jp_user_student_rel.user_id`、`jp_wechat_binding.user_id` 两列 COMMENT 里的表出处随 `MODIFY COLUMN`（列定义原样照抄）改为 `sys_user_account.id`，与实体 `@Schema` 一致。
+- **验证**：scratch 库 V1..V40 全量回放通过（仅历史已知的 V13 注释行差异），改名后 `KEY_COLUMN_USAGE` 复核外键指向新名；`mvn -o -q test` 全绿；重启后端实测登录 + 用户列表 + 机构列表 + 角色列表 + 校区偏好 `/me` 五路全 200，dev 库 `flyway_schema_history` V40 success=1。
 
 </details>
 

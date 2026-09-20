@@ -15,7 +15,7 @@ public class UserStudentRelEntity extends BaseEntity {
     @Schema(description = "机构ID(多租户隔离)")
     private Long institutionId;
 
-    @Schema(description = "用户ID(jp_user_account.id)")
+    @Schema(description = "用户ID(sys_user_account.id)")
     private Long userId;
 
     @Schema(description = "学员ID(jp_student.id)")

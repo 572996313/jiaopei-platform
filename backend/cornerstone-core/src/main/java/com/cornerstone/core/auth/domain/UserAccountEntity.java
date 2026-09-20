@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("jp_user_account")
+@TableName("sys_user_account")
 public class UserAccountEntity extends BaseEntity {
 
     private Long institutionId;

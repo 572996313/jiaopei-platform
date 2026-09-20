@@ -42,7 +42,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 | `module-education/` | `module-education` | `com.cornerstone.module.education.*` | 业务：教师/学员/班级/排课/考勤/小程序 | → core、→ organization |
 | `app/` | `jiaopei-platform-backend` | `com.cornerstone`（仅主类 `CornerstoneApplication`） | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
 
-- **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名/表前缀、容器与镜像名**保持 jiaopei/jp_ 不变**（那是本项目的部署与业务标识，不属于底座身份）。
+- **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名、容器与镜像名**保持 jiaopei 不变**（那是本项目的部署标识，不属于底座身份）。表前缀属另一码事：底座表 `sys_`、业务表 `jp_`，阶段五-0b 已把底座四张表从 `jp_` 改到 `sys_`。
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
 - `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
 - 业务专属的第三方依赖放各自模块的 pom：`wx-java-miniapp-spring-boot-starter` 已随微信登录下沉到 `module-education`（版本仍由 parent 的 `dependencyManagement` 管），core 不再声明。core 的 pom 里**不允许**出现 `module-*` 依赖，也不允许出现只有业务模块用得上的第三方 SDK。
@@ -169,7 +169,7 @@ pnpm dev:h5            # H5 调试
 - `CornerstoneProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
 - Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant` 三个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
-- schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
+- schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名前缀按归属分：**底座表 `sys_`**（认证授权/系统配置/租户，阶段五-0b 起统一，V40 把原 `jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_institution` 改了名，索引与外键键名保持历史 `jp_` 不动）、**业务模块表 `jp_`**，**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
 
@@ -192,7 +192,7 @@ pnpm dev:h5            # H5 调试
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
 - **命名边界（阶段四定稿，改名字时照这张表判断，别顺手连数据库名一起改）**：
   - 属于底座身份 → 用 `cornerstone`：Java 包根 `com.cornerstone.*`、Maven groupId、Spring 配置前缀 `cornerstone.*`、Redis key 前缀 `cornerstone:`、前端 npm scope `@cornerstone/*`、浏览器 storage key `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences`、小程序 `cornerstone.mini.auth.session`、Hikari 池名 `cornerstone-*-pool`。
-  - 属于本项目部署/业务标识 → **保持 `jiaopei` / `jp_`**：库名 `jiaopei_platform` 与日志库 `jiaopei_log`、MySQL 账号、表前缀（系统配置表 `sys_`、业务表 `jp_`；**现状例外**：底座 auth/tenant 五张表 `jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_user_token`/`jp_institution` 仍带 `jp_`，阶段五-0b 计划统一改 `sys_`，改完前不要按"底座表必为 sys_"推断）、artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`。改这些要生产数据迁移，不属于改名范围。
+  - 属于本项目部署/业务标识 → **保持 `jiaopei` / `jp_`**：库名 `jiaopei_platform` 与日志库 `jiaopei_log`、MySQL 账号、业务表前缀 `jp_`（**底座表已在阶段五-0b 统一改 `sys_`**，见「模块划分与持久化」的 Flyway 条目；索引/外键/检查约束名 `uk_jp_*`/`fk_jp_*`/`chk_jp_*` 保持原样，不随表改名）、artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`。改这些要生产数据迁移，不属于改名范围。
   - 环境变量名一律中性、不带前缀：`AUTH_JWT_SECRET`、`DATA_ENCRYPT_KEY`、`DB_*`、`REDIS_*`、`MODULE_*_ENABLED`（yml 里显式占位符，改配置前缀不影响它们，生产 prod.env 不用跟着改）。
   - **切 `cornerstone:` Redis 前缀需要 FLUSHDB**：旧 `jiaopei:*` 会话键不再被读取，留着只会让人误判会话仍有效。该次发布等同全员重新登录，安排停机窗口（前端 storage key 同批切换，表现也是"掉线一次"）。
 
