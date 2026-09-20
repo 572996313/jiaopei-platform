@@ -135,7 +135,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - `SystemUserServiceImpl` 校区校验改 `auth.service.CampusBelongingValidator` SPI，`organization.service.impl.CampusBelongingValidatorImpl` 提供实现，`ObjectProvider` 可选注入。
 - ArchUnit 对 organization 的豁免按"类名含 Institution"实现（覆盖 CurrentInstitutionView 等），阶段二迁机构回底座后移除。
 - 前端拆为 `router/platform-routes.ts` + `router/business-routes.ts`，index.ts 只做组装；`InstitutionProfileView`（机构=租户）归底座侧，校区/时间段归业务侧。
-- 未决遗留：登录响应 `LoginResponse/CurrentUserResponse` 的"所属端"枚举含 student/parent 字符串（无 import 依赖，不阻塞 ArchUnit），列入阶段二 core 泛化项。
+- 未决遗留：登录响应 `LoginResponse/CurrentUserResponse` 的"所属端"枚举含 student/parent 字符串（无 import 依赖，不阻塞 ArchUnit），列入阶段二 core 泛化项。（2026-09-20 更新：已收口，改走 `PortalResolver` SPI，见阶段四注记）
 - AGENTS.md 已新增「底座边界」章节固化约定。
 
 </details>
@@ -154,7 +154,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 > - 装配两条路（有意不对称）：底座由 app 启动类 `@SpringBootApplication(scanBasePackages = {auth,system,tenant,audit,common,config})` 显式扫描，保证 `DataSource`/`SqlSessionFactory` 早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者 `@ConditionalOnMissingBean` 判定失效、多出重复数据源）；业务模块走各自 jar 的 `META-INF/spring/...AutoConfiguration.imports` → `XxxModuleAutoConfiguration`（`@AutoConfiguration` + `@ConditionalOnProperty` + `@ComponentScan` + `@MapperScan`），加/减模块只改 app 的 pom。
 > - 开关：`jiaopei.modules.{organization,education}-enabled`（可用 `MODULE_*_ENABLED` 环境变量覆盖），缺省开启。core 的 `@MapperScan` 收缩到 auth/system/tenant，业务 mapper 由各自模块声明。
 > - `ModuleDescriptor` 注册表替换 `PlatformBootstrapController` / `OpenApiConfig` 里硬编码的模块清单；`jiaopei.flyway.locations` 支持按模块追加迁移目录（当前仍只有 `classpath:db/migration`）。
-> - 与计划的差异：① 底座没用自动配置装配（理由如上，属实测后的必要偏离）；② `@WebMvcTest` 切片会关闭自动配置，三个业务控制器切片测试改为把控制器显式列进 `@Import`，否则症状是断言 `200` 实际 `404`；③ 前缀仍用 `jiaopei.`（`cornerstone.` 统一留到阶段四改名一起做，避免半改状态）；④ `wx-java-miniapp` 依赖仍留在 core，随模块迁移推到阶段四。
+> - 与计划的差异：① 底座没用自动配置装配（理由如上，属实测后的必要偏离）；② `@WebMvcTest` 切片会关闭自动配置，三个业务控制器切片测试改为把控制器显式列进 `@Import`，否则症状是断言 `200` 实际 `404`；③ 前缀仍用 `jiaopei.`（`cornerstone.` 统一留到阶段四改名一起做，避免半改状态）；④ `wx-java-miniapp` 依赖仍留在 core，随模块迁移推到阶段四（已收口，见阶段四注记）。
 > - 验收：`mvn -q test` 169 全绿（新增 ArchUnit `productionClassesMustResideInAssembledPackages` 与 `ModuleSwitchGuardTest` 三条守护）。运行时三组合实测：全开（bootstrap 列 auth/organization/education，`/v3/api-docs` 含 `/api/education/*`）→ `MODULE_EDUCATION_ENABLED=false`（清单只剩两项，`/api/education/*` 全部消失，campuses 不受影响）→ 两个都关（只剩 auth，auth/tenant 接口完好，10.3s 启动无 ERROR）。依赖方向 edu→org，关 org 必须同时关 edu。
 
 1. 建 parent pom，拆 `cornerstone-core` / `module-*` / `app` 四模块，包随模块迁移（IDE 移动保 git 历史）。
@@ -188,7 +188,14 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 > - 与计划的差异（本次决策）：**部署与业务层命名一律不动** —— artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、MySQL 库名 `jiaopei_platform` / 日志库 `jiaopei_log`、MySQL 账号、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`、表前缀 `jp_`/`sys_` 全部保留；环境变量名（`AUTH_JWT_SECRET`/`DATA_ENCRYPT_KEY`/`DB_*`/`MODULE_*_ENABLED`）本来就是中性占位符，生产 `prod.env` 不用改。边界表落在 AGENTS.md「底座边界」。
 > - 原计划第 3 项提到的 `VITE_API_AUTHORIZATION` 未改名：它是构建参数而非底座身份，改了要连 CI/镜像构建参数一起动，收益为零。
 > - 验证：`mvn test` 169 全绿（含 ArchUnit 包白名单与 `ModuleSwitchGuardTest`）；`pnpm lint` + `pnpm build` 通过；本地重启实测 —— 未带 token 时 `/api/health` 200、`/api/system/users` 401（证明 `cornerstone.security.public-paths` 绑定生效），`MODULE_EDUCATION_ENABLED=false` 重启后 bootstrap 清单只剩 auth/organization 且 `/api/education/teachers` 404 而 `/api/organizations/campuses` 仍 200；FLUSHDB 后重新登录，Redis 只出现 `cornerstone:token:{jwt}` 与 `cornerstone:user:tokens:1`，旧 token 复放 401；浏览器改读新 key 后 `/campus` 数据正常渲染。
-> - 遗留（阶段四未做，推阶段五或单排）：`wx-java-miniapp` 依赖仍在 core；core 泛化项（登录/当前用户响应的"所属端"枚举含 student/parent、`RenderContext` 里的 `campusOptions` 业务命名、`views/system/shared.ts` 的 `canWriteOrganization`、壳里未引用的 `ModulePlaceholderView.vue` / `HelloWorld.vue`）。
+> - 阶段四遗留项已收口（2026-09-20 追加，与改名同属底座身份清理，单独提交）：
+>   - **`wx-java-miniapp` 依赖下沉**：`WechatAuthController/WechatAuthService(Impl)/WechatBindingEntity/Mapper/Wechat{Login,Register}Request、WechatLoginResponse` 整体从 `core.auth.*` 迁到 `module-education` 对应子包（实体进 `domain/entity`，满足 ArchUnit 的 `..domain..` 规则），SDK 依赖随迁到 `module-education/pom.xml`，core 不再声明。测试同步搬包。
+>   - **"所属端"泛化**：底座新增 SPI `core.auth.service.PortalResolver`（只认 `admin`），`module-education` 提供 `MiniappPortalResolver`（学生端/家长端判定，同时是小程序注册来源与角色编码的唯一出处）；`UserAccessTokenService` 注入 `List<PortalResolver>` 取第一个非空结果。删除死枚举 `core.audit.domain.Portal`；`OperateLogAspect` 不再按 `/api/auth/wechat/login` 路径识别登录，改由业务控制器标 `@OperateLog(actionType = LOGIN)`。core 六处 `@Schema` 的 `allowableValues={admin,student,parent}` 改为"admin + 业务扩展"口径（DB 列 COMMENT 未变，不加迁移）。
+>   - **ArchUnit 口径修正**：写接口免权限注解的豁免从"包等于 `core.auth.controller`"改为"类级 `@RequestMapping` 以 `/api/auth` 开头"，否则业务模块挂 `/api/auth/**` 的公开登录接口会被误判违规。
+>   - **前端泛化**：`RenderContext` 去掉 `formatCampus`/`campusOptions`，改为通用 `directories`（目录编码 → 选项，底座只按名字透传）；`campusName` 单元格渲染器从 core 移到 `module-organization` 入口，经新扩展点 `registerListRenderer` 登记，`renderCell` 在内置表查不到时回退模块注册表，列表配置编辑器的候选渲染器改为 `rendererChoices()`（内置 + 已装配模块贡献）；`canWriteOrganization` → `canWriteInstitution`（权限串仍是历史的 `organization:write`，改串要动 `sys_menu`/角色种子数据，未纳入本轮）；删掉壳里无人引用的 `HelloWorld.vue`、`views/placeholder/ModulePlaceholderView.vue`。
+>   - **仍未收口（阶段五或单排）**：`sys_user.default_campus_id` 是底座表里的业务列，用户管理页因此仍保留 `loadDirectory('campus')` 与 `campuses` 目录编码，前端 `optionsLoader` 候选表也仍列 `campuses`（列全量数据源要 `system:data-source:manage` 权限，列表配置管理员不必然有）；`organization:write` 权限串改名；`AppLayout` 菜单与登录页文案里的校区字样。这三项都要么要迁移/种子数据变更，要么属产品文案，不做表面改名冒充解耦。
+>   - 验证：`mvn test` 全绿（169，含搬包后的 `WechatAuthServiceImplTest`）；`pnpm lint` + `pnpm build` 通过；浏览器实测用户页"默认校区"列仍显示 `古县国锋练字`（业务渲染器生效）、编辑弹窗校区回显正常、列表配置「字段速查」的 renderer 候选显示 `institutionName / permissionTags / passwordStatus / campusName`（末项由组织模块贡献）。
+
 
 1. `com.jiaopei.platform` → `com.cornerstone.core.*` / `com.cornerstone.module.<name>.*`，groupId `com.jiaopei` → `com.cornerstone`；`jiaopei.*` 配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`）。artifactId/表前缀/库名/容器与镜像名不动（见上方进度注记的本次决策）。
 2. Redis key 前缀 `jiaopei:` → `cornerstone:`（**切换需 FLUSHDB，全员重新登录**，安排停机窗口）。

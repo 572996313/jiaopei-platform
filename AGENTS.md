@@ -45,7 +45,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 - **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名/表前缀、容器与镜像名**保持 jiaopei/jp_ 不变**（那是本项目的部署与业务标识，不属于底座身份）。
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
 - `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
-- 业务专属的第三方依赖（如 `wx-java-miniapp`）目前仍随 core 一起声明，core 的 pom 里**不允许**出现 `module-*` 依赖。
+- 业务专属的第三方依赖放各自模块的 pom：`wx-java-miniapp-spring-boot-starter` 已随微信登录下沉到 `module-education`（版本仍由 parent 的 `dependencyManagement` 管），core 不再声明。core 的 pom 里**不允许**出现 `module-*` 依赖，也不允许出现只有业务模块用得上的第三方 SDK。
 - 新增类放在自己所属模块，不要在 `app/src/main/java` 下写业务代码（该模块只放主类与资源）。
 
 ### 模块装配与开关（阶段二C 起为真开关）
@@ -114,7 +114,7 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        #
 
 - `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
 - Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
-- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关前提。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
+- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、写接口必须有 `@RequiresPermission`（**免检口径是"类级 `@RequestMapping` 以 `/api/auth` 开头"**，按路径而不是按包判定，所以业务模块挂 `/api/auth/**` 的公开登录接口同样豁免；改这个前缀要同步安全配置的 `public-paths`）、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关前提。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）
 
@@ -187,7 +187,8 @@ pnpm dev:h5            # H5 调试
 
 - 底座包 = `com.cornerstone.core.` 下的 `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回）/ `audit`，业务包 = `com.cornerstone.module.organization`（校区/教室/学期/时间段）/ `com.cornerstone.module.education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
 - 边界现在有两层保护：Maven 依赖方向（`cornerstone-core` 的 pom 不声明任何 `module-*` 依赖，写错直接编译不过）+ ArchUnit 规则（底座包不得依赖 `organization..` / `education..`，Institution 豁免已随机构迁回移除）。
-- 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`，实现放业务模块，经 `ObjectProvider` 可选注入），不要在底座里直接 import 业务 mapper。
+- 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属、判定登录令牌属于哪个端），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`、`PortalResolver`，实现放业务模块；单实现经 `ObjectProvider` 可选注入，多实现（如各端判定）注入 `List<T>` 按装配顺序取第一个非空结果，全都不适用时底座落回默认值），不要在底座里直接 import 业务 mapper。
+- **底座不得按接口路径/字段值硬编码业务语义**：如审计的操作类型，改成由业务控制器自己标 `@OperateLog(actionType = ActionType.LOGIN)`，`OperateLogAspect` 只认注解，不再写死 `/api/auth/wechat/login` 这类业务路径。行业专属枚举（`Portal` 之类只服务某个业务端的枚举）不进底座，直接删；底座只留通用默认。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
 - **命名边界（阶段四定稿，改名字时照这张表判断，别顺手连数据库名一起改）**：
   - 属于底座身份 → 用 `cornerstone`：Java 包根 `com.cornerstone.*`、Maven groupId、Spring 配置前缀 `cornerstone.*`、Redis key 前缀 `cornerstone:`、前端 npm scope `@cornerstone/*`、浏览器 storage key `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences`、小程序 `cornerstone.mini.auth.session`、Hikari 池名 `cornerstone-*-pool`。
@@ -246,7 +247,8 @@ pnpm dev:h5            # H5 调试
 - **源码级引用，不单独构建各包**：包没有 `dist`，靠 vite `resolve.alias` + tsconfig `paths` 把 `@cornerstone/*` 直接指到 `packages/*/src`。新增包要同时改这两处 + `pnpm-workspace.yaml` 覆盖到的 `packages/*` 位置。**`vite.config.ts` 的 `@` 别名必须排在最后**，否则 `@cornerstone/...` 被 `@` 抢先匹配。
 - **import 写法**：包内/跨包一律写全包名（`@cornerstone/core/api/http`）；`@/` 只允许出现在壳工程 `frontend/src/**`。这条由 `eslint.config.js` 的 `no-restricted-imports` 分块强制（`boundary/core`、`boundary/module-organization`、`boundary/module-education`），写错 `pnpm lint` 直接报错，等价于后端的 ArchUnit 边界规则。依赖方向同后端：core ↛ `module-*`，organization ↛ education。
 - **装配清单 `frontend/src/modules.ts` 两件事必须同时成立**：① `import` 模块入口（模块对底座的扩展点注册是 **import 副作用**，不 import 就是"装了但没挂上"）；② 模块导出的路由清单进 `projectChildRoutes`。只留底座时把这两处的模块条目与 import 一并删掉即可，`pnpm build` 产物不含任何业务 chunk（实测：全挂 54 assets / 13 业务 chunk，只挂 core 33 assets / 0 业务 chunk，且登录与系统管理页全可用）。
-- **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerDirectory`/`loadDirectory`（数据目录 provider，如校区下拉）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。
+- **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerDirectory`/`loadDirectory`（数据目录 provider，如校区下拉）、`registerListRenderer`/`getListRenderer`/`listRendererChoices`（列表单元格渲染器）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。
+  - **列表渲染器与业务数据目录**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表；`RenderContext.directories`（目录编码 → 选项）由宿主页面按名字透传，core 不认识业务语义。所以业务列（如用户列表的"默认校区"）在 core 里既没有渲染实现也没有硬编码兜底文案：`CampusManagementView` 所在组织模块 `registerListRenderer({name:'campusName',...})`，宿主页面注入 `directories: { campuses: [...] }`。**模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选**（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步三处：模块入口登记、宿主注入对应目录数据、`sys_list_config` 种子里的 `renderer` 名保持一致。
   - 页面插槽用于"业务页签注入到别的模块页面"（参照校区管理页里教务侧的课程/课程分类/班型三张卡片：宿主是 organization 的 `CampusManagementView`，内容来自 education 包的 `views/campus/EducationMasterDataCards.vue`）。宿主 `refreshAll` 末尾 `notifyPageRefresh(pageKey)`，插槽子组件订阅并自己拉数；**`onPageRefresh` 返回注销函数，必须在 `onUnmounted` 里调用**，否则订阅者随打开次数累积。
   - `registerPageSlot` 幂等、按 `order` 排序；插槽子组件依赖全局 `core/src/styles/index.css` 里的 Element Plus 布局类（不在 scoped 样式内），组件不要再自带 reset。
 - **接口归属**：机构（=租户）的列表接口在底座 `core/src/api/tenant.ts`（阶段二A 后端把它从 organization 迁回 tenant，前端同步；请求路径 `/organizations/institutions` 未变）。`module-organization/src/api/organization.ts` 只留校区/教室/学期/时间段。
