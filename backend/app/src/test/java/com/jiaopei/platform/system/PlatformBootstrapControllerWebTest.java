@@ -8,6 +8,7 @@ import com.jiaopei.platform.common.web.GlobalExceptionHandler;
 import com.jiaopei.platform.common.web.TraceIdFilter;
 import com.jiaopei.platform.config.SecurityConfig;
 import com.jiaopei.platform.system.controller.PlatformBootstrapController;
+import com.jiaopei.platform.system.module.AuthModuleDescriptor;
 import com.jiaopei.platform.support.WebMvcSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     TraceIdFilter.class,
     ApiResponseAdvice.class,
     GlobalExceptionHandler.class,
-    WebMvcSecurityTestConfig.class
+    WebMvcSecurityTestConfig.class,
+    AuthModuleDescriptor.class
 })
 @TestPropertySource(properties = {
     "jiaopei.security.public-paths[0]=/api/auth/**",

@@ -97,6 +97,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     StudentParentController.class
 })
 @Import({
+    // 业务模块改由 AutoConfiguration 装配，@WebMvcTest 切片会关掉自动配置，
+    // 所以下面这些业务控制器必须在切片里显式 @Import，否则接口 404。
+    ClassroomController.class,
+    TermController.class,
+    TimeSlotController.class,
+    TeacherController.class,
+    StudentController.class,
+    TeachingClassController.class,
+    CourseCategoryController.class,
+    CourseController.class,
+    ClassTypeController.class,
+    ClassTeacherController.class,
+    ClassChangeNoticeController.class,
+    StudentParentController.class,
     SecurityConfig.class,
     RestAuthenticationEntryPoint.class,
     RestAccessDeniedHandler.class,

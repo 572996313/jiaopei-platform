@@ -36,6 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(TimeSlotTemplateController.class)
 @Import({
+    // 业务模块改由 AutoConfiguration 装配，@WebMvcTest 切片会关掉自动配置，控制器要显式 @Import。
+    TimeSlotTemplateController.class,
     SecurityConfig.class,
     RestAuthenticationEntryPoint.class,
     RestAccessDeniedHandler.class,

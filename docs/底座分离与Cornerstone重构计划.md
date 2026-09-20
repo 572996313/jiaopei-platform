@@ -147,6 +147,12 @@ frontend/            # 转 pnpm workspace
 > - 与计划的差异：**Flyway 迁移与测试暂全部留在 `app/` 模块**（原计划二B 就把迁移拆到各模块 `META-INF`，因生产 V38 恢复未完成而推迟到二C/阶段五）；`MybatisPlusConfig` 的 `@MapperScan` 仍在 core 里统一扫五个 mapper 包，按模块拆分留到二C。
 > - 验收：`mvn -q test` 166 个测试全绿；`mvn -q -DskipTests install` 四模块成功。开关矩阵（关模块启动）属二C。
 > - 操作提醒：`spring-boot:run` 必须在 `app/` 下或 `-pl app`（不带 `-am`），对 core 执行该 goal 会因无主类失败；改 core/业务模块代码后需先 `install` 再 run，或直接用 `scripts/restart-backend.sh`。
+> 进度：二C 已完成（2026-09-20）——模块开关从"只影响 bootstrap 展示"变成真开关。
+> - 装配两条路（有意不对称）：底座由 app 启动类 `@SpringBootApplication(scanBasePackages = {auth,system,tenant,audit,common,config})` 显式扫描，保证 `DataSource`/`SqlSessionFactory` 早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者 `@ConditionalOnMissingBean` 判定失效、多出重复数据源）；业务模块走各自 jar 的 `META-INF/spring/...AutoConfiguration.imports` → `XxxModuleAutoConfiguration`（`@AutoConfiguration` + `@ConditionalOnProperty` + `@ComponentScan` + `@MapperScan`），加/减模块只改 app 的 pom。
+> - 开关：`jiaopei.modules.{organization,education}-enabled`（可用 `MODULE_*_ENABLED` 环境变量覆盖），缺省开启。core 的 `@MapperScan` 收缩到 auth/system/tenant，业务 mapper 由各自模块声明。
+> - `ModuleDescriptor` 注册表替换 `PlatformBootstrapController` / `OpenApiConfig` 里硬编码的模块清单；`jiaopei.flyway.locations` 支持按模块追加迁移目录（当前仍只有 `classpath:db/migration`）。
+> - 与计划的差异：① 底座没用自动配置装配（理由如上，属实测后的必要偏离）；② `@WebMvcTest` 切片会关闭自动配置，三个业务控制器切片测试改为把控制器显式列进 `@Import`，否则症状是断言 `200` 实际 `404`；③ 前缀仍用 `jiaopei.`（`cornerstone.` 统一留到阶段四改名一起做，避免半改状态）；④ `wx-java-miniapp` 依赖仍留在 core，随模块迁移推到阶段四。
+> - 验收：`mvn -q test` 169 全绿（新增 ArchUnit `productionClassesMustResideInAssembledPackages` 与 `ModuleSwitchGuardTest` 三条守护）。运行时三组合实测：全开（bootstrap 列 auth/organization/education，`/v3/api-docs` 含 `/api/education/*`）→ `MODULE_EDUCATION_ENABLED=false`（清单只剩两项，`/api/education/*` 全部消失，campuses 不受影响）→ 两个都关（只剩 auth，auth/tenant 接口完好，10.3s 启动无 ERROR）。依赖方向 edu→org，关 org 必须同时关 edu。
 
 1. 建 parent pom，拆 `cornerstone-core` / `module-*` / `app` 四模块，包随模块迁移（IDE 移动保 git 历史）。
 2. Flyway 存量 V1~V37 按表归属拆分为 core 段与各模块段（新号段重排；**只拆脚本内容归属、不改表结构**，已在环境执行过的库靠 `flyway_schema_history` 按新 location 重新 baseline 的策略需专项设计，见 §8）。

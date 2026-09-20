@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PostConstruct;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.flywaydb.core.Flyway;
@@ -36,9 +37,7 @@ import org.springframework.transaction.PlatformTransactionManager;
     basePackages = {
         "com.jiaopei.platform.auth.mapper",
         "com.jiaopei.platform.system.mapper",
-        "com.jiaopei.platform.tenant.mapper",
-        "com.jiaopei.platform.organization.mapper",
-        "com.jiaopei.platform.education.mapper"
+        "com.jiaopei.platform.tenant.mapper"
     },
     sqlSessionFactoryRef = "primarySqlSessionFactory",
     sqlSessionTemplateRef = "primarySqlSessionTemplate")
@@ -62,6 +61,9 @@ public class MybatisPlusConfig {
 
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
+
+    @Value("${jiaopei.flyway.locations:classpath:db/migration}")
+    private List<String> flywayLocations;
 
     /**
      * 主业务数据源(Hikari,基于 spring.datasource.* 配置)。
@@ -115,13 +117,17 @@ public class MybatisPlusConfig {
 
     /**
      * 业务库主 Flyway。引入日志库后 Spring Boot 主 Flyway 自动配置退避,
-     * 这里显式声明并绑定主数据源,迁移脚本仍为 classpath:db/migration(业务库)。
+     * 这里显式声明并绑定主数据源。
+     *
+     * <p>迁移目录由 {@code jiaopei.flyway.locations} 拼接:存量 V1~V38 在 app 模块的
+     * {@code classpath:db/migration},今后某模块要自带脚本时,在该配置项后追加模块目录即可,
+     * 不需要改这里的代码。开关关掉的模块其 jar 不在 classpath,对应目录自然缺失,Flyway 会忽略。</p>
      */
     @Bean(name = "primaryFlyway", initMethod = "migrate")
     public Flyway primaryFlyway(@Qualifier(PRIMARY_DS) DataSource primaryDataSource) {
         return Flyway.configure()
             .dataSource(primaryDataSource)
-            .locations("classpath:db/migration")
+            .locations(flywayLocations.toArray(String[]::new))
             .baselineOnMigrate(true)
             .load();
     }

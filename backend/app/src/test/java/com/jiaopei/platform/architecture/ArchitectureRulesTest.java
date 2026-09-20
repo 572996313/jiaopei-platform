@@ -105,13 +105,14 @@ class ArchitectureRulesTest {
             .check(productionClasses);
     }
 
-    /** 底座包（auth/system/common/config/tenant）：换行业后仍可复用的部分，禁止感知任何教培业务 */
+    /** 底座包（auth/system/common/config/tenant/audit）：换行业后仍可复用的部分，禁止感知任何教培业务 */
     private static final String[] PLATFORM_PACKAGES = {
         "com.jiaopei.platform.auth..",
         "com.jiaopei.platform.system..",
         "com.jiaopei.platform.common..",
         "com.jiaopei.platform.config..",
-        "com.jiaopei.platform.tenant.."
+        "com.jiaopei.platform.tenant..",
+        "com.jiaopei.platform.audit.."
     };
 
     @Test
@@ -127,6 +128,27 @@ class ArchitectureRulesTest {
         noClasses().that().resideInAnyPackage(PLATFORM_PACKAGES)
             .should().dependOnClassesThat().resideInAnyPackage("com.jiaopei.platform.organization..")
             .because("底座边界：auth/system/common/config 不得依赖组织业务包（机构已迁至底座 tenant 包）")
+            .check(productionClasses);
+    }
+
+    /**
+     * 装配清单白名单：app 启动类不再做全包扫描，组件只由各模块配置类的 basePackages 注册。
+     * 新增顶层包时必须同步改 {@code CornerstoneCoreConfiguration} 或对应模块的 *ModuleConfiguration，
+     * 本规则随之更新——漏改扫描清单会让类静默不进容器，这里提前拦下。
+     */
+    @Test
+    void productionClassesMustResideInAssembledPackages() {
+        classes().should().resideInAnyPackage(
+            "com.jiaopei.platform",
+            "com.jiaopei.platform.auth..",
+            "com.jiaopei.platform.system..",
+            "com.jiaopei.platform.tenant..",
+            "com.jiaopei.platform.audit..",
+            "com.jiaopei.platform.common..",
+            "com.jiaopei.platform.config..",
+            "com.jiaopei.platform.organization..",
+            "com.jiaopei.platform.education..")
+            .because("装配清单只扫描已声明的顶层包，新增顶层包要同步加入对应模块配置类的 basePackages")
             .check(productionClasses);
     }
 }

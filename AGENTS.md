@@ -43,9 +43,37 @@ export PATH="$JAVA_HOME/bin:$PATH"
 | `app/` | `jiaopei-platform-backend` | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
 
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
-- `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。
-- 业务专属的第三方依赖（如 `wx-java-miniapp`）目前仍随 core 一起声明，阶段二C 再随模块迁移；core 的 pom 里**不允许**出现 `module-*` 依赖。
+- `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
+- 业务专属的第三方依赖（如 `wx-java-miniapp`）目前仍随 core 一起声明，core 的 pom 里**不允许**出现 `module-*` 依赖。
 - 新增类放在自己所属模块，不要在 `app/src/main/java` 下写业务代码（该模块只放主类与资源）。
+
+### 模块装配与开关（阶段二C 起为真开关）
+
+装配分两条路，**这是有意为之，别改成一致**：
+
+- **底座**：`app` 启动类 `@SpringBootApplication(scanBasePackages = {auth, system, tenant, audit, common, config})` 显式扫底座六个顶层包。底座是必选项、且它提供的 `DataSource`/`SqlSessionFactory` 必须早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者的 `@ConditionalOnMissingBean` 判定失效，多出重复数据源），所以走"用户配置"阶段而不是自动配置。
+- **业务模块**：各模块 jar 自带 `src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`，指向自己的 `XxxModuleAutoConfiguration`（`@AutoConfiguration` + `@ConditionalOnProperty` + `@ComponentScan` + `@MapperScan`）。**加/减模块只改 `app/pom.xml` 依赖**，不用动启动类。
+
+开关（`application.yml`，可用同名环境变量覆盖）：
+
+```yaml
+jiaopei:
+  modules:
+    organization-enabled: ${MODULE_ORGANIZATION_ENABLED:true}
+    education-enabled: ${MODULE_EDUCATION_ENABLED:true}
+```
+
+- `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
+- 依赖方向 `education → organization`，**关 organization 必须同时关 education**（只关前者会让后端的模块清单出现"装了但接口没挂上"的半残状态）。
+- 迁移目录由 `jiaopei.flyway.locations`（默认只有 `classpath:db/migration`）拼接；模块要自带脚本时在此追加该 jar 内目录，不改代码。
+
+必须知道的三个连带约束：
+
+1. **不要把 `scanBasePackages` 放宽回 `com.jiaopei.platform`** 或加进业务包——那等于无条件扫进所有业务 `@Component`，开关形同虚设。`ModuleSwitchGuardTest` 会拦住这类改动。
+2. **`@WebMvcTest` 切片会关闭自动配置**，业务模块的控制器在切片里不会被扫描到。写业务控制器的切片测试时，要把控制器同时列进 `@Import({...})`（现有三处参照：`SecondThirdMainlineApiCompatibilityWebTest`、`EducationFourthMainlineApiCompatibilityWebTest`、`TimeSlotTemplateControllerWebTest`）；否则症状就是断言 `200` 实际 `404`。
+3. **底座新增顶层包**时要同步三处：启动类 `scanBasePackages`、core `@MapperScan`（若带 mapper）、`ArchitectureRulesTest` 的包白名单。漏扫描的类不会报错，只是静默不进容器。
+
+模块自述：底座定义 `ModuleDescriptor`（`system.module` 包），各模块注册自己的实现，`PlatformBootstrapController` 与 `OpenApiConfig` 只消费注册表，新增模块不用再改这两处。
 
 ### 后端常用命令（工作目录 `backend/`）
 
@@ -85,7 +113,7 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        #
 
 - `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
 - Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
-- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant）不得依赖 organization/education 业务包。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
+- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、非 auth 写接口必须有 `@RequiresPermission`、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关前提。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）
 
@@ -137,9 +165,9 @@ pnpm dev:h5            # H5 调试
 
 - 包结构 `com.jiaopei.platform`：`auth` / `system` / `common` / `config` / `tenant`（机构=租户）→ `cornerstone-core`；`organization`（校区/教室/学期/时间段）→ `module-organization`；`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`。
 - 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
-- `JiaopeiProperties.modules.*-enabled` 仅是 bootstrap 展示状态，代码里没有 `@ConditionalOnProperty`，别误当模块开关（阶段二C 处理）。
+- `JiaopeiProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
-- Mapper 由 core 里的 `MybatisPlusConfig` 的 `@MapperScan` 显式扫描五个包的 `mapper`（`auth` / `system` / `tenant` / `organization` / `education`）；新增业务模块时要同步在这里加一行，或等阶段二C 改成各模块自带 `@MapperScan`；XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
+- Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant` 三个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
 - schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名 `jp_` 前缀（系统表沿用 `sys_`），**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
