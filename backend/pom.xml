@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.jiaopei</groupId>
+    <groupId>com.cornerstone</groupId>
     <artifactId>jiaopei-platform-backend-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -37,17 +37,17 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.jiaopei</groupId>
+                <groupId>com.cornerstone</groupId>
                 <artifactId>cornerstone-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.jiaopei</groupId>
+                <groupId>com.cornerstone</groupId>
                 <artifactId>module-organization</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.jiaopei</groupId>
+                <groupId>com.cornerstone</groupId>
                 <artifactId>module-education</artifactId>
                 <version>${project.version}</version>
             </dependency>

@@ -69,7 +69,7 @@ wx:
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.jiaopei.platform
+  type-aliases-package: com.cornerstone
   configuration:
     map-underscore-to-camel-case: true
   global-config:

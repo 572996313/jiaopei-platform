@@ -2,7 +2,6 @@
 
 > 状态：**阶段一、二A/二B/二C、阶段三（前端 workspace 化）已完成（2026-09-20），阶段四（改名 Cornerstone）、阶段五（第二项目验证）待做**。立项背景：项目未来可能更换业务方向（不再做教培），但登录/权限/菜单/多租户这套"架子"要沉淀为可复用底座，且支持不同功能模块的组合装配。
 > 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」「前端模块划分与装配」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3/D5）。
-> 已完成阶段的落地记录见 §6 各阶段进度注记；现行架构约定以 AGENTS.md「模块划分与持久化」「模块装配与开关」「底座边界」为准。本文对剩余阶段仍是执行依据，开工前逐项确认 §8「待决策事项」剩余项（D3/D5）。
 
 ## 1. 目标与非目标
 
@@ -24,8 +23,8 @@
 | 项 | 现名 | 新名 |
 |---|---|---|
 | 底座代号 | — | **Cornerstone（基石）** |
-| 后端包名 | `com.jiaopei.platform` | `com.cornerstone.core.*`（底座）/ `com.cornerstone.module.<name>.*`（业务） |
-| Maven groupId | `com.jiaopei.platform` | `com.cornerstone` |
+| 后端包名 | `com.jiaopei.platform`（改名前） | `com.cornerstone.core.*`（底座）/ `com.cornerstone.module.<name>.*`（业务） |
+| Maven groupId | `com.jiaopei`（改名前） | `com.cornerstone` |
 | 前端 npm scope | — | `@cornerstone/core`、`@cornerstone/module-education` … |
 | 数据库表前缀 | `sys_`（系统）/ `jp_`（业务） | 底座沿用 `sys_`；业务前缀由各项目自定（教培继续 `jp_`） |
 
@@ -124,7 +123,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 代码仍在现单模块内，只搬包 + 立规矩：
 
 1. 按 §4 清单迁移 `MiniappServiceImpl`、`WechatAuthServiceImpl` 等到 education 包；`SystemUserServiceImpl` 对 Campus 的依赖改接口化。
-2. `ArchitectureRulesTest` 新增规则：`com.jiaopei.platform.(auth|system|common|config)..` 不得依赖 `..education..` / `..organization..`（机构类暂豁免，随阶段二拆分归位）。
+2. `ArchitectureRulesTest` 新增规则：`com.jiaopei.platform.(auth|system|common|config)..`（阶段四后为 `com.cornerstone.core.*`）不得依赖 `..education..` / `..organization..`（机构类暂豁免，随阶段二拆分归位）。
 3. 前端：路由文件按「底座路由 / 业务路由」拆成两个数组再合并注册（为阶段三铺路）。
 
 **验收**：`mvn -q test` 通过（含新 ArchUnit 规则）；`pnpm build`、`pnpm lint` 通过；接口行为无变化。**回滚**：单分支可整体 revert。
@@ -143,7 +142,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 ### 阶段二：后端 Maven 多模块 + 真开关（预计 3~5 天，风险中）
 
-> 进度：二A 已完成（2026-09-20）——`InstitutionEntity/Mapper/Service/Impl、CurrentInstitution*、InstitutionCreateRequest、InstitutionController` 共 8 类从 organization 迁至底座 `com.jiaopei.platform.tenant` 包；`MybatisPlusConfig` @MapperScan 补 `tenant.mapper`；ArchUnit 移除 Institution 豁免并把 `tenant..` 纳入底座包清单；AGENTS.md 同步。全量测试通过。
+> 进度：二A 已完成（2026-09-20）——`InstitutionEntity/Mapper/Service/Impl、CurrentInstitution*、InstitutionCreateRequest、InstitutionController` 共 8 类从 organization 迁至底座 `com.jiaopei.platform.tenant` 包（阶段四后为 `com.cornerstone.core.tenant`）；`MybatisPlusConfig` @MapperScan 补 `tenant.mapper`；ArchUnit 移除 Institution 豁免并把 `tenant..` 纳入底座包清单；AGENTS.md 同步。全量测试通过。
 > 因生产 V38 半实施恢复进行中，本阶段**不动存量 V1~V38 迁移脚本**（不重排、不搬家），模块专属迁移目录仅对今后新脚本生效（D2 按"A+基线保留"执行）。
 > 进度：二B 已完成（2026-09-20）——`backend/` 改为 Maven 聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`），子模块 `cornerstone-core`（auth/system/common/config/tenant + 全部第三方 starter）、`module-organization`（→core）、`module-education`（→core、→organization）、`app`（主类 + 全部资源 + 全部测试 + `spring-boot-maven-plugin`）。
 > - app 的 artifactId 保留 `jiaopei-platform-backend`，jar 文件名不变，产物路径改为 `backend/app/target/`；`scripts/restart-backend.sh`、`backend/Dockerfile`（按模块分层 COPY pom/src）、`backend/.gitignore`（`/target/` → `target/` 以覆盖各子模块）同步。
@@ -182,7 +181,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 ### 阶段四：改名 Cornerstone（预计 0.5~1 天，风险低但 diff 大，单独提交）
 
-1. `com.jiaopei.platform` → `com.cornerstone.*`（IDE 重构），groupId、artifactId、`jiaopei.*` 配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`）。
+1. `com.jiaopei.platform` → `com.cornerstone.core.*` / `com.cornerstone.module.<name>.*`，groupId `com.jiaopei` → `com.cornerstone`；`jiaopei.*` 配置前缀 → `cornerstone.*`（`JiaopeiProperties` → `CornerstoneProperties`）。artifactId/表前缀/库名/容器与镜像名不动（§8 D6）。
 2. Redis key 前缀 `jiaopei:` → `cornerstone:`（**切换需 FLUSHDB，全员重新登录**，安排停机窗口）。
 3. 前端 localStorage key `jiaopei.auth.session`、`VITE_API_AUTHORIZATION` 相关命名同步；`jp_` 表前缀不动（业务自有）。
 4. 文档同步：AGENTS.md、docs/ 各交付说明里的包名与配置前缀。

@@ -33,15 +33,16 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 ### 后端模块划分（阶段二B 起为 Maven 多模块）
 
-`backend/` 是聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`），四个子模块：
+`backend/` 是聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`，groupId `com.cornerstone`），四个子模块：
 
-| 模块 | artifactId | 内容 | 依赖方向 |
-| --- | --- | --- | --- |
-| `cornerstone-core/` | `cornerstone-core` | 底座：`auth` / `system` / `common` / `config` / `tenant` + 全部第三方 starter | 不依赖任何业务模块 |
-| `module-organization/` | `module-organization` | 业务：校区/教室/学期/时间段（`organization` 包） | → core |
-| `module-education/` | `module-education` | 业务：教师/学员/班级/排课/考勤/小程序（`education` 包） | → core、→ organization |
-| `app/` | `jiaopei-platform-backend` | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
+| 模块 | artifactId | Java 包根（阶段四起） | 内容 | 依赖方向 |
+| --- | --- | --- | --- | --- |
+| `cornerstone-core/` | `cornerstone-core` | `com.cornerstone.core.*` | 底座：`auth` / `system` / `common` / `config` / `tenant` / `audit` + 全部第三方 starter | 不依赖任何业务模块 |
+| `module-organization/` | `module-organization` | `com.cornerstone.module.organization.*` | 业务：校区/教室/学期/时间段 | → core |
+| `module-education/` | `module-education` | `com.cornerstone.module.education.*` | 业务：教师/学员/班级/排课/考勤/小程序 | → core、→ organization |
+| `app/` | `jiaopei-platform-backend` | `com.cornerstone`（仅主类 `CornerstoneApplication`） | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
 
+- **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名/表前缀、容器与镜像名**保持 jiaopei/jp_ 不变**（那是本项目的部署与业务标识，不属于底座身份）。
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
 - `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
 - 业务专属的第三方依赖（如 `wx-java-miniapp`）目前仍随 core 一起声明，core 的 pom 里**不允许**出现 `module-*` 依赖。
@@ -69,7 +70,7 @@ jiaopei:
 
 必须知道的三个连带约束：
 
-1. **不要把 `scanBasePackages` 放宽回 `com.jiaopei.platform`** 或加进业务包——那等于无条件扫进所有业务 `@Component`，开关形同虚设。`ModuleSwitchGuardTest` 会拦住这类改动。
+1. **不要把 `scanBasePackages` 放宽回 `com.cornerstone`** 或加进业务包——那等于无条件扫进所有业务 `@Component`，开关形同虚设。`ModuleSwitchGuardTest` 会拦住这类改动。
 2. **`@WebMvcTest` 切片会关闭自动配置**，业务模块的控制器在切片里不会被扫描到。写业务控制器的切片测试时，要把控制器同时列进 `@Import({...})`（现有三处参照：`SecondThirdMainlineApiCompatibilityWebTest`、`EducationFourthMainlineApiCompatibilityWebTest`、`TimeSlotTemplateControllerWebTest`）；否则症状就是断言 `200` 实际 `404`。
 3. **底座新增顶层包**时要同步三处：启动类 `scanBasePackages`、core `@MapperScan`（若带 mapper）、`ArchitectureRulesTest` 的包白名单。漏扫描的类不会报错，只是静默不进容器。
 
@@ -163,7 +164,7 @@ pnpm dev:h5            # H5 调试
 
 ## 模块划分与持久化
 
-- 包结构 `com.jiaopei.platform`：`auth` / `system` / `common` / `config` / `tenant`（机构=租户）→ `cornerstone-core`；`organization`（校区/教室/学期/时间段）→ `module-organization`；`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`。
+- 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，六个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit`；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
 - 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
 - `JiaopeiProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
@@ -184,7 +185,7 @@ pnpm dev:h5            # H5 调试
 
 ## 底座边界（Cornerstone 阶段二B 起为物理 Maven 隔离，详见 `docs/底座分离与Cornerstone重构计划.md`）
 
-- 底座包 = `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回），业务包 = `organization`（校区/教室/学期/时间段）/ `education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
+- 底座包 = `com.cornerstone.core.` 下的 `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回）/ `audit`，业务包 = `com.cornerstone.module.organization`（校区/教室/学期/时间段）/ `com.cornerstone.module.education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
 - 边界现在有两层保护：Maven 依赖方向（`cornerstone-core` 的 pom 不声明任何 `module-*` 依赖，写错直接编译不过）+ ArchUnit 规则（底座包不得依赖 `organization..` / `education..`，Institution 豁免已随机构迁回移除）。
 - 底座确需感知业务数据时（如注销账号清理学员关联、校验默认校区归属），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `CampusBelongingValidator`，实现放业务模块，经 `ObjectProvider` 可选注入），不要在底座里直接 import 业务 mapper。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
