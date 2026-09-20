@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class TokenCacheServiceImpl implements TokenCacheService {
 
-    private static final String TOKEN_KEY_PREFIX = "jiaopei:token:";
-    private static final String USER_TOKENS_KEY_PREFIX = "jiaopei:user:tokens:";
+    private static final String TOKEN_KEY_PREFIX = "cornerstone:token:";
+    private static final String USER_TOKENS_KEY_PREFIX = "cornerstone:user:tokens:";
 
     private final RedisTemplate<String, Object> redisTemplate;
 

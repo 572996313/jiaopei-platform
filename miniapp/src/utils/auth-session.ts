@@ -3,8 +3,8 @@ export interface AuthSessionSnapshot {
   tokenType: string
 }
 
-// 与管理后台(frontend)的 jiaopei.auth.session 区分开,两端互不干扰
-const AUTH_SESSION_STORAGE_KEY = 'jiaopei.mini.auth.session'
+// 与管理后台(frontend)的 cornerstone.auth.session 区分开,两端互不干扰
+const AUTH_SESSION_STORAGE_KEY = 'cornerstone.mini.auth.session'
 
 export function getStoredAuthSession(): AuthSessionSnapshot | null {
   try {

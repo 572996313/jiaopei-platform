@@ -289,7 +289,7 @@ interface MenuPreferences {
   railPopover: RailPopoverMode
 }
 
-const MENU_PREFS_STORAGE_KEY = 'jiaopei-menu-preferences'
+const MENU_PREFS_STORAGE_KEY = 'cornerstone-menu-preferences'
 const defaultMenuPreferences: MenuPreferences = { groupExpand: 'smart', railPopover: 'pin-outside' }
 
 function pickValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -650,7 +650,7 @@ function prevRailGroupLabel(item: RailItem, idx: number) {
 
 /** ================= 导航模式(完整 / 图标窄栏) ================= */
 
-const NAV_MODE_STORAGE_KEY = 'jiaopei-nav-mode'
+const NAV_MODE_STORAGE_KEY = 'cornerstone-nav-mode'
 type NavMode = 'full' | 'rail'
 
 function readStoredNavMode(): NavMode {

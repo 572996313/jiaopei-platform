@@ -3,7 +3,7 @@ export interface AuthSessionSnapshot {
   tokenType: string
 }
 
-const AUTH_SESSION_STORAGE_KEY = 'jiaopei.auth.session'
+const AUTH_SESSION_STORAGE_KEY = 'cornerstone.auth.session'
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'

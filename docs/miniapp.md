@@ -21,7 +21,7 @@ miniapp 内部结构:
 miniapp/src/
 ├── config.ts               # API 基地址(可用 VITE_API_BASE_URL 环境变量覆盖)
 ├── utils/
-│   ├── auth-session.ts     # 登录态存取(uni storage,key: jiaopei.mini.auth.session)
+│   ├── auth-session.ts     # 登录态存取(uni storage,key: cornerstone.mini.auth.session)
 │   └── request.ts          # uni.request 封装:ApiResponse 信封解包 + 雪花 ID 精度保护 + 401 统一处理
 ├── api/auth.ts             # 微信登录 / 自助注册 / 注销 / 当前用户
 ├── api/miniapp.ts          # 学员档案关联 + 课表查询
