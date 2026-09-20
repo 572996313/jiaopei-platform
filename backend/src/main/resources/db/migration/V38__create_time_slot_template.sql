@@ -13,10 +13,10 @@ ALTER TABLE jp_time_slot
     COMMENT = '时间段(每星期每节次一行,由时段模板批量展开或手工录入)';
 
 -- 3) 重建编码唯一键
-DROP INDEX IF EXISTS uk_jp_time_slot_org_code
+DROP INDEX  uk_jp_time_slot_org_code
 ON jp_time_slot;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_jp_time_slot_code
+CREATE UNIQUE INDEX uk_jp_time_slot_code
 ON jp_time_slot (
     institution_id,
     campus_id,
@@ -27,14 +27,17 @@ ON jp_time_slot (
 
 -- 4) 重建名称唯一键
 ALTER TABLE jp_time_slot
-    DROP INDEX IF EXISTS uk_jp_time_slot_name,
-    ADD UNIQUE KEY uk_jp_time_slot_name (
-        institution_id,
-        campus_id,
-        slot_name,
-        weekday,
-        deleted
-    );
+    DROP INDEX uk_jp_time_slot_name;
+
+ALTER TABLE jp_time_slot
+ADD UNIQUE KEY uk_jp_time_slot_name (
+    institution_id,
+    campus_id,
+    slot_name,
+    weekday,
+    deleted
+);
+
 
 -- 5) 时段模板表
 CREATE TABLE IF NOT EXISTS jp_time_slot_template (
