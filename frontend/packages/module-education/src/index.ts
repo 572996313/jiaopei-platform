@@ -48,6 +48,7 @@ export const educationRoutes: RouteRecordRaw[] = [
 registerPermissionLabels([
   { code: 'education:read', label: '教务查看', group: '教务管理' },
   { code: 'education:write', label: '教务维护', group: '教务管理' },
+  { code: 'miniapp:access', label: '小程序端访问', group: '小程序端' },
 ])
 
 registerPageSlot('campus-detail', {

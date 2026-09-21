@@ -39,13 +39,23 @@ function keepUnique(options: PermissionOption[]): PermissionOption[] {
   })
 }
 
+/**
+ * 后端没挂按钮节点的码会把权限码本身当 label 返回(如 organization:read),
+ * 这类空洞用静态表(底座码 + 模块经 registerPermissionLabels 贡献的码)补名。
+ */
+function fillLabelFromStaticTable(options: PermissionOption[]): PermissionOption[] {
+  return options.map((item) =>
+    item.label && item.label !== item.code ? item : { ...item, label: permissionLabel(item.code) }
+  )
+}
+
 async function fetchOnce() {
   if (loadPromise) {
     return loadPromise
   }
   loadPromise = fetchPermissionOptions()
     .then((options) => {
-      state.value = { loaded: true, options: keepUnique(options) }
+      state.value = { loaded: true, options: fillLabelFromStaticTable(keepUnique(options)) }
     })
     .catch(() => {
       // 加载失败:保留未加载标记,由兜底逻辑渲染静态常量表;下次进入页面可重试
