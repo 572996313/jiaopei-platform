@@ -54,6 +54,9 @@ cornerstone:
       organization: ${MODULE_ORGANIZATION_ENABLED:true}
       education: ${MODULE_EDUCATION_ENABLED:true}
   # 业务库 Flyway 迁移目录；某模块要自带脚本时在此追加其 jar 内目录。
+  # 教培走的是存量路径（V1..V45 一路演进出来的 sys_ 表），**不要**追加
+  # classpath:cornerstone/migration —— 那是底座给全新项目的基线（V100~V199 号段），
+  # 两条路径长出同一个库，差异由 CornerstoneBaselineGuardTest 与 V45 拦着。
   flyway:
     locations:
       - classpath:db/migration

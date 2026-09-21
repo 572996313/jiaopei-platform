@@ -13,6 +13,7 @@ public class CornerstoneProperties {
     private final Modules modules = new Modules();
     private final Auth auth = new Auth();
     private final AuditDb auditDb = new AuditDb();
+    private final Flyway flyway = new Flyway();
 
     public Security getSecurity() {
         return security;
@@ -28,6 +29,42 @@ public class CornerstoneProperties {
 
     public AuditDb getAuditDb() {
         return auditDb;
+    }
+
+    public Flyway getFlyway() {
+        return flyway;
+    }
+
+    /**
+     * 两套 Flyway 实例的迁移目录。
+     *
+     * <p>必须是 {@code @ConfigurationProperties} 而不是 {@code @Value}：配置写成 YAML 列表时
+     * 只有 relaxed binding 能解析出来（{@code @Value} 按占位符取的是标量属性，取不到列表就静默
+     * 回落到默认值，症状是"配置了却没生效"）。YAML 列表与逗号分隔单行两种写法都支持。</p>
+     */
+    public static class Flyway {
+
+        /** 业务库迁移目录，第一个放项目自己的脚本，需要引用底座基线时追加 {@code classpath:cornerstone/migration}。 */
+        private List<String> locations = new ArrayList<>(List.of("classpath:db/migration"));
+
+        /** 日志库迁移目录，默认只扫项目自己的目录；用底座自带审计表时追加 {@code classpath:cornerstone/audit-migration}。 */
+        private List<String> auditLocations = new ArrayList<>(List.of("classpath:db/audit-migration"));
+
+        public List<String> getLocations() {
+            return locations;
+        }
+
+        public void setLocations(List<String> locations) {
+            this.locations = locations;
+        }
+
+        public List<String> getAuditLocations() {
+            return auditLocations;
+        }
+
+        public void setAuditLocations(List<String> auditLocations) {
+            this.auditLocations = auditLocations;
+        }
     }
 
     public static class Security {

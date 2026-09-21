@@ -7,9 +7,17 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.BeanDefinition;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,5 +65,44 @@ class ModuleSwitchGuardTest {
 
         assertThat(all).contains("OrganizationModuleAutoConfiguration");
         assertThat(all).contains("EducationModuleAutoConfiguration");
+    }
+
+    @Test
+    void coreMustSelfRegisterItsConfigurationProperties() {
+        // 下游主类包根多半不是 com.cornerstone，靠它写 @ConfigurationPropertiesScan 扫底座包是条
+        // 静默失效的隐性契约：漏写就是"cornerstone.* 全部取默认值、启动不报错"。登记动作收进底座，
+        // 这里拦住回退——底座新增 @ConfigurationProperties 类却忘了挂进 @EnableConfigurationProperties 也一并拦。
+        Set<Class<?>> declared = new LinkedHashSet<>();
+        ClassPathScanningCandidateComponentProvider propertyScanner =
+            new ClassPathScanningCandidateComponentProvider(false);
+        propertyScanner.addIncludeFilter(new AnnotationTypeFilter(ConfigurationProperties.class));
+        for (var candidate : propertyScanner.findCandidateComponents("com.cornerstone.core")) {
+            declared.add(load(candidate));
+        }
+
+        Set<Class<?>> registered = new LinkedHashSet<>();
+        ClassPathScanningCandidateComponentProvider configScanner =
+            new ClassPathScanningCandidateComponentProvider(false);
+        configScanner.addIncludeFilter(new AnnotationTypeFilter(Configuration.class));
+        for (var candidate : configScanner.findCandidateComponents("com.cornerstone.core")) {
+            EnableConfigurationProperties annotation =
+                load(candidate).getAnnotation(EnableConfigurationProperties.class);
+            if (annotation != null) {
+                registered.addAll(Arrays.asList(annotation.value()));
+            }
+        }
+
+        assertThat(declared).as("扫不到底座的 @ConfigurationProperties，本测试随之失效").isNotEmpty();
+        assertThat(registered)
+            .as("底座必须自己登记全部配置类，不得要求下游扫 com.cornerstone.core.config.properties")
+            .containsAll(declared);
+    }
+
+    private Class<?> load(BeanDefinition candidate) {
+        try {
+            return Class.forName(candidate.getBeanClassName());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("配置类扫不到:" + candidate.getBeanClassName(), e);
+        }
     }
 }

@@ -222,7 +222,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 已完成（2026-09-21，见下方落地记录） |
 | 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 已完成（2026-09-21，见下方落地记录） |
 | 0d-3 | 登录页提示语（含默认管理员口令那句）移出底座，改读系统参数 `auth.login.page_tip` | 已完成（2026-09-21，见下方落地记录） |
-| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 —— 阶段五-1 实测确认它是"新项目能启动、不能登录"的唯一硬阻塞。**下游已用手工抄本临时解掉**（`achievement` 的 `V100__cornerstone_baseline.sql`，11 张 `sys_` 表 + 69 行底座最小种子，登录/审计实测通过），0e 落地时以该抄本为比对基准之一，并一并收口两件事：① 12 个底座唯一键全不含 `deleted`；② 每张建表都显式写 `COLLATE=utf8mb4_unicode_ci`（V14 漏写导致的 `sys_system_config` 漂移已由教培侧 V44 收口，脚本本身不再回改） |
+| 0e | core jar 自带底座基线迁移（`classpath:cornerstone/migration` + `classpath:cornerstone/audit-migration`，`V1xx` 号段），与教培库逐字段比对防漂移 | 已完成（2026-09-21，见下方落地记录）。下游手工抄本（`achievement` 的 `V100__cornerstone_baseline.sql`）已退役，改吃 jar 自带脚本，空库起→登录→审计实测通过。两件事一并收口：① 12 个底座唯一键补上 `deleted`（教培侧 V45 同步）；② 基线每张表显式写 `COLLATE=utf8mb4_unicode_ci` |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 已完成（2026-09-21，见下方落地记录） |
 
 <details><summary>0a 实际落地记录（默认校区迁出底座）</summary>
@@ -295,6 +295,22 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 </details>
 
+<details><summary>0e 实际落地记录（core 自带底座基线 + 双轨比对）</summary>
+
+- **交付物三份，全在 `cornerstone-core/src/main/resources`**：`cornerstone/migration/V100__cornerstone_core_schema.sql`（11 张 `sys_` 表）、`cornerstone/migration/V101__cornerstone_core_seed.sql`（69 行最小种子）、`cornerstone/audit-migration/V100__cornerstone_oper_log.sql`。目录选**顶层独立路径**而不是 `db/migration/core`：后者在 `classpath:db/migration` 之下，Flyway 递归扫父目录会把同一份脚本扫两遍。号段 `V100~V199` 归底座，项目业务脚本从 `V200` 起，跨 location 重版本号 Flyway 直接启动失败。
+- **种子只留底座语义**：机构只 id=1 `SYS-DEFAULT`、菜单只底座段、`PLATFORM_ADMIN` 权限串只有 `tenant:*`/`system:*`、不种 `auth.login.page_tip`。`admin` 起始口令 `{noop}Cornerstone@123456` 且 `password_reset_required=1` + `force_change_password=1` —— 写进 jar 的口令等于公开信息，强制改密是这道口子唯一的兜底，不许下游关掉。
+- **教培侧同步迁移 V45 + 审计 V2**（不是回改 V1..V44）：12 条 `ALTER TABLE ... DROP INDEX ..., ADD UNIQUE KEY ...(含 deleted)` 把唯一键补齐，52 条 `MODIFY COLUMN` 补中文注释，审计 `oper_log.portal` 注释去业务措辞。含 `deleted` 的软删唯一键仍只允许一条软删记录，属治标（已记进接入说明的残留边界）。
+- **1553 实证**：`sys_dict_item`/`sys_role_menu`/`sys_user_role_rel` 三张子表的唯一键正是外键列的唯一前缀索引，拆开两条 `ALTER` 先删后建会被外键拦住；写成一条 `ALTER` 的 `DROP INDEX`+`ADD UNIQUE KEY` 即可（scratch 库实测通过）。**键名保持不变**，两条路径的键名一致才不会在比对里产生噪声。
+- **双轨等价怎么证**：一次性人工比对用 `information_schema`（不是 `SHOW CREATE TABLE`，那会把 `AUTO_INCREMENT`/建表时间戳也算进来）取四段——列（类型/长度/NULL/默认/EXTRA/字符集/排序规则/注释）、索引（含列序）、外键（含 `DELETE_RULE`）、表元（引擎/排序规则/表注释），过滤 `sys_%` 排序后 `diff`。实测 208 行、`oper_log` 22 行，两侧**零差异**。此后靠静态守护测试防回归（不起上下文、不连库）。
+- **`CornerstoneBaselineGuardTest` 8 项**：脚本必须打进 core jar（从 classpath 读得到）、唯一键含 `deleted`、每列有注释、每表钉 `COLLATE`、基线表集合 == `@TableName` 实体集合（反射扫 `com.cornerstone.core`，12 张含 `oper_log`）、教培 yml 不得启用基线目录（只比对非注释行）、种子不含业务权限码、`cornerstone.flyway.*` 必须是列表绑定。
+- **踩到的真坑（一度误判为"fat jar 嵌套 jar 里的目录扫不到"）**：`@Value("${cornerstone.flyway.locations:classpath:db/migration}") List<String>` 读不到 YAML 列表。列表在 Environment 里是 `locations[0]`/`[1]` 两个键，占位符取不到就**静默用默认值**，表现是"配了两条目录、日志却 `No migrations found`、启动不报错"。教培配的恰好等于默认值，所以本仓库永远看不出来；用 `jarmode=tools extract` 摊平成普通 `lib/*.jar` 复现同样结果，才排除掉 classloader 这条错方向。**改成 `CornerstoneProperties.Flyway` 的 `@ConfigurationProperties` 绑定后，fat jar 内的嵌套 core jar 目录一次就扫到并应用**（Spring Boot 的 `LaunchedClassLoader` + Flyway `ClassLoader.getResources` 本来就没问题）。结论：**底座凡是列表型配置一律 `@ConfigurationProperties`**，日志库目录也顺手从硬编码改成 `cornerstone.flyway.audit-locations`。
+- **改资源文件后打包要带 `clean`**：把 `db/migration/*.sql` 移到 `db/attic/` 后 `package` 出的 jar 里旧脚本还在（`target/classes` 不删），跑起来的还是上一版基线。症状是"文件已经不在源码里、Flyway 却应用了它"。
+- **验证**：教培 `mvn test` 178 项全绿；重启 8080 后 V45/审计 V2 正常应用（无 1553/1061）；achievement 空库起 → `achievement_platform` 到 v101、`achievement_log` 到 v100 → 登录、强制改密、重登、`/api/auth/current/menus`、`/api/system/operlogs`（password 已脱敏）全通。
+- **重新上私服并实测纯私服链路**：`cd backend && mvn deploy`（**带全量测试**，178 项绿后才上传，`Uploaded to cornerstone-snapshots` 恰好 parent pom 与 core 两个坐标，时间戳 `0.1.1-20260921.114203-2`）。随后把本机 `Maven-resource/com/cornerstone` 整个移开，achievement `mvn -U clean package` 日志显示 parent pom、core pom、core jar 三个都从 `cornerstone-nexus` 下载，9 项守护测试通过，产物起库到登录全链路照跑 —— **下游"只吃私服"这条已经实测成立，本机不再需要先 install 教培仓库**。
+- **仍未收口**：`oper_log` 表名没跟上"底座表统一 `sys_`"（改名要新增迁移、两条路径都要动，问题记录 #8）；`@ConfigurationPropertiesScan` 仍要下游显式列底座包（#34）；`ExternalIdParser.FIELD_NAME_ZH` 教培词表（#35）。
+
+</details>
+
 <details><summary>0f 实际落地记录（版本转 0.1.0 + 下游接入说明）</summary>
 
 - **版本**：五个 pom 的 `0.0.1-SNAPSHOT` → `0.1.0`（parent 自身 + 三子模块与 app 的 `<parent>` 段）。`backend/Dockerfile` 用 `*.jar` 通配所以不用改，`scripts/restart-backend.sh` 与 AGENTS.md 里的 jar 名同步成 `jiaopei-platform-backend-0.1.0.jar`。
@@ -330,7 +346,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 </details>
 
-**新仓库侧（1~4）**：~~后端脚手架（只依赖 core，实测开关与装配）~~ **已完成（2026-09-21，见上方记录）** → 成就分发业务三件套（2）→ 前端接 `@cornerstone/core`（3，前置是 0e）→ 验收并把问题回灌 core（4）。
+**新仓库侧（1~4）**：~~后端脚手架（只依赖 core，实测开关与装配）~~ **已完成（2026-09-21，见上方记录）** → 成就分发业务三件套（2）→ 前端接 `@cornerstone/core`（3，前置的 0e 已就绪）→ 验收并把问题回灌 core（4）。**0a~0f 全部完成，后端侧「拿一个 core jar 从空库跑到登录」已实测成立；宣布底座可复用仍要等 2~4 走完。**
 
 ## 7. 固化到 AGENTS.md 的新约定（阶段一随代码提交）
 

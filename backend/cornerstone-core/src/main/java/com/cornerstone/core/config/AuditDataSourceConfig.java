@@ -24,7 +24,8 @@ import org.springframework.context.annotation.Configuration;
  * <ul>
  *   <li>独立的 Hikari 数据源,默认复用业务库的 MySQL 实例与账号(DB_AUDIT_* 可单独覆盖);</li>
  *   <li>独立的 MyBatis-Plus SqlSessionFactory(含分页插件);</li>
- *   <li>独立的 Flyway,迁移脚本位于 classpath:db/audit-migration,主 Flyway 不管日志库;</li>
+ *   <li>独立的 Flyway,迁移目录由 {@code cornerstone.flyway.audit-locations} 指定
+ *       (默认 classpath:db/audit-migration),主 Flyway 不管日志库;</li>
  *   <li>audit Mapper 通过 sqlSessionFactoryRef 指向 auditSqlSessionFactory,与业务 Mapper 分开扫描。</li>
  * </ul>
  *
@@ -95,12 +96,17 @@ public class AuditDataSourceConfig {
      * 日志库迁移(Flyway 第二实例)。方法内执行 migrate 并捕获异常:
      * 日志库不存在/暂不可达仅告警,绝不阻断业务应用启动;
      * 后续写入失败再由异步记录器隔离。
+     *
+     * <p>目录由 {@code cornerstone.flyway.audit-locations} 指定(默认
+     * {@code classpath:db/audit-migration}):core jar 自带
+     * {@code classpath:cornerstone/audit-migration}(oper_log 建表),各项目自己的日志表脚本
+     * 追加自己的目录即可,不需要改这里的代码。</p>
      */
     @Bean(name = "auditFlyway")
     public Flyway auditFlyway(@Qualifier("auditDataSource") DataSource auditDataSource) {
         Flyway flyway = Flyway.configure()
             .dataSource(auditDataSource)
-            .locations("classpath:db/audit-migration")
+            .locations(cornerstoneProperties.getFlyway().getAuditLocations().toArray(String[]::new))
             .baselineOnMigrate(true)
             .load();
         try {

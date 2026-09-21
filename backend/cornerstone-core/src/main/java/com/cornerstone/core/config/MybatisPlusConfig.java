@@ -5,10 +5,10 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
+import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PostConstruct;
-import java.util.List;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.flywaydb.core.Flyway;
@@ -62,8 +62,11 @@ public class MybatisPlusConfig {
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
 
-    @Value("${cornerstone.flyway.locations:classpath:db/migration}")
-    private List<String> flywayLocations;
+    private final CornerstoneProperties cornerstoneProperties;
+
+    public MybatisPlusConfig(CornerstoneProperties cornerstoneProperties) {
+        this.cornerstoneProperties = cornerstoneProperties;
+    }
 
     /**
      * 主业务数据源(Hikari,基于 spring.datasource.* 配置)。
@@ -119,15 +122,16 @@ public class MybatisPlusConfig {
      * 业务库主 Flyway。引入日志库后 Spring Boot 主 Flyway 自动配置退避,
      * 这里显式声明并绑定主数据源。
      *
-     * <p>迁移目录由 {@code cornerstone.flyway.locations} 拼接:存量 V1~V38 在 app 模块的
-     * {@code classpath:db/migration},今后某模块要自带脚本时,在该配置项后追加模块目录即可,
-     * 不需要改这里的代码。开关关掉的模块其 jar 不在 classpath,对应目录自然缺失,Flyway 会忽略。</p>
+     * <p>迁移目录由 {@code cornerstone.flyway.locations} 指定:存量脚本在 app 模块的
+     * {@code classpath:db/migration},要用底座自带基线时追加 {@code classpath:cornerstone/migration},
+     * 某模块要自带脚本时同样只需在配置里追加该 jar 内目录,不需要改这里的代码。
+     * 开关关掉的模块其 jar 不在 classpath,对应目录自然缺失,Flyway 会忽略。</p>
      */
     @Bean(name = "primaryFlyway", initMethod = "migrate")
     public Flyway primaryFlyway(@Qualifier(PRIMARY_DS) DataSource primaryDataSource) {
         return Flyway.configure()
             .dataSource(primaryDataSource)
-            .locations(flywayLocations.toArray(String[]::new))
+            .locations(cornerstoneProperties.getFlyway().getLocations().toArray(String[]::new))
             .baselineOnMigrate(true)
             .load();
     }

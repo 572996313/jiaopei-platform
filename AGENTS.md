@@ -67,7 +67,7 @@ cornerstone:
 
 - `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
 - 依赖方向 `education → organization`，**关 organization 必须同时关 education**（只关前者会让后端的模块清单出现"装了但接口没挂上"的半残状态）。
-- 迁移目录由 `cornerstone.flyway.locations`（默认只有 `classpath:db/migration`）拼接；模块要自带脚本时在此追加该 jar 内目录，不改代码。
+- 迁移目录是可配的两组列表：业务库 `cornerstone.flyway.locations`（教培只配 `classpath:db/migration`）、日志库 `cornerstone.flyway.audit-locations`（教培只配 `classpath:db/audit-migration`）。模块要自带脚本时在此追加该 jar 内目录，不改代码。**这两项必须经 `CornerstoneProperties` 绑定，不能用 `@Value`**：YAML 列表在 Environment 里是 `locations[0]`/`[1]`，`@Value` 取不到列表只会静默回落到默认值，症状是"配了没生效、Flyway 报 `No migrations found`、启动不报错"。教培自己的配置值恰好等于默认值，所以这个坑只有下游配第二条目录时才暴露（守护：`CornerstoneBaselineGuardTest#flywayLocationsMustBindTheYamlListForm`）。
 
 必须知道的三个连带约束：
 
