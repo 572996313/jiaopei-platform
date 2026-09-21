@@ -1,5 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { onInstitutionReset, registerPermissionLabels } from '@cornerstone/core/extension/module-extensions'
+import { OfficeBuilding, Timer } from '@element-plus/icons-vue'
+import {
+  onInstitutionReset,
+  registerNavItems,
+  registerPermissionLabels,
+} from '@cornerstone/core/extension/module-extensions'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 
 /**
@@ -29,6 +34,37 @@ export const organizationRoutes: RouteRecordRaw[] = [
 registerPermissionLabels([
   { code: 'organization:read', label: '组织查看', group: '组织档案' },
   { code: 'organization:write', label: '组织维护', group: '组织档案' },
+])
+
+/**
+ * 本模块的侧边栏入口：底座只内置「系统设置」，业务导航一律靠登记。
+ * groupOrder 决定分组自上而下的顺序，同一组内按登记顺序排列。
+ */
+registerNavItems([
+  {
+    key: 'campus',
+    to: '/campus',
+    label: '机构与教学资源',
+    title: '机构与教学资源',
+    icon: OfficeBuilding,
+    group: 'archive',
+    groupLabel: '档案中心',
+    groupOrder: 40,
+    prefixes: ['/campus'],
+    alwaysVisible: true,
+  },
+  {
+    key: 'time-slots',
+    to: '/time-slots',
+    label: '时间段设置',
+    title: '时间段设置(节次模板与网格编辑)',
+    icon: Timer,
+    group: 'archive',
+    groupLabel: '档案中心',
+    groupOrder: 40,
+    prefixes: ['/time-slots'],
+    alwaysVisible: true,
+  },
 ])
 
 /** 机构切换/退出登录时清空本模块维护的教学范围（校区/学期） */

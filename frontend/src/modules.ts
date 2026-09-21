@@ -1,6 +1,11 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { Calendar } from '@element-plus/icons-vue'
+import {
+  registerBranding,
+  registerNavItems,
+} from '@cornerstone/core/extension/module-extensions'
 // 顺序有含义：模块入口的扩展点注册是 import 副作用，先 import 的先登记
-// （权限标签分组、渲染器候选在界面上按这个顺序排列，组织在前）。
+// （权限标签分组、侧边栏分组在界面上按这个顺序排列，组织在前）。
 import { organizationRoutes } from '@cornerstone/module-organization'
 import { educationRoutes } from '@cornerstone/module-education'
 
@@ -9,7 +14,7 @@ import { educationRoutes } from '@cornerstone/module-education'
  * 换业务方向时改这一个文件（+ 删对应业务包与 package.json 依赖），底座包不动。
  *
  * 两点必须同时成立，少一个就是"装了但没挂上"：
- * 1. import 模块入口 —— 模块对底座的扩展点注册（权限标签/页面插槽）是 import 副作用；
+ * 1. import 模块入口 —— 模块对底座的扩展点注册（侧边栏导航/权限标签/页面插槽）是 import 副作用；
  * 2. 路由清单进 projectChildRoutes —— 页面才可访问。
  * 只留底座时把下面模块清里的条目与 import 一并去掉，pnpm build 产物即不含业务代码。
  */
@@ -24,3 +29,37 @@ export const projectChildRoutes: RouteRecordRaw[] = [
   },
   ...installedModuleRoutes.flat(),
 ]
+
+/**
+ * 壳工程自己的导航项与品牌文案。
+ * 底座 AppLayout 只内置「系统设置」，工作台属于本项目（跨模块聚合页），
+ * 换行业时改这一段、不用动 core。
+ */
+registerNavItems([
+  {
+    key: 'dashboard',
+    to: '/dashboard',
+    label: '今日教务',
+    title: '今日教务工作台',
+    icon: Calendar,
+    group: 'workbench',
+    groupLabel: '工作台',
+    groupOrder: 10,
+    prefixes: ['/dashboard'],
+    alwaysVisible: true,
+  },
+])
+
+registerBranding({
+  sidebarKicker: '线下班课教务中台',
+  product: '教培管理平台',
+  mark: '培',
+  loginKicker: '教培管理平台',
+  loginTitle: '线下班课教务中台',
+  loginCopy: '聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。',
+  loginFormTitle: '进入教培平台',
+  loginFeatures: [
+    { title: '组织与校区', text: '机构、校区、教室、学期、时间段统一管理。' },
+    { title: '排课与执行', text: '围绕线下班课模式搭建稳定的教务中台。' },
+  ],
+})

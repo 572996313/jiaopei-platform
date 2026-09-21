@@ -1,18 +1,14 @@
 <template>
   <div class="login-shell">
     <section class="login-panel login-panel-brand">
-      <div class="login-kicker">教培管理平台</div>
-      <h1 class="login-title">线下班课教务中台</h1>
-      <p class="login-copy">聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。</p>
+      <div class="login-kicker">{{ brand.loginKicker }}</div>
+      <h1 class="login-title">{{ brand.loginTitle }}</h1>
+      <p class="login-copy">{{ brand.loginCopy }}</p>
 
       <div class="login-feature-list">
-        <div class="login-feature-card">
-          <div class="login-feature-title">组织与校区</div>
-          <div class="login-feature-text">机构、校区、教室、学期、时间段统一管理。</div>
-        </div>
-        <div class="login-feature-card">
-          <div class="login-feature-title">排课与执行</div>
-          <div class="login-feature-text">围绕线下班课模式搭建稳定的教务中台。</div>
+        <div v-for="feature in brand.loginFeatures" :key="feature.title" class="login-feature-card">
+          <div class="login-feature-title">{{ feature.title }}</div>
+          <div class="login-feature-text">{{ feature.text }}</div>
         </div>
       </div>
     </section>
@@ -20,7 +16,7 @@
     <section class="login-panel login-panel-form">
       <div class="form-card">
         <div class="page-kicker">系统登录</div>
-        <h2 class="form-title">进入教培平台</h2>
+        <h2 class="form-title">{{ brand.loginFormTitle }}</h2>
         <p class="login-form-tip">
           当前已切真实登录接口。默认首个管理员账号：`admin`，初始密码：`Admin@123456`。
         </p>
@@ -59,10 +55,13 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { currentBrand } from '@cornerstone/core/extension/module-extensions'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
+/** 品牌文案由壳工程 registerBranding 登记；壳在 import 阶段就跑完了，这里取到的是最终值 */
+const brand = currentBrand()
 
 const submitting = ref(false)
 const formError = ref('')

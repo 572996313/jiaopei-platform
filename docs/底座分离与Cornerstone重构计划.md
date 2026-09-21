@@ -100,7 +100,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - 路由改为**模块清单驱动**：每包 `index.ts` 导出 `xxxRoutes: RouteRecordRaw[]`（component 懒加载），壳工程 `src/modules.ts` 里登记「import 模块入口 + 路由进 `projectChildRoutes`」两件事，缺一即"装了但没挂上"。
 - 构建期模块裁剪：**没有做 `.env` / `modules.manifest.ts` 开关**，装配清单就是 `modules.ts` 这一个是真源的 TS 文件——删掉模块条目与其 import，vite tree-shaking 后产物即不含业务 chunk（实测全挂 54 assets/13 业务 chunk，只挂 core 33 assets/0 业务 chunk）。理由：本仓库当前只有一个壳工程，多一层构建期配置文件换来的是"配置与代码可能不一致"的新风险，收益不足；真出现同仓库多产品形态时再引入 manifest。
 - **源码级引用，不单独构建各包**：包无 `dist`，vite `resolve.alias` + tsconfig `paths` 把 `@cornerstone/*` 指到 `packages/*/src`（别名顺序：`@` 必须排最后）。省掉每包一份构建配置与版本联动，代价是包暂时不能独立发布——与 §5.5"workspace 内先用相对引用"一致。
-- 底座↔模块解耦用**扩展点注册表**（`packages/core/src/extension/module-extensions.ts`，镜像后端事件/SPI）：列表单元格渲染器（`registerListRenderer`/`getListRenderer`/`listRendererChoices`）、权限码标签（`registerPermissionLabels`，阶段五-0d 增）、机构切换广播（`onInstitutionReset`/`notifyInstitutionReset`）、页面插槽 + 刷新广播（`registerPageSlot`/`getPageSlots`/`onPageRefresh`/`notifyPageRefresh`）。注册是各模块 `index.ts` 的 import 副作用。早期版本的"数据目录 provider"（`registerDirectory`/`loadDirectory`）已在阶段五-0d 随校区渲染器一并删除，业务下拉改走 `sys_data_source` 配置。
+- 底座↔模块解耦用**扩展点注册表**（`packages/core/src/extension/module-extensions.ts`，镜像后端事件/SPI）：列表单元格渲染器（`registerListRenderer`/`getListRenderer`/`listRendererChoices`）、权限码标签（`registerPermissionLabels`，阶段五-0d 增）、侧边栏导航项（`registerNavItems`，阶段五-0d-2 增）、品牌文案（`registerBranding`，同上，由壳登记）、机构切换广播（`onInstitutionReset`/`notifyInstitutionReset`）、页面插槽 + 刷新广播（`registerPageSlot`/`getPageSlots`/`onPageRefresh`/`notifyPageRefresh`）。注册是各模块 `index.ts` 的 import 副作用。早期版本的"数据目录 provider"（`registerDirectory`/`loadDirectory`）已在阶段五-0d 随校区渲染器一并删除，业务下拉改走 `sys_data_source` 配置。
 - 边界由 ESLint `no-restricted-imports` 分块强制（core ↛ `module-*`、organization ↛ education、`@/*` 只在壳），等价后端 ArchUnit 规则。
 - 菜单显隐仍以 `sys_menu` 下发为准，与后端开关同源。
 
@@ -193,7 +193,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 >   - **"所属端"泛化**：底座新增 SPI `core.auth.service.PortalResolver`（只认 `admin`），`module-education` 提供 `MiniappPortalResolver`（学生端/家长端判定，同时是小程序注册来源与角色编码的唯一出处）；`UserAccessTokenService` 注入 `List<PortalResolver>` 取第一个非空结果。删除死枚举 `core.audit.domain.Portal`；`OperateLogAspect` 不再按 `/api/auth/wechat/login` 路径识别登录，改由业务控制器标 `@OperateLog(actionType = LOGIN)`。core 六处 `@Schema` 的 `allowableValues={admin,student,parent}` 改为"admin + 业务扩展"口径（DB 列 COMMENT 未变，不加迁移）。
 >   - **ArchUnit 口径修正**：写接口免权限注解的豁免从"包等于 `core.auth.controller`"改为"类级 `@RequestMapping` 以 `/api/auth` 开头"，否则业务模块挂 `/api/auth/**` 的公开登录接口会被误判违规。
 >   - **前端泛化**：`RenderContext` 去掉 `formatCampus`/`campusOptions`，改为通用 `directories`（目录编码 → 选项，底座只按名字透传）；`campusName` 单元格渲染器从 core 移到 `module-organization` 入口，经新扩展点 `registerListRenderer` 登记，`renderCell` 在内置表查不到时回退模块注册表，列表配置编辑器的候选渲染器改为 `rendererChoices()`（内置 + 已装配模块贡献）；`canWriteOrganization` → `canWriteInstitution`（权限串仍是历史的 `organization:write`，改串要动 `sys_menu`/角色种子数据，未纳入本轮）；删掉壳里无人引用的 `HelloWorld.vue`、`views/placeholder/ModulePlaceholderView.vue`。
->   - **仍未收口（阶段五或单排）**：~~`sys_user.default_campus_id` 是底座表里的业务列~~（已收口：阶段五-0a 迁成 `module-organization` 的 `jp_user_campus_pref`，用户页不再保留校区列与目录注入）；~~`organization:write` 权限串改名~~（已收口：阶段五-0c，底座机构接口改 `tenant:*`）；`AppLayout` 菜单与登录页文案里的校区字样——**0d 复核后升级判定**：问题不在字样，core 的 `sidebarDefinitions`/`navGroupMeta` 直接写死了业务路由与教培分组，第二项目加页面就得改底座文件，已单列为 0d-2。
+>   - **仍未收口（阶段五或单排）**：~~`sys_user.default_campus_id` 是底座表里的业务列~~（已收口：阶段五-0a 迁成 `module-organization` 的 `jp_user_campus_pref`，用户页不再保留校区列与目录注入）；~~`organization:write` 权限串改名~~（已收口：阶段五-0c，底座机构接口改 `tenant:*`）；~~`AppLayout` 菜单与登录页文案里的校区字样~~（已收口：阶段五-0d-2——问题不在字样，core 的 `sidebarDefinitions`/`navGroupMeta` 直接写死了业务路由与教培分组，现已改成 `registerNavItems`/`registerBranding` 登记，见阶段五落地记录）。
 >   - 验证：`mvn test` 全绿（169，含搬包后的 `WechatAuthServiceImplTest`）；`pnpm lint` + `pnpm build` 通过；浏览器实测用户页"默认校区"列仍显示 `古县国锋练字`（业务渲染器生效）、编辑弹窗校区回显正常、列表配置「字段速查」的 renderer 候选显示 `institutionName / permissionTags / passwordStatus / campusName`（末项由组织模块贡献）。
 
 
@@ -220,7 +220,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | 0b | 底座 `jp_` 表改 `sys_` 前缀（V40 `RENAME TABLE` + `@TableName` 同步） | 已完成（2026-09-21，见下方落地记录） |
 | 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41/V42） | 已完成（2026-09-21，见下方落地记录） |
 | 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 已完成（2026-09-21，见下方落地记录） |
-| 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 待做（0d 落地时确认的新破口，需登录态实测导航渲染） |
+| 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 已完成（2026-09-21，见下方落地记录） |
 | 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
 
@@ -268,7 +268,18 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **死代码判定（0a 遗留项收口）**：`registerDirectory('campus')` 与 `registerListRenderer('campusName')` **一并删除**，连带删掉扩展点 `registerDirectory`/`loadDirectory`/`DirectoryOption`/`DirectoryLoader` 与 `RenderContext.directories`。理由：① V39 后全部 `sys_list_config` 都不再引用 `renderer=campusName`（dev 库逐行 LIKE 复核）；② `loadDirectory` 零调用方，没有任何宿主再注入 `directories`，所以那个渲染器只剩"显示 `校区 #id`"的空壳——留着一个坏掉的样例比留着没有更糟；③ 业务列要回显名称，正确做法是模块自己取数或用 `type:'map'`/字典列，而不是让底座透传业务目录。`registerListRenderer` 扩展点保留，活样例由阶段五-3 的成就项目补上。
 - **装配清单**：`frontend/src/modules.ts` 的模块 import 顺序调整为 organization 在前（注册顺序 = 界面分组顺序，保持角色弹窗"组织档案"在"教务管理"之前），并加注释说明这个顺序有含义。
 - **验证**：`pnpm lint` + `pnpm build` 通过；本机 Redis 起来后走完整登录态实测（admin，`/api/auth/me` 16 个码含 `tenant:read|write`）——① 角色管理列表的权限标签列显示"组织查看/组织维护/教务查看/排课维护"；② 角色编辑弹窗「预设权限」分组为 教务管理 / 小程序端 / 组织档案 / 系统管理 / 机构(租户)，后两组分别由 organization / education 入口贡献，且 16 个码**全部**是中文名（无一条原始码）；③ 功能权限总览的"已登记·未挂菜单权限码(4)"同样带出中文名，"未登记码"仍按原样显示 `miniapp:base`（后端无注解，属数据卫生问题不是命名缺口，不给它补名）；④ 列表配置「字段速查」的 renderer 候选只剩 `institutionName / permissionTags / passwordStatus`（`campusName` 已消失），optionsLoader 行为 `institutions / roles / status` + 业务编码提示；⑤ 用户页机构列与密码状态列渲染正常，控制台无报错。
-- **未做（另计，0d-2）**：`AppLayout` 的侧边栏定义与分组名（`sidebarDefinitions`/`navGroupMeta`）仍在 core 里写死业务路由（`/campus`、`/teachers`、`/scheduling`…）与"日常教务/班级与教学/档案中心"分组，登录页与品牌区文案同理。换项目时新增页面必须动 core 文件才能出现在导航里——这是阶段五要解决的第一个真实破口，改动落在导航视觉主链路，需要登录态实测（Redis 现已可用，可直接开工）。
+- **未做（另计，0d-2）**：`AppLayout` 的侧边栏定义与分组名（`sidebarDefinitions`/`navGroupMeta`）仍在 core 里写死业务路由（`/campus`、`/teachers`、`/scheduling`…）与"日常教务/班级与教学/档案中心"分组，登录页与品牌区文案同理。换项目时新增页面必须动 core 文件才能出现在导航里——**本轮没动它**（改动落在导航视觉主链路，要登录态实测），单列为 0d-2，落地见下一条记录。
+
+</details>
+
+<details><summary>0d-2 实际落地记录（core 侧边栏与品牌文案下沉到模块/壳）</summary>
+
+- **侧边栏导航**：`AppLayout` 删掉写死的 8 条 `sidebarDefinitions` 与 6 行 `navGroupMeta`，只留一条底座自有项「系统设置」（`menuCatalogCode=system`，`groupOrder: 900` 恒在最后）；其余 7 条按归属搬到各自入口——`campus`/`time-slots` → 组织模块，`scheduling`/`students`/`classes`/`teachers` → 教务模块，`dashboard`（今日教务工作台，跨模块聚合页）→ 壳 `modules.ts`。新增扩展点 `registerNavItems(items)`（按 `key` 幂等）。
+- **分组不再单独注册**：导航项自带 `group`/`groupLabel`/`groupOrder`，`navGroups` 由导航项现算（组间按 `groupOrder` 升序、组内按登记顺序、首个登记方的组名生效）。做法理由：多一个 `registerNavGroup` 就多一处"分组登记了但没人用/用了没登记"的对齐负担，而分组标题本来就跟条目走；代价是跨模块共用的「档案中心」（组织的校区/时间段 + 教务的教师档案）要在两边各写一遍组名与顺序号，已在两处注释里点明。
+- **品牌文案**：新增 `registerBranding(partial)` 与中性默认值（`product: 管理平台`、`mark: C`、`loginTitle: 通用管理平台`、`loginFeatures: []`）。`AppLayout` 的 `brand-kicker`/`brand-title`/窄栏角标 `培` 与 `currentTitle` 兜底、`LoginView` 的左侧小字/大字/介绍/两张能力卡/表单标题全部改读登记表；教培文案由壳 `modules.ts` 一次性登记。能力卡改成 `v-for`，未登记时整块不渲染。
+- **顺带清掉的死字段**：`SidebarDefinition.hint`（八条都填了中文提示，但模板从未渲染过这个字段）不再进新接口。
+- **验证**：`pnpm lint` + `pnpm build` 通过；登录态实测（Redis 已起）——① 完整导航顺序与改造前逐字一致（工作台/今日教务 → 日常教务/排课中心+报名与入班 → 班级与教学/班级学员 → 档案中心/机构与教学资源+时间段设置+教师档案 → 系统设置），品牌区仍是"线下班课教务中台 / 教培管理平台"；② 窄栏角标 `培`、五段图标数 1/2/1/3/1 与改造前相同；③ 登录页文案逐字未变（含两张能力卡）。**只挂底座形态**没有原地改装配清单去验（会瞬时把用户的导航删空），改用带 query 的动态 `import('.../module-extensions.ts?coreonly=1')` 取一份未登记的实例：`contributedNavItems()=0`、`contributedPermissionLabels()=0`、`listRendererChoices()=0`、`currentBrand()` 回落到中性默认值，即"模块没装配时导航只剩系统设置、登录页显示中性文案"。
+- **遗留（不属本轮）**：`LoginView` 里那句"默认首个管理员账号：`admin`，初始密码：`Admin@123456`"是本地联调提示，写在**底座**页面上且不带环境判断——换项目会带着教培的口令走，且生产构建也可能显示。应改成 `import.meta.env.DEV` 条件渲染或挪进 `registerBranding`，与品牌文案无关所以单列。
 
 </details>
 

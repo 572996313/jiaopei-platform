@@ -3,8 +3,8 @@
     <!-- ============ 完整导航(宽模式) ============ -->
     <aside v-if="navMode === 'full'" class="app-sidebar">
       <div class="brand-block">
-        <div class="brand-kicker">线下班课教务中台</div>
-        <div class="brand-title">教培管理平台</div>
+        <div class="brand-kicker">{{ brand.sidebarKicker }}</div>
+        <div class="brand-title">{{ brand.product }}</div>
       </div>
 
       <nav class="nav-groups">
@@ -66,7 +66,7 @@
     <!-- ============ 图标导航(窄模式 / rail) ============ -->
     <aside v-else class="app-sidebar app-sidebar-rail">
       <div class="brand-block rail-brand">
-        <span class="rail-brand-mark">培</span>
+        <span class="rail-brand-mark">{{ brand.mark }}</span>
       </div>
 
       <nav class="rail-nav">
@@ -251,18 +251,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowDown, Check, Setting } from '@element-plus/icons-vue'
 import {
-  AlarmClock,
-  ArrowDown,
-  Avatar,
-  Calendar,
-  Check,
-  OfficeBuilding,
-  Reading,
-  Setting,
-  Timer,
-  User,
-} from '@element-plus/icons-vue'
+  contributedNavItems,
+  currentBrand,
+  type NavItemDefinition,
+} from '@cornerstone/core/extension/module-extensions'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import type { SystemMenuTreeNode } from '@cornerstone/core/api/system'
@@ -276,6 +270,9 @@ const institutionStore = useInstitutionStore()
 onMounted(() => {
   institutionStore.loadInstitutions()
 })
+
+/** 品牌文案由壳工程 registerBranding 登记；壳在 import 阶段就跑完了，这里取到的是最终值 */
+const brand = currentBrand()
 
 /** ================= 菜单偏好(本机 localStorage,不同操作习惯可自选) ================= */
 
@@ -345,19 +342,8 @@ interface SidebarChildDefinition {
   groupLabel?: string
 }
 
-interface SidebarDefinition {
-  key: string
-  to: string
-  label: string
-  title: string
-  icon: Component
-  group: 'workbench' | 'daily' | 'archive' | 'class' | 'analysis' | 'system'
-  hint?: string
-  prefixes: string[]
-  alwaysVisible?: boolean
-  /** 命中该项对应系统目录(menuCode)时,子项改由后端菜单树动态提供 */
-  menuCatalogCode?: string
-}
+/** 顶层导航项结构由扩展点定义，业务模块经 registerNavItems 登记，底座不写死业务路由 */
+type SidebarDefinition = NavItemDefinition
 
 /** 后端菜单节点 → 侧边栏子项结构(名称/顺序/图标来自 sys_menu,可后台配置) */
 function adaptMenuChildren(nodes: SystemMenuTreeNode[], groupLabel = ''): SidebarChildDefinition[] {
@@ -421,85 +407,11 @@ function hasVisibleChild(item: SidebarDefinition) {
   return resolveVisibleChildren(item).length > 0
 }
 
-const sidebarDefinitions: SidebarDefinition[] = [
-  {
-    key: 'dashboard',
-    to: '/dashboard',
-    label: '今日教务',
-    title: '今日教务工作台',
-    icon: Calendar,
-    group: 'workbench',
-    hint: '先处理今日待办',
-    prefixes: ['/dashboard'],
-    alwaysVisible: true,
-  },
-  {
-    key: 'scheduling',
-    to: '/scheduling',
-    label: '排课中心',
-    title: '排课中心',
-    icon: AlarmClock,
-    group: 'daily',
-    hint: '排课、点名、结课',
-    prefixes: ['/scheduling', '/schedule'],
-    // 目录与子项来自 sys_menu(V37),名称/顺序/图标可后台配置
-    menuCatalogCode: 'education_schedule_center',
-  },
-  {
-    key: 'students',
-    to: '/students',
-    label: '报名与入班',
-    title: '报名与入班',
-    icon: User,
-    group: 'daily',
-    hint: '处理新增与报名关系',
-    prefixes: ['/students'],
-    alwaysVisible: true,
-  },
-  {
-    key: 'classes',
-    to: '/classes',
-    label: '班级学员',
-    title: '班级学员',
-    icon: Reading,
-    group: 'class',
-    hint: '调整在班关系',
-    prefixes: ['/classes'],
-    alwaysVisible: true,
-  },
-  {
-    key: 'campus',
-    to: '/campus',
-    label: '机构与教学资源',
-    title: '机构与教学资源',
-    icon: OfficeBuilding,
-    group: 'archive',
-    hint: '校区、教室、学期',
-    prefixes: ['/campus'],
-    alwaysVisible: true,
-  },
-  {
-    key: 'time-slots',
-    to: '/time-slots',
-    label: '时间段设置',
-    title: '时间段设置(节次模板与网格编辑)',
-    icon: Timer,
-    group: 'archive',
-    hint: '按参数生成节次并网格微调',
-    prefixes: ['/time-slots'],
-    alwaysVisible: true,
-  },
-  {
-    key: 'teachers',
-    to: '/teachers',
-    label: '教师档案',
-    title: '教师档案',
-    icon: Avatar,
-    group: 'archive',
-    hint: '教师基础档案',
-    prefixes: ['/teachers'],
-    alwaysVisible: true,
-  },
+/**
+ * 底座自有的顶层导航项。业务模块的入口一律经 registerNavItems 登记，
+ * 这里只保留底座自身（系统设置是底座概念，任何行业都要）。
+ */
+const coreSidebarDefinitions: SidebarDefinition[] = [
   {
     key: 'system',
     to: '/system/users',
@@ -507,12 +419,20 @@ const sidebarDefinitions: SidebarDefinition[] = [
     title: '系统设置',
     icon: Setting,
     group: 'system',
-    hint: '用户、角色、权限、字典',
+    groupLabel: '系统设置',
+    // 底座段固定沉底，业务模块的分组顺序号都小于它
+    groupOrder: 900,
     prefixes: ['/system'],
     // 系统设置组:父级目录与子项均来自 sys_menu(/auth/current/menus),名称/顺序/图标可在后台菜单管理配置
     menuCatalogCode: 'system',
   },
 ]
+
+/** 业务登记的在前、底座自有在后；组间顺序看 groupOrder，组内保持登记顺序 */
+const sidebarDefinitions = computed(() => [
+  ...contributedNavItems(),
+  ...coreSidebarDefinitions,
+])
 
 /** 配置化目录的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
 function displayLabel(item: SidebarDefinition): string {
@@ -525,17 +445,8 @@ function displayLabel(item: SidebarDefinition): string {
   return item.label
 }
 
-const navGroupMeta = [
-  { key: 'workbench', label: '工作台' },
-  { key: 'daily', label: '日常教务' },
-  { key: 'class', label: '班级与教学' },
-  { key: 'archive', label: '档案中心' },
-  { key: 'analysis', label: '数据回查' },
-  { key: 'system', label: '系统设置' },
-] as const
-
 const navItems = computed(() => {
-  return sidebarDefinitions.filter((item) => {
+  return sidebarDefinitions.value.filter((item) => {
     if (item.alwaysVisible) {
       return true
     }
@@ -544,21 +455,35 @@ const navItems = computed(() => {
   })
 })
 
+/** 分组由导航项自带的 group/groupLabel/groupOrder 推导，没有可见导航项的组不出现 */
 const navGroups = computed(() => {
-  return navGroupMeta
-    .map((group) => ({
-      key: group.key,
-      label: group.label,
-      items: navItems.value.filter((item) => item.group === group.key),
-    }))
-    .filter((group) => group.items.length > 0)
+  const buckets: Array<{
+    key: string
+    label: string
+    order: number
+    items: SidebarDefinition[]
+  }> = []
+  for (const item of navItems.value) {
+    let bucket = buckets.find((entry) => entry.key === item.group)
+    if (!bucket) {
+      bucket = {
+        key: item.group,
+        label: item.groupLabel,
+        order: item.groupOrder ?? 100,
+        items: [],
+      }
+      buckets.push(bucket)
+    }
+    bucket.items.push(item)
+  }
+  return buckets.sort((a, b) => a.order - b.order)
 })
 
 /** ================= 当前页匹配(标题 / 高亮) ================= */
 
 /** 当前路径命中的子项(用于标题与高亮,子项优先于父项) */
 const matchedChild = computed(() => {
-  for (const item of sidebarDefinitions) {
+  for (const item of sidebarDefinitions.value) {
     for (const child of resolveVisibleChildren(item)) {
       if (child.prefixes.some((prefix) => route.path.startsWith(prefix))) {
         return child
@@ -571,9 +496,10 @@ const matchedChild = computed(() => {
 const currentTitle = computed(() => {
   return (
     matchedChild.value?.title ??
-    sidebarDefinitions.find((item) => item.prefixes.some((prefix) => route.path.startsWith(prefix)))
-      ?.title ??
-    '教培管理平台'
+    sidebarDefinitions.value.find((item) =>
+      item.prefixes.some((prefix) => route.path.startsWith(prefix))
+    )?.title ??
+    brand.product
   )
 })
 
@@ -620,7 +546,7 @@ watch(
     if (menuPreferences.value.groupExpand !== 'smart') {
       return
     }
-    const activeParent = sidebarDefinitions.find(
+    const activeParent = sidebarDefinitions.value.find(
       (item) => hasVisibleChild(item) && routeMatchesItem(item)
     )
     openGroups.value = activeParent ? new Set([activeParent.key]) : new Set()
