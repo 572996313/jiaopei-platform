@@ -63,7 +63,9 @@
               size="small"
               clearable
               filterable
-              placeholder="选择数据源"
+              allow-create
+              default-first-option
+              placeholder="选择底座数据源,或输入已配置的业务数据源编码"
             >
               <el-option
                 v-for="opt in OPTIONS_LOADER_OPTIONS"
@@ -87,6 +89,7 @@
     <template #tip>
       <span class="block-tip">
         field 必须是后端分页接口支持的查询参数,否则填了不生效。
+        业务数据源先在「数据源配置」里配好编码,再在下拉里直接输入该编码。
         <a
           href="https://element-plus.org/zh-CN/component/select.html"
           target="_blank"

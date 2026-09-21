@@ -399,6 +399,7 @@ import FormEditor from '@cornerstone/core/components/ListConfigEditor/FormEditor
 import ShellEditor from '@cornerstone/core/components/ListConfigEditor/ShellEditor.vue'
 import JsonModePanel from '@cornerstone/core/components/ListConfigEditor/JsonModePanel.vue'
 import {
+  OPTIONS_LOADER_OPTIONS,
   actionsToJson,
   columnsToJson,
   createBlankFormState,
@@ -531,10 +532,13 @@ interface FieldGuideGroup {
   rows: FieldGuideRow[]
 }
 
-/** 说明表里的渲染器名字 = 底座内置 + 已装配业务模块登记的(挂上组织模块会多 campusName) */
+/** 说明表里的渲染器名字 = 底座内置 + 已装配业务模块登记的(未装配的模块不出现) */
 const rendererValues = rendererChoices()
   .map((item) => item.value)
   .join(' / ')
+
+/** 说明表里的数据源编码 = 底座内置候选;业务编码由「数据源配置」提供,编辑器可直接输入 */
+const loaderValues = OPTIONS_LOADER_OPTIONS.map((item) => item.value).join(' / ')
 
 const fieldGuideGroups: FieldGuideGroup[] = [
   {
@@ -592,7 +596,7 @@ const fieldGuideGroups: FieldGuideGroup[] = [
       {
         field: 'options / optionsLoader',
         meaning: '下拉选项:手填列表 / 引用现成数据源',
-        values: '数据源:institutions(机构)/ campuses(校区)/ roles / status',
+        values: `数据源:${loaderValues};业务数据源编码在「数据源配置」里维护,可直接输入`,
       },
       { field: 'dictType', meaning: 'type=dict-select 时的字典类型', values: '如 common_status' },
     ],

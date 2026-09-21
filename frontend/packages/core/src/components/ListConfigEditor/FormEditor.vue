@@ -135,7 +135,9 @@
               size="small"
               clearable
               filterable
-              placeholder="选择数据源"
+              allow-create
+              default-first-option
+              placeholder="选择底座数据源,或输入已配置的业务数据源编码"
             >
               <el-option
                 v-for="opt in OPTIONS_LOADER_OPTIONS"

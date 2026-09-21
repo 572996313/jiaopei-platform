@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import type { ComputedRef } from 'vue'
 import { fetchPermissionOptions } from '@cornerstone/core/api/system'
 import type { PermissionOption } from '@cornerstone/core/api/system'
-import { permissionGroups } from '@cornerstone/core/constants/permissionLabels'
+import { permissionGroups, permissionLabel } from '@cornerstone/core/constants/permissionLabels'
 
 /**
  * 权限码下拉选项缓存:以 /system/permission-options(后端 @RequiresPermission 注解扫描
@@ -21,12 +21,12 @@ export interface PermissionGroupOption {
 const state = ref<{ loaded: boolean; options: PermissionOption[] }>({ loaded: false, options: [] })
 let loadPromise: Promise<void> | null = null
 
-/** 静态常量表:code → 原有分组(系统管理/组织档案/教务管理)。未命中(新增码)归入「其他权限」组 */
-const staticGroupByCode = new Map(
-  permissionGroups().flatMap((group) =>
-    group.items.map((item) => [item.code, group.group] as const)
+/** 静态常量表:code → 分组(底座码 + 已装配模块贡献的码)。未命中(新增码)归入「其他权限」组 */
+function staticGroupByCode(): Map<string, string> {
+  return new Map(
+    permissionGroups().flatMap((group) => group.items.map((item) => [item.code, group.group] as const))
   )
-)
+}
 
 function keepUnique(options: PermissionOption[]): PermissionOption[] {
   const seen = new Set<string>()
@@ -94,7 +94,7 @@ export function usePermissionOptionGroups(): ComputedRef<PermissionGroupOption[]
       bucket.items.push(item)
     }
     for (const item of currentOptions()) {
-      push(staticGroupByCode.get(item.code) ?? '其他权限', item)
+      push(staticGroupByCode().get(item.code) ?? '其他权限', item)
     }
     return groups
   })
@@ -111,10 +111,5 @@ export function permissionOptionLabel(code: string): string {
   if (dynamic?.label) {
     return dynamic.label
   }
-  const staticLabel = staticGroupByCode.size
-    ? permissionGroups()
-        .flatMap((group) => group.items)
-        .find((item) => item.code === code)?.label
-    : undefined
-  return staticLabel || code
+  return permissionLabel(code)
 }

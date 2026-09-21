@@ -174,7 +174,7 @@ const BASE_RENDERER_OPTIONS = [
 ]
 
 /**
- * 渲染器候选 = 底座内置 + 已装配业务模块经 registerListRenderer 登记的名字(如 campusName)。
+ * 渲染器候选 = 底座内置 + 已装配业务模块经 registerListRenderer 登记的名字。
  * 业务渲染器不在底座声明,模块没挂时编辑器也不会给出这个选项。
  */
 export function rendererChoices() {
@@ -186,11 +186,12 @@ export function rendererChoices() {
 
 /**
  * optionsLoader 候选：编码本身来自 sys_data_source 配置（列全量编码需要 data-source:manage 权限，
- * 编辑器不满足前置），所以这里只是常用编码的便利清单；配置里写任何已存在的数据源编码都生效。
+ * 编辑器不满足前置），所以这里只是底座常用编码的便利清单。
+ * 业务数据源编码（如本项目的 campuses）不进这张表：在「数据源管理」配好编码后，
+ * 编辑器里直接输入即可（下拉支持 allow-create），运行期由 sys_data_source 定义取数。
  */
 export const OPTIONS_LOADER_OPTIONS = [
   { value: 'institutions', label: 'institutions(机构列表)' },
-  { value: 'campuses', label: 'campuses(校区列表)' },
   { value: 'roles', label: 'roles(角色列表)' },
   { value: 'status', label: 'status(启用/停用)' },
 ]

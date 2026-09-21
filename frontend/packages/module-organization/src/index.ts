@@ -1,11 +1,5 @@
-import { h } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import {
-  onInstitutionReset,
-  registerDirectory,
-  registerListRenderer,
-} from '@cornerstone/core/extension/module-extensions'
-import { fetchCampuses } from '@cornerstone/module-organization/api/organization'
+import { onInstitutionReset, registerPermissionLabels } from '@cornerstone/core/extension/module-extensions'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 
 /**
@@ -28,35 +22,14 @@ export const organizationRoutes: RouteRecordRaw[] = [
   },
 ]
 
-/** 向底座登记校区数据目录：底座的用户管理页按名字取校区下拉 */
-registerDirectory('campus', async (institutionId) => {
-  const campuses = await fetchCampuses(institutionId)
-  return campuses.map((item) => ({
-    id: item.id,
-    label: item.campusName || item.campusCode || `校区 #${item.id}`,
-  }))
-})
-
 /**
- * 向底座登记校区名称单元格渲染器：列表配置里 renderer=campusName 的列（用户管理的"默认校区"列）由这里绘制。
- * 取值按列自己的 prop，所以任何存校区 id 的列都能复用；
- * 名称从宿主注入的 directories.campuses 查（键名与 sys_list_config 的 optionsLoader 编码一致），
- * 查不到时按 id 兜底。底座未装配本模块时名字查不到，该列退回普通渲染（显示原始 id）。
+ * 本模块权限码的中文名与分组：只在权限选项接口不可用时作离线兜底，
+ * 并给角色弹窗的权限网格提供分组名。权威中文名仍是 sys_menu 按钮节点。
  */
-registerListRenderer({
-  name: 'campusName',
-  label: 'campusName(校区名称)',
-  render: (row, column, context) => {
-    const campusId = row[column.prop]
-    if (campusId === null || campusId === undefined || campusId === '') {
-      return h('span', '未设置')
-    }
-    const matched = context?.directories?.campuses?.find(
-      (item) => String(item.value) === String(campusId)
-    )
-    return h('span', matched?.label ?? `校区 #${campusId}`)
-  },
-})
+registerPermissionLabels([
+  { code: 'organization:read', label: '组织查看', group: '组织档案' },
+  { code: 'organization:write', label: '组织维护', group: '组织档案' },
+])
 
 /** 机构切换/退出登录时清空本模块维护的教学范围（校区/学期） */
 onInstitutionReset(() => {

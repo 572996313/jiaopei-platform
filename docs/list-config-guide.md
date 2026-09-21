@@ -108,7 +108,7 @@
 | 控件类型 type | 输入框 / 下拉 / 字典下拉 / 日期 | `input`(默认) |
 | 占位提示 placeholder | 框内的灰色提示 | `请输入账号` |
 | 默认值 defaultValue | 一进页面默认带上的值 | `active` |
-| 选项来源 | 下拉类控件:手填选项(值+文案)或选现成数据源 | 数据源:`institutions`(机构)/ `campuses`(校区)/ `roles`(角色)/ `status`(启用/停用) |
+| 选项来源 | 下拉类控件:手填选项(值+文案)或选现成数据源 | 底座内置:`institutions`(机构)/ `roles`(角色)/ `status`(启用/停用);其余编码(如 `campuses`)在「数据源配置」里维护,下拉支持直接输入编码 |
 | 字典类型 dictType | 选「字典下拉」后必填 | `common_status` |
 
 ### 3.3 按钮(actions)—— 页面操作入口

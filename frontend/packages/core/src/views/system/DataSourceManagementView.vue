@@ -213,14 +213,14 @@
         <p class="guide-text">
           「请求参数定义」是 JSON 数组,每项含
           <code>name</code>
-          (与接口参数同名)。前端组件按名字传参,例如校区表依赖机构:
+          (与接口参数同名)。前端组件按名字传参,例如按机构过滤的下拉依赖机构:
           <code>[{"name":"institutionId","required":false}]</code>。
         </p>
       </div>
       <div class="guide-section">
         <h4 class="guide-title">内置数据源能删吗?</h4>
         <p class="guide-text">
-          前 6 条(机构/校区/学期/教室/时段/角色)是内置的,支撑现有页面,不能删除,可改为停用。
+          随迁移种下的内置数据源支撑现有页面,不确定有没有页面在用之前先停用,不要直接删除。
         </p>
       </div>
     </el-dialog>

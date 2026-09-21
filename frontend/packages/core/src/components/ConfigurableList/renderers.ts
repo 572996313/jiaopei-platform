@@ -19,11 +19,6 @@ export interface RenderContext {
   roleOptions?: QueryOption[]
   /** 状态选项(optionsLoader=status,通常来自 common_status 字典) */
   statusOptions?: QueryOption[]
-  /**
-   * 业务数据目录:目录编码(optionsLoader/renderer 引用的名字)→ 该编码的全量选项。
-   * 底座只按名字透传,不认识里面是什么业务;业务渲染器与下拉优先用它,取不到再回退数据源配置。
-   */
-  directories?: Record<string, QueryOption[]>
 }
 
 type ElTagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
@@ -64,10 +59,11 @@ const customRenderers: Record<string, CustomRenderer> = {
 /**
  * 统一解析 optionsLoader 编码 → 下拉选项:
  * 1. 静态 options(调用方 field.options 已优先返回,此处不处理);
- * 2. 宿主注入的 context 数据(底座三编码 institutions/roles/status + 业务注入的 directories);
+ * 2. 宿主注入的 context 数据(底座三编码 institutions/roles/status);
  * 3. 配置化的数据源(useDataSourceStore.optionsFor,读取已预加载的缓存)。
  *
- * 新增数据源编码不用改这里:配置里的编码命中不了 1/2 时自动走数据源配置(sys_data_source)。
+ * 业务数据源编码不进底座:在「数据源管理」配一行 sys_data_source 即可,
+ * 编码命中不了 2 时自动走 3,新增编码不用改这里。
  */
 export function resolveOptionLoader(name: string, context?: RenderContext): QueryOption[] {
   const contextOptions = injectedContextOptions(name, context)
@@ -77,7 +73,7 @@ export function resolveOptionLoader(name: string, context?: RenderContext): Quer
   return useDataSourceStore().optionsFor(name)
 }
 
-/** 宿主注入的选项,未注入返回空数组 */
+/** 宿主注入的底座选项,未注入返回空数组 */
 function injectedContextOptions(name: string, context?: RenderContext): QueryOption[] {
   if (!context) {
     return []
@@ -90,7 +86,7 @@ function injectedContextOptions(name: string, context?: RenderContext): QueryOpt
     case 'status':
       return context.statusOptions ?? []
     default:
-      return context.directories?.[name] ?? []
+      return []
   }
 }
 

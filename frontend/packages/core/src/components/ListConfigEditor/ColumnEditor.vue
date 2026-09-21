@@ -126,7 +126,7 @@ import { COLUMN_TYPE_OPTIONS, rendererChoices, type ColumnRow } from './types'
 
 const modelValue = defineModel<ColumnRow[]>({ required: true })
 
-/** 底座内置渲染器 + 已装配业务模块登记的渲染器(如校区的 campusName);未装配的模块不出现在候选里 */
+/** 底座内置渲染器 + 已装配业务模块经 registerListRenderer 登记的渲染器;未装配的模块不出现在候选里 */
 const rendererOptions = computed(() => rendererChoices())
 
 function createRow(): ColumnRow {

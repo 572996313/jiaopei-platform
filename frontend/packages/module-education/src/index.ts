@@ -1,6 +1,9 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { registerPageSlot } from '@cornerstone/core/extension/module-extensions'
+import {
+  registerPermissionLabels,
+  registerPageSlot,
+} from '@cornerstone/core/extension/module-extensions'
 
 /**
  * 教务模块入口：对外只暴露路由清单。
@@ -37,6 +40,15 @@ export const educationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-education/views/ScheduleAttendanceView.vue'),
   },
 ]
+
+/**
+ * 本模块权限码的中文名与分组：只在权限选项接口不可用时作离线兜底，
+ * 并给角色弹窗的权限网格提供分组名。权威中文名仍是 sys_menu 按钮节点。
+ */
+registerPermissionLabels([
+  { code: 'education:read', label: '教务查看', group: '教务管理' },
+  { code: 'education:write', label: '教务维护', group: '教务管理' },
+])
 
 registerPageSlot('campus-detail', {
   name: 'education-master-data',

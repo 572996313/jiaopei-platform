@@ -1,11 +1,12 @@
 import type { Component, VNode } from 'vue'
 import type { ListColumnConfig } from '@cornerstone/core/components/ConfigurableList/types'
 import type { RenderContext } from '@cornerstone/core/components/ConfigurableList/renderers'
+import type { PermissionLabelItem } from '@cornerstone/core/constants/permissionLabels'
 
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 提供四类扩展点：数据目录（用户管理要校区下拉）、列表单元格渲染器（校区名称回显）、
+ * 提供四类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
  * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）。
  * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
@@ -15,34 +16,6 @@ import type { RenderContext } from '@cornerstone/core/components/ConfigurableLis
  * 只挂路由不挂清单 = 扩展点没注册。
  */
 
-/** 通用数据目录项：id 用于取值，label 用于展示与 id→名称 回显 */
-export interface DirectoryOption {
-  id: string
-  label: string
-}
-
-/** 目录加载器：按机构过滤，返回该机构下的全部条目 */
-export type DirectoryLoader = (institutionId?: string | null) => Promise<DirectoryOption[]>
-
-const directoryLoaders = new Map<string, DirectoryLoader>()
-
-/** 业务模块登记自己的数据目录（如 'campus' 校区、'term' 学期） */
-export function registerDirectory(name: string, loader: DirectoryLoader) {
-  directoryLoaders.set(name, loader)
-}
-
-/** 底座取数据目录；未注册（模块未装配）时返回空数组 */
-export async function loadDirectory(
-  name: string,
-  institutionId?: string | null
-): Promise<DirectoryOption[]> {
-  const loader = directoryLoaders.get(name)
-  if (!loader) {
-    return []
-  }
-  return loader(institutionId)
-}
-
 /** 列表单元格渲染器：入参是行数据、列配置与宿主注入的渲染上下文，返回单元格 VNode */
 export type ListCellRenderer = (
   row: Record<string, any>,
@@ -51,7 +24,7 @@ export type ListCellRenderer = (
 ) => VNode
 
 export interface ListRendererDefinition {
-  /** 列表配置里 renderer 字段引用的名字（如 campusName），要与 sys_list_config 中已存配置对齐 */
+  /** 列表配置里 renderer 字段引用的名字，要与 sys_list_config 中已存配置对齐 */
   name: string
   /** 配置编辑器下拉里的中文说明 */
   label: string
@@ -61,7 +34,8 @@ export interface ListRendererDefinition {
 const listRenderers = new Map<string, ListRendererDefinition>()
 
 /**
- * 业务模块登记自己的列表单元格渲染器（如校区名称回显）。
+ * 业务模块登记自己的列表单元格渲染器（如按 id 回显业务对象名称的列）。
+ * 名称数据由渲染器自己取（读模块的 store 或接口），底座只透传行数据与列配置；
  * 底座 renderCell 先查内置渲染器，找不到再按名字回退到这里；模块未装配时该列按普通值渲染。
  */
 export function registerListRenderer(definition: ListRendererDefinition) {
@@ -78,6 +52,26 @@ export function listRendererChoices(): Array<{ value: string; label: string }> {
     value: item.name,
     label: item.label,
   }))
+}
+
+const permissionLabelContributions: PermissionLabelItem[] = []
+
+/**
+ * 业务模块登记自己域名的权限码中文名与分组（如 organization:write → 组织维护）。
+ * 权限码的权威源是后端 sys_menu 按钮节点（/system/permission-options 动态返回），
+ * 本表只在接口不可用时作离线兜底，以及给角色弹窗的权限网格提供分组名。
+ */
+export function registerPermissionLabels(items: PermissionLabelItem[]) {
+  for (const item of items) {
+    if (!permissionLabelContributions.some((existing) => existing.code === item.code)) {
+      permissionLabelContributions.push(item)
+    }
+  }
+}
+
+/** 底座读取业务贡献的权限码标签（按登记顺序追加在内置表之后） */
+export function contributedPermissionLabels(): PermissionLabelItem[] {
+  return permissionLabelContributions
 }
 
 const institutionResetHandlers: Array<() => void> = []
