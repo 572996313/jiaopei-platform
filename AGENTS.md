@@ -83,7 +83,7 @@ cornerstone:
 mvn -q test                                                # 全量测试（改动必跑，不只是 mvn compile）
 mvn -q -Dtest=AuthControllerWebTest test                   # 单个测试类
 mvn -q -Dtest=AuthControllerWebTest#方法名 test             # 单个测试方法
-mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-0.1.0.jar
+mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-<版本>.jar
 mvn -q -pl module-education -am -DskipTests package         # 只构建某业务模块及其依赖（-am 自动带上 core）
 mvn -q -pl app spring-boot:run                             # 本地运行（需先起 MySQL/Redis，且 core/业务模块已 install 到本地仓库）
 mvn -q dependency:go-offline                               # 预拉依赖（Dockerfile 构建也走这一步）
@@ -107,9 +107,17 @@ scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
 ```bash
 netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
 powershell -NoProfile -Command "Stop-Process -Id <PID> -Force"                 # 停旧进程（可先用 Get-CimInstance 查 CommandLine 确认是自己的 java 进程再杀）
-cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-0.1.0.jar &
+cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-*.jar &   # jar 名带版本，用通配或先 ls 确认
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 200 才算起来，别猜日志
 ```
+
+### 底座发版（上传私服）
+
+- **版本策略**：开发期用「下一版 + `-SNAPSHOT`」（当前 `0.1.1-SNAPSHOT`），阶段五验收通过才切正式号并打 tag。五个 pom 的 `<version>` 一起改；SNAPSHOT 可反复发同一号，Maven 按时间戳取最新。
+- **发布范围**：只有 **parent pom 与 `cornerstone-core`** 上私服。下游靠 parent 的 `dependencyManagement` 解析传递依赖版本，parent 不发下游就构建不过。`module-organization`/`module-education`/`app` 各自 pom 里 `maven.deploy.skip=true` —— 教培业务模块和可执行 jar 不属底座身份。
+- **目标库与凭据**：上传地址在 `backend/pom.xml` 的 `<distributionManagement>`（server id `cornerstone-releases`/`cornerstone-snapshots`），账号密码在 Maven 安装级 `conf/settings.xml` 的 `<servers>`，**不要写进 pom、也不要提交进仓库**。下载侧匿名只读，不需要凭据。
+- **命令**：`mvn deploy`（**别加 `-DskipTests`**，私服上的底座产物必须过全量测试）。
+- **前端包**：`cd frontend/packages/core && npm publish --tag snapshot`。`publishConfig.registry` 已钉死私服地址，防止手滑发到公网 npm；npm 对预发布版本强制要求 `--tag`。当前是**源码形态**（包里只含 `src`，`exports` 把 `@cornerstone/core/*` 映射到 `./src/*`），真实构建产物留阶段五-3。
 
 ### CI 与本地门禁
 
@@ -175,15 +183,18 @@ pnpm dev:h5            # H5 调试
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
 
-**迁移脚本按 Flyway 的 MySQL-5 语法解析**（2026-09-20 生产日志实证：服务端实为 MySQL 8.4，但 Flyway 11.7.2 支持上限 8.1，对 8.4 退化走 `MySQL-5 SqlParser`，日志 `MySQL-5 SqlParser failed` 即由此而来——限制在解析器，不在服务器版本）。**每个新迁移提交前必须逐条自查以下各项**，任何一条不满足就不许合并：
+**服务器口径：只支持 MySQL 8.x，不再兼容 5.7/5.x**（本地与生产同为 8.4）。不为旧版本做任何写法妥协，也不允许再引入"因为 5.7 没有所以绕一下"的理由。
+
+但**下面这批禁项不是因为 5.x，而是因为解析器**：Flyway 11.7.2 的 MySQL 支持上限是 8.1，连到 8.4 时退化走 `MySQL-5 SqlParser`（2026-09-20 生产日志实证，`MySQL-5 SqlParser failed` 即由此而来）。**限制在 Flyway 的解析器，不在服务器版本**——把 MySQL 要求提到 8.x 并不能摘掉它。要真正放开 8.0-only 语法，只能升 Flyway 到识别 8.4 的版本并实测通过，届时再回来改本节（已记入待办）。**每个新迁移提交前必须逐条自查以下各项**，任何一条不满足就不许合并：
 
 1. **禁用 MySQL 8.0-only 语法**：CTE（`WITH ... AS`）、窗口函数（`ROW_NUMBER() OVER (...)`）、`JSON_TABLE`、8.0 专属字符集/函数（如 `utf8mb4_0900_ai_ci`）。去重等操作改用 `DELETE t1 FROM t JOIN t t2 ON t1.id > t2.id AND ...` 自连接。
-2. **禁用 MariaDB 方言**：`ALTER TABLE ... ADD COLUMN|DROP INDEX|MODIFY COLUMN IF [NOT] EXISTS` 在 MySQL 任何版本都不存在，只有 `CREATE TABLE IF NOT EXISTS` 合法。
-3. **禁用 `IF(` 函数**：Flyway MySQL-5 解析器会把表达式里的 `IF (` 按存储程序 `IF...THEN...END IF` 块处理而直接报语法错（`IFNULL`/`CONCAT`/`GROUP_CONCAT` 不受影响）。
-4. **迁移保持普通 DDL、一条路径**：不写 `@sql + PREPARE` 动态守卫（审查口径：脚本要一眼读懂）。唯一键重建按"**先建新键、后删旧键**"顺序：新键同样以 institution_id 开头，外键最左前缀索引全程不断（避免 1553）；若新旧键**同名**，先建新会报 1061 Duplicate key name，必须改为先 `DROP INDEX` 旧键再 `ADD` 新键（删建也可合进同一条 ALTER）；软删数据清理用普通 `DELETE`。脚本停在半实施状态时（重放报 1060/1061/1091，说明上次已执行过部分语句）注意：**Flyway 每次重启都从头重放整个脚本，注释掉已执行语句是无效的**——按脚本尾部恢复注释处理：手工补完缺失 DDL，删失败行并补插一条 checksum 与 jar 一致的 `success=1` 历史记录，再重启。
-5. **外键与前缀索引**：删唯一键/索引前确认它是子查询外键列的最左前缀索引，否则先 `DROP FOREIGN KEY`、键调整完再回挂（否则 1553）。
-6. **验证方式**：本地用 scratch 库把 V1..V<n> 全量 source 一遍（`mysql --default-character-set=utf8mb4`，Windows 客户端默认码字符集会报 Data too long），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态（本地服务端与生产同为 8.4，回放即等价验证，无需另找 5.7 环境；语法以 MySQL-5 解析器口径为准）。
-7. **生产修复流程**：迁移失败（`Detected failed migration to version X`）→ 修复脚本后在生产执行 `DELETE FROM flyway_schema_history WHERE version='X' AND success=0`（等价 flyway repair），再重启后端让 Flyway 重放；改过的脚本若已在生产成功过，则不允许原地改，必须新增修复迁移。
+2. **建表/加列必须显式写 `COLLATE`**：只写 `DEFAULT CHARSET=utf8mb4` 会让排序规则随服务器默认漂移（8.4 默认 `utf8mb4_0900_ai_ci`），同一脚本在不同环境长出不同表。本项目统一 `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`；V14 漏写导致的漂移已由 V44 归一。
+3. **禁用 MariaDB 方言**：`ALTER TABLE ... ADD COLUMN|DROP INDEX|MODIFY COLUMN IF [NOT] EXISTS` 在 MySQL 任何版本都不存在，只有 `CREATE TABLE IF NOT EXISTS` 合法。
+4. **禁用 `IF(` 函数**：Flyway MySQL-5 解析器会把表达式里的 `IF (` 按存储程序 `IF...THEN...END IF` 块处理而直接报语法错（`IFNULL`/`CONCAT`/`GROUP_CONCAT` 不受影响）。
+5. **迁移保持普通 DDL、一条路径**：不写 `@sql + PREPARE` 动态守卫（审查口径：脚本要一眼读懂）。唯一键重建按"**先建新键、后删旧键**"顺序：新键同样以 institution_id 开头，外键最左前缀索引全程不断（避免 1553）；若新旧键**同名**，先建新会报 1061 Duplicate key name，必须改为先 `DROP INDEX` 旧键再 `ADD` 新键（删建也可合进同一条 ALTER）；软删数据清理用普通 `DELETE`。脚本停在半实施状态时（重放报 1060/1061/1091，说明上次已执行过部分语句）注意：**Flyway 每次重启都从头重放整个脚本，注释掉已执行语句是无效的**——按脚本尾部恢复注释处理：手工补完缺失 DDL，删失败行并补插一条 checksum 与 jar 一致的 `success=1` 历史记录，再重启。
+6. **外键与前缀索引**：删唯一键/索引前确认它是子查询外键列的最左前缀索引，否则先 `DROP FOREIGN KEY`、键调整完再回挂（否则 1553）。
+7. **验证方式**：本地用 scratch 库把 V1..V<n> 全量 source 一遍（`mysql --default-character-set=utf8mb4`，Windows 客户端默认码字符集会报 Data too long），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态（本地与生产同为 8.4，回放即等价验证；语法以 Flyway 实际使用的解析器口径为准，不是服务器版本口径）。
+8. **生产修复流程**：迁移失败（`Detected failed migration to version X`）→ 修复脚本后在生产执行 `DELETE FROM flyway_schema_history WHERE version='X' AND success=0`（等价 flyway repair），再重启后端让 Flyway 重放；改过的脚本若已在生产成功过，则不允许原地改，必须新增修复迁移。
 
 ## 底座边界（Cornerstone 阶段二B 起为物理 Maven 隔离，详见 `docs/底座分离与Cornerstone重构计划.md`）
 

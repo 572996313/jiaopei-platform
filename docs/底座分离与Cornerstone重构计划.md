@@ -209,7 +209,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 > 本次决策（2026-09-21 与用户确认）：
 > - **形态 = 另建独立仓库真做第二项目**，不做本仓库内的 demo 模块（demo 遮不住真实接入成本）。
 > - **载体 = 成就分发系统**：不做行业化，"有意思的玩具"方向，业务三件套只依赖 `cornerstone-core`；表前缀 `ac_`，库 `achievement_platform` / `achievement_log`。
-> - **发版渠道 = D3 选 A**：`mvn -DskipTests install` + git tag `cornerstone-v0.1.0`，起步不搭 Nexus。
+> - **发版渠道 = D3 选 A 起步**：`mvn install` + git tag `cornerstone-v0.1.0`。**同日升级为私服（D3-B 落地）**：用户搭好 Nexus（`46.38.240.16:8081`）与 Verdaccio（`:40087`）后，底座改为 `mvn deploy` 上 `maven-snapshots`、前端包 `npm publish` 上 Verdaccio，开发期版本转 `0.1.1-SNAPSHOT`。
 > - **开工顺序**：先在本仓库做完「底座净身」0a~0f，再建新仓库——否则第二项目会把 `jp_` 底座表、业务权限串、默认校区这类脏东西原样继承过去，验证就不成立了。
 
 **前置收口清单（0a~0f，本仓库内）**
@@ -222,7 +222,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 已完成（2026-09-21，见下方落地记录） |
 | 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 已完成（2026-09-21，见下方落地记录） |
 | 0d-3 | 登录页提示语（含默认管理员口令那句）移出底座，改读系统参数 `auth.login.page_tip` | 已完成（2026-09-21，见下方落地记录） |
-| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 —— 阶段五-1 实测确认它是"新项目能启动、不能登录"的唯一硬阻塞 |
+| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 —— 阶段五-1 实测确认它是"新项目能启动、不能登录"的唯一硬阻塞。**下游已用手工抄本临时解掉**（`achievement` 的 `V100__cornerstone_baseline.sql`，11 张 `sys_` 表 + 69 行底座最小种子，登录/审计实测通过），0e 落地时以该抄本为比对基准之一，并一并收口两件事：① 12 个底座唯一键全不含 `deleted`；② 每张建表都显式写 `COLLATE=utf8mb4_unicode_ci`（V14 漏写导致的 `sys_system_config` 漂移已由教培侧 V44 收口，脚本本身不再回改） |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 已完成（2026-09-21，见下方落地记录） |
 
 <details><summary>0a 实际落地记录（默认校区迁出底座）</summary>
@@ -290,7 +290,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **底座只读、种子归项目**：core 新增公开端点 `GET /api/auth/login-page`（`AuthController` 上，类级 `@RequestMapping("/api/auth")` 天然命中 `public-paths` 与 ArchUnit 的写接口免检口径，不用改安全配置），读 `auth.login.page_tip`，**读不到返回空串**；教培侧在 `app/` 的 V43 把当前这句话种进去（`is_system=0`，允许删除）。换项目时 core 不带任何文案，新项目要么不种（登录页无提示）、要么种自己那句。
 - **前端**：`LoginView` 的 `<p class="login-form-tip">` 改成 `v-if="loginPageTip"`，`onMounted` 拉取、失败静默不展示（提示语是装饰性信息，不该因为接口抖动挡登录）。顺带把账号/密码的**预填**也改成 `import.meta.env.DEV` 才生效——那是同一个硬编码口令的另一个出口，生产构建不再把 `Admin@123456` 打进 bundle（本地 `pnpm dev` 行为不变）。
 - **"隐藏"的正确操作是删除参数**：`config_value` 有 `@NotBlank` 校验（界面与后端都拦，连单个空格也会被 trim 掉后拒绝），所以"清空即不展示"在界面上做不到；`is_system=0` 让这一行可以整条删掉，core 读默认空串即不渲染。参数说明据此写成"删除本参数即不展示"，不写做不到的"留空"。
-- **暴露出的既有缺陷（未修，另计）**：`sys_system_config` 的 `uk_config_key` 不含 `deleted`，与 AGENTS.md「逻辑删除与唯一索引」约定相悖——实测软删一行后再新建同名 key 直接 500（`createConfig` 的 `selectCount` 因 `@TableLogic` 只数 `deleted=0`，通过校验后撞数据库唯一键）。当前 7 条种子全是 `is_system=1` 删不掉，只有用户自建参数会踩；本项目的 `auth.login.page_tip` 是第一条可删参数，删除→重建这条循环会立刻复现。修法要么改 `UNIQUE KEY (config_key, deleted)`（但只允许一条软删记录，治标），要么给"配置"改用物理删除。留待与 0e 基线迁移一起定。
+- **暴露出的既有缺陷（未修，另计）**：`sys_system_config` 的 `uk_config_key` 不含 `deleted`，与 AGENTS.md「逻辑删除与唯一索引」约定相悖——实测软删一行后再新建同名 key 直接 500（`createConfig` 的 `selectCount` 因 `@TableLogic` 只数 `deleted=0`，通过校验后撞数据库唯一键）。当前 7 条种子全是 `is_system=1` 删不掉，只有用户自建参数会踩；本项目的 `auth.login.page_tip` 是第一条可删参数，删除→重建这条循环会立刻复现。修法要么改 `UNIQUE KEY (config_key, deleted)`（但只允许一条软删记录，治标），要么给"配置"改用物理删除。留待与 0e 基线迁移一起定。**2026-09-21 下游抄基线时逐表核对确认：这不是单点，11 张底座表的 12 个唯一键一个都不含 `deleted`**（`uk_jp_user_username`/`uk_jp_role_code`/`uk_jp_institution_org_code`/`uk_jp_institution_org_name`/`uk_sys_menu_code`/`uk_sys_dict_type_code`/`uk_sys_dict_item_code`/`uk_config_key`/`uk_list_config_code`/`uk_data_source_code`/`uk_sys_role_menu`/`uk_jp_user_role`），0e 要按通则一次收口，别只修 `uk_config_key`。
 - **验证**：`mvn -q test`（含新增切片用例 `AuthControllerWebTest#loginPageTipComesFromSystemConfigAndIsPublic`，无 token 取到提示语）+ `pnpm lint` + `pnpm build` 通过；本机 MySQL/Redis 登录态实测——① `GET /api/auth/login-page` 未带 token 返回种子里那句文案；② 「系统参数」页出现第 8 行"登录页提示语"，`is_system=否`；③ 登录页渲染该提示（`pnpm dev` 下账号密码仍预填）；④ 界面删除该行后接口 `tip` 变空串、登录页 `.login-form-tip` 不再出现；⑤ 按本地重放流程（删 `flyway_schema_history` 43 行 + 硬删该行 + 重启）恢复种子，提示重新显示，参数表回到 8 行、无脏数据。
 
 </details>
@@ -309,8 +309,24 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **仓库**：`D:\E_Resource\IDEA_SPACE\self\achievement`，独立 parent `com.achievement:achievement-backend-parent:0.1.0`（与教培仓库**无 Maven 父子关系**），两模块 `module-achievement` + `app`，底座以 `com.cornerstone:cornerstone-core:0.1.0` jar 引入，版本收在 `<cornerstone.version>`。
 - **回灌 core（开关泛化）**：`CornerstoneProperties.Modules` 原来是 `organizationEnabled`/`educationEnabled` 两个写死 boolean —— 底座记住了教培的模块名，新项目要么改 core 要么用不上开关。改成 `Map<String,Boolean> enabled` + `isEnabled(code)`，key 从 `cornerstone.modules.<x>-enabled` 变 `cornerstone.modules.enabled.<code>`，两处 `@ConditionalOnProperty` 随之改；`ModuleDescriptor.code()` 与开关 key 同源。另把审计库默认名 `jiaopei_log` → `cornerstone_log`、OpenAPI 标题与健康检查服务名改由 `spring.application.name` 推导。环境变量名保持不变（`MODULE_*_ENABLED`），生产 `prod.env` 无需改。
 - **实测（两侧都跑）**：achievement 侧 `mvn package` 只依赖 core jar 编译通过、`mvn test` 9 项守护全绿、启动后 `/api/health` 200、bootstrap 模块清单 = `auth` + `achievement`、`version=0.1.0`、不带 token 打业务路由 401、`/v3/api-docs` 200；`MODULE_ACHIEVEMENT_ENABLED=false` 重启后清单只剩 `auth` 且 api-docs 里本模块 0 条路径。教培侧同样把两个开关关掉复跑，结果一致 —— **证明映射式 key 的泛化没破坏老项目**。
-- **暴露的底座问题**（逐条含实证，见 `achievement/docs/底座接入问题记录.md`）：① `sys_*` 建表脚本仍在教培，新项目 `GET /api/auth/login-page` 直接 500（`Table 'achievement_platform.sys_system_config' doesn't exist`）→ 0e 是唯一硬阻塞；② `oper_log` 建表脚本逻辑上属底座但只能下游自带副本，`AuditDataSourceConfig` 的日志库目录是硬编码；③ `@ConfigurationPropertiesScan` 默认只扫主类包，跨包根下游会**静默**取 `cornerstone.*` 默认值（下游已加守护测试，长期解法是 core 侧 `@EnableConfigurationProperties`）；④ 下游启动类要抄底座六个顶层包名，上游改包结构无通知机制；⑤ core jar 的传递依赖版本靠教培 parent pom 解析；⑥ `oper_log` 没跟上"底座表统一 `sys_`"（0b 漏了）。
+- **暴露的底座问题**（逐条含实证，见 `achievement/docs/底座接入问题记录.md`）：① `sys_*` 建表脚本仍在教培，新项目 `GET /api/auth/login-page` 直接 500（`Table 'achievement_platform.sys_system_config' doesn't exist`）→ 0e 是唯一硬阻塞；② `oper_log` 建表脚本逻辑上属底座但只能下游自带副本，`AuditDataSourceConfig` 的日志库目录是硬编码；③ `@ConfigurationPropertiesScan` 默认只扫主类包，跨包根下游会**静默**取 `cornerstone.*` 默认值（下游已加守护测试，长期解法是 core 侧 `@EnableConfigurationProperties`）；④ 下游启动类要抄底座六个顶层包名，上游改包结构无通知机制；⑤ core jar 的传递依赖版本靠教培 parent pom 解析；⑥ `oper_log` 没跟上"底座表统一 `sys_`"（0b 漏了）；⑦ 12 个底座唯一键全不含 `deleted`（见 0d-3 落地记录的通则化结论）；⑧ `sys_system_config` 表尾 collation 是 `utf8mb4_0900_ai_ci`，与其余 10 张 `unicode_ci` 不一致，且属 Flyway MySQL-5 解析器禁项 —— **教培库本体这行还没校正**，是否补 V44 待定。
 - **前端分发定案（D11）**：`@cornerstone/core` 走 **Verdaccio 本地私服**，不做 tarball、不搭 Nexus。注意 core 目前是源码级引用（无 `dist`），发布前要先补真实构建 —— 这是阶段五-3 的实际工作量，已写进 `achievement/docs/底座前端接入待办.md`。
+- **补记（同日，解决 ① 的下游临时形态）**：把教培库 11 张 `sys_` 表裁成 `achievement` 的 `V100__cornerstone_baseline.sql`（结构用 `mysqldump --no-data` 抽，种子按 11 条谓词出字面 `INSERT`，共 69 行；刻意不用跨库 `INSERT…SELECT`，那会把 `jiaopei_platform` 库名硬编码进新项目脚本、换机不可重放）。裁剪口径：只留 id=1 的测试机构与 admin、菜单只留底座段（`id<=14` 与 `101~111`）、`sys_role.permission_codes` 删掉 `organization:*`/`education:*` 四个业务码、不种 `auth.login.page_tip`、admin 口令重置成 `{noop}Achievement@123456`（不沿用教培 bcrypt hash）、表尾 collation 归一 `unicode_ci`。**实测**：Flyway 一次应用成功，`POST /api/auth/login` 出 token（permissions 正好 11 个底座码），`login-page` 无 token 200 且 `tip` 为空串，带 token 打 `/api/achievement/module` 得 403「缺少所需权限：achievement:read」（业务码未授予即被拦，符合预期，等本项目 V200 自己种），登录动作已写进 `achievement_log.oper_log`。`mvn test` 全绿，后端 8081 在跑。
+
+</details>
+
+<details><summary>阶段五-1c 实际落地记录（底座产物上私服：Nexus + Verdaccio）</summary>
+
+- **发布范围只两件**：`backend/pom.xml` 加 `<distributionManagement>`（server id `cornerstone-releases`/`cornerstone-snapshots`），`module-organization`/`module-education`/`app` 各自 pom 里 `maven.deploy.skip=true` —— 底座身份只有 core，教培业务模块与可执行 jar 不该占用共享私服。**parent pom 必须一起发**：core 不写第三方依赖版本，下游解析 parent 时若私服上没有就直接构建失败（这条正是问题记录 ⑤ 的解法）。
+- **版本转 `0.1.1-SNAPSHOT`**：五个 pom 一起改（子模块 `<parent><version>` 用 sed 批量）。选 SNAPSHOT 是因为 0e 还要继续改 core，release 号一旦上了 `maven-releases` 就不该反复覆盖；验收通过再切正式号。bootstrap 的 `version` 由 core jar 清单推导，所以下游显示 `0.1.1-SNAPSHOT` 同时证明"跑的就是私服那个包"。
+- **`mvn deploy` 不带 `-DskipTests`**：私服上的底座产物必须过全量测试。实测 `Uploaded to cornerstone-snapshots` 恰好只有 parent 与 core 两个坐标，三个 skip 模块静默不传。
+- **下游解析配置放在自己仓库**：achievement 的 `backend/pom.xml` 加 `<repositories>` 指 `maven-public`（快照 `updatePolicy=always`）。**只写这一个地址就够** —— 实测该 group 同时含 central 代理、releases 与 snapshots。不要依赖构建机的全局 settings，换机器就断。凭据只在 Maven 安装级 `conf/settings.xml` 的 `<servers>` 与 `~/.npmrc`，都不进仓库。
+- **私服解析的实证**：把本机 `Maven-resource/com/cornerstone` 整个挪开（验证后原样还原）跑 `mvn -U package`，日志出现 `Downloading from cornerstone-nexus` 并成功取到 parent pom 与 core jar。
+- **前端包先按源码形态发**：`packages/core/package.json` 去掉 `private`、版本转 `0.1.1-SNAPSHOT`、加 `exports: {"./*": "./src/*"}`、`files: ["src"]`、`publishConfig.registry` **钉死 Verdaccio 地址**（默认 registry 是 npmmirror 公网，这一条是防手滑把底座源码发到公网的关键闸门）。npm 对预发布版本强制 `--tag`，所以是 `npm publish --tag snapshot`；副作用是 Verdaccio 上 `latest` 也指向了 SNAPSHOT 号，切正式版时要用 `npm dist-tag add` 拨回来。实测干净工程 `npm i @cornerstone/core@snapshot` 落地 53 个源文件、深路径解析正常。
+- **顺手消掉一处会反复腐化的字面量**：`scripts/restart-backend.sh`（两个仓库）原本硬写 `jiaopei-platform-backend-0.1.0.jar`，每次转版本都要记得回来改，改成按前缀 `ls | grep -v '\.original$' | head -1` 取 jar，AGENTS.md 里的 jar 名同步去版本号。
+- **前端门禁回归**：`pnpm lint` + `pnpm build` 在 core 包改动后仍全绿（workspace 侧继续走 alias 源码引用，不受发包影响）。
+- **基建侧加固：用户已明确决定暂不做（2026-09-21）**。现状是 Verdaccio 开着自助注册（发布账号即如此自助建出），任何注册者都能往 `@cornerstone/*` 里 publish 更高版本；Nexus 上传用的是 admin 超管账号。**当前口径：先保证分发流程通，投毒/权限最小化后面再研究。** 软件侧只保留一条硬约束：**下游 pin 精确版本，不写 `^`**。
+- **补记：MySQL 版本口径与 collation 漂移收口（V44）**。用户口径改为**只支持 MySQL 8.x，不再为 5.7/5.x 做任何写法妥协**。据此复核时发现之前把 `sys_system_config` 的 `utf8mb4_0900_ai_ci` 归因归错了：它**不是**"Flyway MySQL-5 解析器禁项"引发的（仓库里没有任何迁移写过 `0900`），真实根因是 **V14 建表只写 `DEFAULT CHARSET=utf8mb4`、没写 `COLLATE`**，排序规则于是随服务器默认漂移（本库与生产同为 8.4，服务器默认正是 `utf8mb4_0900_ai_ci`）。全库盘点只有这一张表中招，其余 10 张底座表与全部业务表都是 `unicode_ci`。**V44 用 `CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci` 收口**：存量库直接改，全新库回放也收敛（V14 建 0900 → V44 改回），scratch 库实测通过、8 行参数与 `login-page` 接口全好，`mvn test` 352 项全绿。AGENTS.md 的迁移章节同步改写：解析器禁项保留但**归因改对**（限制来自 Flyway 11.7.2 的 MySQL 上限 8.1，提服务器版本摘不掉，要放开 8.0-only 语法只能升 Flyway 并实测 → 记为后续项），并新增硬规则**建表必须显式写 `COLLATE`**。0e 的 core 基线脚本按这条写。
 
 </details>
 
@@ -329,7 +345,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 |---|---|---|---|
 | D1 | "校区/教室/学期/时间段"归属 | A. 独立 module-organization；B. 并入 module-education；C. 校区留 core | **已定 A**（阶段二B 落地） |
 | D2 | 存量 Flyway V1~V37 拆分后，已部署库如何对齐 | A. 新库用拆后脚本、老库不动不追拆；B. 重新 baseline | **已定 A+基线保留**（阶段二B，迁移暂留 app/） |
-| D3 | 底座版本发布渠道 | A. 先 `mvn install` + git tag；B. 内网 Nexus | **已定 A**（阶段五开工确认，出现多下游消费再升 B） |
+| D3 | 底座版本发布渠道 | A. 先 `mvn install` + git tag；B. 内网 Nexus | **已升 B**（阶段五-1 先按 A 起步，同日用户交付 Nexus `46.38.240.16:8081`，改为 `mvn deploy` 上 `maven-snapshots`；tag 仍保留作里程碑锚点） |
 | D4 | miniapp 是否本期拆分 | 本期不动 / 一并拆 | **已定不动**（§5.4） |
 | D5 | Redis/localStorage key 改名造成的全员重登录窗口 | 随阶段四 / 推迟 | **已定随阶段四**（代码已改完，等停机窗口发布，见 `docs/生产部署说明.md`） |
 | D6 | 阶段五形态 | A. 本仓库内 demo 模块；B. 另建独立仓库真做第二项目 | **已定 B** |
@@ -337,7 +353,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | D8 | 底座表前缀 | A. 保留 `jp_`；B. 改 `sys_` | **已定 B**（阶段五-0b，新增 V40 `RENAME TABLE`，不改存量迁移） |
 | D9 | 用户"默认校区"落点 | A. 底座用户表列；B. 业务模块偏好表 + 校区管理页维护 | **已定 B**（阶段五-0a 已落地） |
 | D10 | 底座机构页权限串 | A. 沿用历史的 `organization:*`；B. 改 `tenant:*` 并裁净角色种子串 | **已定 B**（阶段五-0c） |
-| D11 | 前端 `@cornerstone/core` 跨仓库分发 | A. `npm pack` + `file:` tarball；B. Verdaccio 本地私服；C. Nexus | **已定 B**（阶段五-1 确认。前提：core 要先补一次真实构建，见 `achievement/docs/底座前端接入待办.md`） |
+| D11 | 前端 `@cornerstone/core` 跨仓库分发 | A. `npm pack` + `file:` tarball；B. Verdaccio 本地私服；C. Nexus | **已定 B 并落地**（私服 `46.38.240.16:40087`，包 `@cornerstone/core@0.1.1-SNAPSHOT` 已 publish）。**注意当前是源码形态**：包里只有 `src`、无 `dist`/`.d.ts`，真实构建仍是阶段五-3 的欠账，见 `achievement/docs/底座前端接入待办.md` |
 
 ## 9. 风险与对策
 

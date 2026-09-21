@@ -7,12 +7,17 @@
     <parent>
         <groupId>com.cornerstone</groupId>
         <artifactId>jiaopei-platform-backend-parent</artifactId>
-        <version>0.1.0</version>
+        <version>0.1.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>module-education</artifactId>
     <name>module-education</name>
     <description>业务模块：教务（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序业务），依赖底座与教务主数据模块。</description>
+
+    <!-- 教培专属业务模块，不属底座身份，不发私服（下游只消费 cornerstone-core）。 -->
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
 
     <dependencies>
         <dependency>

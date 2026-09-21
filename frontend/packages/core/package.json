@@ -1,9 +1,18 @@
 {
   "name": "@cornerstone/core",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "0.1.1-SNAPSHOT",
   "description": "底座前端包：登录鉴权、系统管理、通用列表/表单脚手架与布局骨架，不依赖任何业务模块。",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "registry": "http://46.38.240.16:40087/",
+    "access": "public"
+  },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.17.0",

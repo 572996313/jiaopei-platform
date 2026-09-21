@@ -8,7 +8,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export JAVA_HOME="${JAVA_HOME:-C:/Users/57299/.posh_sdk/java/21.0.9-oracle}"
 export PATH="$JAVA_HOME/bin:$PATH"
-JAR="$ROOT/backend/app/target/jiaopei-platform-backend-0.1.0.jar"
 LOG_DIR="$ROOT/logs"
 mkdir -p "$LOG_DIR"
 
@@ -29,11 +28,21 @@ if [[ "${1:-}" != "--skip-build" ]]; then
   (cd "$ROOT/backend" && mvn -q -DskipTests package)
 fi
 
-# 3. 后台启动
+# 3. 取 jar：jar 名带版本号，写死每次转版本都要回来改（0f 就改过一回），按前缀取最新修改的那个。
+#    必须在打包之后取：转版后的首次运行，target 里只有旧版 jar，按名字取会挑错。
+#    spring-boot repackage 会留下同名 .jar.original，必须排除。
+JAR=$( { ls -t "$ROOT"/backend/app/target/jiaopei-platform-backend-*.jar 2>/dev/null || true; } | grep -v '\.original$' | head -1)
+if [[ -z "$JAR" ]]; then
+  echo "错误：backend/app/target 下没有 jiaopei-platform-backend-*.jar，先跑不带 --skip-build 的完整流程" >&2
+  exit 1
+fi
+echo "使用 jar：$JAR"
+
+# 4. 后台启动
 nohup "$JAVA_HOME/bin/java" -jar "$JAR" > "$LOG_DIR/backend-restart.log" 2>&1 &
 echo "后端已后台启动 PID=$! 日志：logs/backend-restart.log"
 
-# 4. 健康检查（最多 60 秒）
+# 5. 健康检查（最多 60 秒）
 for _ in $(seq 1 60); do
   code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health || true)
   if [[ "$code" == "200" ]]; then

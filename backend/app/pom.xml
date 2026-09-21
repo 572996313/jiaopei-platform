@@ -7,12 +7,17 @@
     <parent>
         <groupId>com.cornerstone</groupId>
         <artifactId>jiaopei-platform-backend-parent</artifactId>
-        <version>0.1.0</version>
+        <version>0.1.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>jiaopei-platform-backend</artifactId>
     <name>jiaopei-platform-backend</name>
     <description>组装启动模块：主类 + application.yml + Flyway 迁移 + 全量测试。更换业务方向时只需增删本模块对业务模块的依赖。</description>
+
+    <!-- 可执行 jar 是本项目的部署产物，不是给下游引用的库，不发私服。 -->
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
 
     <dependencies>
         <dependency>

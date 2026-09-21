@@ -13,10 +13,26 @@
 
     <groupId>com.cornerstone</groupId>
     <artifactId>jiaopei-platform-backend-parent</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>jiaopei-platform-backend-parent</name>
     <description>教培平台后端聚合工程：cornerstone-core 底座 + 可插拔业务模块 + app 组装启动。</description>
+
+    <!-- 底座发布目标私服（见 docs/底座下游接入说明.md 第 1 节）。
+         凭据在 Maven settings.xml 的 <servers> 里，server id 必须与下面两个 id 一致。
+         只有 parent pom 与 cornerstone-core 会真正上传，其余模块在各自 pom 里 skip。 -->
+    <distributionManagement>
+        <repository>
+            <id>cornerstone-releases</id>
+            <name>Cornerstone Nexus Releases</name>
+            <url>http://46.38.240.16:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>cornerstone-snapshots</id>
+            <name>Cornerstone Nexus Snapshots</name>
+            <url>http://46.38.240.16:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <modules>
         <module>cornerstone-core</module>
