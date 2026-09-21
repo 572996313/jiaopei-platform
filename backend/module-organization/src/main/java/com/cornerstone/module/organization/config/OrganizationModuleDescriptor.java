@@ -30,7 +30,7 @@ public class OrganizationModuleDescriptor implements ModuleDescriptor {
 
     @Override
     public boolean enabled() {
-        return properties.getModules().isOrganizationEnabled();
+        return properties.getModules().isEnabled(code());
     }
 
     @Override

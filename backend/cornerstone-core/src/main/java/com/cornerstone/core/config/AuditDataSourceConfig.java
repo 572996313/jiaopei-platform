@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 操作日志库(jiaopei_log)独立数据源配置。
+ * 操作日志库独立数据源配置（库名由 {@code cornerstone.audit-db.database} 指定，各项目自定）。
  *
  * <p>与业务主数据源(MybatisPlusConfig 管理的业务 Mapper)完全隔离:</p>
  * <ul>
@@ -106,7 +106,8 @@ public class AuditDataSourceConfig {
         try {
             flyway.migrate();
         } catch (Exception e) {
-            log.error("jiaopei_log 日志库迁移失败(业务不阻断,日志留痕暂不可用):{}", e.getMessage());
+            log.error("{} 日志库迁移失败(业务不阻断,日志留痕暂不可用):{}",
+                cornerstoneProperties.getAuditDb().getDatabase(), e.getMessage());
         }
         return flyway;
     }

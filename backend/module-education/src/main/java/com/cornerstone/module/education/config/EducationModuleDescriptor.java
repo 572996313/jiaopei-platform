@@ -30,7 +30,7 @@ public class EducationModuleDescriptor implements ModuleDescriptor {
 
     @Override
     public boolean enabled() {
-        return properties.getModules().isEducationEnabled();
+        return properties.getModules().isEnabled(code());
     }
 
     @Override

@@ -12,7 +12,7 @@ package com.cornerstone.core.system.module;
  */
 public interface ModuleDescriptor {
 
-    /** 模块码，与 {@code cornerstone.modules.<code>-enabled} 开关同名（底座固定能力用 auth）。 */
+    /** 模块码，与开关 {@code cornerstone.modules.enabled.<code>} 及 {@code isEnabled(code)} 同源（底座固定能力用 auth）。 */
     String code();
 
     /** 中文展示名。 */

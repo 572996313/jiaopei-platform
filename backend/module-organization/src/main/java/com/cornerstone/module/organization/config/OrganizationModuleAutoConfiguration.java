@@ -11,7 +11,7 @@ import org.springframework.context.annotation.FilterType;
 /**
  * 组织主数据模块（校区/教室/学期/时间段）自动装配。
  *
- * <p>开关：{@code cornerstone.modules.organization-enabled}，缺省视为开启。关闭后本包内
+ * <p>开关：{@code cornerstone.modules.enabled.organization}，缺省视为开启。关闭后本包内
  * Controller/Service/Mapper 都不注册，对应接口 404，「功能权限总览」也不再列出这些接口。</p>
  *
  * <p>走自动配置而不是被 app 启动类扫描，有两个必要：</p>
@@ -24,8 +24,8 @@ import org.springframework.context.annotation.FilterType;
  */
 @AutoConfiguration
 @ConditionalOnProperty(
-    prefix = "cornerstone.modules",
-    name = "organization-enabled",
+    prefix = "cornerstone.modules.enabled",
+    name = "organization",
     havingValue = "true",
     matchIfMissing = true)
 @ComponentScan(

@@ -1,7 +1,9 @@
 package com.cornerstone.core.config.properties;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "cornerstone")
@@ -55,25 +57,23 @@ public class CornerstoneProperties {
         }
     }
 
+    /**
+     * 业务模块开关集合：{@code cornerstone.modules.enabled.<模块码>=false} 关闭对应模块。
+     *
+     * <p>底座只存"码 → 开关"的映射，不认识任何具体模块（阶段五-1 回灌：原来是
+     * {@code organizationEnabled}/{@code educationEnabled} 两个写死字段，等于底座记住了教培的模块名）。
+     * 未配置视为开启，与各模块 {@code @ConditionalOnProperty(matchIfMissing = true)} 的口径一致。</p>
+     */
     public static class Modules {
 
-        private boolean organizationEnabled = true;
-        private boolean educationEnabled = true;
+        private final Map<String, Boolean> enabled = new LinkedHashMap<>();
 
-        public boolean isOrganizationEnabled() {
-            return organizationEnabled;
+        public Map<String, Boolean> getEnabled() {
+            return enabled;
         }
 
-        public void setOrganizationEnabled(boolean organizationEnabled) {
-            this.organizationEnabled = organizationEnabled;
-        }
-
-        public boolean isEducationEnabled() {
-            return educationEnabled;
-        }
-
-        public void setEducationEnabled(boolean educationEnabled) {
-            this.educationEnabled = educationEnabled;
+        public boolean isEnabled(String moduleCode) {
+            return enabled.getOrDefault(moduleCode, true);
         }
     }
 
@@ -104,14 +104,15 @@ public class CornerstoneProperties {
     }
 
     /**
-     * 操作日志库(jiaopei_log)连接配置,与业务库同实例、独立 database。
+     * 操作日志库连接配置,与业务库同实例、独立 database。
+     * 库名属各项目自己的部署标识,底座只给中性默认值,部署方用 DB_AUDIT_NAME / cornerstone.audit-db.database 覆盖。
      * 通过 DB_AUDIT_* 环境变量覆盖,默认复用业务库账号(root/密码见 DB_PASSWORD)。
      */
     public static class AuditDb {
 
         private String host = "127.0.0.1";
         private int port = 3306;
-        private String database = "jiaopei_log";
+        private String database = "cornerstone_log";
         private String username = "root";
         private String password = "";
 

@@ -47,10 +47,12 @@ cornerstone:
     password: ${DB_AUDIT_PASSWORD:1234}
   # 模块真开关（阶段二C）：false 时该模块的 Controller/Service/Mapper 一律不注册，接口 404。
   # 开关在各模块的 *ModuleConfiguration 上（@ConditionalOnProperty）。
+  # 底座只存"模块码 → 开关"，不认识具体模块名（阶段五-1 回灌），新项目加自己的条目即可。
   # 依赖方向 education -> organization，关 organization 必须同时关 education。
   modules:
-    organization-enabled: ${MODULE_ORGANIZATION_ENABLED:true}
-    education-enabled: ${MODULE_EDUCATION_ENABLED:true}
+    enabled:
+      organization: ${MODULE_ORGANIZATION_ENABLED:true}
+      education: ${MODULE_EDUCATION_ENABLED:true}
   # 业务库 Flyway 迁移目录；某模块要自带脚本时在此追加其 jar 内目录。
   flyway:
     locations:

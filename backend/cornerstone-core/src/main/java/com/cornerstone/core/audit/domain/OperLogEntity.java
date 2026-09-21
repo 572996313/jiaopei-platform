@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * 操作留痕日志实体。对应 jiaopei_log 库 oper_log 表。
+ * 操作留痕日志实体。对应审计日志库（cornerstone.audit-db.database）的 oper_log 表。
  *
  * <p>不继承 BaseEntity:日志表在独立日志库,自含审计语义,
  * 不用业务库的 id/createdAt/createdBy/updatedAt/updatedBy/deleted 套路,

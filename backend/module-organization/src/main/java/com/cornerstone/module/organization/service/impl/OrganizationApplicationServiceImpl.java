@@ -19,7 +19,7 @@ public class OrganizationApplicationServiceImpl implements OrganizationApplicati
     @Override
     public OrganizationBootstrapView getBootstrapView() {
         return new OrganizationBootstrapView(
-            properties.getModules().isOrganizationEnabled(),
+            properties.getModules().isEnabled("organization"),
             "就绪",
             List.of("organization", "campus", "classroom", "term"),
             List.of(
