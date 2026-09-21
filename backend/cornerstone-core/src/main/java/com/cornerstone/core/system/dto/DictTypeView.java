@@ -7,7 +7,7 @@ public record DictTypeView(
     Long id,
     @Schema(description = "字典类型编码", example = "room_type")
     String typeCode,
-    @Schema(description = "字典类型名称", example = "教室类型")
+    @Schema(description = "字典类型名称", example = "示例类型")
     String typeName,
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     String status,

@@ -164,6 +164,8 @@ public class SystemUserServiceImpl implements SystemUserService {
             relation.setDeleted(Boolean.FALSE);
             userRoleRelMapper.insert(relation);
         }
+        // 角色快照写进了 JWT，改完必须让该用户重新登录，否则旧权限在令牌过期前继续可用
+        authApplicationService.invalidateUserSessions(id);
         return toView(user);
     }
 

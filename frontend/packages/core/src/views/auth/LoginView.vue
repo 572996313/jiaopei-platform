@@ -67,9 +67,10 @@ const formError = ref('')
 /** 提示语来自系统参数 auth.login.page_tip：底座不写死项目专属文案，取不到或为空就不展示 */
 const loginPageTip = ref('')
 const form = reactive({
-  // 仅本地开发预填，生产构建不把默认口令打进登录页
-  username: import.meta.env.DEV ? 'admin' : '',
-  password: import.meta.env.DEV ? 'Admin@123456' : '',
+  // 本地开发预填：口令是各项目自己的事，底座不写死默认值。只有开发模式、且壳工程在自己的
+  // `.env.development` 里显式给了这两个变量才预填，生产构建更不会把口令打进登录页。
+  username: import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_USERNAME ?? '') : '',
+  password: import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_PASSWORD ?? '') : '',
 })
 
 onMounted(async () => {

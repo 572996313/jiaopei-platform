@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.mapper.RoleMapper;
+import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.system.domain.SystemMenuEntity;
 import com.cornerstone.core.system.domain.SystemRoleMenuEntity;
 import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -35,7 +37,9 @@ class SystemMenuServiceImplTest {
         SystemMenuMapper menuMapper = mock(SystemMenuMapper.class);
         SystemRoleMenuMapper roleMenuMapper = mock(SystemRoleMenuMapper.class);
         RoleMapper roleMapper = mock(RoleMapper.class);
-        SystemMenuServiceImpl service = new SystemMenuServiceImpl(menuMapper, roleMenuMapper, roleMapper);
+        AuthApplicationService authApplicationService = mock(AuthApplicationService.class);
+        SystemMenuServiceImpl service = new SystemMenuServiceImpl(
+            menuMapper, roleMenuMapper, roleMapper, authApplicationServiceProvider(authApplicationService));
 
         RoleEntity role = new RoleEntity();
         role.setId(1L);
@@ -50,6 +54,16 @@ class SystemMenuServiceImplTest {
         assertEquals(List.of(2L), result);
         verify(roleMenuMapper).physicalDeleteByRoleId(1L);
         verify(roleMenuMapper, times(1)).insert(any(SystemRoleMenuEntity.class));
+        // 回归:改角色菜单授权后必须失效该角色持有用户的会话，否则收回的权限在令牌过期前继续可用
+        verify(authApplicationService).invalidateUserSessionsByRole(1L);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<AuthApplicationService> authApplicationServiceProvider(
+        AuthApplicationService service) {
+        ObjectProvider<AuthApplicationService> provider = mock(ObjectProvider.class);
+        when(provider.getObject()).thenReturn(service);
+        return provider;
     }
 
     @Test
@@ -58,7 +72,8 @@ class SystemMenuServiceImplTest {
         SystemMenuServiceImpl service = new SystemMenuServiceImpl(
             menuMapper,
             mock(SystemRoleMenuMapper.class),
-            mock(RoleMapper.class)
+            mock(RoleMapper.class),
+            authApplicationServiceProvider(mock(AuthApplicationService.class))
         );
         SystemMenuEntity root = menu(1L, null, "root", 1);
         SystemMenuEntity child = menu(2L, 1L, "child", 2);
@@ -73,7 +88,8 @@ class SystemMenuServiceImplTest {
         SystemMenuMapper menuMapper = mock(SystemMenuMapper.class);
         SystemRoleMenuMapper roleMenuMapper = mock(SystemRoleMenuMapper.class);
         RoleMapper roleMapper = mock(RoleMapper.class);
-        SystemMenuServiceImpl service = new SystemMenuServiceImpl(menuMapper, roleMenuMapper, roleMapper);
+        SystemMenuServiceImpl service = new SystemMenuServiceImpl(
+            menuMapper, roleMenuMapper, roleMapper, authApplicationServiceProvider(mock(AuthApplicationService.class)));
 
         // 家长端用户:角色 MINIAPP_PARENT → role id 102 → 已授权菜单 id 210
         RoleEntity role = new RoleEntity();

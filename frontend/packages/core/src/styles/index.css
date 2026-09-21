@@ -486,7 +486,7 @@ body {
   min-width: 0;
 }
 
-/* Tab 占满视口:排课/考勤这类以 el-tabs 为主体的面板,内容区继承高度 */
+/* Tab 占满视口:以 el-tabs 为主体的面板,内容区继承高度 */
 .education-panel > .el-tabs,
 .education-panel .el-tab-pane > .el-tabs {
   flex: 1 1 auto;
@@ -507,7 +507,7 @@ body {
   gap: 12px;
 }
 
-/* 校区资源 7 表:双列卡片等高排布,整页走文档流滚动;
+/* 多表并排页:双列卡片等高排布,整页走文档流滚动;
    表格统一固定为 10 行档位高度(与 table-view.ts 的 TABLE_STACK_MAX_HEIGHT 同档),
    数据超出在表体内滚动、表头吸顶,不足则留白,保证各行卡片上下对齐 */
 .resource-grid {
@@ -530,7 +530,7 @@ body {
   min-height: 0;
 }
 
-/* 第 7 张卡(班型)独占整行,避免落单留白 */
+/* 末张卡独占整行,避免落单留白 */
 .resource-grid > :last-child {
   grid-column: 1 / -1;
 }

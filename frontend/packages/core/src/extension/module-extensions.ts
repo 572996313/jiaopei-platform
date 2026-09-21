@@ -87,7 +87,7 @@ export interface NavItemDefinition {
   icon: Component
   /** 分组键：同键的项归到一段，键相同的后登记项沿用首个的标题与顺序 */
   group: string
-  /** 分组标题（如"日常教务"） */
+  /** 分组标题（模块登记的中文组名，如"系统设置"） */
   groupLabel: string
   /** 分组自上而下的顺序，小的在前；未传取 100，底座「系统设置」占 900 恒在最后 */
   groupOrder?: number
@@ -182,7 +182,7 @@ export interface PageSlot {
 
 const pageSlots = new Map<string, PageSlot[]>()
 
-/** 往某个页面的插槽位注入内容（如教务模块往校区页注入"课程/班型"卡片） */
+/** 往某个页面的插槽位注入内容：宿主页面声明插槽，其它模块按 pageKey 注入自己的卡片/表格 */
 export function registerPageSlot(pageKey: string, slot: PageSlot) {
   const list = pageSlots.get(pageKey) ?? []
   if (list.some((item) => item.name === slot.name)) {

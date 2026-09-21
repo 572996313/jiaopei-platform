@@ -8,6 +8,7 @@ import com.cornerstone.core.auth.dto.RolePageQuery;
 import com.cornerstone.core.auth.dto.RoleUpdateRequest;
 import com.cornerstone.core.auth.dto.RoleView;
 import com.cornerstone.core.auth.mapper.RoleMapper;
+import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.auth.service.SystemRoleService;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
@@ -24,9 +25,11 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     private static final String ACTIVE = "active";
 
     private final RoleMapper roleMapper;
+    private final AuthApplicationService authApplicationService;
 
-    public SystemRoleServiceImpl(RoleMapper roleMapper) {
+    public SystemRoleServiceImpl(RoleMapper roleMapper, AuthApplicationService authApplicationService) {
         this.roleMapper = roleMapper;
+        this.authApplicationService = authApplicationService;
     }
 
     @Override
@@ -85,6 +88,8 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         entity.setStatus(normalize(request.status()));
         entity.setRemark(request.remark());
         roleMapper.updateById(entity);
+        // 权限码与状态都写进了持有者令牌，改完必须按角色反查踢掉在线会话
+        authApplicationService.invalidateUserSessionsByRole(id);
         return toView(entity);
     }
 

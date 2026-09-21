@@ -187,7 +187,7 @@ export function rendererChoices() {
 /**
  * optionsLoader 候选：编码本身来自 sys_data_source 配置（列全量编码需要 data-source:manage 权限，
  * 编辑器不满足前置），所以这里只是底座常用编码的便利清单。
- * 业务数据源编码（如本项目的 campuses）不进这张表：在「数据源管理」配好编码后，
+ * 业务数据源编码（业务模块自己定义的取数编码）不进这张表：在「数据源管理」配好编码后，
  * 编辑器里直接输入即可（下拉支持 allow-create），运行期由 sys_data_source 定义取数。
  */
 export const OPTIONS_LOADER_OPTIONS = [

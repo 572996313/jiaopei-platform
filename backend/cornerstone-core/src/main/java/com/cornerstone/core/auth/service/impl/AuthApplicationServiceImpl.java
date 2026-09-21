@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
+import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
 import com.cornerstone.core.auth.dto.CurrentUserResponse;
 import com.cornerstone.core.auth.dto.LoginRequest;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
+import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.security.JwtTokenService;
 import com.cornerstone.core.auth.security.UserAccessTokenService;
 import com.cornerstone.core.auth.service.AuthApplicationService;
@@ -29,15 +31,18 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     private static final String ACTIVE = "active";
 
     private final UserAccountMapper userAccountMapper;
+    private final UserRoleRelMapper userRoleRelMapper;
     private final TokenCacheService tokenCacheService;
     private final JwtTokenService jwtTokenService;
     private final UserAccessTokenService userAccessTokenService;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, TokenCacheService tokenCacheService,
+    public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, UserRoleRelMapper userRoleRelMapper,
+                                      TokenCacheService tokenCacheService,
                                       JwtTokenService jwtTokenService, UserAccessTokenService userAccessTokenService,
                                       PasswordEncoder passwordEncoder) {
         this.userAccountMapper = userAccountMapper;
+        this.userRoleRelMapper = userRoleRelMapper;
         this.tokenCacheService = tokenCacheService;
         this.jwtTokenService = jwtTokenService;
         this.userAccessTokenService = userAccessTokenService;
@@ -134,8 +139,19 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         return user;
     }
 
+    @Override
     public void invalidateUserSessions(Long userId) {
         tokenCacheService.invalidateUserTokens(userId);
+    }
+
+    @Override
+    public void invalidateUserSessionsByRole(Long roleId) {
+        userRoleRelMapper.selectList(new LambdaQueryWrapper<UserRoleRelEntity>()
+                .eq(UserRoleRelEntity::getRoleId, roleId))
+            .stream()
+            .map(UserRoleRelEntity::getUserId)
+            .distinct()
+            .forEach(this::invalidateUserSessions);
     }
 
     private String normalize(String value) {

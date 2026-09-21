@@ -32,13 +32,14 @@ class SystemUserServiceImplTest {
         UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
         InstitutionMapper institutionMapper = mock(InstitutionMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        AuthApplicationService authApplicationService = mock(AuthApplicationService.class);
         SystemUserServiceImpl service = new SystemUserServiceImpl(
             userAccountMapper,
             roleMapper,
             userRoleRelMapper,
             institutionMapper,
             passwordEncoder,
-            mock(AuthApplicationService.class)
+            authApplicationService
         );
 
         UserAccountEntity user = new UserAccountEntity();
@@ -64,5 +65,7 @@ class SystemUserServiceImplTest {
 
         verify(userRoleRelMapper, times(2)).physicalDeleteByUserId(1L);
         verify(userRoleRelMapper, times(2)).insert(any(UserRoleRelEntity.class));
+        // 回归:角色快照写进了 JWT，重排角色后必须让该用户重新登录
+        verify(authApplicationService, times(2)).invalidateUserSessions(1L);
     }
 }

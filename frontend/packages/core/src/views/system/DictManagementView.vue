@@ -132,11 +132,11 @@
           <el-input
             v-model="dictTypeForm.typeCode"
             :disabled="dictTypeDialogMode === 'edit'"
-            placeholder="如 room_type"
+            placeholder="如 order_status"
           />
         </el-form-item>
         <el-form-item label="类型名称">
-          <el-input v-model="dictTypeForm.typeName" placeholder="如 教室类型" />
+          <el-input v-model="dictTypeForm.typeName" placeholder="请输入字典类型名称" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="dictTypeForm.status">
@@ -185,11 +185,11 @@
           <el-input
             v-model="dictItemForm.itemCode"
             :disabled="dictItemDialogMode === 'edit'"
-            placeholder="如 piano"
+            placeholder="如 enabled"
           />
         </el-form-item>
         <el-form-item label="条目名称">
-          <el-input v-model="dictItemForm.itemName" placeholder="展示名称,如 琴房" />
+          <el-input v-model="dictItemForm.itemName" placeholder="展示名称,如 启用" />
         </el-form-item>
         <el-form-item label="条目值">
           <el-input v-model="dictItemForm.itemValue" placeholder="业务存储值,一般与编码一致" />

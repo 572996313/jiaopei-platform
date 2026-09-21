@@ -5,6 +5,7 @@ import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.mapper.RoleMapper;
+import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.domain.SystemMenuEntity;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +38,19 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     private final SystemMenuMapper menuMapper;
     private final SystemRoleMenuMapper roleMenuMapper;
     private final RoleMapper roleMapper;
+    /**
+     * 会话失效入口。用 ObjectProvider 延迟解析而不是直接构造注入：
+     * AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService 已经成环，
+     * 这里再直接注回 AuthApplicationService 会让容器启动报 circular reference。
+     */
+    private final ObjectProvider<AuthApplicationService> authApplicationService;
 
     public SystemMenuServiceImpl(SystemMenuMapper menuMapper, SystemRoleMenuMapper roleMenuMapper,
-                                 RoleMapper roleMapper) {
+                                 RoleMapper roleMapper, ObjectProvider<AuthApplicationService> authApplicationService) {
         this.menuMapper = menuMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.roleMapper = roleMapper;
+        this.authApplicationService = authApplicationService;
     }
 
     @Override
@@ -162,6 +171,8 @@ public class SystemMenuServiceImpl implements SystemMenuService {
             relation.setDeleted(Boolean.FALSE);
             roleMenuMapper.insert(relation);
         }
+        // 菜单授权决定权限快照，改完必须踢掉该角色的在线会话，否则收回的权限在令牌过期前仍然可用
+        authApplicationService.getObject().invalidateUserSessionsByRole(roleId);
         return new ArrayList<>(menuIds);
     }
 

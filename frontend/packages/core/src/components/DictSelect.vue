@@ -4,7 +4,7 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 
 const props = withDefaults(
   defineProps<{
-    /** 字典类型编码,如 room_type / term_season / teaching_method */
+    /** 字典类型编码, snake_case，如 order_status / pay_channel */
     typeCode: string
     placeholder?: string
     clearable?: boolean

@@ -67,7 +67,7 @@ cornerstone:
 
 - `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
 - 依赖方向 `education → organization`，**关 organization 必须同时关 education**（只关前者会让后端的模块清单出现"装了但接口没挂上"的半残状态）。
-- 迁移目录是可配的两组列表：业务库 `cornerstone.flyway.locations`（教培只配 `classpath:db/migration`）、日志库 `cornerstone.flyway.audit-locations`（教培只配 `classpath:db/audit-migration`）。模块要自带脚本时在此追加该 jar 内目录，不改代码。**这两项必须经 `CornerstoneProperties` 绑定，不能用 `@Value`**：YAML 列表在 Environment 里是 `locations[0]`/`[1]`，`@Value` 取不到列表只会静默回落到默认值，症状是"配了没生效、Flyway 报 `No migrations found`、启动不报错"。教培自己的配置值恰好等于默认值，所以这个坑只有下游配第二条目录时才暴露（守护：`CornerstoneBaselineGuardTest#flywayLocationsMustBindTheYamlListForm`）。
+- 迁移目录是可配的两组列表：业务库 `cornerstone.flyway.locations`（教培只配 `classpath:db/migration`）、日志库 `cornerstone.flyway.audit-locations`（教培只配 `classpath:db/audit-migration`）。模块要自带脚本时在此追加该 jar 内目录，不改代码。**这两项必须经 `CornerstoneProperties` 绑定，不能用 `@Value`**：YAML 列表在 Environment 里是 `locations[0]`/`[1]`，`@Value` 取不到列表只会静默回落到默认值，症状是"配了没生效、Flyway 报 `No migrations found`、启动不报错"。教培自己的配置值恰好等于默认值，所以这个坑只有下游配第二条目录时才暴露（守护：`CornerstoneBaselineGuardTest#flywayLocationsMustBindTheYamlListForm`）。`CornerstoneProperties` 由底座自己的 `CornerstonePropertiesConfiguration`（`@EnableConfigurationProperties`）登记，**下游不需要、也不应该**把 `com.cornerstone.core.config.properties` 列进它的 `@ConfigurationPropertiesScan`——那条要求漏写的症状同样是"配置全取默认值且不报错"（守护：`ModuleSwitchGuardTest#coreMustSelfRegisterItsConfigurationProperties`）。
 
 必须知道的三个连带约束：
 
@@ -117,13 +117,13 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        #
 - **发布范围**：只有 **parent pom 与 `cornerstone-core`** 上私服。下游靠 parent 的 `dependencyManagement` 解析传递依赖版本，parent 不发下游就构建不过。`module-organization`/`module-education`/`app` 各自 pom 里 `maven.deploy.skip=true` —— 教培业务模块和可执行 jar 不属底座身份。
 - **目标库与凭据**：上传地址在 `backend/pom.xml` 的 `<distributionManagement>`（server id `cornerstone-releases`/`cornerstone-snapshots`），账号密码在 Maven 安装级 `conf/settings.xml` 的 `<servers>`，**不要写进 pom、也不要提交进仓库**。下载侧匿名只读，不需要凭据。
 - **命令**：`mvn deploy`（**别加 `-DskipTests`**，私服上的底座产物必须过全量测试）。
-- **前端包**：`cd frontend/packages/core && npm publish --tag snapshot`。`publishConfig.registry` 已钉死私服地址，防止手滑发到公网 npm；npm 对预发布版本强制要求 `--tag`。当前是**源码形态**（包里只含 `src`，`exports` 把 `@cornerstone/core/*` 映射到 `./src/*`），真实构建产物留阶段五-3。
+- **前端包**：先改 `packages/core/package.json` 的 `version` 再 `cd frontend/packages/core && npm publish --tag snapshot`。**npm 没有 SNAPSHOT 语义**（同号不能覆盖），开发期按 `0.1.1-SNAPSHOT.<n>` 递增迭代号（当前 `.2`），消费方装到的必须写死精确版本。`publishConfig.registry` 已钉死私服地址，防止手滑发到公网 npm；npm 对预发布版本强制要求 `--tag`。core 的运行时依赖一律写 **`peerDependencies`、不写 `dependencies`**：写成 dependencies 时下游 pnpm 会在 `node_modules/.pnpm` 长出第二份 vue/element-plus，两个 vue 实例直接打散 pinia 与依赖注入（宿主自己声明这些包，见 achievement 前端）。当前仍是**源码形态**（包里只含 `src`，`exports` 把 `@cornerstone/core/*` 映射到 `./src/*`，无 `dist`/`.d.ts`）——阶段五-3 已按这个形态被下游接通，真实构建产物属优化项、不是接入前置条件。
 
 ### CI 与本地门禁
 
 - `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
 - Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
-- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、写接口必须有 `@RequiresPermission`（**免检口径是"类级 `@RequestMapping` 以 `/api/auth` 开头"**，按路径而不是按包判定，所以业务模块挂 `/api/auth/**` 的公开登录接口同样豁免；改这个前缀要同步安全配置的 `public-paths`）、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关前提。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
+- 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、写接口必须有 `@RequiresPermission`（**免检口径是"类级 `@RequestMapping` 以 `/api/auth` 开头"**，按路径而不是按包判定，所以业务模块挂 `/api/auth/**` 的公开登录接口同样豁免；改这个前缀要同步安全配置的 `public-paths`）、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关与配置装配前提，`CornerstoneBaselineGuardTest` 守护 core 自带基线，`ExternalIdVocabularyGuardTest` 守护底座不带行业词汇。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）
 
@@ -200,6 +200,7 @@ pnpm dev:h5            # H5 调试
 
 - 底座包 = `com.cornerstone.core.` 下的 `auth` / `system` / `common` / `config` / `tenant`（机构=多租户概念，阶段二A已从 organization 迁回）/ `audit`，业务包 = `com.cornerstone.module.organization`（校区/教室/学期/时间段）/ `com.cornerstone.module.education`（教师/学员/班级/排课等）。判定标准：**换一个行业后这段代码还有没有用**，没用就不许进底座。
 - 边界现在有两层保护：Maven 依赖方向（`cornerstone-core` 的 pom 不声明任何 `module-*` 依赖，写错直接编译不过）+ ArchUnit 规则（底座包不得依赖 `organization..` / `education..`，Institution 豁免已随机构迁回移除）。
+- **底座不得带行业词汇**：报错文案、`@Schema(example=...)`、随 jar 发布的基线种子都不许出现教培名词（校区/班级/学员/课次…）。字段中文名走 SPI：接口 `ExternalIdFieldLabelContributor` 定义在底座 `common/web`，各业务模块在自己的 `config` 包里注册（`OrganizationExternalIdLabels` / `EducationExternalIdLabels`），启动期由 `ExternalIdLabelRegistry` 合并；底座词表只剩机构/角色/菜单三条。模块没装配时该字段名的报错回落成原始英文名（守护：`ExternalIdVocabularyGuardTest`，它同时扫底座 class 常量池与 `classpath*:cornerstone/**/*.sql`）。
 - 底座确需感知业务数据时（如注销账号清理学员关联、判定登录令牌属于哪个端），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `PortalResolver`，实现放业务模块；单实现经 `ObjectProvider` 可选注入，多实现（如各端判定）注入 `List<T>` 按装配顺序取第一个非空结果，全都不适用时底座落回默认值），不要在底座里直接 import 业务 mapper。**业务属性往底座表加列不算解耦**（如"用户默认校区"，阶段五-0a 已迁成 `module-organization` 自己的 `jp_user_campus_pref`）。
 - **底座不得按接口路径/字段值硬编码业务语义**：如审计的操作类型，改成由业务控制器自己标 `@OperateLog(actionType = ActionType.LOGIN)`，`OperateLogAspect` 只认注解，不再写死 `/api/auth/wechat/login` 这类业务路径。行业专属枚举（`Portal` 之类只服务某个业务端的枚举）不进底座，直接删；底座只留通用默认。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
@@ -214,7 +215,7 @@ pnpm dev:h5            # H5 调试
 以下为审查发现的高频问题固化的硬约定：
 
 1. **租户隔离**：客户端传入的 `institutionId`/`campusId` 只是筛选条件，服务端必须与当前登录用户所属机构比对（`AuthContext.requireUser()`），不允许拿任意入参直查他机构数据。参照 `SystemInstitutionController` 的正确写法。
-2. **权限回收即时生效**：修改角色权限、用户角色、菜单授权后必须调用 `invalidateUserSessions(userId)` 强制下线受影响用户；权限快照写进了 JWT，不清会话则 12 小时内旧权限继续可用。
+2. **权限回收即时生效**：修改角色权限、用户角色、菜单授权后必须让受影响用户下线——**底座已经兜住这三条路径**（阶段五-1e）：`SystemRoleServiceImpl.updateRole` 与 `SystemMenuServiceImpl.updateRoleMenus` 调 `AuthApplicationService.invalidateUserSessionsByRole(roleId)`（按 `sys_user_role_rel` 反查持有用户），`SystemUserServiceImpl.updateRoles` 调 `invalidateUserSessions(userId)`。业务模块新增"改授权"的接口时仍要自己调对应那个方法，权限快照写进 JWT，不清会话则 12 小时内旧权限继续可用。两条约束：**改菜单节点自身权限码（`updateMenu`/`deleteMenu`）底座没覆盖**（两跳反查，见 `docs/底座下游接入说明.md` 第 6 节 15 条）；`SystemMenuServiceImpl` 注 `AuthApplicationService` 必须走 `ObjectProvider`——`AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService` 已成环，构造注入会让容器启动失败。
 3. **逻辑删除与唯一索引**：配合 `@TableLogic` 的唯一索引必须包含 `deleted` 列（如 `uk(code, deleted)`），否则“删除后重建同名记录”必撞键（V18 已为 `sys_menu` 擦过一次）。
 4. **先查后插必须有兜底**：冲突校验（排课撞教师/教室/班级、绑定唯一性）selectCount 后 insert 存在并发竞态，必须配数据库唯一约束或显式锁；多表写操作必须 `@Transactional`，注意同类内自调用事务不生效。
 5. **MyBatis-Plus 置空字段**：`updateById` 默认忽略 null，想把字段设为 NULL 必须用 `UpdateWrapper.set(col, null)` 或字段加 `@TableField(updateStrategy = FieldStrategy.ALWAYS)`。
@@ -225,7 +226,7 @@ pnpm dev:h5            # H5 调试
 
 雪花 ID 为 19 位 `Long`，超出 JS `Number.MAX_SAFE_INTEGER`，跨端处理机制：
 
-- **后端入参**：`FlexibleLongIdDeserializer` 全局注册，`Long` 字段同时接受数字与字符串，业务 id 字符串（非纯数字、以数字结尾）由 `ExternalIdParser` 解析尾部数字。新增接收 `Long` 的 DTO 自动生效，不要自行写解析。
+- **后端入参**：`FlexibleLongIdDeserializer` 全局注册，`Long` 字段同时接受数字与字符串，业务 id 字符串（非纯数字、以数字结尾）由 `ExternalIdParser` 解析尾部数字。新增接收 `Long` 的 DTO 自动生效，不要自行写解析。解析失败的中文报错用字段名查词表，词表按归属分（底座三条 + 各模块 `ExternalIdFieldLabelContributor` 登记，见「底座边界」），新模块的字段名去自己模块注册，别往底座加。
 - **响应出参**：后端仍按 JSON 数字输出 `Long`；`frontend/src/api/http.ts` 与 `miniapp/src/utils/request.ts` 在 `transformResponse` 里用**字段名模式**兜底——匹配 `id`、`*Id`、`*Ids`、`*By` 且值为 16 位以上数字的，转成字符串再 `JSON.parse`。
 - **结论：不需要维护字段白名单**（旧 `LARGE_ID_FIELDS` 白名单机制已废弃，文档旧描述作废）。新增雪花 ID 字段按 `xxxId`/`xxxIds`/`xxBy` 命名即被自动覆盖。
 - **剩余边界**：若出现**不按 Id/By 命名**的 16+ 位 Long 响应字段（或嵌套在自由 JSON 字符串里的 id），会被静默截断精度。更彻底的替代方案是后端 Jackson 全局 `Long → ToStringSerializer`（响应统一输出字符串），但那会改变所有接口响应形态、前端两端要一起回归，仅在边界字段真的出现时再评估。
@@ -262,7 +263,7 @@ pnpm dev:h5            # H5 调试
 - **装配清单 `frontend/src/modules.ts` 两件事必须同时成立**：① `import` 模块入口（模块对底座的扩展点注册是 **import 副作用**，不 import 就是"装了但没挂上"）；② 模块导出的路由清单进 `projectChildRoutes`。只留底座时把这两处的模块条目与 import 一并删掉即可，`pnpm build` 产物不含任何业务 chunk（实测：全挂 54 assets / 13 业务 chunk，只挂 core 33 assets / 0 业务 chunk，且登录与系统管理页全可用）。
 - **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerListRenderer`/`getListRenderer`/`listRendererChoices`（列表单元格渲染器）、`registerPermissionLabels`（业务权限码中文名与分组）、`registerNavItems`（业务模块登记自己的侧边栏入口）、`registerBranding`（壳工程登记本项目品牌与登录页文案）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。阶段五-0d 删掉了"数据目录 provider"（`registerDirectory`/`loadDirectory` 与 `RenderContext.directories`）：0a 之后没有任何宿主再注入目录，业务下拉的正确通道是「数据源配置」（`sys_data_source`），列表编辑器里直接输入编码即可。
   - **侧边栏导航（阶段五-0d-2）**：`AppLayout` 只内置「系统设置」这一段（底座概念），业务入口一律由模块 `registerNavItems` 登记；分组不单独注册，由导航项自带的 `group`/`groupLabel`/`groupOrder` 推导（组间按 `groupOrder`，组内按登记顺序，同键首个登记方的组名生效——所以跨模块共用的组要在各自条目里写同一个组名）。工作台这类跨模块页面由壳 `modules.ts` 自己登记。新增业务页面要出现在导航里，改的是模块 `index.ts` 而不是 core。
-  - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，生产构建不把默认口令打进登录页。
+  - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，且**底座不写死任何项目的口令**：值取壳工程自己 `.env.development` 里的 `VITE_DEV_LOGIN_USERNAME` / `VITE_DEV_LOGIN_PASSWORD`（该文件已 gitignore，本仓库那份写着 dev admin），没配就是空框，生产构建更不含。
   - **列表渲染器**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表。业务渲染器**自己取名称数据**（读模块自己的 store/接口，或改用 `type: 'map'`、字典列），core 不再透传业务目录；模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步两处：模块入口 `registerListRenderer` 登记、`sys_list_config` 种子里的 `renderer` 名保持一致。
   - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。权威中文名是 `sys_menu` 按钮节点（`/system/permission-options` 动态返回），静态表只作接口不可用时的兜底与角色弹窗的分组名，因此**读取处一律现算**，不要在模块加载时取快照——注册晚于快照就会漏。
   - **数据源候选**：`OPTIONS_LOADER_OPTIONS` 只列 `institutions`/`roles`/`status`；业务编码（如 `campuses`）在数据源配置页维护，编辑器下拉用 `allow-create` 直接输入。新增编码不改 core 代码，运行期命中不了宿主注入就自动走 `sys_data_source` 定义。

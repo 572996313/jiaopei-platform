@@ -40,7 +40,7 @@ function keepUnique(options: PermissionOption[]): PermissionOption[] {
 }
 
 /**
- * 后端没挂按钮节点的码会把权限码本身当 label 返回(如 organization:read),
+ * 后端没挂按钮节点的码会把权限码本身当 label 返回(如某个业务模块的 read/write),
  * 这类空洞用静态表(底座码 + 模块经 registerPermissionLabels 贡献的码)补名。
  */
 function fillLabelFromStaticTable(options: PermissionOption[]): PermissionOption[] {

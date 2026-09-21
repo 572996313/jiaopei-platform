@@ -2,51 +2,41 @@ package com.cornerstone.core.common.web;
 
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
-import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 把客户端传来的业务 id（纯数字或"编码+尾部数字"）解析成 Long，并给报错文案配中文名。
+ *
+ * <p>词表只留底座自己的字段。业务模块的字段名（校区/班级/学员…）由各自 jar 通过
+ * {@link ExternalIdFieldLabelContributor} 登记，启动期由 {@link ExternalIdLabelRegistry} 合并进来
+ * ——底座带行业词汇等于让每个下游项目在自己用户面前念出别人的业务名词。</p>
+ */
 public final class ExternalIdParser {
 
-    /**
-     * 字段名到中文名的映射，用于生成面向用户的报错文案；
-     * 覆盖驼峰与下划线两种写法（客户端实际传哪种取决于 @JsonAlias）。
-     */
-    private static final Map<String, String> FIELD_NAME_ZH = Map.ofEntries(
-        Map.entry("institutionid", "机构ID"),
-        Map.entry("institution_id", "机构ID"),
-        Map.entry("campusid", "校区ID"),
-        Map.entry("campus_id", "校区ID"),
-        Map.entry("termid", "学期ID"),
-        Map.entry("term_id", "学期ID"),
-        Map.entry("courseid", "课程ID"),
-        Map.entry("course_id", "课程ID"),
-        Map.entry("categoryid", "课程分类ID"),
-        Map.entry("category_id", "课程分类ID"),
-        Map.entry("classtypeid", "班级类型ID"),
-        Map.entry("class_type_id", "班级类型ID"),
-        Map.entry("classid", "班级ID"),
-        Map.entry("class_id", "班级ID"),
-        Map.entry("studentid", "学员ID"),
-        Map.entry("student_id", "学员ID"),
-        Map.entry("parentid", "家长ID"),
-        Map.entry("parent_id", "家长ID"),
-        Map.entry("teacherid", "教师ID"),
-        Map.entry("teacher_id", "教师ID"),
-        Map.entry("lessonid", "课次ID"),
-        Map.entry("lesson_id", "课次ID"),
-        Map.entry("relatedlessonid", "关联的原课次"),
-        Map.entry("related_lesson_id", "关联的原课次"),
-        Map.entry("classroomid", "教室ID"),
-        Map.entry("classroom_id", "教室ID"),
-        Map.entry("timeslotid", "时段ID"),
-        Map.entry("time_slot_id", "时段ID"),
-        Map.entry("roleid", "角色ID"),
-        Map.entry("role_id", "角色ID"),
-        Map.entry("menuid", "菜单ID"),
-        Map.entry("menu_id", "菜单ID")
+    /** 底座词表：机构（=租户）、角色、菜单，都是跨行业通用概念。 */
+    private static final Map<String, String> CORE_LABELS = Map.of(
+        "institutionid", "机构ID",
+        "roleid", "角色ID",
+        "menuid", "菜单ID"
     );
 
+    /** 运行期生效的词表；未装配任何模块时等于 {@link #CORE_LABELS}。 */
+    private static volatile Map<String, String> labels = CORE_LABELS;
+
     private ExternalIdParser() {
+    }
+
+    /** 底座词表，供守护测试断言"底座不认识业务字段"。 */
+    public static Map<String, String> coreLabels() {
+        return CORE_LABELS;
+    }
+
+    /** 由 {@link ExternalIdLabelRegistry} 在启动期调用；业务词表不覆盖底座同名 key。 */
+    static void useLabels(Map<String, String> merged) {
+        Map<String, String> effective = new LinkedHashMap<>(CORE_LABELS);
+        merged.forEach(effective::putIfAbsent);
+        labels = Map.copyOf(effective);
     }
 
     public static Long parseOptional(String value, String fieldName) {
@@ -77,11 +67,15 @@ public final class ExternalIdParser {
         }
     }
 
+    /** 归一化字段名：转小写并去掉下划线，使 {@code campusId} 与 {@code campus_id} 归成同一条。 */
+    public static String normalize(String fieldName) {
+        return fieldName.trim().toLowerCase(java.util.Locale.ROOT).replace("_", "");
+    }
+
     private static String displayFieldName(String fieldName) {
         if (fieldName == null || fieldName.isBlank()) {
             return "字段";
         }
-        String key = fieldName.trim().toLowerCase(Locale.ROOT);
-        return FIELD_NAME_ZH.getOrDefault(key, fieldName);
+        return labels.getOrDefault(normalize(fieldName), fieldName);
     }
 }

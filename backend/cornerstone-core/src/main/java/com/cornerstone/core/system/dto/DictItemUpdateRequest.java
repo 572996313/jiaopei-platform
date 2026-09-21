@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record DictItemUpdateRequest(
-    @Schema(description = "条目名称(中文展示名)", example = "标准教室", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "条目名称(中文展示名)", example = "示例条目", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "字典名称不能为空") @Size(max = 128, message = "字典名称长度不能超过128个字符") String itemName,
     @Schema(description = "条目值(业务表单提交时存储的值)", example = "normal", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "字典值不能为空") @Size(max = 128, message = "字典值长度不能超过128个字符") String itemValue,

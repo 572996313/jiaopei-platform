@@ -310,7 +310,7 @@ const treeData = computed<OverviewTreeNode[]>(() => {
     })
   } else {
     groups.push(...toTreeNodes(menuTree.value))
-    // 有后端接口与注解、但 sys_menu 里没有挂任何节点的码(如教务/组织的 read/write),
+    // 有后端接口与注解、但 sys_menu 里没有挂任何节点的码(模块自己贡献的业务权限码),
     // 正常权限,只是暂无树归属,单独成组便于发现
     const unattached = (overview.value?.permissions || []).filter(
       (usage) => usage.menuNodes.length === 0

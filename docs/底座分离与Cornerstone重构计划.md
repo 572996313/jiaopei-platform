@@ -307,7 +307,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **改资源文件后打包要带 `clean`**：把 `db/migration/*.sql` 移到 `db/attic/` 后 `package` 出的 jar 里旧脚本还在（`target/classes` 不删），跑起来的还是上一版基线。症状是"文件已经不在源码里、Flyway 却应用了它"。
 - **验证**：教培 `mvn test` 178 项全绿；重启 8080 后 V45/审计 V2 正常应用（无 1553/1061）；achievement 空库起 → `achievement_platform` 到 v101、`achievement_log` 到 v100 → 登录、强制改密、重登、`/api/auth/current/menus`、`/api/system/operlogs`（password 已脱敏）全通。
 - **重新上私服并实测纯私服链路**：`cd backend && mvn deploy`（**带全量测试**，178 项绿后才上传，`Uploaded to cornerstone-snapshots` 恰好 parent pom 与 core 两个坐标，时间戳 `0.1.1-20260921.114203-2`）。随后把本机 `Maven-resource/com/cornerstone` 整个移开，achievement `mvn -U clean package` 日志显示 parent pom、core pom、core jar 三个都从 `cornerstone-nexus` 下载，9 项守护测试通过，产物起库到登录全链路照跑 —— **下游"只吃私服"这条已经实测成立，本机不再需要先 install 教培仓库**。
-- **仍未收口**：`oper_log` 表名没跟上"底座表统一 `sys_`"（改名要新增迁移、两条路径都要动，问题记录 #8）；`@ConfigurationPropertiesScan` 仍要下游显式列底座包（#34）；`ExternalIdParser.FIELD_NAME_ZH` 教培词表（#35）。
+- **仍未收口**：`oper_log` 表名没跟上"底座表统一 `sys_`"（改名要新增迁移、两条路径都要动，问题记录 #7）；~~`@ConfigurationPropertiesScan` 仍要下游显式列底座包（#34）；`ExternalIdParser.FIELD_NAME_ZH` 教培词表（#35）~~（已收口，见阶段五-1d 落地记录）。
 
 </details>
 
@@ -325,8 +325,8 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **仓库**：`D:\E_Resource\IDEA_SPACE\self\achievement`，独立 parent `com.achievement:achievement-backend-parent:0.1.0`（与教培仓库**无 Maven 父子关系**），两模块 `module-achievement` + `app`，底座以 `com.cornerstone:cornerstone-core:0.1.0` jar 引入，版本收在 `<cornerstone.version>`。
 - **回灌 core（开关泛化）**：`CornerstoneProperties.Modules` 原来是 `organizationEnabled`/`educationEnabled` 两个写死 boolean —— 底座记住了教培的模块名，新项目要么改 core 要么用不上开关。改成 `Map<String,Boolean> enabled` + `isEnabled(code)`，key 从 `cornerstone.modules.<x>-enabled` 变 `cornerstone.modules.enabled.<code>`，两处 `@ConditionalOnProperty` 随之改；`ModuleDescriptor.code()` 与开关 key 同源。另把审计库默认名 `jiaopei_log` → `cornerstone_log`、OpenAPI 标题与健康检查服务名改由 `spring.application.name` 推导。环境变量名保持不变（`MODULE_*_ENABLED`），生产 `prod.env` 无需改。
 - **实测（两侧都跑）**：achievement 侧 `mvn package` 只依赖 core jar 编译通过、`mvn test` 9 项守护全绿、启动后 `/api/health` 200、bootstrap 模块清单 = `auth` + `achievement`、`version=0.1.0`、不带 token 打业务路由 401、`/v3/api-docs` 200；`MODULE_ACHIEVEMENT_ENABLED=false` 重启后清单只剩 `auth` 且 api-docs 里本模块 0 条路径。教培侧同样把两个开关关掉复跑，结果一致 —— **证明映射式 key 的泛化没破坏老项目**。
-- **暴露的底座问题**（逐条含实证，见 `achievement/docs/底座接入问题记录.md`）：① `sys_*` 建表脚本仍在教培，新项目 `GET /api/auth/login-page` 直接 500（`Table 'achievement_platform.sys_system_config' doesn't exist`）→ 0e 是唯一硬阻塞；② `oper_log` 建表脚本逻辑上属底座但只能下游自带副本，`AuditDataSourceConfig` 的日志库目录是硬编码；③ `@ConfigurationPropertiesScan` 默认只扫主类包，跨包根下游会**静默**取 `cornerstone.*` 默认值（下游已加守护测试，长期解法是 core 侧 `@EnableConfigurationProperties`）；④ 下游启动类要抄底座六个顶层包名，上游改包结构无通知机制；⑤ core jar 的传递依赖版本靠教培 parent pom 解析；⑥ `oper_log` 没跟上"底座表统一 `sys_`"（0b 漏了）；⑦ 12 个底座唯一键全不含 `deleted`（见 0d-3 落地记录的通则化结论）；⑧ `sys_system_config` 表尾 collation 是 `utf8mb4_0900_ai_ci`，与其余 10 张 `unicode_ci` 不一致，且属 Flyway MySQL-5 解析器禁项 —— **教培库本体这行还没校正**，是否补 V44 待定。
-- **前端分发定案（D11）**：`@cornerstone/core` 走 **Verdaccio 本地私服**，不做 tarball、不搭 Nexus。注意 core 目前是源码级引用（无 `dist`），发布前要先补真实构建 —— 这是阶段五-3 的实际工作量，已写进 `achievement/docs/底座前端接入待办.md`。
+- **暴露的底座问题**（逐条含实证，见 `achievement/docs/底座接入问题记录.md`）：① `sys_*` 建表脚本仍在教培，新项目 `GET /api/auth/login-page` 直接 500（`Table 'achievement_platform.sys_system_config' doesn't exist`）→ 0e 是唯一硬阻塞；② `oper_log` 建表脚本逻辑上属底座但只能下游自带副本，`AuditDataSourceConfig` 的日志库目录是硬编码；③ `@ConfigurationPropertiesScan` 默认只扫主类包，跨包根下游会**静默**取 `cornerstone.*` 默认值（下游已加守护测试，长期解法是 core 侧 `@EnableConfigurationProperties` —— 已按此收口，见阶段五-1d）；④ 下游启动类要抄底座六个顶层包名，上游改包结构无通知机制；⑤ core jar 的传递依赖版本靠教培 parent pom 解析；⑥ `oper_log` 没跟上"底座表统一 `sys_`"（0b 漏了）；⑦ 12 个底座唯一键全不含 `deleted`（见 0d-3 落地记录的通则化结论）；⑧ `sys_system_config` 表尾 collation 是 `utf8mb4_0900_ai_ci`，与其余 10 张 `unicode_ci` 不一致，且属 Flyway MySQL-5 解析器禁项 —— **教培库本体这行还没校正**，是否补 V44 待定。
+- **前端分发定案（D11）**：`@cornerstone/core` 走 **Verdaccio 本地私服**，不做 tarball、不搭 Nexus。注意 core 目前是源码级引用（无 `dist`），发布前要先补真实构建 —— 这是阶段五-3 的实际工作量，已写进 `achievement/docs/底座前端接入待办.md`。**（阶段五-3 实测后的更正：真实构建产物并不是接入的前置条件）** 下游按"源码形态包"已经跑通 —— 代价是 `optimizeDeps.exclude` + `vue-tsc` 连带检查我们的源码 + 每次重发要下游重装，这三条都可接受；当时真正的阻塞项是 `dependencies` 写法会装出重复 vue（已改 `peerDependencies`）与登录页写死教培口令（已改 `VITE_DEV_LOGIN_*`），两者都不是"有没有 dist"。真实构建仍值得做，但它是优化项、不是欠账阻塞验收。
 - **补记（同日，解决 ① 的下游临时形态）**：把教培库 11 张 `sys_` 表裁成 `achievement` 的 `V100__cornerstone_baseline.sql`（结构用 `mysqldump --no-data` 抽，种子按 11 条谓词出字面 `INSERT`，共 69 行；刻意不用跨库 `INSERT…SELECT`，那会把 `jiaopei_platform` 库名硬编码进新项目脚本、换机不可重放）。裁剪口径：只留 id=1 的测试机构与 admin、菜单只留底座段（`id<=14` 与 `101~111`）、`sys_role.permission_codes` 删掉 `organization:*`/`education:*` 四个业务码、不种 `auth.login.page_tip`、admin 口令重置成 `{noop}Achievement@123456`（不沿用教培 bcrypt hash）、表尾 collation 归一 `unicode_ci`。**实测**：Flyway 一次应用成功，`POST /api/auth/login` 出 token（permissions 正好 11 个底座码），`login-page` 无 token 200 且 `tip` 为空串，带 token 打 `/api/achievement/module` 得 403「缺少所需权限：achievement:read」（业务码未授予即被拦，符合预期，等本项目 V200 自己种），登录动作已写进 `achievement_log.oper_log`。`mvn test` 全绿，后端 8081 在跑。
 
 </details>
@@ -346,7 +346,43 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 </details>
 
-**新仓库侧（1~4）**：~~后端脚手架（只依赖 core，实测开关与装配）~~ **已完成（2026-09-21，见上方记录）** → 成就分发业务三件套（2）→ 前端接 `@cornerstone/core`（3，前置的 0e 已就绪）→ 验收并把问题回灌 core（4）。**0a~0f 全部完成，后端侧「拿一个 core jar 从空库跑到登录」已实测成立；宣布底座可复用仍要等 2~4 走完。**
+<details><summary>阶段五-1d 实际落地记录（#34 底座自注册配置 + #35 词表移出底座）</summary>
+
+- **#34：`com.cornerstone.core.config.CornerstonePropertiesConfiguration`**（`@Configuration(proxyBeanMethods=false)` + `@EnableConfigurationProperties(CornerstoneProperties.class)`）。以前下游必须在启动类 `@ConfigurationPropertiesScan` 里显式列 `com.cornerstone.core.config.properties`，漏了不报错、`cornerstone.*` 全取默认值。放在**必扫的六个顶层包之一**而不是自动配置类上是有意的：底座的 `DataSource`/`SqlSessionFactory` 要早于 Boot 与 MyBatis-Plus 的自动配置出现（同 0e 走"用户配置"那条路的理由）。下游仍写那行不会重复建 bean（同名去重），但已经没有作用。守护两侧各一条：教培 `ModuleSwitchGuardTest#coreMustSelfRegisterItsConfigurationProperties` 断言"每个 core 的 `@ConfigurationProperties` 都被某个 `@Configuration` 登记"，achievement 同名测试断言"登记类存在且本项目不再扫底座包"。
+- **#35：词表移出底座走 SPI**，三处一起才算收干净：
+  - 底座只留 `ExternalIdParser.CORE_LABELS` 三个概念（机构/角色/菜单 ID），32 条教培字段表删掉；新增 `ExternalIdFieldLabelContributor`（`Map<字段名,中文名>`）+ `ExternalIdLabelRegistry`（`@Component`，`ObjectProvider` 汇聚 —— **不能用 `List<T>` 注入**，全新项目零实现会让启动直接失败）。键统一 `normalize()`（小写、去下划线）后合并，**底座同名 key 优先**，业务覆盖不掉。
+  - 词表挪走只解决源码侧，**下游真正拿到的是 jar 里的产物**：字节码常量池扫出 7 个字典 DTO 的 `@Schema(example="标准教室"/"教室类型")`，基线种子 V101 的角色表单占位语写着"校区管理员"。V101 已在环境跑过、不能回改（checksum），所以新增 `V102__neutralize_role_form_hints.sql` 用 `JSON_SET` 改文案——顺带避开"禁用词出现在新脚本里"（JSON 路径里不出现"校区"二字，词表扫描也不会误报）。
+  - 守护 `ExternalIdVocabularyGuardTest` 是**产物级**的：逐个 core class 读 `.class` 字节（按二进制名取资源——匿名类 `getSimpleName()` 是空串，按简单名会 NPE；`target/test-classes` 要跳过，那不进 jar）+ `classpath*:cornerstone/**/*.sql` 的非注释行，命中 15 个教培名词即失败。另有 4 条词表约束（底座键集合恰好三个、业务字段来自模块登记、业务不遮蔽底座、键不得写下划线形式）。豁免清单 `APPLIED_BASELINE_EXEMPTIONS` 只记 `V101:校区` 这一处历史种子，**加豁免要写清"已被 V102 抹平"**，否则它会变成懒人通道。
+- **验证链**：教培 `mvn test` 全绿 → `mvn deploy` 上私服（`0.1.1-20260921.122544-4`，仍只有 parent pom 与 core 两个坐标）→ 本机 `Maven-resource/com/cornerstone` 挪开、achievement `mvn -U clean package` 从 `cornerstone-nexus` 取到 -4、9 项守护全绿 → **空库**（临时 `achievement_probe`/`achievement_probe_log`，验证后已删）起 jar：V100→V101→V102 + 审计 V100 全部应用、11 张 `sys_` 表、启动成功；换真实 `achievement_platform`（停在 v101）重启只补 V102、占位语变「如 应用管理员」。教培侧 8080 重启后报错消息的「校区ID/课次ID」来自模块登记、「机构ID」来自底座。
+- **仍未收口**：只剩 `oper_log` 表名没跟上"底座表统一 `sys_`"（改名要新增迁移、两条路径都要动，问题记录 #7）。
+
+</details>
+
+<details><summary>阶段五-3 实际落地记录（achievement 前端接 `@cornerstone/core`）</summary>
+
+**开工 2026-09-21，当天跑通**。形态与教培同构但有一条本质区别：**教培的 core 是 workspace 源码包，achievement 的 core 是私服上的版本化包**，业务模块仍是 workspace 源码包。所以这一步同时验掉两句话——"底座以产物形式被消费"和"业务模块可插拔"。
+
+- **上游为此改的两处**（都随 `0.1.1-SNAPSHOT.2` 发布）：① `packages/core/package.json` 的 `dependencies` 改 **`peerDependencies`**（写成 dependencies 时 pnpm 在 `.pnpm` 长出第二份 vue/element-plus，两个 vue 实例直接打散 pinia 与注入）；② `LoginView` 不再写死教培的 dev 账号口令，改成只读壳工程的 `VITE_DEV_LOGIN_USERNAME/PASSWORD`（`import.meta.env.DEV` 内，生产构建不含）。**这两条都是下游接入才暴露的**：教培自己永远看不到重复 vue，也看不出登录页里印着别人的口令。
+- **下游壳**：`frontend/` 是 pnpm workspace 根（`packages/*`），`src/` 只放 `main.ts`/`router`/装配清单 `modules.ts`/自有工作台；`.npmrc` 把 `@cornerstone:registry` 指私服（匿名读，仓库里不含任何 token）；vite `optimizeDeps.exclude: ['@cornerstone/core']` + 业务包 alias 到 `packages/*/src`；tsconfig `paths` 把 core 指进 `node_modules/@cornerstone/core/src/*`。
+- **下游业务包**：`packages/module-achievement`，包名 **`@achievement/` 前缀 + `private: true`**（`@cornerstone/` 是底座身份的 scope，私服还开着自助注册，业务包不进去占位）。入口 `src/index.ts` 导出路由清单并 `registerNavItems` + `registerPermissionLabels`，页面走 core 的 `requestGet` 打 `/api/achievement/module`。
+- **实测**：`vue-tsc -b` 连带检查 core 全部源码 0 报错；`vite build` 36 assets（含 2 个 `AchievementModuleView` chunk）；登录 → 侧边栏「成就分发 / 模块自检」→ 页面显示 `code=achievement / 开关=已开启 / 就绪`。角色弹窗出现「成就分发 / 成就查看」分组（`registerPermissionLabels` 经 `fillLabelFromStaticTable` 生效）。把 `modules.ts` 里那行 import 摘掉重建：类型检查仍通过、35 assets、**0 个业务 chunk**。
+- **npm 侧三条硬约束（现场踩出来的）**：npm 没有 SNAPSHOT 语义 → 每次重发递增迭代号（`.2`、`.3`…）且下游 pin 精确版本；pnpm 11 的 `minimumReleaseAge`（默认 1 天）会拒绝"当天发当天装"，且 `minimumReleaseAgeExclude` 只在解析阶段生效 → 下游 `pnpm-workspace.yaml` 写 `minimumReleaseAge: 0`；业务包与壳的 core 版本必须一字不差，否则装出两份 core、扩展点注册表分裂、业务导航静默消失。
+- **本步骤暴露的底座缺陷（记进接入说明第 6 节，未修）**：① **授权变更不回收会话**——`updateRole`/`updateRoles`/`updateRoleMenus` 三处都没调 `invalidateUserSessions`，实测给角色加权限码后旧 token 仍 200 且权限快照是旧的，AGENTS.md「权限回收即时生效」这条约定在底座里根本没实现；② 字典管理页 placeholder 写死「如 教室类型」（用户可见文案，前端裁剪漏到这里）；③ 基线种子缺 `tenant:write` 的 `sys_menu` 按钮节点，`/api/system/permission-options` 对它返回裸权限码（顺带确认：业务权限码**不种也会出现在下拉里**，权威源是 `@RequiresPermission` 注解扫描，种的按钮节点只决定中文名）。
+
+</details>
+
+<details><summary>阶段五-1e 实际落地记录（#39 会话回收 + #41 底座文案中立化，转 0.1.1-SNAPSHOT.5 发布）</summary>
+
+- **#39 授权变更即时回收会话**（成就侧问题记录 #11、接入说明 §6-11、§8 唯一「未通过」行）。`AuthApplicationService` 加 `invalidateUserSessionsByRole(roleId)`，实现按 `sys_user_role_rel` 反查持有用户、去重后逐个清 Redis 会话；三条改授权路径补调：`updateRole`/`updateRoleMenus` 用 byRole 版，`SystemUserServiceImpl.updateRoles` 用 userId 版（该类本就注了 auth 服务）。`createRole` 刻意不调（新角色没有持有者）。
+- **容器环**：`AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService` 已存在，`SystemMenuServiceImpl` 再构造注入 `AuthApplicationService` 会让**所有下游启动失败**，故该处用 `ObjectProvider` 延迟解析并注释说明。这是"system 包调 auth 服务"的通用约束，后续加同类边要照做。
+- **未覆盖**：`updateMenu`/`deleteMenu` 改菜单节点自身权限码不回收会话（要"角色→用户"两跳反查），记成接入说明 §6-15；同条还记了审计页 `portalOptions` 写死 `student/parent`（功能级、要扩展点）与 core 样式里 `.education-*`/`.campus-*` 工具类约 93 处引用，本轮都没动。
+- **守护**：新增 `SystemRoleServiceImplTest`（updateRole 调 byRole、createRole 不调）；`AuthApplicationServiceImplTest` 加两条（有持有者逐个踢、无持有者空操作）；`SystemMenuServiceImplTest`/`SystemUserServiceImplTest` 各加 verify。`mvn test` 188 项全绿。
+- **#41 底座前端中立化**：`DictManagementView` 四处 placeholder（教室类型 / room_type / piano / 琴房）、`extension/module-extensions.ts` 两处注释、`styles/index.css` 三处注释、`stores/permissionOptions.ts` 与 `PermissionOverviewView.vue` 的 `organization:*` 举例。**教训**：首轮只按底座那 15 个中文禁词扫，漏了英文形态 `room_type` 与同义词「琴房」——扫文案要中英文一起看，所以迭代 `.3`→`.4`→`.5` 三版才把同一个页面的四处清干净。
+- **发版实测**：`mvn deploy` → `cornerstone-core-0.1.1-20260921.135504-5`；npm → `@cornerstone/core@0.1.1-SNAPSHOT.5`。教培 8080 与 achievement 8081（`mvn -U clean package` 从 Nexus 取 `-5`）各跑三条路径：变更前 `/api/auth/me` 200 → 变更 200 → 旧 token 立即 401，改无持有者角色不误伤。achievement 前端两处 package.json 同步钉 `.5`，`realpathSync` 确认壳与业务包解析到同一份 core，vite 实服务的字典页已是中性 placeholder。
+
+</details>
+
+**新仓库侧（1~4）**：~~后端脚手架（只依赖 core，实测开关与装配）~~ **已完成（2026-09-21，见上方记录）** → 成就分发业务三件套（2，未开工）→ ~~前端接 `@cornerstone/core`（3）~~ **已完成（2026-09-21，见上方阶段五-3 记录：壳工程 + 业务包 + 私服源码形态包，登录/系统管理页/导航注入/摘行即消失全实测）** → 验收并把问题回灌 core（4）。**0a~0f 全部完成，后端侧「拿一个 core jar 从空库跑到登录」已实测成立；#34/#35 已随 1d 收口；宣布底座可复用仍要等 2 与 4 走完**——阶段五-3 查出的三条未修底座缺陷里，**会话不回收（#39）与底座界面教培文案（#41）已随 1e 回灌并两侧实测**；剩下 `tenant:write` 种子节点（#40）建议并入业务三件套（2）一起做。
 
 ## 7. 固化到 AGENTS.md 的新约定（阶段一随代码提交）
 
@@ -369,7 +405,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | D8 | 底座表前缀 | A. 保留 `jp_`；B. 改 `sys_` | **已定 B**（阶段五-0b，新增 V40 `RENAME TABLE`，不改存量迁移） |
 | D9 | 用户"默认校区"落点 | A. 底座用户表列；B. 业务模块偏好表 + 校区管理页维护 | **已定 B**（阶段五-0a 已落地） |
 | D10 | 底座机构页权限串 | A. 沿用历史的 `organization:*`；B. 改 `tenant:*` 并裁净角色种子串 | **已定 B**（阶段五-0c） |
-| D11 | 前端 `@cornerstone/core` 跨仓库分发 | A. `npm pack` + `file:` tarball；B. Verdaccio 本地私服；C. Nexus | **已定 B 并落地**（私服 `46.38.240.16:40087`，包 `@cornerstone/core@0.1.1-SNAPSHOT` 已 publish）。**注意当前是源码形态**：包里只有 `src`、无 `dist`/`.d.ts`，真实构建仍是阶段五-3 的欠账，见 `achievement/docs/底座前端接入待办.md` |
+| D11 | 前端 `@cornerstone/core` 跨仓库分发 | A. `npm pack` + `file:` tarball；B. Verdaccio 本地私服；C. Nexus | **已定 B 并落地**（私服 `46.38.240.16:40087`，当前包 `@cornerstone/core@0.1.1-SNAPSHOT.5`，依赖已改 `peerDependencies`）。**仍是源码形态**：包里只有 `src`、无 `dist`/`.d.ts`；下游接入已在阶段五-3 实测跑通（见那里），真实构建产物是剩下的唯一欠账 |
 
 ## 9. 风险与对策
 

@@ -9,7 +9,7 @@ public record DictItemView(
     Long typeId,
     @Schema(description = "条目编码,同一类型下唯一", example = "normal")
     String itemCode,
-    @Schema(description = "条目名称(中文展示名)", example = "标准教室")
+    @Schema(description = "条目名称(中文展示名)", example = "示例条目")
     String itemName,
     @Schema(description = "条目值(业务表单提交时存储的值)", example = "normal")
     String itemValue,

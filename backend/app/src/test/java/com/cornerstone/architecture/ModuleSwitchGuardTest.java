@@ -11,7 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.BeanDefinition;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -22,13 +22,15 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 模块开关前提守护（纯反射/资源检查，不起上下文、不连数据库）。
+ * 装配前提守护（纯反射/资源检查，不起上下文、不连数据库）。
  *
  * <ol>
  *   <li>app 启动类的底座扫描清单不得含业务包：放宽回 {@code com.cornerstone} 会把业务
  *       {@code @Component} 无条件扫进来，各模块的 {@code @ConditionalOnProperty} 就形同虚设。</li>
  *   <li>业务模块必须以自动配置形式装配（jar 内要有 AutoConfiguration.imports），
  *       这样"加/减模块=改 pom"才成立，同时也保证 {@code @WebMvcTest} 切片不会误加载整模块。</li>
+ *   <li>底座的 {@code @ConfigurationProperties} 必须由底座自己 {@code @EnableConfigurationProperties}
+ *       登记，不得反过来要求下游在启动类上补 {@code @ConfigurationPropertiesScan}。</li>
  * </ol>
  */
 class ModuleSwitchGuardTest {

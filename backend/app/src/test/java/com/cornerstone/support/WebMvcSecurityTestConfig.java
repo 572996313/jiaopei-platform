@@ -83,6 +83,10 @@ public class WebMvcSecurityTestConfig {
             public void invalidateUserSessions(Long userId) {
             }
 
+            @Override
+            public void invalidateUserSessionsByRole(Long roleId) {
+            }
+
             private AuthenticatedUser stubUser() {
                 return new AuthenticatedUser(
                     1L,

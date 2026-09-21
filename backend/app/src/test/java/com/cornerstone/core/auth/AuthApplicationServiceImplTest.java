@@ -3,6 +3,7 @@ package com.cornerstone.core.auth;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
+import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
 import com.cornerstone.core.auth.dto.CurrentUserResponse;
 import com.cornerstone.core.auth.dto.LoginRequest;
@@ -37,12 +38,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AuthApplicationServiceImplTest {
 
     private final UserAccountMapper userAccountMapper = mock(UserAccountMapper.class);
+    private final UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
     private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -50,7 +53,7 @@ class AuthApplicationServiceImplTest {
     private final UserAccessTokenService userAccessTokenService = new UserAccessTokenService(
         userAccountMapper,
         mock(RoleMapper.class),
-        mock(UserRoleRelMapper.class),
+        userRoleRelMapper,
         tokenCacheService,
         jwtTokenService,
         systemConfigService,
@@ -60,6 +63,7 @@ class AuthApplicationServiceImplTest {
     );
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
         userAccountMapper,
+        userRoleRelMapper,
         tokenCacheService,
         jwtTokenService,
         userAccessTokenService,
@@ -143,6 +147,34 @@ class AuthApplicationServiceImplTest {
         CurrentUserResponse response = service.currentUser();
 
         assertTrue(response.forceChangePassword());
+    }
+
+    @Test
+    void invalidateUserSessionsByRoleKicksEveryHolderOfTheRole() {
+        when(userRoleRelMapper.selectList(any())).thenReturn(List.of(
+            userRoleRel(11L, 7L), userRoleRel(12L, 7L), userRoleRel(11L, 8L)));
+
+        service.invalidateUserSessionsByRole(7L);
+
+        verify(tokenCacheService).invalidateUserTokens(11L);
+        verify(tokenCacheService).invalidateUserTokens(12L);
+        verify(tokenCacheService, never()).invalidateUserTokens(13L);
+    }
+
+    @Test
+    void invalidateUserSessionsByRoleWithoutHoldersIsANoOp() {
+        when(userRoleRelMapper.selectList(any())).thenReturn(List.of());
+
+        service.invalidateUserSessionsByRole(7L);
+
+        verify(tokenCacheService, never()).invalidateUserTokens(any());
+    }
+
+    private static UserRoleRelEntity userRoleRel(Long userId, Long roleId) {
+        UserRoleRelEntity relation = new UserRoleRelEntity();
+        relation.setUserId(userId);
+        relation.setRoleId(roleId);
+        return relation;
     }
 
     private static JwtTokenService jwtTokenService() {
