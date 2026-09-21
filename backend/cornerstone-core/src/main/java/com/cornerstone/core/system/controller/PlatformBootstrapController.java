@@ -39,7 +39,7 @@ public class PlatformBootstrapController {
             .toList();
         return ApiResponse.success("平台启动信息已就绪", new PlatformBootstrapView(
             applicationName,
-            "0.0.1-SNAPSHOT",
+            coreVersion(),
             modules,
             List.of(
                 "通过 POST /api/auth/login 获取 JWT 访问令牌",
@@ -47,5 +47,15 @@ public class PlatformBootstrapController {
                 "令牌有效期由系统配置 auth.token.expire_hours 控制,默认 12 小时"
             )
         ));
+    }
+
+    /**
+     * 底座版本取自 cornerstone-core 自己 jar 的 MANIFEST（spring-boot-starter-parent 默认写入
+     * Implementation-Version），避免把版本号写成字面量随每次发布腐化。
+     * spring-boot:run 与测试下类从 target/classes 加载、没有清单，回落为 dev。
+     */
+    private String coreVersion() {
+        String implementationVersion = getClass().getPackage().getImplementationVersion();
+        return implementationVersion != null ? implementationVersion : "dev";
     }
 }

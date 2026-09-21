@@ -13,7 +13,7 @@
 
     <groupId>com.cornerstone</groupId>
     <artifactId>jiaopei-platform-backend-parent</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
     <name>jiaopei-platform-backend-parent</name>
     <description>教培平台后端聚合工程：cornerstone-core 底座 + 可插拔业务模块 + app 组装启动。</description>

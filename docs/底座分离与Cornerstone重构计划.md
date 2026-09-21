@@ -222,8 +222,8 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 已完成（2026-09-21，见下方落地记录） |
 | 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 已完成（2026-09-21，见下方落地记录） |
 | 0d-3 | 登录页提示语（含默认管理员口令那句）移出底座，改读系统参数 `auth.login.page_tip` | 已完成（2026-09-21，见下方落地记录） |
-| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
-| 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
+| 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 —— 阶段五-1 实测确认它是"新项目能启动、不能登录"的唯一硬阻塞 |
+| 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 已完成（2026-09-21，见下方落地记录） |
 
 <details><summary>0a 实际落地记录（默认校区迁出底座）</summary>
 
@@ -295,7 +295,26 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 
 </details>
 
-**新仓库侧（1~4）**：后端脚手架（只依赖 core，实测开关与装配）→ 成就分发业务三件套 → 前端接 `@cornerstone/core` → 验收并把问题回灌 core。
+<details><summary>0f 实际落地记录（版本转 0.1.0 + 下游接入说明）</summary>
+
+- **版本**：五个 pom 的 `0.0.1-SNAPSHOT` → `0.1.0`（parent 自身 + 三子模块与 app 的 `<parent>` 段）。`backend/Dockerfile` 用 `*.jar` 通配所以不用改，`scripts/restart-backend.sh` 与 AGENTS.md 里的 jar 名同步成 `jiaopei-platform-backend-0.1.0.jar`。
+- **顺手消掉一个会腐化的字面量**：`PlatformBootstrapController` 原本把 `"0.0.1-SNAPSHOT"` 写死在响应里，每次发版都要记得改，忘了就对外报旧版本。改成取 `getClass().getPackage().getImplementationVersion()`（spring-boot-starter-parent 默认往清单写 `Implementation-Version`），`spring-boot:run`/测试下类从 `target/classes` 加载没有清单，回落 `dev`。实测打包运行后 bootstrap 显示 `0.1.0`。
+- **下游接入说明**：新增 `docs/底座下游接入说明.md`（坐标与 localRepository 实况、启动类两处契约、`cornerstone.*` 全量键清单、命名边界表、**第 6 节"现在还不干净的地方"**、同机资源隔离、验收清单）。docs/README 索引已挂。
+- **tag**：本地 `cornerstone-v0.1.0`；推远端由用户执行（远程当前是 Gitee，Actions 不跑）。
+
+</details>
+
+<details><summary>阶段五-1 实际落地记录（achievement 后端脚手架 + 开关泛化回灌）</summary>
+
+- **仓库**：`D:\E_Resource\IDEA_SPACE\self\achievement`，独立 parent `com.achievement:achievement-backend-parent:0.1.0`（与教培仓库**无 Maven 父子关系**），两模块 `module-achievement` + `app`，底座以 `com.cornerstone:cornerstone-core:0.1.0` jar 引入，版本收在 `<cornerstone.version>`。
+- **回灌 core（开关泛化）**：`CornerstoneProperties.Modules` 原来是 `organizationEnabled`/`educationEnabled` 两个写死 boolean —— 底座记住了教培的模块名，新项目要么改 core 要么用不上开关。改成 `Map<String,Boolean> enabled` + `isEnabled(code)`，key 从 `cornerstone.modules.<x>-enabled` 变 `cornerstone.modules.enabled.<code>`，两处 `@ConditionalOnProperty` 随之改；`ModuleDescriptor.code()` 与开关 key 同源。另把审计库默认名 `jiaopei_log` → `cornerstone_log`、OpenAPI 标题与健康检查服务名改由 `spring.application.name` 推导。环境变量名保持不变（`MODULE_*_ENABLED`），生产 `prod.env` 无需改。
+- **实测（两侧都跑）**：achievement 侧 `mvn package` 只依赖 core jar 编译通过、`mvn test` 9 项守护全绿、启动后 `/api/health` 200、bootstrap 模块清单 = `auth` + `achievement`、`version=0.1.0`、不带 token 打业务路由 401、`/v3/api-docs` 200；`MODULE_ACHIEVEMENT_ENABLED=false` 重启后清单只剩 `auth` 且 api-docs 里本模块 0 条路径。教培侧同样把两个开关关掉复跑，结果一致 —— **证明映射式 key 的泛化没破坏老项目**。
+- **暴露的底座问题**（逐条含实证，见 `achievement/docs/底座接入问题记录.md`）：① `sys_*` 建表脚本仍在教培，新项目 `GET /api/auth/login-page` 直接 500（`Table 'achievement_platform.sys_system_config' doesn't exist`）→ 0e 是唯一硬阻塞；② `oper_log` 建表脚本逻辑上属底座但只能下游自带副本，`AuditDataSourceConfig` 的日志库目录是硬编码；③ `@ConfigurationPropertiesScan` 默认只扫主类包，跨包根下游会**静默**取 `cornerstone.*` 默认值（下游已加守护测试，长期解法是 core 侧 `@EnableConfigurationProperties`）；④ 下游启动类要抄底座六个顶层包名，上游改包结构无通知机制；⑤ core jar 的传递依赖版本靠教培 parent pom 解析；⑥ `oper_log` 没跟上"底座表统一 `sys_`"（0b 漏了）。
+- **前端分发定案（D11）**：`@cornerstone/core` 走 **Verdaccio 本地私服**，不做 tarball、不搭 Nexus。注意 core 目前是源码级引用（无 `dist`），发布前要先补真实构建 —— 这是阶段五-3 的实际工作量，已写进 `achievement/docs/底座前端接入待办.md`。
+
+</details>
+
+**新仓库侧（1~4）**：~~后端脚手架（只依赖 core，实测开关与装配）~~ **已完成（2026-09-21，见上方记录）** → 成就分发业务三件套（2）→ 前端接 `@cornerstone/core`（3，前置是 0e）→ 验收并把问题回灌 core（4）。
 
 ## 7. 固化到 AGENTS.md 的新约定（阶段一随代码提交）
 
@@ -318,6 +337,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | D8 | 底座表前缀 | A. 保留 `jp_`；B. 改 `sys_` | **已定 B**（阶段五-0b，新增 V40 `RENAME TABLE`，不改存量迁移） |
 | D9 | 用户"默认校区"落点 | A. 底座用户表列；B. 业务模块偏好表 + 校区管理页维护 | **已定 B**（阶段五-0a 已落地） |
 | D10 | 底座机构页权限串 | A. 沿用历史的 `organization:*`；B. 改 `tenant:*` 并裁净角色种子串 | **已定 B**（阶段五-0c） |
+| D11 | 前端 `@cornerstone/core` 跨仓库分发 | A. `npm pack` + `file:` tarball；B. Verdaccio 本地私服；C. Nexus | **已定 B**（阶段五-1 确认。前提：core 要先补一次真实构建，见 `achievement/docs/底座前端接入待办.md`） |
 
 ## 9. 风险与对策
 

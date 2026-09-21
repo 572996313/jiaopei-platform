@@ -55,13 +55,14 @@ export PATH="$JAVA_HOME/bin:$PATH"
 - **底座**：`app` 启动类 `@SpringBootApplication(scanBasePackages = {auth, system, tenant, audit, common, config})` 显式扫底座六个顶层包。底座是必选项、且它提供的 `DataSource`/`SqlSessionFactory` 必须早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者的 `@ConditionalOnMissingBean` 判定失效，多出重复数据源），所以走"用户配置"阶段而不是自动配置。
 - **业务模块**：各模块 jar 自带 `src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`，指向自己的 `XxxModuleAutoConfiguration`（`@AutoConfiguration` + `@ConditionalOnProperty` + `@ComponentScan` + `@MapperScan`）。**加/减模块只改 `app/pom.xml` 依赖**，不用动启动类。
 
-开关（`application.yml`，可用同名环境变量覆盖）：
+开关（`application.yml`，可用同名环境变量覆盖；`cornerstone.modules.enabled` 是「模块码 → 开关」的映射，底座不写死任何模块名，新项目加自己那一条即可）：
 
 ```yaml
 cornerstone:
   modules:
-    organization-enabled: ${MODULE_ORGANIZATION_ENABLED:true}
-    education-enabled: ${MODULE_EDUCATION_ENABLED:true}
+    enabled:
+      organization: ${MODULE_ORGANIZATION_ENABLED:true}
+      education: ${MODULE_EDUCATION_ENABLED:true}
 ```
 
 - `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
@@ -82,7 +83,7 @@ cornerstone:
 mvn -q test                                                # 全量测试（改动必跑，不只是 mvn compile）
 mvn -q -Dtest=AuthControllerWebTest test                   # 单个测试类
 mvn -q -Dtest=AuthControllerWebTest#方法名 test             # 单个测试方法
-mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar
+mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-0.1.0.jar
 mvn -q -pl module-education -am -DskipTests package         # 只构建某业务模块及其依赖（-am 自动带上 core）
 mvn -q -pl app spring-boot:run                             # 本地运行（需先起 MySQL/Redis，且 core/业务模块已 install 到本地仓库）
 mvn -q dependency:go-offline                               # 预拉依赖（Dockerfile 构建也走这一步）
@@ -106,7 +107,7 @@ scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
 ```bash
 netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
 powershell -NoProfile -Command "Stop-Process -Id <PID> -Force"                 # 停旧进程（可先用 Get-CimInstance 查 CommandLine 确认是自己的 java 进程再杀）
-cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-0.0.1-SNAPSHOT.jar &
+cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-0.1.0.jar &
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 200 才算起来，别猜日志
 ```
 

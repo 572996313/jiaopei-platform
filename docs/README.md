@@ -25,6 +25,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | `底座分离与Cornerstone重构计划.md` | 底座/业务分层重构总计划（阶段一~二C 已完成，三~五待做，兼作现行架构说明） |
+| `底座下游接入说明.md` | 新项目如何以 jar 形式接入 cornerstone-core：启动类契约、配置清单、命名边界、已知不干净处、验收清单 |
 | `生产部署说明.md` | 生产 Docker 化部署（`docker-compose.prod.yml` + `deploy.sh`） |
 
 ## archive/
