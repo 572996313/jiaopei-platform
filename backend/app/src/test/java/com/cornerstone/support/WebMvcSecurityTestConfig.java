@@ -182,6 +182,9 @@ public class WebMvcSecurityTestConfig {
                 if ("auth.password.force_change_enabled".equals(key)) {
                     return "false";
                 }
+                if ("auth.login.page_tip".equals(key)) {
+                    return "默认管理员账号 admin";
+                }
                 return defaultValue;
             }
 

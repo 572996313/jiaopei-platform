@@ -17,9 +17,7 @@
       <div class="form-card">
         <div class="page-kicker">系统登录</div>
         <h2 class="form-title">{{ brand.loginFormTitle }}</h2>
-        <p class="login-form-tip">
-          当前已切真实登录接口。默认首个管理员账号：`admin`，初始密码：`Admin@123456`。
-        </p>
+        <p v-if="loginPageTip" class="login-form-tip">{{ loginPageTip }}</p>
 
         <el-alert
           v-if="formError"
@@ -52,9 +50,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { fetchLoginPage } from '@cornerstone/core/api/auth'
 import { currentBrand } from '@cornerstone/core/extension/module-extensions'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 
@@ -65,9 +64,20 @@ const brand = currentBrand()
 
 const submitting = ref(false)
 const formError = ref('')
+/** 提示语来自系统参数 auth.login.page_tip：底座不写死项目专属文案，取不到或为空就不展示 */
+const loginPageTip = ref('')
 const form = reactive({
-  username: 'admin',
-  password: 'Admin@123456',
+  // 仅本地开发预填，生产构建不把默认口令打进登录页
+  username: import.meta.env.DEV ? 'admin' : '',
+  password: import.meta.env.DEV ? 'Admin@123456' : '',
+})
+
+onMounted(async () => {
+  try {
+    loginPageTip.value = (await fetchLoginPage()).tip.trim()
+  } catch {
+    // 提示语是装饰性信息，接口不可用时保持不展示
+  }
 })
 
 function trimToUndefined(value: string) {

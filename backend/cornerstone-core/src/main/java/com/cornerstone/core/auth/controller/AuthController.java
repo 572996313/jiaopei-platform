@@ -1,11 +1,13 @@
 package com.cornerstone.core.auth.controller;
 
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
+import com.cornerstone.core.auth.dto.LoginPageView;
 import com.cornerstone.core.auth.dto.LoginRequest;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.system.dto.MenuView;
+import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,18 +27,31 @@ public class AuthController {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
+    /** 登录页提示语系统参数键,值由部署方在自己的迁移里种下,底座只读不写 */
+    private static final String LOGIN_PAGE_TIP_KEY = "auth.login.page_tip";
+
     private final AuthApplicationService authApplicationService;
     private final SystemMenuService systemMenuService;
+    private final SystemConfigService systemConfigService;
 
-    public AuthController(AuthApplicationService authApplicationService, SystemMenuService systemMenuService) {
+    public AuthController(AuthApplicationService authApplicationService, SystemMenuService systemMenuService,
+                          SystemConfigService systemConfigService) {
         this.authApplicationService = authApplicationService;
         this.systemMenuService = systemMenuService;
+        this.systemConfigService = systemConfigService;
     }
 
     @Operation(summary = "登录", description = "账号密码登录,返回 JWT 访问令牌")
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success("登录成功", authApplicationService.login(request));
+    }
+
+    @Operation(summary = "获取登录页展示信息", description = "无需登录,返回配置在系统参数里的登录页提示语,空串表示不展示")
+    @GetMapping("/login-page")
+    public ApiResponse<LoginPageView> loginPage() {
+        return ApiResponse.success("已获取登录页信息",
+            new LoginPageView(systemConfigService.getConfigValue(LOGIN_PAGE_TIP_KEY, "")));
     }
 
     @Operation(summary = "退出登录")

@@ -36,6 +36,14 @@ export interface ChangePasswordPayload {
   confirmPassword: string
 }
 
+export interface LoginPageResponse {
+  tip: string
+}
+
+export function fetchLoginPage() {
+  return requestGet<LoginPageResponse>('/auth/login-page')
+}
+
 export function login(payload: LoginPayload) {
   return requestPost<LoginResponse>('/auth/login', payload)
 }

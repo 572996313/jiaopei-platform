@@ -154,6 +154,7 @@ pnpm dev:h5            # H5 调试
   - `auth.password.force_change_enabled` — 强制改密总开关（`StubAuthenticationFilter` 读取，关闭后忽略用户级 `forceChangePassword`）
   - `auth.password.strength_level` / `min_length` / `max_length` — 密码强度策略（`PasswordValidator` 读取）
   - `auth.token.expire_hours` — JWT/Redis 会话 TTL
+  - `auth.login.page_tip` — 登录页表单下方提示语（`AuthController` 的 `GET /api/auth/login-page` 读取，core 无值即空串、前端不渲染；**种子放各项目的 `app/` 迁移**，教培侧见 V43，别再写死进 `LoginView`）
 
 ## 统一响应与全局异常
 
@@ -249,7 +250,7 @@ pnpm dev:h5            # H5 调试
 - **装配清单 `frontend/src/modules.ts` 两件事必须同时成立**：① `import` 模块入口（模块对底座的扩展点注册是 **import 副作用**，不 import 就是"装了但没挂上"）；② 模块导出的路由清单进 `projectChildRoutes`。只留底座时把这两处的模块条目与 import 一并删掉即可，`pnpm build` 产物不含任何业务 chunk（实测：全挂 54 assets / 13 业务 chunk，只挂 core 33 assets / 0 业务 chunk，且登录与系统管理页全可用）。
 - **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerListRenderer`/`getListRenderer`/`listRendererChoices`（列表单元格渲染器）、`registerPermissionLabels`（业务权限码中文名与分组）、`registerNavItems`（业务模块登记自己的侧边栏入口）、`registerBranding`（壳工程登记本项目品牌与登录页文案）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。阶段五-0d 删掉了"数据目录 provider"（`registerDirectory`/`loadDirectory` 与 `RenderContext.directories`）：0a 之后没有任何宿主再注入目录，业务下拉的正确通道是「数据源配置」（`sys_data_source`），列表编辑器里直接输入编码即可。
   - **侧边栏导航（阶段五-0d-2）**：`AppLayout` 只内置「系统设置」这一段（底座概念），业务入口一律由模块 `registerNavItems` 登记；分组不单独注册，由导航项自带的 `group`/`groupLabel`/`groupOrder` 推导（组间按 `groupOrder`，组内按登记顺序，同键首个登记方的组名生效——所以跨模块共用的组要在各自条目里写同一个组名）。工作台这类跨模块页面由壳 `modules.ts` 自己登记。新增业务页面要出现在导航里，改的是模块 `index.ts` 而不是 core。
-  - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。
+  - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，生产构建不把默认口令打进登录页。
   - **列表渲染器**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表。业务渲染器**自己取名称数据**（读模块自己的 store/接口，或改用 `type: 'map'`、字典列），core 不再透传业务目录；模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步两处：模块入口 `registerListRenderer` 登记、`sys_list_config` 种子里的 `renderer` 名保持一致。
   - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。权威中文名是 `sys_menu` 按钮节点（`/system/permission-options` 动态返回），静态表只作接口不可用时的兜底与角色弹窗的分组名，因此**读取处一律现算**，不要在模块加载时取快照——注册晚于快照就会漏。
   - **数据源候选**：`OPTIONS_LOADER_OPTIONS` 只列 `institutions`/`roles`/`status`；业务编码（如 `campuses`）在数据源配置页维护，编辑器下拉用 `allow-create` 直接输入。新增编码不改 core 代码，运行期命中不了宿主注入就自动走 `sys_data_source` 定义。

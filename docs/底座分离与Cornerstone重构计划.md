@@ -221,6 +221,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 | 0c | 机构页权限码 `organization:*` → `tenant:*`、`PLATFORM_ADMIN` 种子权限串裁净（V41/V42） | 已完成（2026-09-21，见下方落地记录） |
 | 0d | 前端三张"core 内置 + 模块贡献"拆分：列表配置 `optionsLoader` 候选表、`permissionLabels` 权限码中文表（现仍列 organization/education 码）、`campusName` 渲染器与 `campus` 目录 provider 的去留判定 | 已完成（2026-09-21，见下方落地记录） |
 | 0d-2 | `AppLayout` 侧边栏定义/分组与登录页品牌文案下沉：core 不再写死 `/campus`、`/teachers` 等业务菜单项，改由模块注册（否则第二项目加页面必须动 core） | 已完成（2026-09-21，见下方落地记录） |
+| 0d-3 | 登录页提示语（含默认管理员口令那句）移出底座，改读系统参数 `auth.login.page_tip` | 已完成（2026-09-21，见下方落地记录） |
 | 0e | core jar 自带 `db/migration/core`（`V1xx` 号段）底座基线迁移，与教培库 `SHOW CREATE TABLE` 逐字段比对防漂移 | 待做 |
 | 0f | 版本 `0.0.1-SNAPSHOT` → `0.1.0` + tag + `restart-backend.sh`/`Dockerfile`/文档 jar 名同步 + 下游接入说明 | 待做 |
 
@@ -279,7 +280,18 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 - **品牌文案**：新增 `registerBranding(partial)` 与中性默认值（`product: 管理平台`、`mark: C`、`loginTitle: 通用管理平台`、`loginFeatures: []`）。`AppLayout` 的 `brand-kicker`/`brand-title`/窄栏角标 `培` 与 `currentTitle` 兜底、`LoginView` 的左侧小字/大字/介绍/两张能力卡/表单标题全部改读登记表；教培文案由壳 `modules.ts` 一次性登记。能力卡改成 `v-for`，未登记时整块不渲染。
 - **顺带清掉的死字段**：`SidebarDefinition.hint`（八条都填了中文提示，但模板从未渲染过这个字段）不再进新接口。
 - **验证**：`pnpm lint` + `pnpm build` 通过；登录态实测（Redis 已起）——① 完整导航顺序与改造前逐字一致（工作台/今日教务 → 日常教务/排课中心+报名与入班 → 班级与教学/班级学员 → 档案中心/机构与教学资源+时间段设置+教师档案 → 系统设置），品牌区仍是"线下班课教务中台 / 教培管理平台"；② 窄栏角标 `培`、五段图标数 1/2/1/3/1 与改造前相同；③ 登录页文案逐字未变（含两张能力卡）。**只挂底座形态**没有原地改装配清单去验（会瞬时把用户的导航删空），改用带 query 的动态 `import('.../module-extensions.ts?coreonly=1')` 取一份未登记的实例：`contributedNavItems()=0`、`contributedPermissionLabels()=0`、`listRendererChoices()=0`、`currentBrand()` 回落到中性默认值，即"模块没装配时导航只剩系统设置、登录页显示中性文案"。
-- **遗留（不属本轮）**：`LoginView` 里那句"默认首个管理员账号：`admin`，初始密码：`Admin@123456`"是本地联调提示，写在**底座**页面上且不带环境判断——换项目会带着教培的口令走，且生产构建也可能显示。应改成 `import.meta.env.DEV` 条件渲染或挪进 `registerBranding`，与品牌文案无关所以单列。
+- **遗留（已收口，见 0d-3）**：`LoginView` 里那句"默认首个管理员账号：`admin`，初始密码：`Admin@123456`"是本地联调提示，写在**底座**页面上且不带环境判断——换项目会带着教培的口令走，且生产构建也可能显示。它不是品牌文案（不随壳静态登记），最终落成系统参数，见下方 0d-3 记录。
+
+</details>
+
+<details><summary>0d-3 实际落地记录（登录页提示语改系统参数）</summary>
+
+- **为什么不走 `registerBranding`**：品牌文案是构建期常量（壳登记一次），这句提示要**运行期改**（上线后不想让登录页继续挂着初始口令，就去界面改而不是重新发版），所以正确身份是数据 —— 落 `sys_system_config`，与「系统参数优先入库」同一条路。
+- **底座只读、种子归项目**：core 新增公开端点 `GET /api/auth/login-page`（`AuthController` 上，类级 `@RequestMapping("/api/auth")` 天然命中 `public-paths` 与 ArchUnit 的写接口免检口径，不用改安全配置），读 `auth.login.page_tip`，**读不到返回空串**；教培侧在 `app/` 的 V43 把当前这句话种进去（`is_system=0`，允许删除）。换项目时 core 不带任何文案，新项目要么不种（登录页无提示）、要么种自己那句。
+- **前端**：`LoginView` 的 `<p class="login-form-tip">` 改成 `v-if="loginPageTip"`，`onMounted` 拉取、失败静默不展示（提示语是装饰性信息，不该因为接口抖动挡登录）。顺带把账号/密码的**预填**也改成 `import.meta.env.DEV` 才生效——那是同一个硬编码口令的另一个出口，生产构建不再把 `Admin@123456` 打进 bundle（本地 `pnpm dev` 行为不变）。
+- **"隐藏"的正确操作是删除参数**：`config_value` 有 `@NotBlank` 校验（界面与后端都拦，连单个空格也会被 trim 掉后拒绝），所以"清空即不展示"在界面上做不到；`is_system=0` 让这一行可以整条删掉，core 读默认空串即不渲染。参数说明据此写成"删除本参数即不展示"，不写做不到的"留空"。
+- **暴露出的既有缺陷（未修，另计）**：`sys_system_config` 的 `uk_config_key` 不含 `deleted`，与 AGENTS.md「逻辑删除与唯一索引」约定相悖——实测软删一行后再新建同名 key 直接 500（`createConfig` 的 `selectCount` 因 `@TableLogic` 只数 `deleted=0`，通过校验后撞数据库唯一键）。当前 7 条种子全是 `is_system=1` 删不掉，只有用户自建参数会踩；本项目的 `auth.login.page_tip` 是第一条可删参数，删除→重建这条循环会立刻复现。修法要么改 `UNIQUE KEY (config_key, deleted)`（但只允许一条软删记录，治标），要么给"配置"改用物理删除。留待与 0e 基线迁移一起定。
+- **验证**：`mvn -q test`（含新增切片用例 `AuthControllerWebTest#loginPageTipComesFromSystemConfigAndIsPublic`，无 token 取到提示语）+ `pnpm lint` + `pnpm build` 通过；本机 MySQL/Redis 登录态实测——① `GET /api/auth/login-page` 未带 token 返回种子里那句文案；② 「系统参数」页出现第 8 行"登录页提示语"，`is_system=否`；③ 登录页渲染该提示（`pnpm dev` 下账号密码仍预填）；④ 界面删除该行后接口 `tip` 变空串、登录页 `.login-form-tip` 不再出现；⑤ 按本地重放流程（删 `flyway_schema_history` 43 行 + 硬删该行 + 重启）恢复种子，提示重新显示，参数表回到 8 行、无脏数据。
 
 </details>
 

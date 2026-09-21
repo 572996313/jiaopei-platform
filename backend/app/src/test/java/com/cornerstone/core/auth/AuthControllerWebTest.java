@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,6 +58,15 @@ class AuthControllerWebTest {
             .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
             .andExpect(jsonPath("$.data.accessToken").value("stub-access-token"))
             .andExpect(jsonPath("$.data.permissions[0]").value("organization:read"));
+    }
+
+    @Test
+    void loginPageTipComesFromSystemConfigAndIsPublic() throws Exception {
+        // 登录页提示语写进系统参数：底座不硬编码文案，未登录也要能取到
+        mockMvc.perform(get("/api/auth/login-page"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.tip").value("默认管理员账号 admin"));
     }
 
     @Test
