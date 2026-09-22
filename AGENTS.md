@@ -164,6 +164,10 @@ pnpm dev:h5            # H5 调试
   - `auth.password.strength_level` / `min_length` / `max_length` — 密码强度策略（`PasswordValidator` 读取）
   - `auth.token.expire_hours` — JWT/Redis 会话 TTL
   - `auth.login.page_tip` — 登录页表单下方提示语（`AuthController` 的 `GET /api/auth/login-page` 读取，core 无值即空串、前端不渲染；**种子放各项目的 `app/` 迁移**，教培侧见 V43，别再写死进 `LoginView`）
+  - `auth.register.default_institution_id` — 小程序自助注册账号的默认归属机构（`MiniappServiceImpl`/`WechatAuthServiceImpl` 读取；种子见 V47）
+  - `miniapp.register.page` — 邀请码小程序码扫码直达的页面路径（`MiniappQrcodeServiceImpl` 生成 wxacode 时读取，默认 `pages/register/index`；种子见 V47）
+
+  **新增 `SystemConfigService.getConfigValue/getIntConfig/getBooleanConfig` 读取的 key 时，必须同步在 `app/` 迁移里种入 `sys_system_config` 并登记进上面的清单**——只写代码默认值回落等于隐藏配置：系统参数页看不见也改不了（V47 就是补的这两条历史欠账）。
 
 ## 统一响应与全局异常
 

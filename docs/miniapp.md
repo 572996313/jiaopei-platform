@@ -42,7 +42,9 @@ miniapp/src/
 | `V26__create_wechat_binding_table.sql` | `jp_wechat_binding` 表:openid ↔ 系统用户绑定关系 |
 | `V27__wechat_self_register.sql` | `password_hash` 改可空、`register_source` 来源列、预置 `MINIAPP_STUDENT`/`MINIAPP_PARENT` 两个角色 |
 | `POST /api/auth/wechat/login` | code 换 openid;已注册签发 JWT,未注册返回 `registered=false` |
-| `POST /api/auth/wechat/register` | 自助注册:选身份(学生/家长)+昵称自动建档、分配角色并签发 JWT;重复注册幂等 |
+| `POST /api/auth/wechat/register` | 自助注册:选身份(学生/家长)+昵称自动建档、分配角色并签发 JWT;重复注册幂等。携带 `invitationCode` 时走邀请码注册:机构/角色由邀请码固定(仅限学生/家长两个小程序角色,其余返回 403),无需选身份 |
+| `GET /api/education/wechat/invitations/{code}/wxacode` | 管理端生成邀请码小程序码(PNG,scene 携带凭证编码,服务端缓存 30 天;权限 `education:write`) |
+| `pages/register/index` | 注册页支持扫小程序码直达:启动参数 `scene` 携带邀请码,自动预检后进入邀请注册模式(显示机构与角色、免选身份) |
 | `POST /api/auth/wechat/deregister` | 账号注销:删除当前微信注册的账号(含身份角色与绑定),令牌立即失效;注销后同一微信重新登录为未注册状态,可重新注册 |
 | `UserAccessTokenService` | 从 `AuthApplicationServiceImpl` 抽出的统一令牌签发组件,账号密码登录与微信登录共用 |
 | `wx.miniapp.*` 配置 | `application.yml`,通过环境变量 `WECHAT_MINIAPP_APPID/SECRET` 注入 |
@@ -114,9 +116,17 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
          ├─ registered=true  → 保存令牌 → 进入首页(微信免密登录)
          └─ registered=false → 注册页:选身份(学生/家长)+填昵称
                              → POST /api/auth/wechat/register → 自动建档+分配角色 → 进入首页
+
+扫邀请码小程序码 → 直达注册页(scene 携带凭证编码)
+     → GET /api/auth/register/precheck?code=scene
+         ├─ 有效(INVITE) → 页面切邀请模式:展示机构与角色、免选身份
+         │                 → POST /api/auth/wechat/register(带 invitationCode)
+         │                 → 无密码建档(机构/角色由邀请码固定)+绑定微信 → 进入首页
+         └─ 无效/非邀请码 → toast 原因,回落普通身份选择注册
 ```
 
 - 首次使用自动注册进系统(分配 MINIAPP_STUDENT / MINIAPP_PARENT 角色),之后微信免密登录。
+- 管理员在「注册凭证」页创建邀请码(角色限学生/家长)后点「小程序码」生成太阳码,发给学员/家长扫码即可带角色注册;扫码注册与普通注册同样幂等、同样无密码、可自助注销。
 - 一个微信对应一个账号,重复提交注册时按已注册用户直接登录(幂等)。
 - 注册用户无密码,不能走账号密码登录;注册身份不可自行更改,需要调整找管理员。
 - 退出登录调用 `/api/auth/logout`,服务端令牌(Redis)立即失效。
