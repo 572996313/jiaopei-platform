@@ -22,6 +22,7 @@ const basePermissionLabels: PermissionLabelItem[] = [
   { code: 'system:list-config:manage', label: '列表配置维护', group: '系统管理' },
   { code: 'system:operlog:read', label: '操作日志查看', group: '系统管理' },
   { code: 'system:data-source:manage', label: '数据源配置维护', group: '系统管理' },
+  { code: 'system:invitation:manage', label: '注册凭证维护', group: '系统管理' },
   { code: 'tenant:read', label: '机构资料查看', group: '机构(租户)' },
   { code: 'tenant:write', label: '机构资料维护', group: '机构(租户)' },
 ]

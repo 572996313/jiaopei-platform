@@ -6,9 +6,10 @@ import type { PermissionLabelItem } from '@cornerstone/core/constants/permission
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 提供六类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
+ * 提供七类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
  * 侧边栏导航项（业务模块自己的页面入口）、品牌文案（壳工程登记本项目产物名）、
- * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）。
+ * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）、
+ * 注册凭证行操作（业务把端能力按钮注入凭证页操作列，如小程序码）。
  * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
  * 模块未装配（清单里没挂）时查不到实现，底座按空数据降级而不是报错。
@@ -217,4 +218,34 @@ export function notifyPageRefresh(pageKey: string) {
   for (const handler of refreshHandlers.get(pageKey) ?? []) {
     void handler()
   }
+}
+
+/**
+ * 注册凭证页的行操作：小程序码这类"端能力"按钮底座不认识（底座不许出现微信词汇），
+ * 由业务模块登记组件渲染进操作列。组件收到 props.row（InvitationSummary 行数据），
+ * 自管按钮、弹窗与取数；未装配业务模块时操作列只剩底座自带的「停用」。
+ */
+export interface InvitationActionDefinition {
+  key: string
+  /** 只对列出的凭证类型展示(INVITE=邀请码,ACTIVATE=激活码)，不传=全部类型 */
+  kinds?: string[]
+  /** 行内自上而下顺序，未传取 100（底座「停用」恒在最前） */
+  order?: number
+  component: Component
+}
+
+const invitationActionContributions: InvitationActionDefinition[] = []
+
+export function registerInvitationActions(items: InvitationActionDefinition[]) {
+  for (const item of items) {
+    if (!invitationActionContributions.some((existing) => existing.key === item.key)) {
+      invitationActionContributions.push(item)
+      invitationActionContributions.sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
+    }
+  }
+}
+
+/** 底座按行类型现算可见的业务行操作（模块登记晚于页面加载也不能漏渲染） */
+export function contributedInvitationActions(kind: string): InvitationActionDefinition[] {
+  return invitationActionContributions.filter((item) => !item.kinds || item.kinds.includes(kind))
 }

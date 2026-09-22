@@ -153,6 +153,7 @@ export function useSystemPermissions() {
     canManageDicts: auth.hasPermission('system:dict:manage'),
     canManageListConfigs: auth.hasPermission('system:list-config:manage'),
     canManageDataSources: auth.hasPermission('system:data-source:manage'),
+    canManageInvitations: auth.hasPermission('system:invitation:manage'),
   }))
 }
 

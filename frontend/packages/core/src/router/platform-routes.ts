@@ -14,6 +14,22 @@ export const publicRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/auth/LoginView.vue'),
   },
   {
+    path: '/register',
+    name: 'register',
+    meta: {
+      public: true,
+    },
+    component: () => import('@cornerstone/core/views/auth/RegisterView.vue'),
+  },
+  {
+    path: '/activate',
+    name: 'activate',
+    meta: {
+      public: true,
+    },
+    component: () => import('@cornerstone/core/views/auth/ActivateView.vue'),
+  },
+  {
     path: '/change-password',
     name: 'change-password',
     meta: {
@@ -72,6 +88,11 @@ export const platformChildRoutes: RouteRecordRaw[] = [
     path: 'system/data-sources',
     name: 'system-data-sources',
     component: () => import('@cornerstone/core/views/system/DataSourceManagementView.vue'),
+  },
+  {
+    path: 'system/invitations',
+    name: 'system-invitations',
+    component: () => import('@cornerstone/core/views/system/InvitationManagementView.vue'),
   },
   {
     path: 'system/operlogs',

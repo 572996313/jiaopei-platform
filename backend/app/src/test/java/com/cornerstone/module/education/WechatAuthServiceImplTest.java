@@ -22,6 +22,8 @@ import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.module.education.domain.entity.WechatBindingEntity;
+import com.cornerstone.core.auth.dto.InvitationAccountSpec;
+import com.cornerstone.core.auth.dto.InvitationPrecheckView;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.module.education.dto.WechatLoginRequest;
 import com.cornerstone.module.education.dto.WechatLoginResponse;
@@ -32,13 +34,11 @@ import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.event.UserAccountDeregisteredEvent;
 import com.cornerstone.module.education.mapper.WechatBindingMapper;
 import com.cornerstone.core.auth.security.UserAccessTokenService;
+import com.cornerstone.core.auth.service.AuthInvitationService;
 import com.cornerstone.core.auth.service.TokenCacheService;
 import com.cornerstone.module.education.service.impl.WechatAuthServiceImpl;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.service.SystemConfigService;
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +64,7 @@ class WechatAuthServiceImplTest {
     private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
+    private final AuthInvitationService invitationService = mock(AuthInvitationService.class);
 
     private WechatAuthServiceImpl service;
 
@@ -71,7 +72,7 @@ class WechatAuthServiceImplTest {
     void setUp() {
         service = new WechatAuthServiceImpl(wxMaService, wechatBindingMapper, userAccountMapper,
             roleMapper, userRoleRelMapper,
-            userAccessTokenService, tokenCacheService, systemConfigService, eventPublisher);
+            userAccessTokenService, tokenCacheService, systemConfigService, invitationService, eventPublisher);
         when(wxMaService.getWxMaConfig()).thenReturn(wxMaConfig);
         when(wxMaConfig.getAppid()).thenReturn("wx1370a4fd669d14d8");
         when(wxMaService.getUserService()).thenReturn(wxMaUserService);
@@ -114,7 +115,7 @@ class WechatAuthServiceImplTest {
             return 1;
         });
 
-        service.register(new WechatRegisterRequest(LOGIN_CODE, "STUDENT", "小明"));
+        service.register(new WechatRegisterRequest(LOGIN_CODE, "STUDENT", null, "小明"));
 
         ArgumentCaptor<UserAccountEntity> userCaptor = ArgumentCaptor.forClass(UserAccountEntity.class);
         verify(userAccountMapper).insert(userCaptor.capture());
@@ -148,7 +149,7 @@ class WechatAuthServiceImplTest {
             return 1;
         });
 
-        service.register(new WechatRegisterRequest(LOGIN_CODE, "PARENT", "  "));
+        service.register(new WechatRegisterRequest(LOGIN_CODE, "PARENT", null, "  "));
 
         ArgumentCaptor<UserAccountEntity> userCaptor = ArgumentCaptor.forClass(UserAccountEntity.class);
         verify(userAccountMapper).insert(userCaptor.capture());
@@ -167,7 +168,7 @@ class WechatAuthServiceImplTest {
         when(wechatBindingMapper.selectOne(any())).thenReturn(binding);
         when(userAccountMapper.selectById(7L)).thenReturn(activeUser());
 
-        service.register(new WechatRegisterRequest(LOGIN_CODE, "PARENT", "家长"));
+        service.register(new WechatRegisterRequest(LOGIN_CODE, "PARENT", null, "家长"));
 
         verify(userAccountMapper, never()).insert(any(UserAccountEntity.class));
         verify(userRoleRelMapper, never()).insert(any(UserRoleRelEntity.class));
@@ -176,13 +177,58 @@ class WechatAuthServiceImplTest {
     }
 
     @Test
-    void registerRequestRejectsUnknownRole() {
-        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
-            Validator validator = factory.getValidator();
-            var violations = validator.validate(new WechatRegisterRequest(LOGIN_CODE, "TEACHER", null));
-            assertEquals(1, violations.size());
-            assertTrue(violations.iterator().next().getMessage().contains("STUDENT"));
-        }
+    void registerWithoutInviteRejectsUnknownRoleAtServiceLayer() {
+        mockCode2Session();
+        when(wechatBindingMapper.selectOne(any())).thenReturn(null);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.register(new WechatRegisterRequest(LOGIN_CODE, "TEACHER", null, "老师")));
+
+        assertTrue(exception.getMessage().contains("STUDENT"));
+        verify(userAccountMapper, never()).insert(any(UserAccountEntity.class));
+    }
+
+    @Test
+    void registerWithInviteDelegatesToCoreAndCreatesBinding() {
+        mockCode2Session();
+        when(wechatBindingMapper.selectOne(any())).thenReturn(null);
+        when(invitationService.precheck("INVABC"))
+            .thenReturn(new InvitationPrecheckView(true, "INVITE", "示范机构", "MINIAPP_PARENT", "家长端用户", null, null));
+        UserAccountEntity invited = activeUser();
+        invited.setId(55L);
+        when(invitationService.registerInvitedAccount(any())).thenReturn(invited);
+
+        service.register(new WechatRegisterRequest(LOGIN_CODE, null, "INVABC", "家长"));
+
+        ArgumentCaptor<InvitationAccountSpec> specCaptor = ArgumentCaptor.forClass(InvitationAccountSpec.class);
+        verify(invitationService).registerInvitedAccount(specCaptor.capture());
+        assertEquals("wx_" + OPENID, specCaptor.getValue().username());
+        assertEquals("WECHAT_MINIAPP", specCaptor.getValue().registerSource());
+        // 账号建档由底座原语完成,业务侧不再自己 insert
+        verify(userAccountMapper, never()).insert(any(UserAccountEntity.class));
+        ArgumentCaptor<WechatBindingEntity> bindingCaptor = ArgumentCaptor.forClass(WechatBindingEntity.class);
+        verify(wechatBindingMapper).insert(bindingCaptor.capture());
+        assertEquals(Long.valueOf(55L), bindingCaptor.getValue().getUserId());
+    }
+
+    @Test
+    void registerWithInviteRejectsNonMiniappRoleAndInvalidCode() {
+        mockCode2Session();
+        when(wechatBindingMapper.selectOne(any())).thenReturn(null);
+        // 管理类角色邀请码不得进小程序注册通道
+        when(invitationService.precheck("INVADMIN"))
+            .thenReturn(new InvitationPrecheckView(true, "INVITE", "示范机构", "PLATFORM_ADMIN", "平台管理员", null, null));
+        BusinessException forbidden = assertThrows(BusinessException.class,
+            () -> service.register(new WechatRegisterRequest(LOGIN_CODE, null, "INVADMIN", "黑产")));
+        assertTrue(forbidden.getMessage().contains("不支持小程序自助注册"));
+        verify(invitationService, never()).registerInvitedAccount(any());
+
+        // 无效/过期邀请码直接拒绝
+        when(invitationService.precheck("INVBAD"))
+            .thenReturn(new InvitationPrecheckView(false, null, null, null, null, null, "凭证已过期"));
+        BusinessException invalid = assertThrows(BusinessException.class,
+            () -> service.register(new WechatRegisterRequest(LOGIN_CODE, null, "INVBAD", "黑产")));
+        assertTrue(invalid.getMessage().contains("已过期"));
     }
 
     @Test

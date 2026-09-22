@@ -1,25 +1,57 @@
 <script setup lang="ts">
+import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { isApiError } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
-import type { MiniappRole } from '@/api/auth'
+import { precheckInvitation, type InvitationPrecheckView, type MiniappRole } from '@/api/auth'
 
 const authStore = useAuthStore()
 const role = ref<MiniappRole | null>(null)
 const nickname = ref('')
 const submitting = ref(false)
 
+/** 扫码进入时 scene 携带的邀请码;有值则走邀请注册,机构/角色由邀请码固定 */
+const invitationCode = ref('')
+const invitation = ref<InvitationPrecheckView | null>(null)
+
 const roleOptions: Array<{ value: MiniappRole; icon: string; title: string; desc: string }> = [
   { value: 'STUDENT', icon: 'person-filled', title: '我是学生', desc: '查看自己的课程与考勤' },
   { value: 'PARENT', icon: 'staff-filled', title: '我是家长', desc: '关注孩子的课程与考勤' },
 ]
+
+onLoad((options) => {
+  // 扫小程序码进入:scene 为凭证编码(需 decode);H5 调试也支持 ?code= 直传
+  const raw = options?.scene ? decodeURIComponent(options.scene) : (options?.code || '')
+  if (!raw) {
+    return
+  }
+  invitationCode.value = raw
+  precheckInvitation(raw)
+    .then((view) => {
+      if (!view.valid) {
+        uni.showToast({ title: view.message || '邀请码无效', icon: 'none' })
+        invitationCode.value = ''
+        return
+      }
+      if (view.kind !== 'INVITE') {
+        uni.showToast({ title: '该凭证不是邀请码,请按指引使用', icon: 'none' })
+        invitationCode.value = ''
+        return
+      }
+      invitation.value = view
+    })
+    .catch((error) => {
+      uni.showToast({ title: isApiError(error) ? error.message : '邀请码校验失败,请重试', icon: 'none' })
+      invitationCode.value = ''
+    })
+})
 
 function selectRole(value: MiniappRole) {
   role.value = value
 }
 
 async function handleRegister() {
-  if (!role.value) {
+  if (!invitation.value && !role.value) {
     uni.showToast({ title: '请先选择你的身份', icon: 'none' })
     return
   }
@@ -29,7 +61,11 @@ async function handleRegister() {
   submitting.value = true
   uni.showLoading({ title: '注册中…' })
   try {
-    await authStore.registerAccount(role.value, nickname.value)
+    await authStore.registerAccount(
+      invitation.value ? undefined : (role.value as MiniappRole),
+      nickname.value,
+      invitation.value ? invitationCode.value : undefined,
+    )
     uni.hideLoading()
     uni.showToast({ title: '注册成功', icon: 'success' })
     setTimeout(() => {
@@ -50,11 +86,16 @@ async function handleRegister() {
 <template>
   <view class="register-page">
     <view class="header">
-      <text class="title">选择你的身份</text>
-      <text class="desc">选择后将自动注册进入系统,身份注册后不可自行更改</text>
+      <text class="title">{{ invitation ? '邀请注册' : '选择你的身份' }}</text>
+      <text class="desc">{{ invitation ? '扫码凭证有效,确认昵称后即可加入' : '选择后将自动注册进入系统,身份注册后不可自行更改' }}</text>
     </view>
 
-    <view class="role-grid">
+    <view v-if="invitation" class="invite-card">
+      <text class="invite-org">{{ invitation.institutionName || '所属机构' }}</text>
+      <text class="invite-role">注册身份：{{ invitation.roleName || invitation.roleCode }}</text>
+    </view>
+
+    <view v-else class="role-grid">
       <view
         v-for="item in roleOptions"
         :key="item.value"
@@ -82,7 +123,7 @@ async function handleRegister() {
     </view>
 
     <button class="submit-btn" :disabled="submitting" @click="handleRegister">
-      {{ role ? '确认注册' : '请先选择身份' }}
+      {{ invitation ? '确认注册' : (role ? '确认注册' : '请先选择身份') }}
     </button>
   </view>
 </template>
@@ -111,6 +152,28 @@ async function handleRegister() {
   font-size: 26rpx;
   color: #6b7280;
   line-height: 1.6;
+}
+
+.invite-card {
+  background: #eff6ff;
+  border: 3rpx solid #bfdbfe;
+  border-radius: 24rpx;
+  padding: 36rpx 32rpx;
+  margin-bottom: 32rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.invite-org {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.invite-role {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: #374151;
 }
 
 .role-grid {

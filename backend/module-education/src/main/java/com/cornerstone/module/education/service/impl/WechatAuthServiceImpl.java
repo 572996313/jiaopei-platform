@@ -8,6 +8,8 @@ import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.module.education.domain.entity.WechatBindingEntity;
+import com.cornerstone.core.auth.dto.InvitationAccountSpec;
+import com.cornerstone.core.auth.dto.InvitationPrecheckView;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.module.education.dto.WechatLoginRequest;
 import com.cornerstone.module.education.dto.WechatLoginResponse;
@@ -18,6 +20,7 @@ import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.event.UserAccountDeregisteredEvent;
 import com.cornerstone.module.education.mapper.WechatBindingMapper;
 import com.cornerstone.core.auth.security.UserAccessTokenService;
+import com.cornerstone.core.auth.service.AuthInvitationService;
 import com.cornerstone.core.auth.service.TokenCacheService;
 import com.cornerstone.module.education.service.WechatAuthService;
 import com.cornerstone.core.auth.context.AuthContext;
@@ -25,6 +28,7 @@ import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.service.SystemConfigService;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import me.chanjar.weixin.common.error.WxErrorException;
@@ -44,6 +48,10 @@ public class WechatAuthServiceImpl implements WechatAuthService {
     // 微信真实登录凭证为字母数字组合(如 081Kk0ll2xxx);含空格等字符必然是无效值
     private static final Pattern VALID_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
 
+    /** 邀请码扫码注册放行的角色白名单:仅学生/家长,防止把管理类邀请码贴进小程序提权 */
+    private static final Set<String> INVITE_ALLOWED_ROLES =
+        Set.of(MiniappPortalResolver.ROLE_CODE_STUDENT, MiniappPortalResolver.ROLE_CODE_PARENT);
+
     private final WxMaService wxMaService;
     private final WechatBindingMapper wechatBindingMapper;
     private final UserAccountMapper userAccountMapper;
@@ -52,6 +60,7 @@ public class WechatAuthServiceImpl implements WechatAuthService {
     private final UserAccessTokenService userAccessTokenService;
     private final TokenCacheService tokenCacheService;
     private final SystemConfigService systemConfigService;
+    private final AuthInvitationService invitationService;
     private final ApplicationEventPublisher eventPublisher;
 
     public WechatAuthServiceImpl(WxMaService wxMaService, WechatBindingMapper wechatBindingMapper,
@@ -59,6 +68,7 @@ public class WechatAuthServiceImpl implements WechatAuthService {
                                  UserRoleRelMapper userRoleRelMapper,
                                  UserAccessTokenService userAccessTokenService,
                                  TokenCacheService tokenCacheService, SystemConfigService systemConfigService,
+                                 AuthInvitationService invitationService,
                                  ApplicationEventPublisher eventPublisher) {
         this.wxMaService = wxMaService;
         this.wechatBindingMapper = wechatBindingMapper;
@@ -68,6 +78,7 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         this.userAccessTokenService = userAccessTokenService;
         this.tokenCacheService = tokenCacheService;
         this.systemConfigService = systemConfigService;
+        this.invitationService = invitationService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -93,15 +104,16 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         WxMaJscode2SessionResult session = code2Session(request.code());
         WechatBindingEntity binding = findBinding(session.getOpenid());
         if (binding != null) {
-            // 幂等:同一微信重复提交注册时按已注册用户直接登录
+            // 幂等:同一微信重复提交注册时按已注册用户直接登录,邀请码不核销(该人已有账号)
             UserAccountEntity existing = requireActiveUser(binding.getUserId());
             binding.setLastLoginAt(LocalDateTime.now());
             wechatBindingMapper.updateById(binding);
             return userAccessTokenService.issue(existing);
         }
 
-        UserAccountEntity user = createMiniappUser(session, request);
-        attachRole(user.getId(), resolveRoleCode(request.role()));
+        UserAccountEntity user = hasText(request.invitationCode())
+            ? createInvitedUser(session, request)
+            : createSelfRegisteredUser(session, request);
 
         WechatBindingEntity created = new WechatBindingEntity();
         created.setOpenid(session.getOpenid());
@@ -111,6 +123,37 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         wechatBindingMapper.insert(created);
 
         return userAccessTokenService.issue(user);
+    }
+
+    /** 邀请码扫码注册:机构与角色由邀请码固定,账号建成无密码态,仅放行学生/家长角色。 */
+    private UserAccountEntity createInvitedUser(WxMaJscode2SessionResult session, WechatRegisterRequest request) {
+        InvitationPrecheckView precheck = invitationService.precheck(request.invitationCode().trim());
+        if (!Boolean.TRUE.equals(precheck.valid())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                precheck.message() == null ? "邀请码无效" : precheck.message());
+        }
+        if (!INVITE_ALLOWED_ROLES.contains(precheck.roleCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "该邀请码角色不支持小程序自助注册");
+        }
+        // openid 全局唯一,作为账号名天然防重,与无邀请码自助注册同一命名口径
+        return invitationService.registerInvitedAccount(new InvitationAccountSpec(
+            request.invitationCode().trim(),
+            "wx_" + session.getOpenid(),
+            resolveDisplayName(request.nickname()),
+            null,
+            MiniappPortalResolver.REGISTER_SOURCE_MINIAPP));
+    }
+
+    /** 无邀请码的自助注册:机构取系统默认,角色按所选身份分配。 */
+    private UserAccountEntity createSelfRegisteredUser(WxMaJscode2SessionResult session,
+                                                       WechatRegisterRequest request) {
+        String role = request.role();
+        if (role == null || (!"STUDENT".equals(role) && !"PARENT".equals(role))) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "注册身份仅支持 STUDENT 或 PARENT");
+        }
+        UserAccountEntity user = createMiniappUser(session, request);
+        attachRole(user.getId(), resolveRoleCode(role));
+        return user;
     }
 
     private UserAccountEntity createMiniappUser(WxMaJscode2SessionResult session, WechatRegisterRequest request) {
@@ -152,6 +195,10 @@ public class WechatAuthServiceImpl implements WechatAuthService {
             return DEFAULT_DISPLAY_NAME;
         }
         return nickname.trim();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private WechatBindingEntity findBinding(String openid) {

@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { AlarmClock, Avatar, Reading, User } from '@element-plus/icons-vue'
 import {
+  registerInvitationActions,
   registerNavItems,
   registerPermissionLabels,
   registerPageSlot,
@@ -117,3 +118,18 @@ registerPageSlot('campus-detail', {
     () => import('@cornerstone/module-education/views/campus/EducationMasterDataCards.vue')
   ),
 })
+
+/**
+ * 注册凭证页的行操作：邀请码可生成直达小程序注册页的太阳码。
+ * 底座凭证页不认识"微信/小程序码"这类端能力，组件按扩展点注入操作列。
+ */
+registerInvitationActions([
+  {
+    key: 'education-wxacode',
+    kinds: ['INVITE'],
+    order: 10,
+    component: defineAsyncComponent(
+      () => import('@cornerstone/module-education/views/invitation/InvitationWxacodeAction.vue')
+    ),
+  },
+])

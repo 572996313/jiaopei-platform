@@ -31,17 +31,33 @@ export interface CurrentUserResponse {
   forceChangePassword: boolean
 }
 
+export interface InvitationPrecheckView {
+  valid: boolean
+  kind: string | null
+  institutionName: string | null
+  roleCode: string | null
+  roleName: string | null
+  expiresAt: string | null
+  message: string | null
+}
+
 /** 微信小程序登录:code 换 openid,已注册直接返回令牌,未注册时 registered=false */
 export function wechatLogin(code: string) {
   return requestPost<WechatLoginResponse>('/auth/wechat/login', { code })
 }
 
-/** 自助注册:选择身份(学生/家长)自动建档进系统并分配角色,昵称选填 */
-export function wechatRegister(code: string, role: MiniappRole, nickname?: string) {
+/** 扫码注册入口:校验小程序码 scene 里携带的邀请码 */
+export function precheckInvitation(code: string) {
+  return requestGet<InvitationPrecheckView>('/auth/register/precheck', { code })
+}
+
+/** 自助注册:选择身份(学生/家长)自动建档进系统并分配角色,昵称选填;携带邀请码时机构/角色由邀请码固定 */
+export function wechatRegister(code: string, role?: MiniappRole, nickname?: string, invitationCode?: string) {
   return requestPost<LoginResponse>('/auth/wechat/register', {
     code,
-    role,
+    role: role || undefined,
     nickname: nickname?.trim() ? nickname.trim() : undefined,
+    invitationCode: invitationCode?.trim() ? invitationCode.trim() : undefined,
   })
 }
 

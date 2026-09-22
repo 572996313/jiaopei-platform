@@ -44,6 +44,12 @@
             登录系统
           </el-button>
         </el-form>
+
+        <div class="login-alt-entries">
+          <router-link to="/register">有邀请码？注册账号</router-link>
+          <span class="login-alt-divider">|</span>
+          <router-link to="/activate">账号待激活？设置密码</router-link>
+        </div>
       </div>
     </section>
   </div>
@@ -124,3 +130,23 @@ async function submitLogin() {
   }
 }
 </script>
+
+<style scoped>
+.login-alt-entries {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.login-alt-entries a {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+
+.login-alt-divider {
+  color: var(--el-text-color-placeholder);
+}
+</style>

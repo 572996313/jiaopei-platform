@@ -36,8 +36,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CornerstoneBaselineGuardTest {
 
     private static final String SCHEMA_SCRIPT = "/cornerstone/migration/V100__cornerstone_core_schema.sql";
+    private static final String INVITATION_SCRIPT = "/cornerstone/migration/V103__add_sys_auth_invitation.sql";
     private static final String SEED_SCRIPT = "/cornerstone/migration/V101__cornerstone_core_seed.sql";
     private static final String AUDIT_SCRIPT = "/cornerstone/audit-migration/V100__cornerstone_oper_log.sql";
+
+    /** 基线结构脚本清单：V100 之后的底座增量表结构一律追加到这里，各守护自动覆盖。 */
+    private static final List<String> SCHEMA_SCRIPTS = List.of(SCHEMA_SCRIPT, INVITATION_SCRIPT);
 
     @Test
     void flywayLocationsMustBindTheYamlListForm() {
@@ -61,6 +65,7 @@ class CornerstoneBaselineGuardTest {
     void baselineScriptsMustShipInsideCoreJar() {
         // 下游拿到的是 core 的 jar，不是源码：从 classpath 读得到才说明 resources 真的打进了产物。
         assertThat(read(SCHEMA_SCRIPT)).as("core jar 必须自带底座结构脚本").contains("CREATE TABLE");
+        assertThat(read(INVITATION_SCRIPT)).as("core jar 必须自带注册凭证增量结构脚本").contains("CREATE TABLE");
         assertThat(read(SEED_SCRIPT)).as("core jar 必须自带底座种子脚本").contains("INSERT INTO");
         assertThat(read(AUDIT_SCRIPT)).as("core jar 必须自带日志库结构脚本").contains("CREATE TABLE");
     }
@@ -69,30 +74,34 @@ class CornerstoneBaselineGuardTest {
     void everyBaselineUniqueKeyMustIncludeDeleted() {
         // @TableLogic 软删表的唯一键不含 deleted，软删一条后再建同名记录必撞 Duplicate entry。
         List<String> violations = new ArrayList<>();
-        forEachIndexLine(read(SCHEMA_SCRIPT), "UNIQUE KEY", (table, indexName, columns) -> {
-            if (!columns.contains("deleted")) {
-                violations.add(table + "." + indexName + "(" + String.join(",", columns) + ")");
-            }
-        });
+        for (String script : SCHEMA_SCRIPTS) {
+            forEachIndexLine(read(script), "UNIQUE KEY", (table, indexName, columns) -> {
+                if (!columns.contains("deleted")) {
+                    violations.add(table + "." + indexName + "(" + String.join(",", columns) + ")");
+                }
+            });
+        }
         assertThat(violations).as("底座基线的唯一键必须一律含 deleted").isEmpty();
     }
 
     @Test
     void everyBaselineColumnMustHaveComment() {
         List<String> violations = new ArrayList<>();
-        forEachTable(read(SCHEMA_SCRIPT), (table, body) -> {
-            for (String line : body) {
-                String trimmed = line.trim();
-                boolean isColumn = trimmed.startsWith("`");
-                boolean isConstraint = trimmed.toUpperCase().startsWith("PRIMARY KEY")
-                    || trimmed.toUpperCase().startsWith("KEY ")
-                    || trimmed.toUpperCase().startsWith("UNIQUE KEY")
-                    || trimmed.toUpperCase().startsWith("CONSTRAINT");
-                if (isColumn && !isConstraint && !line.contains("COMMENT '")) {
-                    violations.add(table + "." + trimmed.substring(1, trimmed.indexOf('`', 1)));
+        for (String script : SCHEMA_SCRIPTS) {
+            forEachTable(read(script), (table, body) -> {
+                for (String line : body) {
+                    String trimmed = line.trim();
+                    boolean isColumn = trimmed.startsWith("`");
+                    boolean isConstraint = trimmed.toUpperCase().startsWith("PRIMARY KEY")
+                        || trimmed.toUpperCase().startsWith("KEY ")
+                        || trimmed.toUpperCase().startsWith("UNIQUE KEY")
+                        || trimmed.toUpperCase().startsWith("CONSTRAINT");
+                    if (isColumn && !isConstraint && !line.contains("COMMENT '")) {
+                        violations.add(table + "." + trimmed.substring(1, trimmed.indexOf('`', 1)));
+                    }
                 }
-            }
-        });
+            });
+        }
         assertThat(violations).as("基线建表不允许出现无注释字段").isEmpty();
     }
 
@@ -100,7 +109,9 @@ class CornerstoneBaselineGuardTest {
     void everyBaselineTableMustPinCollation() {
         // 只写 DEFAULT CHARSET=utf8mb4 会让排序规则随服务器默认漂移（MySQL 8.4 默认 utf8mb4_0900_ai_ci）。
         List<String> violations = new ArrayList<>();
-        violations.addAll(tablesMissingCollation(read(SCHEMA_SCRIPT)));
+        for (String script : SCHEMA_SCRIPTS) {
+            violations.addAll(tablesMissingCollation(read(script)));
+        }
         violations.addAll(tablesMissingCollation(read(AUDIT_SCRIPT)));
         assertThat(violations).as("基线每张表都要显式写 COLLATE=utf8mb4_unicode_ci").isEmpty();
     }
@@ -109,7 +120,10 @@ class CornerstoneBaselineGuardTest {
     void baselineMustCoverExactlyTheCoreEntities() {
         // 底座加了新实体却漏进基线 => 新项目少表；基线留了没人用的表 => 新项目多表。两个方向都拦。
         Set<String> entities = coreEntityTables();
-        Set<String> baselineTables = new TreeSet<>(tableNames(read(SCHEMA_SCRIPT)));
+        Set<String> baselineTables = new TreeSet<>();
+        for (String script : SCHEMA_SCRIPTS) {
+            baselineTables.addAll(tableNames(read(script)));
+        }
         baselineTables.addAll(tableNames(read(AUDIT_SCRIPT)));
 
         assertThat(entities).as("扫不到 core 实体说明包根或注解用法变了，本测试随之失效").isNotEmpty();

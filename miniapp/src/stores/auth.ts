@@ -51,10 +51,10 @@ export const useAuthStore = defineStore('auth', {
       return false
     },
 
-    /** 自助注册:选择学生/家长身份建档进系统 */
-    async registerAccount(role: MiniappRole, nickname?: string) {
+    /** 自助注册:选择学生/家长身份建档进系统;携带邀请码时机构/角色由邀请码固定,无需选身份 */
+    async registerAccount(role?: MiniappRole, nickname?: string, invitationCode?: string) {
       const code = await getWxLoginCode()
-      const auth = await wechatRegister(code, role, nickname)
+      const auth = await wechatRegister(code, role, nickname, invitationCode)
       this.applyLogin(auth)
     },
 
