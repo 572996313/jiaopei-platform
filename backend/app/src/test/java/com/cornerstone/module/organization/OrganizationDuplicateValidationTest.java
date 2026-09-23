@@ -7,7 +7,9 @@ import com.cornerstone.module.organization.dto.CampusCreateRequest;
 import com.cornerstone.core.tenant.dto.InstitutionCreateRequest;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.organization.service.impl.CampusServiceImpl;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.service.impl.InstitutionServiceImpl;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,7 +55,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createCampusRejectsDuplicateCampusCodeWithinInstitution() {
-        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper);
+        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectCount(any())).thenReturn(1L);
 
@@ -63,7 +66,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createCampusRejectsDuplicateCampusNameWithinInstitution() {
-        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper);
+        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectCount(any())).thenReturn(0L, 1L);
 

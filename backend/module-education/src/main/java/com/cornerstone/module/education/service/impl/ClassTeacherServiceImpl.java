@@ -12,6 +12,7 @@ import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
 import com.cornerstone.module.education.service.ClassTeacherService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
@@ -27,15 +28,18 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final ClassChangeNoticeService classChangeNoticeService;
+    private final DictValueValidator dictValueValidator;
 
     public ClassTeacherServiceImpl(ClassTeacherMapper classTeacherMapper, TeachingClassMapper teachingClassMapper,
                                    TeacherMapper teacherMapper, InstitutionMapper institutionMapper,
-                                   ClassChangeNoticeService classChangeNoticeService) {
+                                   ClassChangeNoticeService classChangeNoticeService,
+                                   DictValueValidator dictValueValidator) {
         this.classTeacherMapper = classTeacherMapper;
         this.teachingClassMapper = teachingClassMapper;
         this.teacherMapper = teacherMapper;
         this.institutionMapper = institutionMapper;
         this.classChangeNoticeService = classChangeNoticeService;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -92,7 +96,8 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "离开日期不能早于加入日期");
         }
 
-        String teacherRole = normalizeTeacherRole(request.teacherRole());
+        String validatedRole = dictValueValidator.validate("teacher_role", "教师角色", request.teacherRole());
+        String teacherRole = validatedRole == null ? "lead" : validatedRole;
         if (Boolean.TRUE.equals(request.isPrimary())) {
             demoteOtherPrimaryTeachers(request.classId(), id);
         }
@@ -244,16 +249,5 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private String normalizeTeacherRole(String teacherRole) {
-        if (isBlank(teacherRole)) {
-            return "lead";
-        }
-        String normalized = teacherRole.trim();
-        if ("main".equalsIgnoreCase(normalized)) {
-            return "lead";
-        }
-        return normalized;
     }
 }

@@ -8,7 +8,7 @@ import com.cornerstone.module.education.dto.MiniappLessonView;
 import com.cornerstone.module.education.dto.StudentBriefView;
 import com.cornerstone.module.education.mapper.UserStudentRelMapper;
 import com.cornerstone.module.education.service.MiniappService;
-import com.cornerstone.module.education.service.support.GenderDictValidator;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentOwnProfileView;
 import com.cornerstone.module.education.dto.StudentProfileSaveRequest;
@@ -60,13 +60,13 @@ public class MiniappServiceImpl implements MiniappService {
     private final ClassroomMapper classroomMapper;
     private final TeacherMapper teacherMapper;
     private final SystemConfigService systemConfigService;
-    private final GenderDictValidator genderDictValidator;
+    private final DictValueValidator dictValueValidator;
 
     public MiniappServiceImpl(UserStudentRelMapper userStudentRelMapper, StudentMapper studentMapper,
                               StudentParentMapper studentParentMapper, ClassStudentMapper classStudentMapper,
                               TeachingClassMapper teachingClassMapper, ScheduleLessonMapper scheduleLessonMapper,
                               CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper,
-                              SystemConfigService systemConfigService, GenderDictValidator genderDictValidator) {
+                              SystemConfigService systemConfigService, DictValueValidator dictValueValidator) {
         this.userStudentRelMapper = userStudentRelMapper;
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
@@ -77,7 +77,7 @@ public class MiniappServiceImpl implements MiniappService {
         this.classroomMapper = classroomMapper;
         this.teacherMapper = teacherMapper;
         this.systemConfigService = systemConfigService;
-        this.genderDictValidator = genderDictValidator;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -231,7 +231,7 @@ public class MiniappServiceImpl implements MiniappService {
             created.setUserId(userId);
             created.setStudentNo(generateStudentNo());
             created.setStudentName(request.studentName().trim());
-            created.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+            created.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
             created.setBirthday(request.birthday());
             created.setStatus("studying");
             studentMapper.insert(created);
@@ -242,7 +242,7 @@ public class MiniappServiceImpl implements MiniappService {
         }
         // 已归属:仅可编辑姓名/性别/生日
         student.setStudentName(request.studentName().trim());
-        student.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+        student.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         student.setBirthday(request.birthday());
         studentMapper.updateById(student);
         return toOwnProfile(student);

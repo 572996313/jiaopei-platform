@@ -174,11 +174,11 @@
           <el-input v-model="form.phone" placeholder="请输入手机号" />
         </el-form-item>
         <el-form-item label="用工类型">
-          <el-select v-model="form.employmentType" placeholder="选择用工类型">
-            <el-option label="全职" value="full_time" />
-            <el-option label="兼职" value="part_time" />
-            <el-option label="外聘" value="contract" />
-          </el-select>
+          <DictSelect
+            v-model="form.employmentType"
+            type-code="employment_type"
+            placeholder="选择用工类型"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">
@@ -230,9 +230,12 @@ import {
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useDictStore } from '@cornerstone/core/stores/dict'
+import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
+const dictStore = useDictStore()
 const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
@@ -260,7 +263,7 @@ const form = reactive({
   teacherName: '',
   campusId: '' as string | null,
   phone: '',
-  employmentType: 'full_time',
+  employmentType: '',
   status: 'active',
   hiredAt: '',
   remark: '',
@@ -289,15 +292,7 @@ function formatCampus(id?: string | null) {
 }
 
 function employmentTypeLabel(value?: string | null) {
-  switch (value) {
-    case 'part_time':
-      return '兼职'
-    case 'contract':
-      return '外聘'
-    case 'full_time':
-    default:
-      return '全职'
-  }
+  return dictStore.displayLabel('employment_type', value)
 }
 
 function teacherStatusLabel(value?: string | null) {
@@ -329,7 +324,7 @@ function resetForm() {
   form.teacherName = ''
   form.campusId = campusId.value
   form.phone = ''
-  form.employmentType = 'full_time'
+  form.employmentType = ''
   form.status = 'active'
   form.hiredAt = ''
   form.remark = ''
@@ -405,7 +400,7 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
     form.teacherName = row.teacherName ?? ''
     form.campusId = row.campusId ?? null
     form.phone = row.phone ?? ''
-    form.employmentType = row.employmentType ?? 'full_time'
+    form.employmentType = row.employmentType ?? ''
     form.status = row.status ?? 'active'
     form.hiredAt = row.hiredAt ?? ''
     form.remark = row.remark ?? ''
@@ -528,6 +523,8 @@ watch(
 )
 
 onMounted(() => {
+  // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
+  void dictStore.ensureLoaded(['employment_type']).catch(() => undefined)
   initializePage()
 })
 </script>

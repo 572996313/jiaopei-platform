@@ -45,7 +45,7 @@ public class ClassOpeningRuleEntity extends BaseEntity {
     @Schema(description = "优先级(数值越小优先级越高)")
     private Integer priorityNo;
 
-    @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})
+    @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     private String status;
 
     @Schema(description = "备注")

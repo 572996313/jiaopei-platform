@@ -3,6 +3,7 @@ package com.cornerstone.module.organization.dto;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public record TermCreateRequest(
     @JsonAlias("academic_year")
     @NotBlank(message = "学年不能为空")
     String academicYear,
+    @Schema(description = "学季字典(term_season:spring=春季,summer=夏季,autumn=秋季,winter=冬季)", allowableValues = {"spring", "summer", "autumn", "winter"})
     String season,
     @JsonAlias({"start_date", "beginDate"})
     @NotNull(message = "开始日期不能为空")

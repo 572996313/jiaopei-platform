@@ -11,7 +11,7 @@ import com.cornerstone.module.education.dto.StudentPageQuery;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.service.StudentService;
-import com.cornerstone.module.education.service.support.GenderDictValidator;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
@@ -27,14 +27,14 @@ public class StudentServiceImpl implements StudentService {
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
-    private final GenderDictValidator genderDictValidator;
+    private final DictValueValidator dictValueValidator;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
-                              CampusMapper campusMapper, GenderDictValidator genderDictValidator) {
+                              CampusMapper campusMapper, DictValueValidator dictValueValidator) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
-        this.genderDictValidator = genderDictValidator;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -107,7 +107,7 @@ public class StudentServiceImpl implements StudentService {
         entity.setCampusId(request.campusId());
         entity.setStudentNo(studentNo);
         entity.setStudentName(normalize(request.studentName()));
-        entity.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+        entity.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         entity.setBirthday(request.birthday());
         entity.setGuardianName(normalizeToNull(request.guardianName()));
         entity.setGuardianPhone(normalizeToNull(request.guardianPhone()));
@@ -147,7 +147,7 @@ public class StudentServiceImpl implements StudentService {
             existing.setStudentName(normalize(request.studentName()));
         }
         existing.setCampusId(request.campusId());
-        existing.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+        existing.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         existing.setBirthday(request.birthday());
         existing.setGuardianName(normalizeToNull(request.guardianName()));
         existing.setGuardianPhone(normalizeToNull(request.guardianPhone()));

@@ -21,7 +21,7 @@ public class StudentParentEntity extends BaseEntity {
     @Schema(description = "家长姓名")
     private String parentName;
 
-    @Schema(description = "关系(FATHER/MOTHER/GRANDPA/GRANDMA/OTHER)")
+    @Schema(description = "家长关系字典(parent_relation:mother=母亲,father=父亲,guardian=监护人,relative=其他亲属)")
     private String relationType;
 
     @Schema(description = "家长联系电话")
@@ -36,7 +36,7 @@ public class StudentParentEntity extends BaseEntity {
     @Schema(description = "是否紧急联系人")
     private Boolean isEmergencyContact;
 
-    @Schema(description = "状态(ENABLED=启用,DISABLED=停用)")
+    @Schema(description = "状态(active=启用,disabled=停用)")
     private String status;
 
     @Schema(description = "备注")

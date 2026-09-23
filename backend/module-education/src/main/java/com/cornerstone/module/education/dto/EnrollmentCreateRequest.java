@@ -29,7 +29,7 @@ public record EnrollmentCreateRequest(
     @JsonAlias({"code", "enrollment_no"})
     @NotBlank(message = "报名编号不能为空")
     String enrollmentNo,
-    @Schema(description = "报名渠道(OFFLINE=线下,ONLINE=线上,REFERRAL=推荐,TRANSFER=转班)")
+    @Schema(description = "报名渠道字典(enrollment_channel:front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)", allowableValues = {"front_desk", "consultant", "online", "referral"})
     String channel,
     @Schema(description = "状态(PENDING=待审核,APPROVED=已通过,REJECTED=已驳回,CANCELLED=已取消)", allowableValues = {"PENDING", "APPROVED", "REJECTED", "CANCELLED"})
     String status,

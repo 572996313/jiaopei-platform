@@ -13,6 +13,7 @@ import com.cornerstone.module.education.dto.StudentParentView;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.StudentParentMapper;
 import com.cornerstone.module.education.service.StudentParentService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +29,14 @@ public class StudentParentServiceImpl implements StudentParentService {
     private final StudentParentMapper studentParentMapper;
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
+    private final DictValueValidator dictValueValidator;
 
     public StudentParentServiceImpl(StudentParentMapper studentParentMapper, StudentMapper studentMapper,
-                                    InstitutionMapper institutionMapper) {
+                                    InstitutionMapper institutionMapper, DictValueValidator dictValueValidator) {
         this.studentParentMapper = studentParentMapper;
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -141,7 +144,7 @@ public class StudentParentServiceImpl implements StudentParentService {
         entity.setInstitutionId(request.institutionId());
         entity.setStudentId(request.studentId());
         entity.setParentName(request.parentName().trim());
-        entity.setRelationType(normalizeToNull(request.relationType()));
+        entity.setRelationType(dictValueValidator.validate("parent_relation", "家长关系", request.relationType()));
         entity.setParentPhone(parentPhone);
         entity.setWechatNo(normalizeToNull(request.wechatNo()));
         entity.setIsPrimary(Boolean.TRUE.equals(request.isPrimary()));

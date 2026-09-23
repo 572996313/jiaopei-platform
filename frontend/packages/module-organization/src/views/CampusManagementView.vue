@@ -274,11 +274,11 @@
         <el-form-item label="校区编码"><el-input v-model="campusForm.campusCode" /></el-form-item>
         <el-form-item label="校区名称"><el-input v-model="campusForm.campusName" /></el-form-item>
         <el-form-item label="校区类型">
-          <el-select v-model="campusForm.campusType">
-            <el-option label="直营" value="direct" />
-            <el-option label="加盟" value="franchise" />
-            <el-option label="合作" value="partner" />
-          </el-select>
+          <DictSelect
+            v-model="campusForm.campusType"
+            type-code="campus_type"
+            placeholder="选择类型"
+          />
         </el-form-item>
         <el-form-item label="负责人"><el-input v-model="campusForm.principalName" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="campusForm.phone" /></el-form-item>
@@ -575,7 +575,7 @@ const timeSlotFormError = ref('')
 const campusForm = reactive({
   campusCode: '',
   campusName: '',
-  campusType: 'direct',
+  campusType: '',
   principalName: '',
   phone: '',
   address: '',
@@ -587,7 +587,7 @@ const classroomForm = reactive({
   campusId: '' as string | null,
   classroomCode: '',
   classroomName: '',
-  roomType: 'normal',
+  roomType: '',
   floorNo: '',
   seatCapacity: 20,
   status: 'idle',
@@ -597,7 +597,7 @@ const termForm = reactive({
   termCode: '',
   termName: '',
   academicYear: '2026-2027',
-  season: 'autumn',
+  season: '',
   startDate: '',
   endDate: '',
   status: 'draft',
@@ -673,15 +673,7 @@ function formatCampus(id?: string | null) {
 }
 
 function campusTypeLabel(value?: string | null) {
-  switch (value) {
-    case 'franchise':
-      return '加盟'
-    case 'partner':
-      return '合作'
-    case 'direct':
-    default:
-      return '直营'
-  }
+  return dictStore.displayLabel('campus_type', value)
 }
 
 function campusStatusLabel(value?: string | null) {
@@ -751,43 +743,11 @@ function weekdayLabel(value?: number | null) {
 }
 
 function roomTypeLabel(value?: string | null) {
-  const dictLabel = dictStore.labelOf('room_type', value)
-  if (dictLabel) {
-    return dictLabel
-  }
-  switch (value) {
-    case 'normal':
-      return '标准教室'
-    case 'piano':
-      return '琴房'
-    case 'lab':
-      return '实验室'
-    case 'dance':
-      return '舞蹈教室'
-    case 'art':
-      return '美术教室'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('room_type', value)
 }
 
 function seasonLabel(value?: string | null) {
-  const dictLabel = dictStore.labelOf('term_season', value)
-  if (dictLabel) {
-    return dictLabel
-  }
-  switch (value) {
-    case 'spring':
-      return '春季'
-    case 'summer':
-      return '夏季'
-    case 'autumn':
-      return '秋季'
-    case 'winter':
-      return '冬季'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('term_season', value)
 }
 
 function slotTypeLabel(value?: string | null) {
@@ -804,7 +764,7 @@ function slotTypeLabel(value?: string | null) {
 function resetCampusForm() {
   campusForm.campusCode = ''
   campusForm.campusName = ''
-  campusForm.campusType = 'direct'
+  campusForm.campusType = ''
   campusForm.principalName = ''
   campusForm.phone = ''
   campusForm.address = ''
@@ -817,7 +777,7 @@ function resetClassroomForm() {
   classroomForm.campusId = campusId.value
   classroomForm.classroomCode = ''
   classroomForm.classroomName = ''
-  classroomForm.roomType = 'normal'
+  classroomForm.roomType = ''
   classroomForm.floorNo = ''
   classroomForm.seatCapacity = 20
   classroomForm.status = 'idle'
@@ -828,7 +788,7 @@ function resetTermForm() {
   termForm.termCode = ''
   termForm.termName = ''
   termForm.academicYear = '2026-2027'
-  termForm.season = 'autumn'
+  termForm.season = ''
   termForm.startDate = ''
   termForm.endDate = ''
   termForm.status = 'draft'
@@ -905,7 +865,7 @@ function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
     editingCampusId.value = row.id
     campusForm.campusCode = row.campusCode ?? ''
     campusForm.campusName = row.campusName ?? ''
-    campusForm.campusType = row.campusType ?? 'direct'
+    campusForm.campusType = row.campusType ?? ''
     campusForm.principalName = row.principalName ?? ''
     campusForm.phone = row.phone ?? ''
     campusForm.address = row.address ?? ''
@@ -926,7 +886,7 @@ function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
     classroomForm.campusId = row.campusId ?? campusId.value
     classroomForm.classroomCode = row.classroomCode ?? ''
     classroomForm.classroomName = row.classroomName ?? ''
-    classroomForm.roomType = row.roomType ?? 'normal'
+    classroomForm.roomType = row.roomType ?? ''
     classroomForm.floorNo = row.floorNo ?? ''
     classroomForm.seatCapacity = row.seatCapacity ?? 20
     classroomForm.status = row.status ?? 'idle'
@@ -945,7 +905,7 @@ function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
     termForm.termCode = row.termCode ?? ''
     termForm.termName = row.termName ?? ''
     termForm.academicYear = row.academicYear ?? ''
-    termForm.season = row.season ?? 'autumn'
+    termForm.season = row.season ?? ''
     termForm.startDate = row.startDate ?? ''
     termForm.endDate = row.endDate ?? ''
     termForm.status = row.status ?? 'draft'
@@ -1329,7 +1289,8 @@ watch(
 )
 
 onMounted(() => {
-  void dictStore.ensureLoaded(['room_type', 'term_season']).catch(() => undefined)
+  // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
+  void dictStore.ensureLoaded(['room_type', 'term_season', 'campus_type']).catch(() => undefined)
   initializePage()
 })
 </script>

@@ -25,7 +25,7 @@ public class EnrollmentEntity extends BaseEntity {
     @Schema(description = "报名编号")
     private String enrollmentNo;
 
-    @Schema(description = "报名渠道(OFFLINE/ONLINE/REFERRAL/TRANSFER)")
+    @Schema(description = "报名渠道字典(enrollment_channel:front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)")
     private String channel;
 
     @Schema(description = "状态(PENDING=待审核,APPROVED=已通过,REJECTED=已驳回,CANCELLED=已取消)")

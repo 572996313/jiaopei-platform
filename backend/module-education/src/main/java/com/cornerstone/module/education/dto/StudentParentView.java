@@ -13,7 +13,7 @@ public record StudentParentView(
     @Schema(description = "学号") String studentNo,
     @Schema(description = "学员姓名") String studentName,
     @Schema(description = "家长姓名") String parentName,
-    @Schema(description = "关系(father=父亲,mother=母亲,guardian=监护人,relative=其他亲属)") String relationType,
+    @Schema(description = "家长关系字典(parent_relation:mother=母亲,father=父亲,guardian=监护人,relative=其他亲属)") String relationType,
     @Schema(description = "家长联系电话") String parentPhone,
     @Schema(description = "微信号") String wechatNo,
     @Schema(description = "是否主联系人") Boolean isPrimary,

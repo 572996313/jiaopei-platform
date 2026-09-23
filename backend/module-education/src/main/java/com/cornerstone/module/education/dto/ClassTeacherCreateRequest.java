@@ -24,7 +24,7 @@ public record ClassTeacherCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "教师ID不能为空")
     Long teacherId,
-    @Schema(description = "教师角色(HEAD=主讲,ASSIST=助教,COACH=辅导)", allowableValues = {"HEAD", "ASSIST", "COACH"})
+    @Schema(description = "教师角色字典(teacher_role:lead=主讲,assistant=助教,substitute=代课)", allowableValues = {"lead", "assistant", "substitute"})
     @JsonAlias("teacher_role")
     String teacherRole,
     @Schema(description = "是否主讲")

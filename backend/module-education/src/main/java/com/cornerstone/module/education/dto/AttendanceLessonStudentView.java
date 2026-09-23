@@ -12,7 +12,7 @@ public record AttendanceLessonStudentView(
     String studentName,
     @Schema(description = "出勤记录ID(未打卡时为null)")
     Long attendanceId,
-    @Schema(description = "出勤状态(PRESENT/ABSENT/LATE/LEAVE/EARLY_LEAVE)", allowableValues = {"PRESENT", "ABSENT", "LATE", "LEAVE", "EARLY_LEAVE"})
+    @Schema(description = "出勤状态(present=出勤,absent=缺勤,late=迟到,leave=请假)", allowableValues = {"present", "absent", "late", "leave"})
     String attendanceStatus,
     @Schema(description = "数据来源(MANUAL/AUTO/IMPORT)")
     String source,

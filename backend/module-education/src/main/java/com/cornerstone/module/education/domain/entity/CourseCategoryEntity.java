@@ -21,7 +21,7 @@ public class CourseCategoryEntity extends BaseEntity {
     @Schema(description = "分类名称")
     private String categoryName;
 
-    @Schema(description = "状态(ENABLED=启用,DISABLED=停用)")
+    @Schema(description = "状态(active=启用,disabled=停用)")
     private String status;
 
     @Schema(description = "排序号(越小越靠前)")

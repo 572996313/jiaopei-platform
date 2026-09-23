@@ -73,14 +73,23 @@ interface DictOptionGroup {
 // 字典选项与 PC 同一来源(仅登录即可访问),模块级缓存一次,页面直接复用
 let genderOptionsPromise: Promise<DictOptionItem[]> | null = null
 
-/** 拉取性别字典选项(缓存整个应用生命周期内一次) */
+// 静态兜底:线上还没种入 gender 字典(V51 未发版)时选项接口会返回空组,
+// 整行选择器会消失。兜底值与字典规范值一致(male/female/unknown),发版后自动被字典覆盖。
+const GENDER_FALLBACK_OPTIONS: DictOptionItem[] = [
+  { itemCode: 'male', itemName: '男', itemValue: 'male' },
+  { itemCode: 'female', itemName: '女', itemValue: 'female' },
+  { itemCode: 'unknown', itemName: '未知', itemValue: 'unknown' },
+]
+
+/** 拉取性别字典选项(缓存整个应用生命周期内一次;字典或接口不可用时回落静态选项,下次调用重试) */
 export function fetchGenderOptions() {
   if (!genderOptionsPromise) {
     genderOptionsPromise = requestGet<DictOptionGroup[]>('/system/dicts/options', { typeCodes: 'gender' })
       .then((groups) => groups.find((group) => group.typeCode === 'gender')?.items ?? [])
-      .catch((error) => {
-        genderOptionsPromise = null // 失败不缓存,下次重试
-        throw error
+      .then((items) => (items.length > 0 ? items : GENDER_FALLBACK_OPTIONS))
+      .catch(() => {
+        genderOptionsPromise = null // 失败不缓存,下次重新拉字典
+        return GENDER_FALLBACK_OPTIONS
       })
   }
   return genderOptionsPromise

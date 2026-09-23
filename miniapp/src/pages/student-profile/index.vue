@@ -34,7 +34,7 @@ onLoad((options) => {
       genderOptions.value = items
     })
     .catch(() => {
-      // 字典拉取失败时选项为空,保存前会提示选择性别
+      // 理论上不会到这:fetchGenderOptions 失败时已回落静态选项
     })
   const m = options?.mode
   if (m === 'create' || m === 'edit') {

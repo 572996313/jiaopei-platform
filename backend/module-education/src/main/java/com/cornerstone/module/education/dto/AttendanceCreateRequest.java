@@ -31,7 +31,7 @@ public record AttendanceCreateRequest(
     @JsonAlias({"date", "attendance_date"})
     @NotNull(message = "考勤日期不能为空")
     LocalDate attendanceDate,
-    @Schema(description = "出勤状态(PRESENT/ABSENT/LATE/LEAVE/EARLY_LEAVE)", allowableValues = {"PRESENT", "ABSENT", "LATE", "LEAVE", "EARLY_LEAVE"})
+    @Schema(description = "出勤状态(present=出勤,absent=缺勤,late=迟到,leave=请假)", allowableValues = {"present", "absent", "late", "leave"})
     @JsonAlias({"status", "attendance_status"})
     String attendanceStatus,
     @Schema(description = "数据来源(MANUAL=手动,AUTO=自动,IMPORT=导入)")

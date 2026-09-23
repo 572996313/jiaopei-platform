@@ -350,7 +350,7 @@ const courseForm = reactive({
   courseCode: '',
   courseName: '',
   subjectName: '',
-  teachingMethod: 'offline_small_class',
+  teachingMethod: '',
   status: 'active',
   remark: '',
 })
@@ -358,7 +358,7 @@ const courseForm = reactive({
 const classTypeForm = reactive({
   typeCode: '',
   typeName: '',
-  teachingMethod: 'offline_small_class',
+  teachingMethod: '',
   minStudents: 1,
   maxStudents: 12,
   status: 'active',
@@ -376,26 +376,7 @@ function enabledStatusLabel(value?: string | null) {
 }
 
 function teachingMethodLabel(value?: string | null) {
-  const dictLabel = dictStore.labelOf('teaching_method', value)
-  if (dictLabel) {
-    return dictLabel
-  }
-  switch (value) {
-    case 'offline_small_class':
-      return '线下小班'
-    case 'offline_large_class':
-      return '线下大班'
-    case 'offline_one_to_one':
-      return '线下1对1'
-    case 'online_small_class':
-      return '线上小班'
-    case 'online_large_class':
-      return '线上大班'
-    case 'online_one_to_one':
-      return '线上1对1'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('teaching_method', value)
 }
 
 function resetCourseCategoryForm() {
@@ -412,7 +393,7 @@ function resetCourseForm() {
   courseForm.courseCode = ''
   courseForm.courseName = ''
   courseForm.subjectName = ''
-  courseForm.teachingMethod = 'offline_small_class'
+  courseForm.teachingMethod = ''
   courseForm.status = 'active'
   courseForm.remark = ''
   courseFormError.value = ''
@@ -421,7 +402,7 @@ function resetCourseForm() {
 function resetClassTypeForm() {
   classTypeForm.typeCode = ''
   classTypeForm.typeName = ''
-  classTypeForm.teachingMethod = 'offline_small_class'
+  classTypeForm.teachingMethod = ''
   classTypeForm.minStudents = 1
   classTypeForm.maxStudents = 12
   classTypeForm.status = 'active'
@@ -487,7 +468,7 @@ function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
     courseForm.courseCode = row.courseCode ?? ''
     courseForm.courseName = row.courseName ?? ''
     courseForm.subjectName = row.subjectName ?? ''
-    courseForm.teachingMethod = row.teachingMethod ?? 'offline_small_class'
+    courseForm.teachingMethod = row.teachingMethod ?? ''
     courseForm.status = row.status ?? 'active'
     courseForm.remark = row.remark ?? ''
   } else {
@@ -504,7 +485,7 @@ function openClassTypeDialog(mode: 'create' | 'edit', row?: ClassTypeRecord) {
     editingClassTypeId.value = row.id
     classTypeForm.typeCode = row.typeCode ?? ''
     classTypeForm.typeName = row.typeName ?? ''
-    classTypeForm.teachingMethod = row.teachingMethod ?? 'offline_small_class'
+    classTypeForm.teachingMethod = row.teachingMethod ?? ''
     classTypeForm.minStudents = row.minStudents ?? 1
     classTypeForm.maxStudents = row.maxStudents ?? 12
     classTypeForm.status = row.status ?? 'active'

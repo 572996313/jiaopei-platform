@@ -10,6 +10,7 @@ import com.cornerstone.module.organization.dto.CampusUpdateRequest;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.service.CampusService;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
@@ -20,10 +21,13 @@ public class CampusServiceImpl implements CampusService {
 
     private final CampusMapper campusMapper;
     private final InstitutionMapper institutionMapper;
+    private final DictValueValidator dictValueValidator;
 
-    public CampusServiceImpl(CampusMapper campusMapper, InstitutionMapper institutionMapper) {
+    public CampusServiceImpl(CampusMapper campusMapper, InstitutionMapper institutionMapper,
+                             DictValueValidator dictValueValidator) {
         this.campusMapper = campusMapper;
         this.institutionMapper = institutionMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -53,7 +57,8 @@ public class CampusServiceImpl implements CampusService {
         entity.setInstitutionId(request.institutionId());
         entity.setCampusCode(campusCode);
         entity.setCampusName(campusName);
-        entity.setCampusType(request.campusType() == null || request.campusType().isBlank() ? "direct" : request.campusType());
+        String campusType = dictValueValidator.validate("campus_type", "校区类型", request.campusType());
+        entity.setCampusType(campusType == null ? "direct" : campusType);
         entity.setPhone(request.phone());
         entity.setPrincipalName(request.principalName());
         entity.setProvinceCode(request.provinceCode());
@@ -91,8 +96,9 @@ public class CampusServiceImpl implements CampusService {
                 existing.setCampusName(campusName);
             }
         }
-        if (request.campusType() != null && !request.campusType().isBlank()) {
-            existing.setCampusType(request.campusType().trim());
+        String campusType = dictValueValidator.validate("campus_type", "校区类型", request.campusType());
+        if (campusType != null) {
+            existing.setCampusType(campusType);
         }
         if (request.phone() != null) {
             existing.setPhone(normalizeToNull(request.phone()));

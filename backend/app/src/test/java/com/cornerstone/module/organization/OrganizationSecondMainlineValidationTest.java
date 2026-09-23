@@ -14,8 +14,11 @@ import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.organization.service.impl.ClassroomServiceImpl;
 import com.cornerstone.module.organization.service.impl.TermServiceImpl;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
+
 import com.cornerstone.module.organization.service.impl.TimeSlotServiceImpl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +55,7 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createClassroomRejectsDuplicateCodeInCampus() {
-        ClassroomServiceImpl service = new ClassroomServiceImpl(classroomMapper, campusMapper);
+        ClassroomServiceImpl service = new ClassroomServiceImpl(classroomMapper, campusMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(campusMapper.selectById(1L)).thenReturn(new CampusEntity());
         when(classroomMapper.selectCount(any())).thenReturn(1L);
 
@@ -62,7 +66,7 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createClassroomRejectsNegativeArea() {
-        ClassroomServiceImpl service = new ClassroomServiceImpl(classroomMapper, campusMapper);
+        ClassroomServiceImpl service = new ClassroomServiceImpl(classroomMapper, campusMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(campusMapper.selectById(1L)).thenReturn(new CampusEntity());
         when(classroomMapper.selectCount(any())).thenReturn(0L, 0L);
 
@@ -86,7 +90,7 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createTermRejectsDuplicateNameInInstitution() {
-        TermServiceImpl service = new TermServiceImpl(termMapper, institutionMapper);
+        TermServiceImpl service = new TermServiceImpl(termMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(termMapper.selectCount(any())).thenReturn(0L, 1L);
 
@@ -97,7 +101,7 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createTermRejectsInvalidDateRange() {
-        TermServiceImpl service = new TermServiceImpl(termMapper, institutionMapper);
+        TermServiceImpl service = new TermServiceImpl(termMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createTerm(termRequest(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 7, 1))));

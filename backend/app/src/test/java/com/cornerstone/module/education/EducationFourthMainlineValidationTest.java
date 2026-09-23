@@ -1,12 +1,17 @@
 package com.cornerstone.module.education;
 
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.dto.DictItemView;
+import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.core.system.dto.DictItemView;
+import com.cornerstone.core.system.service.SystemDictService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
 import com.cornerstone.module.education.dto.AttendanceCreateRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
@@ -35,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
@@ -63,18 +69,24 @@ class EducationFourthMainlineValidationTest {
     @Mock
     private ScheduleLessonMapper scheduleLessonMapper;
 
+    private final SystemDictService systemDictService = mock(SystemDictService.class);
+    private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
+
     @Test
     void createEnrollmentRejectsDuplicateStudentClass() {
         EnrollmentServiceImpl service = new EnrollmentServiceImpl(
             enrollmentMapper,
             institutionMapper,
             studentMapper,
-            teachingClassMapper
+            teachingClassMapper,
+            dictValueValidator
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectById(10L)).thenReturn(student());
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
         when(enrollmentMapper.selectCount(any())).thenReturn(0L, 1L);
+        when(systemDictService.listItems("enrollment_channel")).thenReturn(List.of(
+            new DictItemView(null, null, "front_desk", "前台报名", "front_desk", 10, "active", null)));
 
         assertThrows(BusinessException.class, () -> service.createEnrollment(enrollmentRequest()));
 
@@ -245,7 +257,7 @@ class EducationFourthMainlineValidationTest {
     }
 
     private EnrollmentCreateRequest enrollmentRequest() {
-        return new EnrollmentCreateRequest(1L, 10L, 20L, "ENR-001", "offline", null, LocalDate.now(), null);
+        return new EnrollmentCreateRequest(1L, 10L, 20L, "ENR-001", "front_desk", null, LocalDate.now(), null);
     }
 
     private ClassStudentCreateRequest classStudentRequest() {

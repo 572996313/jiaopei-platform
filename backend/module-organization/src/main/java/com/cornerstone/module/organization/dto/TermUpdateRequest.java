@@ -1,6 +1,7 @@
 package com.cornerstone.module.organization.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
 public record TermUpdateRequest(
@@ -10,6 +11,7 @@ public record TermUpdateRequest(
     String termName,
     @JsonAlias("academic_year")
     String academicYear,
+    @Schema(description = "学季字典(term_season:spring=春季,summer=夏季,autumn=秋季,winter=冬季)", allowableValues = {"spring", "summer", "autumn", "winter"})
     String season,
     @JsonAlias({"start_date", "beginDate"})
     LocalDate startDate,

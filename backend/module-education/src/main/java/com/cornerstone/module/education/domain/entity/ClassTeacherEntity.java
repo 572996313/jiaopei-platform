@@ -22,7 +22,7 @@ public class ClassTeacherEntity extends BaseEntity {
     @Schema(description = "教师ID")
     private Long teacherId;
 
-    @Schema(description = "教师角色(HEAD=主讲,ASSIST=助教,COACH=辅导)")
+    @Schema(description = "教师角色字典(teacher_role:lead=主讲,assistant=助教,substitute=代课)")
     private String teacherRole;
 
     @Schema(description = "是否主讲")

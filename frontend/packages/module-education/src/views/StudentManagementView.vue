@@ -449,12 +449,11 @@
           </el-select>
         </el-form-item>
         <el-form-item label="来源渠道">
-          <el-select v-model="form.channel" placeholder="选择渠道" clearable>
-            <el-option label="前台报名" value="front_desk" />
-            <el-option label="顾问录入" value="consultant" />
-            <el-option label="线上线索" value="online" />
-            <el-option label="转介绍" value="referral" />
-          </el-select>
+          <DictSelect
+            v-model="form.channel"
+            type-code="enrollment_channel"
+            placeholder="选择渠道"
+          />
         </el-form-item>
         <el-form-item label="报名日期">
           <el-date-picker
@@ -503,12 +502,11 @@
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
         </el-form-item>
         <el-form-item label="关系">
-          <el-select v-model="parentForm.relationType" clearable placeholder="选择关系">
-            <el-option label="母亲" value="mother" />
-            <el-option label="父亲" value="father" />
-            <el-option label="监护人" value="guardian" />
-            <el-option label="其他亲属" value="relative" />
-          </el-select>
+          <DictSelect
+            v-model="parentForm.relationType"
+            type-code="parent_relation"
+            placeholder="选择关系"
+          />
         </el-form-item>
         <el-form-item label="联系电话">
           <el-input v-model="parentForm.parentPhone" placeholder="填写家长手机号" />
@@ -633,7 +631,7 @@ const form = reactive({
   studentId: '' as string | null,
   enrollmentNo: '',
   status: 'submitted',
-  channel: 'front_desk',
+  channel: '',
   enrolledAt: todayValue(),
   remark: '',
 })
@@ -641,7 +639,7 @@ const form = reactive({
 const parentForm = reactive({
   studentId: '' as string | null,
   parentName: '',
-  relationType: 'mother',
+  relationType: '',
   parentPhone: '',
   wechatNo: '',
   isPrimary: true,
@@ -695,21 +693,7 @@ function formatStudent(id?: string | null) {
 }
 
 function genderLabel(gender?: string | null) {
-  const dictLabel = dictStore.labelOf('gender', gender)
-  if (dictLabel) {
-    return dictLabel
-  }
-  // 字典未加载时的静态兜底，取值口径与 gender 字典一致（小写 item_value）
-  switch (gender) {
-    case 'male':
-      return '男'
-    case 'female':
-      return '女'
-    case 'unknown':
-      return '未知'
-    default:
-      return '—'
-  }
+  return dictStore.displayLabel('gender', gender)
 }
 
 function studentStatusLabel(status?: string | null) {
@@ -786,33 +770,11 @@ function studentParentTagType(status?: string | null) {
 }
 
 function enrollmentChannelLabel(value?: string | null) {
-  switch (value) {
-    case 'front_desk':
-      return '前台报名'
-    case 'consultant':
-      return '顾问录入'
-    case 'online':
-      return '线上线索'
-    case 'referral':
-      return '转介绍'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('enrollment_channel', value)
 }
 
 function parentRelationLabel(value?: string | null) {
-  switch (value) {
-    case 'father':
-      return '父亲'
-    case 'guardian':
-      return '监护人'
-    case 'relative':
-      return '其他亲属'
-    case 'mother':
-      return '母亲'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('parent_relation', value)
 }
 
 function resetForm() {
@@ -820,7 +782,7 @@ function resetForm() {
   form.studentId = studentId.value
   form.enrollmentNo = ''
   form.status = 'submitted'
-  form.channel = 'front_desk'
+  form.channel = ''
   form.enrolledAt = todayValue()
   form.remark = ''
   formError.value = ''
@@ -829,7 +791,7 @@ function resetForm() {
 function resetParentForm() {
   parentForm.studentId = studentId.value
   parentForm.parentName = ''
-  parentForm.relationType = 'mother'
+  parentForm.relationType = ''
   parentForm.parentPhone = ''
   parentForm.wechatNo = ''
   parentForm.isPrimary = true
@@ -1247,8 +1209,10 @@ watch(
 )
 
 onMounted(() => {
-  // 性别选项与列表回显统一走 gender 字典（V51 起与小程序共用同一套值）
-  void dictStore.ensureLoaded(['gender']).catch(() => undefined)
+  // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
+  void dictStore
+    .ensureLoaded(['gender', 'enrollment_channel', 'parent_relation'])
+    .catch(() => undefined)
   initializePage()
 })
 </script>

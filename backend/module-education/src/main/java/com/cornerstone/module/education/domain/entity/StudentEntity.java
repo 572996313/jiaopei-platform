@@ -40,7 +40,7 @@ public class StudentEntity extends BaseEntity {
     @Schema(description = "监护人联系电话")
     private String guardianPhone;
 
-    @Schema(description = "状态(ENABLED=在读,GRADUATED=已结业,QUIT=已退学,DISABLED=停用)", allowableValues = {"ENABLED", "GRADUATED", "QUIT", "DISABLED"})
+    @Schema(description = "状态(studying=在读,suspended=停课,graduated=已结业,withdrawn=已退学)", allowableValues = {"studying", "suspended", "graduated", "withdrawn"})
     private String status;
 
     @Schema(description = "入学日期")

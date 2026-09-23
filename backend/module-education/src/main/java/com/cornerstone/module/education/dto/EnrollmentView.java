@@ -16,7 +16,7 @@ public record EnrollmentView(
     @Schema(description = "班级 ID") Long classId,
     @Schema(description = "班级名称") String className,
     @Schema(description = "报名编号") String enrollmentNo,
-    @Schema(description = "报名渠道(front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)") String channel,
+    @Schema(description = "报名渠道字典(enrollment_channel:front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)") String channel,
     @Schema(description = "状态(submitted=已提交,confirmed=已确认,cancelled=已取消)") String status,
     @Schema(description = "报名日期") LocalDate enrolledAt,
     @Schema(description = "备注") String remark

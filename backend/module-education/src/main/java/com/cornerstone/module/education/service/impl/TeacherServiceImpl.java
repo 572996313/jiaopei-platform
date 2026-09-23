@@ -11,7 +11,7 @@ import com.cornerstone.module.education.dto.TeacherPageQuery;
 import com.cornerstone.module.education.dto.TeacherUpdateRequest;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.TeacherService;
-import com.cornerstone.module.education.service.support.GenderDictValidator;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
@@ -27,14 +27,14 @@ public class TeacherServiceImpl implements TeacherService {
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
-    private final GenderDictValidator genderDictValidator;
+    private final DictValueValidator dictValueValidator;
 
     public TeacherServiceImpl(TeacherMapper teacherMapper, InstitutionMapper institutionMapper,
-                              CampusMapper campusMapper, GenderDictValidator genderDictValidator) {
+                              CampusMapper campusMapper, DictValueValidator dictValueValidator) {
         this.teacherMapper = teacherMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
-        this.genderDictValidator = genderDictValidator;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -106,9 +106,10 @@ public class TeacherServiceImpl implements TeacherService {
         entity.setTeacherCode(teacherCode);
         entity.setTeacherName(teacherName);
         entity.setPhone(phone);
-        entity.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+        entity.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         entity.setTitle(normalizeToNull(request.title()));
-        entity.setEmploymentType(request.employmentType() == null || request.employmentType().isBlank() ? "full_time" : request.employmentType());
+        String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
+        entity.setEmploymentType(employmentType == null ? "full_time" : employmentType);
         entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
         entity.setHiredAt(request.hiredAt());
         entity.setRemark(request.remark());
@@ -149,9 +150,10 @@ public class TeacherServiceImpl implements TeacherService {
             }
         }
         existing.setCampusId(request.campusId());
-        existing.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
+        existing.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         existing.setTitle(normalizeToNull(request.title()));
-        existing.setEmploymentType(request.employmentType() == null || request.employmentType().isBlank() ? existing.getEmploymentType() : request.employmentType());
+        String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
+        existing.setEmploymentType(employmentType == null ? existing.getEmploymentType() : employmentType);
         existing.setStatus(request.status() == null || request.status().isBlank() ? existing.getStatus() : request.status());
         existing.setHiredAt(request.hiredAt());
         existing.setRemark(request.remark());

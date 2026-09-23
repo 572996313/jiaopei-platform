@@ -10,8 +10,13 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import io.swagger.v3.oas.annotations.Operation;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 架构守护测试：把 AGENTS.md 中的接口文档/权限/分层规范固化为可执行规则。
@@ -31,6 +37,15 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 class ArchitectureRulesTest {
 
     private static JavaClasses productionClasses;
+
+    /** 显式 bean 名只可能写在这些 stereotype 的 value 上（@RestController 的 value 是请求路径，不算 bean 名） */
+    private static final String[] BEAN_NAME_STEREOTYPES = {
+        "org.springframework.stereotype.Component",
+        "org.springframework.stereotype.Service",
+        "org.springframework.stereotype.Repository",
+        "org.springframework.stereotype.Controller",
+        "org.springframework.context.annotation.Configuration",
+    };
 
     private static final DescribedPredicate<JavaMethod> HTTP_MAPPING_METHODS =
         new DescribedPredicate<>("被 HTTP 映射注解标注的方法") {
@@ -158,5 +173,51 @@ class ArchitectureRulesTest {
             "com.cornerstone.module.education..")
             .because("装配清单只扫描已声明的顶层包，新增顶层包要同步加入对应模块配置类的 basePackages")
             .check(productionClasses);
+    }
+
+    /**
+     * 组件 bean 名唯一（默认名 = 类短名首字母小写）：两个模块放同名组件（如各自的 DictValueValidator）
+     * 一起装配时容器会直接 ConflictingBeanDefinitionException 起不来，而本仓库没有 @SpringBootTest、
+     * 单测都是 Mockito 手工构造，这类冲突只有真启动才暴露，所以在架构层静态拦下。
+     * 确需同名时给 stereotype 注解显式写值（@Component("educationDictValueValidator")），规则按显式名判定。
+     */
+    @Test
+    void springComponentBeanNamesMustBeUnique() {
+        Map<String, List<String>> classesByBeanName = new HashMap<>();
+        productionClasses.stream()
+            .filter(ArchitectureRulesTest::isSpringComponent)
+            .forEach(javaClass -> classesByBeanName
+                .computeIfAbsent(beanNameOf(javaClass), key -> new ArrayList<>())
+                .add(javaClass.getName()));
+
+        List<String> conflicts = classesByBeanName.entrySet().stream()
+            .filter(entry -> entry.getValue().size() > 1)
+            .map(entry -> entry.getKey() + " <- " + String.join(" / ", entry.getValue()))
+            .toList();
+
+        assertTrue(conflicts.isEmpty(),
+            "装配约定：组件 bean 名重复会导致容器启动失败，同名组件必须显式声明带模块前缀的 bean 名。冲突项："
+                + String.join("; ", conflicts));
+    }
+
+    private static boolean isSpringComponent(JavaClass javaClass) {
+        // @Service/@RestController/@Configuration 等都以 @Component 为元注解，只认这个根注解
+        return javaClass.isMetaAnnotatedWith(Component.class);
+    }
+
+    private static String beanNameOf(JavaClass javaClass) {
+        // 显式名只可能写在 BEAN_NAME_STEREOTYPES 上（@RestController 的 value 是请求路径，不是 bean 名）
+        for (String stereotype : BEAN_NAME_STEREOTYPES) {
+            String explicitName = javaClass.tryGetAnnotationOfType(stereotype)
+                .flatMap(annotation -> annotation.tryGetExplicitlyDeclaredProperty("value"))
+                .map(String::valueOf)
+                .filter(name -> !name.isBlank())
+                .orElse(null);
+            if (explicitName != null) {
+                return explicitName;
+            }
+        }
+        String simpleName = javaClass.getSimpleName();
+        return Character.toLowerCase(simpleName.charAt(0)) + simpleName.substring(1);
     }
 }

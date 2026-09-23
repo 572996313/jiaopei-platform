@@ -15,6 +15,7 @@ import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.EnrollmentService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,13 +33,16 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final InstitutionMapper institutionMapper;
     private final StudentMapper studentMapper;
     private final TeachingClassMapper teachingClassMapper;
+    private final DictValueValidator dictValueValidator;
 
     public EnrollmentServiceImpl(EnrollmentMapper enrollmentMapper, InstitutionMapper institutionMapper,
-                                 StudentMapper studentMapper, TeachingClassMapper teachingClassMapper) {
+                                 StudentMapper studentMapper, TeachingClassMapper teachingClassMapper,
+                                 DictValueValidator dictValueValidator) {
         this.enrollmentMapper = enrollmentMapper;
         this.institutionMapper = institutionMapper;
         this.studentMapper = studentMapper;
         this.teachingClassMapper = teachingClassMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -141,7 +145,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         entity.setStudentId(request.studentId());
         entity.setClassId(request.classId());
         entity.setEnrollmentNo(enrollmentNo);
-        entity.setChannel(normalizeToNull(request.channel()));
+        entity.setChannel(dictValueValidator.validate("enrollment_channel", "报名渠道", request.channel()));
         entity.setStatus(request.status() == null || request.status().isBlank() ? "submitted" : request.status());
         entity.setEnrolledAt(request.enrolledAt() == null ? LocalDate.now() : request.enrolledAt());
         entity.setRemark(request.remark());
@@ -202,10 +206,5 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     private String normalize(String value) {
         return value == null ? null : value.trim();
-    }
-
-    private String normalizeToNull(String value) {
-        String normalized = normalize(value);
-        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 }

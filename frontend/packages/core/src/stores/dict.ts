@@ -5,7 +5,7 @@ import type { DictItemSummary } from '@cornerstone/core/api/system'
 
 /**
  * 业务字典缓存:按 typeCode 缓存启用的字典条目,供表单下拉与列表回显使用。
- * 调用 ensureLoaded(typeCodes) 批量加载缺失的类型;读取使用 optionsOf/labelOf。
+ * 调用 ensureLoaded(typeCodes) 批量加载缺失的类型;下拉选项用 optionsOf,回显文本一律用 displayLabel。
  * 字典在 /system/dicts 页面维护,维护后可调用 invalidate 强制刷新。
  */
 export const useDictStore = defineStore('dict', () => {
@@ -58,6 +58,14 @@ export const useDictStore = defineStore('dict', () => {
     return optionsOf(typeCode).find((item) => item.itemValue === value)?.itemName
   }
 
+  /**
+   * 字典列回显:中文标签只取 item_name;字典没命中(未加载/条目被删/脏数据)时回显原始值,
+   * 不显示空白也不硬映射成"未知"。见 AGENTS「枚举值/字典规范」第 4 条。
+   */
+  function displayLabel(typeCode: string, value?: string | null) {
+    return labelOf(typeCode, value) ?? (value?.trim() || '-')
+  }
+
   function invalidate(typeCode?: string) {
     if (!typeCode) {
       itemsByType.value = {}
@@ -68,5 +76,13 @@ export const useDictStore = defineStore('dict', () => {
     itemsByType.value = next
   }
 
-  return { itemsByType, loadedTypeCodes, ensureLoaded, optionsOf, labelOf, invalidate }
+  return {
+    itemsByType,
+    loadedTypeCodes,
+    ensureLoaded,
+    optionsOf,
+    labelOf,
+    displayLabel,
+    invalidate,
+  }
 })

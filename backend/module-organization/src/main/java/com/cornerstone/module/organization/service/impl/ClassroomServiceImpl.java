@@ -10,6 +10,7 @@ import com.cornerstone.module.organization.dto.ClassroomUpdateRequest;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.service.ClassroomService;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -21,10 +22,13 @@ public class ClassroomServiceImpl implements ClassroomService {
 
     private final ClassroomMapper classroomMapper;
     private final CampusMapper campusMapper;
+    private final DictValueValidator dictValueValidator;
 
-    public ClassroomServiceImpl(ClassroomMapper classroomMapper, CampusMapper campusMapper) {
+    public ClassroomServiceImpl(ClassroomMapper classroomMapper, CampusMapper campusMapper,
+                                DictValueValidator dictValueValidator) {
         this.classroomMapper = classroomMapper;
         this.campusMapper = campusMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -56,7 +60,8 @@ public class ClassroomServiceImpl implements ClassroomService {
         entity.setCampusId(request.campusId());
         entity.setClassroomCode(classroomCode);
         entity.setClassroomName(classroomName);
-        entity.setRoomType(request.roomType() == null || request.roomType().isBlank() ? "normal" : request.roomType());
+        String roomType = dictValueValidator.validate("room_type", "教室类型", request.roomType());
+        entity.setRoomType(roomType == null ? "normal" : roomType);
         entity.setFloorNo(request.floorNo());
         entity.setSeatCapacity(request.seatCapacity());
         entity.setAreaSqm(request.areaSqm());
@@ -98,8 +103,9 @@ public class ClassroomServiceImpl implements ClassroomService {
                 existing.setClassroomName(classroomName);
             }
         }
-        if (request.roomType() != null && !request.roomType().isBlank()) {
-            existing.setRoomType(request.roomType().trim());
+        String roomType = dictValueValidator.validate("room_type", "教室类型", request.roomType());
+        if (roomType != null) {
+            existing.setRoomType(roomType);
         }
         if (request.floorNo() != null) {
             existing.setFloorNo(normalizeToNull(request.floorNo()));

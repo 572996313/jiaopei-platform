@@ -23,7 +23,7 @@ public record CourseCategoryCreateRequest(
     @JsonAlias({"name", "category_name"})
     @NotBlank(message = "课程分类名称不能为空")
     String categoryName,
-    @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})
+    @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     String status,
     @Schema(description = "排序号(越小越靠前)")
     @JsonAlias("sort_order")

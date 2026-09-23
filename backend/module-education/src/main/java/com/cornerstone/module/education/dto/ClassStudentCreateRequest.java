@@ -23,7 +23,7 @@ public record ClassStudentCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "学员ID不能为空")
     Long studentId,
-    @Schema(description = "状态(ACTIVE=在读,QUIT=退班,GRADUATED=结业,RESERVED=预占)", allowableValues = {"ACTIVE", "QUIT", "GRADUATED", "RESERVED"})
+    @Schema(description = "状态(active=在读,quit=退班,graduated=结业,reserved=预占)", allowableValues = {"active", "quit", "graduated", "reserved"})
     String status,
     @Schema(description = "加入日期")
     @JsonAlias("joined_at")

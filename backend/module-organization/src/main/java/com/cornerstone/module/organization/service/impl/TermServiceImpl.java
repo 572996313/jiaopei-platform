@@ -10,6 +10,7 @@ import com.cornerstone.module.organization.dto.TermUpdateRequest;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import com.cornerstone.module.organization.service.TermService;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
@@ -20,10 +21,13 @@ public class TermServiceImpl implements TermService {
 
     private final TermMapper termMapper;
     private final InstitutionMapper institutionMapper;
+    private final DictValueValidator dictValueValidator;
 
-    public TermServiceImpl(TermMapper termMapper, InstitutionMapper institutionMapper) {
+    public TermServiceImpl(TermMapper termMapper, InstitutionMapper institutionMapper,
+                           DictValueValidator dictValueValidator) {
         this.termMapper = termMapper;
         this.institutionMapper = institutionMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -61,7 +65,7 @@ public class TermServiceImpl implements TermService {
         entity.setTermCode(termCode);
         entity.setTermName(termName);
         entity.setAcademicYear(normalize(request.academicYear()));
-        entity.setSeason(request.season());
+        entity.setSeason(dictValueValidator.validate("term_season", "学季", request.season()));
         entity.setStartDate(request.startDate());
         entity.setEndDate(request.endDate());
         entity.setEnrollmentStartDate(request.enrollmentStartDate());
@@ -125,7 +129,7 @@ public class TermServiceImpl implements TermService {
             existing.setAcademicYear(normalize(request.academicYear()));
         }
         if (request.season() != null) {
-            existing.setSeason(normalizeToNull(request.season()));
+            existing.setSeason(dictValueValidator.validate("term_season", "学季", request.season()));
         }
         if (request.startDate() != null) {
             existing.setStartDate(request.startDate());

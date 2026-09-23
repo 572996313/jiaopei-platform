@@ -13,6 +13,7 @@ import com.cornerstone.module.education.dto.CourseUpdateRequest;
 import com.cornerstone.module.education.mapper.CourseCategoryMapper;
 import com.cornerstone.module.education.mapper.CourseMapper;
 import com.cornerstone.module.education.service.CourseService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Objects;
@@ -25,12 +26,14 @@ public class CourseServiceImpl implements CourseService {
     private final CourseMapper courseMapper;
     private final CourseCategoryMapper courseCategoryMapper;
     private final InstitutionMapper institutionMapper;
+    private final DictValueValidator dictValueValidator;
 
     public CourseServiceImpl(CourseMapper courseMapper, CourseCategoryMapper courseCategoryMapper,
-                             InstitutionMapper institutionMapper) {
+                             InstitutionMapper institutionMapper, DictValueValidator dictValueValidator) {
         this.courseMapper = courseMapper;
         this.courseCategoryMapper = courseCategoryMapper;
         this.institutionMapper = institutionMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -96,7 +99,7 @@ public class CourseServiceImpl implements CourseService {
         entity.setCourseCode(courseCode);
         entity.setCourseName(courseName);
         entity.setSubjectName(normalizeToNull(request.subjectName()));
-        entity.setTeachingMethod(normalizeToNull(request.teachingMethod()));
+        entity.setTeachingMethod(dictValueValidator.validate("teaching_method", "授课方式", request.teachingMethod()));
         entity.setStatus(isBlank(request.status()) ? "active" : request.status().trim());
         entity.setRemark(request.remark());
         entity.setDeleted(Boolean.FALSE);
@@ -134,7 +137,7 @@ public class CourseServiceImpl implements CourseService {
             existing.setSubjectName(normalizeToNull(request.subjectName()));
         }
         if (request.teachingMethod() != null) {
-            existing.setTeachingMethod(normalizeToNull(request.teachingMethod()));
+            existing.setTeachingMethod(dictValueValidator.validate("teaching_method", "授课方式", request.teachingMethod()));
         }
         if (request.status() != null && !request.status().isBlank()) {
             existing.setStatus(request.status().trim());

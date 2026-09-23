@@ -34,10 +34,10 @@ public record TeacherCreateRequest(
     String gender,
     @Schema(description = "职称(如 初级/中级/高级)")
     String title,
-    @Schema(description = "雇佣类型(FULL_TIME=全职,PART_TIME=兼职,OUTSOURCE=外聘)", allowableValues = {"FULL_TIME", "PART_TIME", "OUTSOURCE"})
+    @Schema(description = "用工类型字典(employment_type:full_time=全职,part_time=兼职,contract=外聘)", allowableValues = {"full_time", "part_time", "contract"})
     @JsonAlias("employment_type")
     String employmentType,
-    @Schema(description = "状态(ENABLED=在职,DISABLED=离职)", allowableValues = {"ENABLED", "DISABLED"})
+    @Schema(description = "状态(active=在职,suspended=暂停,left=离职)", allowableValues = {"active", "suspended", "left"})
     String status,
     @Schema(description = "入职日期")
     @JsonAlias("hired_at")

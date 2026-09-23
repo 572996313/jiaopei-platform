@@ -534,11 +534,11 @@
           </el-select>
         </el-form-item>
         <el-form-item label="教师角色">
-          <el-select v-model="teacherForm.teacherRole">
-            <el-option label="主讲" value="lead" />
-            <el-option label="助教" value="assistant" />
-            <el-option label="代课" value="substitute" />
-          </el-select>
+          <DictSelect
+            v-model="teacherForm.teacherRole"
+            type-code="teacher_role"
+            placeholder="选择角色"
+          />
         </el-form-item>
         <el-form-item label="设为主讲">
           <el-switch v-model="teacherForm.isPrimary" />
@@ -825,12 +825,11 @@
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
         </el-form-item>
         <el-form-item label="关系">
-          <el-select v-model="parentForm.relationType" clearable placeholder="选择关系">
-            <el-option label="母亲" value="mother" />
-            <el-option label="父亲" value="father" />
-            <el-option label="监护人" value="guardian" />
-            <el-option label="其他亲属" value="relative" />
-          </el-select>
+          <DictSelect
+            v-model="parentForm.relationType"
+            type-code="parent_relation"
+            placeholder="选择关系"
+          />
         </el-form-item>
         <el-form-item label="联系电话">
           <el-input v-model="parentForm.parentPhone" placeholder="填写家长手机号" />
@@ -913,6 +912,8 @@ import {
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useDictStore } from '@cornerstone/core/stores/dict'
+import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 
 interface ReminderItem {
   key: string
@@ -930,6 +931,7 @@ interface NoticeItem {
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
+const dictStore = useDictStore()
 const { campusId } = storeToRefs(scopeStore)
 const { institutionId, campuses, classes, students, terms, loadScope } = useEducationScope()
 const teachers = ref<TeacherSummary[]>([])
@@ -988,7 +990,7 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 const teacherForm = reactive({
   classId: '' as string | null,
   teacherId: '',
-  teacherRole: 'lead',
+  teacherRole: '',
   isPrimary: true,
   joinedAt: todayValue(),
   leftAt: '',
@@ -1024,7 +1026,7 @@ const classCreateForm = reactive({
 const parentForm = reactive({
   studentId: '' as string | null,
   parentName: '',
-  relationType: 'mother',
+  relationType: '',
   parentPhone: '',
   wechatNo: '',
   isPrimary: true,
@@ -1255,15 +1257,7 @@ function classStudentTagType(status?: string | null) {
 }
 
 function classTeacherRoleLabel(role?: string | null) {
-  switch (role) {
-    case 'assistant':
-      return '助教'
-    case 'substitute':
-      return '代课'
-    case 'lead':
-    default:
-      return '主讲'
-  }
+  return dictStore.displayLabel('teacher_role', role)
 }
 
 function classTeacherStatusLabel(status?: string | null) {
@@ -1301,17 +1295,7 @@ function teachingClassStatusLabel(status?: string | null) {
 }
 
 function parentRelationLabel(value?: string | null) {
-  switch (value) {
-    case 'father':
-      return '父亲'
-    case 'guardian':
-      return '监护人'
-    case 'relative':
-      return '其他亲属'
-    case 'mother':
-    default:
-      return '母亲'
-  }
+  return dictStore.displayLabel('parent_relation', value)
 }
 
 function studentParentStatusLabel(status?: string | null) {
@@ -1378,7 +1362,7 @@ function onStudentSelectFocus() {
 function resetTeacherForm() {
   teacherForm.classId = classId.value || ''
   teacherForm.teacherId = ''
-  teacherForm.teacherRole = 'lead'
+  teacherForm.teacherRole = ''
   teacherForm.isPrimary = true
   teacherForm.joinedAt = todayValue()
   teacherForm.leftAt = ''
@@ -1506,7 +1490,7 @@ async function confirmDeleteClass() {
 function resetParentForm() {
   parentForm.studentId = contactStudentId.value
   parentForm.parentName = ''
-  parentForm.relationType = 'mother'
+  parentForm.relationType = ''
   parentForm.parentPhone = ''
   parentForm.wechatNo = ''
   parentForm.isPrimary = true
@@ -1713,7 +1697,7 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
   if (mode === 'edit' && row) {
     editingTeacherId.value = row.id
     teacherForm.teacherId = row.teacherId || ''
-    teacherForm.teacherRole = row.teacherRole || 'lead'
+    teacherForm.teacherRole = row.teacherRole || ''
     teacherForm.isPrimary = Boolean(row.isPrimary)
     teacherForm.joinedAt = row.joinedAt || todayValue()
     teacherForm.leftAt = row.leftAt || ''
@@ -1746,7 +1730,7 @@ function openParentDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
   if (mode === 'edit' && row) {
     editingParentId.value = row.id
     parentForm.parentName = row.parentName || ''
-    parentForm.relationType = row.relationType || 'mother'
+    parentForm.relationType = row.relationType || ''
     parentForm.parentPhone = row.parentPhone || ''
     parentForm.wechatNo = row.wechatNo || ''
     parentForm.isPrimary = Boolean(row.primaryContact)
@@ -2065,6 +2049,8 @@ watch(
 )
 
 onMounted(() => {
+  // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
+  void dictStore.ensureLoaded(['teacher_role', 'parent_relation']).catch(() => undefined)
   initializePage()
 })
 

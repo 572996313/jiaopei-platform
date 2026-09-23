@@ -22,7 +22,7 @@ public class ClassStudentEntity extends BaseEntity {
     @Schema(description = "学员ID")
     private Long studentId;
 
-    @Schema(description = "状态(ACTIVE=在读,QUIT=退班,GRADUATED=结业,RESERVED=预占)")
+    @Schema(description = "状态(active=在读,quit=退班,graduated=结业,reserved=预占)")
     private String status;
 
     @Schema(description = "加入日期")

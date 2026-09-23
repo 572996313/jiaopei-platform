@@ -23,7 +23,7 @@ public record StudentParentCreateRequest(
     @JsonAlias({"parentName", "parent_name", "guardian_name"})
     @NotBlank(message = "家长姓名不能为空")
     String parentName,
-    @Schema(description = "关系(FATHER/MOTHER/GRANDPA/GRANDMA/OTHER)", allowableValues = {"FATHER", "MOTHER", "GRANDPA", "GRANDMA", "OTHER"})
+    @Schema(description = "家长关系字典(parent_relation:mother=母亲,father=父亲,guardian=监护人,relative=其他亲属)", allowableValues = {"mother", "father", "guardian", "relative"})
     @JsonAlias("relation_type")
     String relationType,
     @Schema(description = "家长联系电话")
@@ -38,7 +38,7 @@ public record StudentParentCreateRequest(
     @Schema(description = "是否紧急联系人")
     @JsonAlias("is_emergency_contact")
     Boolean isEmergencyContact,
-    @Schema(description = "状态(ENABLED=启用,DISABLED=停用)", allowableValues = {"ENABLED", "DISABLED"})
+    @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     String status,
     @Schema(description = "备注")
     String remark

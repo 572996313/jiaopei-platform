@@ -74,6 +74,7 @@ cornerstone:
 1. **不要把 `scanBasePackages` 放宽回 `com.cornerstone`** 或加进业务包——那等于无条件扫进所有业务 `@Component`，开关形同虚设。`ModuleSwitchGuardTest` 会拦住这类改动。
 2. **`@WebMvcTest` 切片会关闭自动配置**，业务模块的控制器在切片里不会被扫描到。写业务控制器的切片测试时，要把控制器同时列进 `@Import({...})`（现有三处参照：`SecondThirdMainlineApiCompatibilityWebTest`、`EducationFourthMainlineApiCompatibilityWebTest`、`TimeSlotTemplateControllerWebTest`）；否则症状就是断言 `200` 实际 `404`。
 3. **底座新增顶层包**时要同步三处：启动类 `scanBasePackages`、core `@MapperScan`（若带 mapper）、`ArchitectureRulesTest` 的包白名单。漏扫描的类不会报错，只是静默不进容器。
+4. **跨模块同名组件必须显式命名 bean**：`module-education` 与 `module-organization` 各有一份 `DictValueValidator`（通用字典校验器，不下沉进底座），默认 bean 名同为 `dictValueValidator`，两模块一起装配时容器直接 `ConflictingBeanDefinitionException` 起不来。这类冲突**单测发现不了**（全仓库无 `@SpringBootTest`，Service 测试是 Mockito 手工构造），只有真启动才炸，故由 `ArchitectureRulesTest#springComponentBeanNamesMustBeUnique` 静态拦：同名就写 `@Component("educationXxx")`，或干脆换类名。
 
 模块自述：底座定义 `ModuleDescriptor`（`system.module` 包），各模块注册自己的实现，`PlatformBootstrapController` 与 `OpenApiConfig` 只消费注册表，新增模块不用再改这两处。
 
@@ -250,6 +251,20 @@ pnpm dev:h5            # H5 调试
 - 排课 `jp_schedule_lesson.term_id`：`NOT NULL`，唯一强制学期的实体。
 
 前端范围栏的学期选择器是**筛选条件**，不应作为报名/入班前置校验；只有 `ScheduleAttendanceView.vue` 的排课弹窗校验学期是对的。
+
+## 枚举值 / 字典规范（必填，性别跨端不一致事故固化）
+
+判断标准：**取值可枚举、给用户选择、运维可能扩充**的字段（如性别），唯一事实源是系统字典 `sys_dict_type`/`sys_dict_item`，禁止各端各自硬编码取值或中文标签。**边界**：由代码逻辑判定的状态值（`status=active/disabled`、课次状态、`deleted` 等）**不入字典**——它们在代码里分支比对，进了字典就等于允许运维在页面上改掉判定逻辑依赖的值。
+
+1. **规范值是 `item_value`**：小写+下划线（如 `male`），入库、接口、前端状态全部用它；中文标签只来自 `item_name`，任何端不许自建映射。存量性别的大写值（`MALE/FEMALE/UNKNOWN`）已由 V51 归一。
+2. **新增枚举字段必须五处同步**，缺一即视为未完成：
+   - `app/` 迁移种入字典类型+条目（参照 V51）；
+   - DB 列 COMMENT 与 DTO `@Schema` 写成「字典(类型码:值=含义)」格式并带 `allowableValues`（参照 gender 字段现状）；
+   - 后端写入路径按字典校验，字典外取值 `BAD_REQUEST` 并在消息里列允许值（各业务模块各持一份通用 `DictValueValidator`，按 `(字典类型码, 字段中文名, 值)` 调用，参照 `module-education`/`module-organization` 的 `service/support/DictValueValidator`；下沉到 `cornerstone-core` 会把业务字典类型带进底座，不允许）；
+   - PC 表单用 `DictSelect`（指定 `type-code`），列表/详情回显统一用 `dictStore.displayLabel(类型码, 值)`（core 的 dict store 提供：命中取 `item_name`，未命中回显原始值）。**表单默认值一律留空**，不把 `item_value` 预置进前端（条目被停用/删除时表单会提交无效值），需要默认值由后端取库默认（参照 `employment_type`/`teacher_role`/`campus_type`/`room_type` 的 create 分支）；
+   - 小程序用 `GET /api/system/dicts/options?typeCodes=<码>` 拉选项（该接口登录即可访问，无需新增端点），参照 `miniapp/src/api/miniapp.ts` 的 `fetchGenderOptions()`。
+3. **`item_value` 不允许原地改**（已上生产的同迁移脚本禁改规矩）：需要改名/换值时新增 `V<n+1>` 归一存量数据（UPDATE + 列注释），与代码同批发布。
+4. **回显兜底口径：未知值显示原始值**，不显示空白也不硬映射成"未知"或某个合法值（PC 走 `dictStore.displayLabel`，小程序参照 `genderText`、`DictSelect` 的 `keepUnknownValue`）——脏数据要可见而不是被静默吞掉。各端**不再写字典值的静态中文映射兜底**（V52/V53 收口时已删），字典拉不到就显示原始 `item_value`，宁可难看也不许两处漂移。
 
 ## 前端模块划分与装配（阶段三 起为 pnpm workspace）
 

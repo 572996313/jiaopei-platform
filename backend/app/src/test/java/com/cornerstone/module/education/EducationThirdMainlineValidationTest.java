@@ -1,8 +1,9 @@
 package com.cornerstone.module.education;
 
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
-import com.cornerstone.module.education.service.support.GenderDictValidator;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.domain.entity.ClassChangeNoticeEntity;
 import com.cornerstone.module.education.domain.entity.ClassTeacherEntity;
 import com.cornerstone.module.education.domain.entity.ClassTypeEntity;
@@ -35,7 +36,9 @@ import com.cornerstone.module.education.service.impl.ClassChangeNoticeServiceImp
 import com.cornerstone.module.education.service.impl.ClassTeacherServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassTypeServiceImpl;
 import com.cornerstone.module.education.service.impl.CourseCategoryServiceImpl;
+import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.education.service.impl.CourseServiceImpl;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.service.impl.StudentServiceImpl;
 import com.cornerstone.module.education.service.impl.StudentParentServiceImpl;
 import com.cornerstone.module.education.service.impl.TeacherServiceImpl;
@@ -105,15 +108,16 @@ class EducationThirdMainlineValidationTest {
     @Mock
     private TermMapper termMapper;
 
-    // 本测试的请求 gender 均为空，校验器只会走"空值落 NULL"分支，不需要打桩
-    private final GenderDictValidator genderDictValidator = new GenderDictValidator(mock(SystemDictService.class));
+    // 字典校验器读 SystemDictService；请求里字典字段为空时只走"空值落 NULL"分支，无需打桩
+    private final SystemDictService systemDictService = mock(SystemDictService.class);
+    private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
 
     @Mock
     private ClassChangeNoticeService classChangeNoticeService;
 
     @Test
     void createTeacherRejectsDuplicateTeacherCode() {
-        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper, genderDictValidator);
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(1L);
 
@@ -124,7 +128,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsDuplicateStudentNo() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, genderDictValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectCount(any())).thenReturn(1L);
 
@@ -135,7 +139,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsFutureBirthday() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, genderDictValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createStudent(studentRequest("S002", LocalDate.now().plusDays(1))));
@@ -201,7 +205,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createCourseRejectsCategoryFromAnotherInstitution() {
-        CourseServiceImpl service = new CourseServiceImpl(courseMapper, courseCategoryMapper, institutionMapper);
+        CourseServiceImpl service = new CourseServiceImpl(courseMapper, courseCategoryMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         CourseCategoryEntity category = new CourseCategoryEntity();
         category.setId(1L);
@@ -215,7 +219,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createClassTypeRejectsMaxStudentsLessThanMinStudents() {
-        ClassTypeServiceImpl service = new ClassTypeServiceImpl(classTypeMapper, institutionMapper);
+        ClassTypeServiceImpl service = new ClassTypeServiceImpl(classTypeMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createClassType(classTypeRequest(4, 3)));
@@ -304,7 +308,8 @@ class EducationThirdMainlineValidationTest {
             teachingClassMapper,
             teacherMapper,
             institutionMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            dictValueValidator
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
@@ -325,7 +330,8 @@ class EducationThirdMainlineValidationTest {
             teachingClassMapper,
             teacherMapper,
             institutionMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            dictValueValidator
         );
         TeachingClassEntity teachingClass = teachingClass(30, 0);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
@@ -336,6 +342,8 @@ class EducationThirdMainlineValidationTest {
         when(teacherMapper.selectById(10L)).thenReturn(teacher);
         when(classTeacherMapper.selectCount(any())).thenReturn(0L, 0L);
         when(classTeacherMapper.selectOne(any())).thenReturn(classTeacherEntity(10L, Boolean.TRUE));
+        when(systemDictService.listItems("teacher_role"))
+            .thenReturn(dictItems("lead", "assistant", "substitute"));
 
         service.createClassTeacher(classTeacherRequest());
 
@@ -347,7 +355,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentParentAutoDemotesExistingPrimaryParent() {
-        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper);
+        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectById(10L)).thenReturn(student());
         StudentParentEntity existingPrimary = new StudentParentEntity();
@@ -369,7 +377,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createPrimaryStudentParentSyncsStudentGuardianFields() {
-        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper);
+        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper, dictValueValidator);
         StudentEntity student = student();
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectById(10L)).thenReturn(student);
@@ -391,7 +399,8 @@ class EducationThirdMainlineValidationTest {
             teachingClassMapper,
             teacherMapper,
             institutionMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            dictValueValidator
         );
         ClassTeacherEntity relation = new ClassTeacherEntity();
         relation.setId(401L);
@@ -608,7 +617,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void deletePrimaryStudentParentClearsStudentGuardianFields() {
-        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper);
+        StudentParentServiceImpl service = new StudentParentServiceImpl(studentParentMapper, studentMapper, institutionMapper, dictValueValidator);
         StudentParentEntity parent = new StudentParentEntity();
         parent.setId(402L);
         parent.setStudentId(10L);
@@ -715,7 +724,7 @@ class EducationThirdMainlineValidationTest {
     }
 
     private ClassTeacherCreateRequest classTeacherRequest() {
-        return new ClassTeacherCreateRequest(1L, 20L, 10L, "main", Boolean.TRUE, LocalDate.now(), null, null, null);
+        return new ClassTeacherCreateRequest(1L, 20L, 10L, "lead", Boolean.TRUE, LocalDate.now(), null, null, null);
     }
 
     private StudentParentCreateRequest studentParentRequest() {
@@ -767,5 +776,12 @@ class EducationThirdMainlineValidationTest {
         campus.setId(1L);
         campus.setInstitutionId(1L);
         return campus;
+    }
+
+    /** 构造与字典种子一致的启用条目，供 DictValueValidator 的 SystemDictService 打桩用。 */
+    private java.util.List<DictItemView> dictItems(String... itemValues) {
+        return java.util.Arrays.stream(itemValues)
+            .map(value -> new DictItemView(null, null, value, value, value, 0, "active", null))
+            .toList();
     }
 }

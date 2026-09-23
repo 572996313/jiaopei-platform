@@ -28,7 +28,7 @@ public class AttendanceEntity extends BaseEntity {
     @Schema(description = "出勤日期")
     private LocalDate attendanceDate;
 
-    @Schema(description = "出勤状态(PRESENT=出勤,ABSENT=缺勤,LATE=迟到,LEAVE=请假,EARLY_LEAVE=早退)", allowableValues = {"PRESENT", "ABSENT", "LATE", "LEAVE", "EARLY_LEAVE"})
+    @Schema(description = "出勤状态(present=出勤,absent=缺勤,late=迟到,leave=请假)", allowableValues = {"present", "absent", "late", "leave"})
     private String attendanceStatus;
 
     @Schema(description = "数据来源(MANUAL=手动,AUTO=自动,IMPORT=导入)")

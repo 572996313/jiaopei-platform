@@ -8,6 +8,7 @@ import com.cornerstone.module.education.dto.ClassTypeCreateRequest;
 import com.cornerstone.module.education.dto.ClassTypeUpdateRequest;
 import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.service.ClassTypeService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Objects;
@@ -19,10 +20,13 @@ public class ClassTypeServiceImpl implements ClassTypeService {
 
     private final ClassTypeMapper classTypeMapper;
     private final InstitutionMapper institutionMapper;
+    private final DictValueValidator dictValueValidator;
 
-    public ClassTypeServiceImpl(ClassTypeMapper classTypeMapper, InstitutionMapper institutionMapper) {
+    public ClassTypeServiceImpl(ClassTypeMapper classTypeMapper, InstitutionMapper institutionMapper,
+                                DictValueValidator dictValueValidator) {
         this.classTypeMapper = classTypeMapper;
         this.institutionMapper = institutionMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -54,7 +58,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         entity.setInstitutionId(request.institutionId());
         entity.setTypeCode(typeCode);
         entity.setTypeName(typeName);
-        entity.setTeachingMethod(normalizeToNull(request.teachingMethod()));
+        entity.setTeachingMethod(dictValueValidator.validate("teaching_method", "授课方式", request.teachingMethod()));
         entity.setMinStudents(minStudents);
         entity.setMaxStudents(maxStudents);
         entity.setStatus(isBlank(request.status()) ? "active" : request.status().trim());
@@ -92,7 +96,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             }
         }
         if (request.teachingMethod() != null) {
-            existing.setTeachingMethod(normalizeToNull(request.teachingMethod()));
+            existing.setTeachingMethod(dictValueValidator.validate("teaching_method", "授课方式", request.teachingMethod()));
         }
         if (request.minStudents() != null) {
             existing.setMinStudents(request.minStudents());

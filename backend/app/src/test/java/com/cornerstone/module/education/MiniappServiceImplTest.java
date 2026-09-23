@@ -21,7 +21,7 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemDictService;
-import com.cornerstone.module.education.service.support.GenderDictValidator;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
@@ -60,14 +60,14 @@ class MiniappServiceImplTest {
     private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final SystemDictService systemDictService = mock(SystemDictService.class);
-    private final GenderDictValidator genderDictValidator = new GenderDictValidator(systemDictService);
+    private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
 
     private MiniappServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
-            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService, genderDictValidator);
+            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService, dictValueValidator);
         when(systemConfigService.getIntConfig("auth.register.default_institution_id", 1)).thenReturn(1);
         when(systemDictService.listItems("gender")).thenReturn(List.of(
             new DictItemView(40L, 5L, "male", "男", "male", 10, "active", null),
