@@ -4,6 +4,23 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 整页级视图开关:按钮行放查询条件上方,统计条在其下方展开/收起 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || tableLoading || parentLoading"
+        @click="refreshAll"
+      />
+      <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
+    </div>
+
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
         <el-select
@@ -49,23 +66,6 @@
           />
         </el-select>
       </div>
-    </div>
-
-    <!-- 整页级视图开关与整页级主操作:统计条在本行下方展开/收起 -->
-    <div class="table-toolbar">
-      <el-button @click="statsVisible = !statsVisible">
-        统计
-        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-          ><ArrowDown
-        /></el-icon>
-      </el-button>
-      <el-button
-        :icon="Refresh"
-        circle
-        :loading="lookupLoading || tableLoading || parentLoading"
-        @click="refreshAll"
-      />
-      <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">

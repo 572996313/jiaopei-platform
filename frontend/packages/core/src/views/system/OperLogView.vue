@@ -10,6 +10,10 @@
         </div>
       </div>
 
+      <div class="table-toolbar">
+        <el-button :loading="loading" @click="handleSearch">刷新</el-button>
+      </div>
+
       <el-form :inline="true" class="operlog-filter-form" @submit.prevent>
         <el-form-item label="操作人">
           <el-input
@@ -94,14 +98,11 @@
         </el-form-item>
       </el-form>
 
-      <div class="table-toolbar">
-        <el-button :loading="loading" @click="handleSearch">刷新</el-button>
-      </div>
-
       <TableFillBox v-slot="{ height }">
         <el-table
           v-loading="loading"
           :data="records"
+          border
           stripe
           row-key="id"
           highlight-current-row

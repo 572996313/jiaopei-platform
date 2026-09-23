@@ -13,7 +13,18 @@
         </div>
       </div>
 
-      <div class="invitation-filters">
+      <!-- 主操作按钮:放查询条件上方,条件与表格贴着看 -->
+      <div class="table-toolbar">
+        <el-button v-if="permissions.canManageInvitations" @click="openActivationDialog"
+          >生成激活码</el-button
+        >
+        <el-button v-if="permissions.canManageInvitations" type="primary" @click="openInviteDialog"
+          >创建邀请码</el-button
+        >
+      </div>
+
+      <!-- 本表查询条件:贴着表格,排在主操作按钮下方 -->
+      <div class="table-filters">
         <el-input
           v-model="query.keyword"
           placeholder="凭证码 / 备注"
@@ -43,15 +54,6 @@
           <el-option label="停用" value="disabled" />
         </el-select>
         <el-button @click="reload(1)">查询</el-button>
-      </div>
-
-      <div class="table-toolbar">
-        <el-button v-if="permissions.canManageInvitations" @click="openActivationDialog"
-          >生成激活码</el-button
-        >
-        <el-button v-if="permissions.canManageInvitations" type="primary" @click="openInviteDialog"
-          >创建邀请码</el-button
-        >
       </div>
 
       <TableFillBox v-slot="{ height }">
@@ -484,12 +486,6 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 400;
   color: var(--text-secondary);
-}
-
-.invitation-filters {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
 }
 
 .invitation-code {

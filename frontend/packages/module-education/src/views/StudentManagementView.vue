@@ -4,6 +4,22 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 整页级视图开关:按钮行放查询条件上方,统计条在其下方展开/收起 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || tableLoading"
+        @click="refreshAll"
+      />
+    </div>
+
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
         <el-select
@@ -65,22 +81,6 @@
       </div>
     </div>
 
-    <!-- 整页级视图开关:统计条在本行下方展开/收起 -->
-    <div class="table-toolbar">
-      <el-button @click="statsVisible = !statsVisible">
-        统计
-        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-          ><ArrowDown
-        /></el-icon>
-      </el-button>
-      <el-button
-        :icon="Refresh"
-        circle
-        :loading="lookupLoading || tableLoading"
-        @click="refreshAll"
-      />
-    </div>
-
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">学员数</div>
@@ -106,22 +106,23 @@
         <div class="panel-title">
           学员档案<span class="panel-count">共 {{ studentTotal }} 条</span>
         </div>
-        <div class="panel-head-actions">
-          <el-input
-            v-model="studentKeyword"
-            placeholder="学号/姓名"
-            clearable
-            size="small"
-            class="panel-search-input"
-            @keyup.enter="searchStudents"
-            @clear="searchStudents"
-          />
-        </div>
       </div>
 
-      <!-- 本表主操作:表格上方一行、左对齐 -->
+      <!-- 本表主操作:表格上方一行、左对齐,排在查询条件上面 -->
       <div class="table-toolbar">
         <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+      </div>
+
+      <div class="table-filters">
+        <el-input
+          v-model="studentKeyword"
+          placeholder="学号/姓名"
+          clearable
+          size="small"
+          class="panel-search-input"
+          @keyup.enter="searchStudents"
+          @clear="searchStudents"
+        />
       </div>
 
       <TableFillBox v-slot="{ height }">

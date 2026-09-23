@@ -461,7 +461,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  /* 视口填充:表格卡片吃掉页面剩余高度,el-table(height=100%) 表内滚动 */
+  /* 视口填充:表格卡片吃掉页面剩余高度,表内滚动由 TableFillBox 量出的 px 高度驱动 */
   flex: 1 1 auto;
   min-height: 320px;
 }
@@ -477,8 +477,10 @@ body {
   min-width: 0;
 }
 
-/* 表格上方一行:主操作按钮统一左对齐(新增/导入/刷新/批量等) */
-.table-toolbar {
+/* 表格上方的两行,顺序固定为「主操作按钮 → 查询条件 → 表格」:
+   条件与表格贴着看,按钮不会被夹在中间。两行布局一致,只是语义/类名不同。 */
+.table-toolbar,
+.table-filters {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -606,13 +608,7 @@ body {
   gap: 16px;
 }
 
-/* 面板标题右侧操作组:搜索框 + 新建按钮 */
-.panel-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* 卡片内单行搜索框的宽度 */
 .panel-search-input {
   width: 180px;
 }

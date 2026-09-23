@@ -13,6 +13,9 @@
         </div>
         <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
       </div>
+    </div>
+    <!-- 本卡片主操作:表格上方一行、左对齐 -->
+    <div class="table-toolbar">
       <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
     </div>
     <el-table :data="courseCategories" border :max-height="TABLE_STACK_MAX_HEIGHT">
@@ -44,18 +47,21 @@
         </div>
         <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
       </div>
-      <div class="panel-head-actions">
-        <el-input
-          v-model="courseKeyword"
-          placeholder="编码/名称/学科"
-          clearable
-          size="small"
-          class="panel-search-input"
-          @keyup.enter="searchCourses"
-          @clear="searchCourses"
-        />
-        <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
-      </div>
+    </div>
+    <!-- 主操作在上、查询条件在中、表格在下 -->
+    <div class="table-toolbar">
+      <el-button type="primary" @click="openCourseDialog('create')">新增课程</el-button>
+    </div>
+    <div class="table-filters">
+      <el-input
+        v-model="courseKeyword"
+        placeholder="编码/名称/学科"
+        clearable
+        size="small"
+        class="panel-search-input"
+        @keyup.enter="searchCourses"
+        @clear="searchCourses"
+      />
     </div>
     <el-table :data="courses" border :max-height="TABLE_STACK_MAX_HEIGHT">
       <el-table-column prop="courseCode" label="课程编码" width="150" />
@@ -101,6 +107,9 @@
         </div>
         <div class="education-context-text">后续用于成班规则和班级主档承接</div>
       </div>
+    </div>
+    <!-- 本卡片主操作:表格上方一行、左对齐 -->
+    <div class="table-toolbar">
       <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
     </div>
     <el-table :data="classTypes" border :max-height="TABLE_STACK_MAX_HEIGHT">

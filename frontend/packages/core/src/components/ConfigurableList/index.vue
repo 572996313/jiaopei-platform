@@ -321,6 +321,18 @@ defineExpose({
     />
 
     <template v-else-if="config">
+      <!-- 主操作按钮:放查询条件上方,条件与表格贴着看(与其余列表页同口径) -->
+      <div v-if="toolbarActions.length" class="table-toolbar configurable-list-toolbar">
+        <el-button
+          v-for="action in toolbarActions"
+          :key="action.action"
+          :type="toolbarButtonType(action)"
+          @click="fireAction(action)"
+        >
+          {{ action.label }}
+        </el-button>
+      </div>
+
       <el-form
         v-if="config.queryFields && config.queryFields.length"
         :inline="true"
@@ -371,18 +383,6 @@ defineExpose({
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-
-      <!-- 主操作按钮:统一放在表格上方一行、左对齐(与页面其余列表页同口径) -->
-      <div v-if="toolbarActions.length" class="table-toolbar configurable-list-toolbar">
-        <el-button
-          v-for="action in toolbarActions"
-          :key="action.action"
-          :type="toolbarButtonType(action)"
-          @click="fireAction(action)"
-        >
-          {{ action.label }}
-        </el-button>
-      </div>
 
       <TableFillBox v-slot="{ height }">
         <el-table
