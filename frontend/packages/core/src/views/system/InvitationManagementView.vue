@@ -2,24 +2,14 @@
   <section class="education-page">
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          注册凭证<span class="panel-count">共 {{ total }} 条</span>
-        </div>
-        <div class="table-actions">
-          <span class="education-context-text">
+        <div>
+          <div class="panel-title">
+            注册凭证<span class="panel-count">共 {{ total }} 条</span>
+          </div>
+          <!-- 说明文案放在标题下方,不占用表头右侧 -->
+          <div class="education-context-text">
             邀请码供新账号自助注册(自动归属机构并分配角色)；激活码供预建账号自设密码启用。
-          </span>
-          <el-button
-            v-if="permissions.canManageInvitations"
-            @click="openActivationDialog"
-            >生成激活码</el-button
-          >
-          <el-button
-            v-if="permissions.canManageInvitations"
-            type="primary"
-            @click="openInviteDialog"
-            >创建邀请码</el-button
-          >
+          </div>
         </div>
       </div>
 
@@ -32,79 +22,114 @@
           @keyup.enter="reload(1)"
           @clear="reload(1)"
         />
-        <el-select v-model="query.kind" placeholder="类型" clearable style="width: 140px" @change="reload(1)">
+        <el-select
+          v-model="query.kind"
+          placeholder="类型"
+          clearable
+          style="width: 140px"
+          @change="reload(1)"
+        >
           <el-option label="邀请码" value="INVITE" />
           <el-option label="激活码" value="ACTIVATE" />
         </el-select>
-        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="reload(1)">
+        <el-select
+          v-model="query.status"
+          placeholder="状态"
+          clearable
+          style="width: 140px"
+          @change="reload(1)"
+        >
           <el-option label="启用" value="active" />
           <el-option label="停用" value="disabled" />
         </el-select>
         <el-button @click="reload(1)">查询</el-button>
       </div>
 
-      <el-table :data="records" border v-loading="loading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column label="凭证码" min-width="170">
-          <template #default="{ row }">
-            <code class="invitation-code">{{ row.code }}</code>
-            <el-button text type="primary" size="small" @click="copyCode(row.code)">复制</el-button>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.kind === 'INVITE' ? 'primary' : 'warning'" size="small">
-              {{ row.kind === 'INVITE' ? '邀请码' : '激活码' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="机构" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.institutionName || row.institutionId }}</template>
-        </el-table-column>
-        <el-table-column label="角色 / 目标账号" min-width="150" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span v-if="row.kind === 'INVITE'">{{ row.roleName || row.roleCode || '-' }}</span>
-            <span v-else>{{ row.username || row.userId || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="用量" width="90">
-          <template #default="{ row }">
-            {{ row.usedCount }} / {{ row.maxUses ?? '不限' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="有效期至" width="170">
-          <template #default="{ row }">{{ row.expiresAt || '长期' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="110">
-          <template #default="{ row }">
-            <el-tag :type="availabilityTag(row)" size="small">{{ availabilityLabel(row) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-        <el-table-column
-          v-if="permissions.canManageInvitations || hasRowActions()"
-          label="操作"
-          :width="permissions.canManageInvitations ? 180 : 120"
-          fixed="right"
+      <div class="table-toolbar">
+        <el-button v-if="permissions.canManageInvitations" @click="openActivationDialog"
+          >生成激活码</el-button
         >
-          <template #default="{ row }">
-            <el-button
-              v-if="permissions.canManageInvitations"
-              text
-              type="danger"
-              :disabled="row.status !== 'active'"
-              @click="handleDisable(row)"
-              >停用</el-button
-            >
-            <!-- 业务模块登记的行操作(如小程序码):组件自取数据、自管弹窗,未装配时列为空 -->
-            <component
-              v-for="action in contributedInvitationActions(row.kind)"
-              :is="action.component"
-              :key="action.key"
-              :row="row"
-            />
-          </template>
-        </el-table-column>
-      </el-table>
+        <el-button v-if="permissions.canManageInvitations" type="primary" @click="openInviteDialog"
+          >创建邀请码</el-button
+        >
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="records"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="loading"
+          :height="height"
+        >
+          <el-table-column label="凭证码" min-width="170" fixed="left">
+            <template #default="{ row }">
+              <code class="invitation-code">{{ row.code }}</code>
+              <el-button text type="primary" size="small" @click="copyCode(row.code)"
+                >复制</el-button
+              >
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.kind === 'INVITE' ? 'primary' : 'warning'" size="small">
+                {{ row.kind === 'INVITE' ? '邀请码' : '激活码' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="机构" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.institutionName || row.institutionId }}</template>
+          </el-table-column>
+          <el-table-column label="角色 / 目标账号" min-width="150" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.kind === 'INVITE'">{{ row.roleName || row.roleCode || '-' }}</span>
+              <span v-else>{{ row.username || row.userId || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="用量" width="90">
+            <template #default="{ row }">
+              {{ row.usedCount }} / {{ row.maxUses ?? '不限' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="有效期至" width="170">
+            <template #default="{ row }">{{ row.expiresAt || '长期' }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="110">
+            <template #default="{ row }">
+              <el-tag :type="availabilityTag(row)" size="small">{{
+                availabilityLabel(row)
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+          <el-table-column
+            v-if="permissions.canManageInvitations || hasRowActions()"
+            label="操作"
+            :width="permissions.canManageInvitations ? 180 : 120"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="permissions.canManageInvitations"
+                text
+                type="danger"
+                :disabled="row.status !== 'active'"
+                @click="handleDisable(row)"
+                >停用</el-button
+              >
+              <!-- 业务模块登记的行操作(如小程序码):组件自取数据、自管弹窗,未装配时列为空 -->
+              <component
+                v-for="action in contributedInvitationActions(row.kind)"
+                :is="action.component"
+                :key="action.key"
+                :row="row"
+              />
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <el-pagination
         class="invitation-pagination"
@@ -151,10 +176,20 @@
         </el-form-item>
         <div class="invite-form-grid">
           <el-form-item label="可用次数(留空不限)">
-            <el-input-number v-model="inviteForm.maxUses" :min="1" placeholder="1" style="width: 100%" />
+            <el-input-number
+              v-model="inviteForm.maxUses"
+              :min="1"
+              placeholder="1"
+              style="width: 100%"
+            />
           </el-form-item>
           <el-form-item label="有效天数(留空长期)">
-            <el-input-number v-model="inviteForm.validDays" :min="1" placeholder="7" style="width: 100%" />
+            <el-input-number
+              v-model="inviteForm.validDays"
+              :min="1"
+              placeholder="7"
+              style="width: 100%"
+            />
           </el-form-item>
         </div>
         <el-form-item label="备注">
@@ -211,7 +246,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import {
   createActivationCode,
   createInvite,
@@ -230,7 +265,9 @@ const permissions = useSystemPermissions()
 /** 业务模块是否登记了行操作(登记发生在模块入口 import 时);没装业务模块且无管理权限时整列不出现 */
 function hasRowActions() {
   return (
-    contributedInvitationActions('INVITE').length + contributedInvitationActions('ACTIVATE').length > 0
+    contributedInvitationActions('INVITE').length +
+      contributedInvitationActions('ACTIVATE').length >
+    0
   )
 }
 
@@ -281,7 +318,11 @@ function availabilityLabel(row: InvitationSummary) {
 }
 
 function availabilityTag(row: InvitationSummary) {
-  return availabilityLabel(row) === '可用' ? 'success' : statusTagType(row.status) === 'success' ? 'info' : 'info'
+  return availabilityLabel(row) === '可用'
+    ? 'success'
+    : statusTagType(row.status) === 'success'
+      ? 'info'
+      : 'info'
 }
 
 async function reload(page?: number) {
@@ -321,7 +362,11 @@ async function loadOptions() {
 async function loadPendingUsers() {
   pendingLoading.value = true
   try {
-    const result = await fetchSystemUserPage({ status: 'pending_activation', page: 1, pageSize: 100 })
+    const result = await fetchSystemUserPage({
+      status: 'pending_activation',
+      page: 1,
+      pageSize: 100,
+    })
     pendingUsers.value = result.records
   } catch (error) {
     pendingUsers.value = []

@@ -8,9 +8,6 @@
             查询业务系统写操作与登录/登出的留痕记录。请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
           </div>
         </div>
-        <div class="table-actions">
-          <el-button :loading="loading" @click="handleSearch">刷新</el-button>
-        </div>
       </div>
 
       <el-form :inline="true" class="operlog-filter-form" @submit.prevent>
@@ -97,49 +94,62 @@
         </el-form-item>
       </el-form>
 
-      <el-table
-        v-loading="loading"
-        :data="records"
-        stripe
-        style="width: 100%"
-        :height="TABLE_FILL_HEIGHT"
-      >
-        <el-table-column prop="createdAt" label="操作时间" width="170" />
-        <el-table-column prop="operation" label="操作名称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="username" label="操作人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.username || '未知' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="portal" label="端口" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" :type="portalTagType(row.portal)">{{
-              portalLabel(row.portal)
-            }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="actionType" label="类型" width="90">
-          <template #default="{ row }">
-            {{ actionTypeLabel(row.actionType) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="method" label="方法" width="80" />
-        <el-table-column prop="path" label="请求路径" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="clientIp" label="IP" width="130" show-overflow-tooltip />
-        <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" />
-        <el-table-column prop="success" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{
-              row.success ? '成功' : '失败'
-            }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-toolbar">
+        <el-button :loading="loading" @click="handleSearch">刷新</el-button>
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          v-loading="loading"
+          :data="records"
+          stripe
+          row-key="id"
+          highlight-current-row
+          style="width: 100%"
+          :height="height"
+        >
+          <el-table-column prop="createdAt" label="操作时间" width="170" />
+          <el-table-column
+            prop="operation"
+            label="操作名称"
+            min-width="140"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="username" label="操作人" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.username || '未知' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="portal" label="端口" width="90">
+            <template #default="{ row }">
+              <el-tag size="small" :type="portalTagType(row.portal)">{{
+                portalLabel(row.portal)
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="actionType" label="类型" width="90">
+            <template #default="{ row }">
+              {{ actionTypeLabel(row.actionType) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="method" label="方法" width="80" />
+          <el-table-column prop="path" label="请求路径" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="clientIp" label="IP" width="130" show-overflow-tooltip />
+          <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" />
+          <el-table-column prop="success" label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{
+                row.success ? '成功' : '失败'
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <div class="operlog-pagination">
         <el-pagination
@@ -191,7 +201,7 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { onMounted, reactive, ref } from 'vue'
 import type { OperLogSummary } from '@cornerstone/core/api/system'
 import { fetchOperLogs } from '@cornerstone/core/api/system'

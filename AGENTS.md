@@ -284,6 +284,14 @@ pnpm dev:h5            # H5 调试
 - 路径别名 `@` → `frontend/src`（vite + tsconfig 均配置）。
 - 页面写操作按钮要按权限码显隐（与后端 `@RequiresPermission` 同一套码）；列表页优先使用 `ConfigurableCrudPage`/`ConfigurableList`（自带请求序列号守卫，切机构不竞态）。
 
+### 列表页与表格视图统一规范
+
+- **表体高度用 `TableFillBox`**（`packages/core/src/components/TableFillBox.vue`）：它自量容器高度、以**真实像素**传给默认插槽的 `:height`。手写页面的表格包一层 `<TableFillBox v-slot="{ height }">`，配置化列表已内置。**不要再给主列表传 `height="100%"`**：Element Plus 会把 `.el-table__inner-wrapper` 锁成 `bodyScrollHeight`，而父链只有 `min-height`（百分比按 auto 解析），结果是一两行数据时表体缩到内容高度、横向滚动条贴在最后一行下面而不是列表底部。弹窗内/Tab 叠放的次要表格继续用 `utils/table-view.ts` 的 `TABLE_VIEWPORT_MAX_HEIGHT`（6 行）/`TABLE_STACK_MAX_HEIGHT`（10 行）封顶。
+- **宽表的读行定位三件套**：主列表一律 `border stripe row-key="id" highlight-current-row`，并把身份列（通常是第一列）`fixed="left"` 固定，滚动看后面列时行身份与当前行不丢。配置化列表走 `ListColumnConfig.fixed`（`'left'|'right'`，对应 `sys_list_config.columns_json` 的 `fixed` 键），列表配置编辑器有「固定列」下拉，后端 `ListConfigServiceImpl.validateColumn` 只放行 `left`/`right`/不填。
+- **默认不加勾选列**：本仓库后端**没有任何批量写接口**，行内操作（删除/启停）都是单行且可逆，加 checkbox 属于伪需求。出现真批量端点时再全系统统一加 `type="selection"`，不要个别页面先加。选中态现在的用途是"钉住正在看的行"，不是批量入口。
+- **按钮落点**：每张表的主操作（新增/导入/刷新等）放**表格上方一行 `.table-toolbar`、左对齐**；跨卡片共用的整页级开关（统计条展开、整页刷新）放页面级 `.table-toolbar`（在 `.page-toolbar` 下方），`.page-toolbar` 只装筛选条件。行内操作仍在操作列用 `.table-actions` 包 link 按钮，不参与上面的规则。
+- **说明文案落点与口径**：`.education-table-head` 右侧不塞文案；确有说明就放标题下方一行 `.education-context-text`。文案只写"这份数据能改什么、怎么生效"，**不写"支持创建、编辑、启停、重置密码"这类把按钮名字复述一遍的废话**；`page_json.description` 同理（V48 已清掉 users/roles 两条并把三条配置的首列固定）。
+
 ## 实体 / DTO 字段说明规范（软规范）
 
 ### 背景

@@ -394,7 +394,8 @@ body {
   min-height: 100%;
 }
 
-/* 页面统一工具栏:左侧筛选 + 右侧操作按钮;吸顶常驻,方便随时改筛选 */
+/* 页面级筛选栏:只放跨卡片的筛选条件;吸顶常驻,方便随时改筛选。
+   表格的主操作按钮不放这里,统一放表格上方那一行 .table-toolbar(左对齐) */
 .page-toolbar {
   position: sticky;
   top: 0;
@@ -465,7 +466,28 @@ body {
   min-height: 320px;
 }
 
-.education-panel .el-table {
+/* 表体容器:高度只由"父级剩余空间"决定(flex:1 1 0 + overflow:hidden 不随内容长),
+   TableFillBox 量出这个真实像素高,通过插槽绑给 el-table 的 :height。
+   直接把 el-table 写成 :height="'100%'" 是无效的:EP 会把表体内联高度锁成内容 scrollHeight,
+   两行数据时表体塌成 70 多 px,横向滚动条贴在数据下面、卡片剩一片空白。 */
+.table-fill-box {
+  flex: 1 1 0;
+  min-height: 200px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* 表格上方一行:主操作按钮统一左对齐(新增/导入/刷新/批量等) */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  flex-shrink: 0;
+}
+
+.education-panel > .el-table {
   flex: 1 1 auto;
   min-height: 200px;
 }
@@ -998,6 +1020,27 @@ body {
 .el-table th.el-table__cell.is-center,
 .el-table th.el-table__cell.is-right {
   text-align: center;
+}
+
+/* 读行定位:斑马纹给行间的节奏感,点击钉住的当前行用左边线 + 底色标出来。
+   EP 默认的 current-row 底色太淡(白底表格上几乎看不出),这里加深一档。 */
+.el-table {
+  --el-table-current-row-bg-color: #e8f1fb;
+  --el-table-row-hover-bg-color: #f2f7fd;
+}
+
+.el-table .el-table__body tr.current-row > td.el-table__cell {
+  background-color: var(--el-table-current-row-bg-color);
+}
+
+.el-table .el-table__body tr.current-row > td.el-table__cell:first-child {
+  box-shadow: inset 3px 0 0 #2f6fb0;
+}
+
+/* 光标所在行优先于钉住的行,保证"跟着鼠标走"的读行线索不被盖掉 */
+.el-table .el-table__body tr.hover-row > td.el-table__cell,
+.el-table .el-table__body tr.current-row.hover-row > td.el-table__cell {
+  background-color: var(--el-table-row-hover-bg-color);
 }
 
 .el-dialog {

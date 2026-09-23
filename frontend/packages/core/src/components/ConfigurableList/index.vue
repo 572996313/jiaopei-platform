@@ -9,7 +9,7 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import { useDataSourceStore } from '@cornerstone/core/stores/dataSource'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import {
   ConfigurableCell,
   collectDictTypes,
@@ -321,17 +321,6 @@ defineExpose({
     />
 
     <template v-else-if="config">
-      <div v-if="toolbarActions.length" class="configurable-list-toolbar">
-        <el-button
-          v-for="action in toolbarActions"
-          :key="action.action"
-          :type="toolbarButtonType(action)"
-          @click="fireAction(action)"
-        >
-          {{ action.label }}
-        </el-button>
-      </div>
-
       <el-form
         v-if="config.queryFields && config.queryFields.length"
         :inline="true"
@@ -383,79 +372,102 @@ defineExpose({
         </el-form-item>
       </el-form>
 
-      <el-table :data="rows" border v-loading="loading" :height="TABLE_FILL_HEIGHT">
-        <template #empty>
-          <el-empty :description="props.emptyText" :image-size="70" />
-        </template>
-        <el-table-column
-          v-for="column in config.columns"
-          :key="column.prop"
-          :prop="column.prop"
-          :label="column.label"
-          :width="column.width"
-          :min-width="column.minWidth"
-          :show-overflow-tooltip="column.showOverflowTooltip !== false"
+      <!-- 主操作按钮:统一放在表格上方一行、左对齐(与页面其余列表页同口径) -->
+      <div v-if="toolbarActions.length" class="table-toolbar configurable-list-toolbar">
+        <el-button
+          v-for="action in toolbarActions"
+          :key="action.action"
+          :type="toolbarButtonType(action)"
+          @click="fireAction(action)"
         >
-          <template #default="{ row }">
-            <ConfigurableCell :column="column" :row="row" :context="context" />
+          {{ action.label }}
+        </el-button>
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="rows"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="loading"
+          :height="height"
+        >
+          <template #empty>
+            <el-empty :description="props.emptyText" :image-size="70" />
           </template>
-        </el-table-column>
-        <!-- 配置模式:按 actions 渲染行按钮(超过 3 个收进「更多」);未配置时回退 #actions 插槽 -->
-        <el-table-column
-          v-if="rowActions.length > 0"
-          label="操作"
-          :width="actionColumnWidth"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <div class="system-operation-group">
-              <el-button
-                v-for="action in inlineRowActions"
-                :key="action.action"
-                text
-                :type="rowButtonType(action)"
-                :disabled="actionDisabled(action, row)"
-                @click="fireAction(action, row)"
-              >
-                {{ actionLabel(action, row) }}
-              </el-button>
-              <el-dropdown
-                v-if="overflowRowActions.length"
-                trigger="click"
-                @command="(name: string) => fireActionByName(name, row)"
-              >
-                <el-button text>
-                  更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          <el-table-column
+            v-for="column in config.columns"
+            :key="column.prop"
+            :prop="column.prop"
+            :label="column.label"
+            :width="column.width"
+            :min-width="column.minWidth"
+            :fixed="column.fixed"
+            :show-overflow-tooltip="column.showOverflowTooltip !== false"
+          >
+            <template #default="{ row }">
+              <ConfigurableCell :column="column" :row="row" :context="context" />
+            </template>
+          </el-table-column>
+          <!-- 配置模式:按 actions 渲染行按钮(超过 3 个收进「更多」);未配置时回退 #actions 插槽 -->
+          <el-table-column
+            v-if="rowActions.length > 0"
+            label="操作"
+            :width="actionColumnWidth"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <div class="system-operation-group">
+                <el-button
+                  v-for="action in inlineRowActions"
+                  :key="action.action"
+                  text
+                  :type="rowButtonType(action)"
+                  :disabled="actionDisabled(action, row)"
+                  @click="fireAction(action, row)"
+                >
+                  {{ actionLabel(action, row) }}
                 </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item
-                      v-for="action in overflowRowActions"
-                      :key="action.action"
-                      :command="action.action"
-                      :disabled="actionDisabled(action, row)"
-                    >
-                      {{ actionLabel(action, row) }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column
-          v-else-if="$slots.actions"
-          label="操作"
-          :width="actionsWidth"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <div class="system-operation-group">
-              <slot name="actions" :row="row" />
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+                <el-dropdown
+                  v-if="overflowRowActions.length"
+                  trigger="click"
+                  @command="(name: string) => fireActionByName(name, row)"
+                >
+                  <el-button text>
+                    更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-for="action in overflowRowActions"
+                        :key="action.action"
+                        :command="action.action"
+                        :disabled="actionDisabled(action, row)"
+                      >
+                        {{ actionLabel(action, row) }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            v-else-if="$slots.actions"
+            label="操作"
+            :width="actionsWidth"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <div class="system-operation-group">
+                <slot name="actions" :row="row" />
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <el-pagination
         v-model:current-page="page"
@@ -479,11 +491,6 @@ defineExpose({
   gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
-}
-
-.configurable-list .el-table {
-  flex: 1 1 auto;
-  min-height: 200px;
 }
 
 .configurable-list-toolbar {

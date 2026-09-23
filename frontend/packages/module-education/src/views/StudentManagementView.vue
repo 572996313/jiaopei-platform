@@ -63,20 +63,22 @@
           />
         </el-select>
       </div>
-      <div class="page-toolbar-actions">
-        <el-button @click="statsVisible = !statsVisible">
-          统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-            ><ArrowDown
-          /></el-icon>
-        </el-button>
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || tableLoading"
-          @click="refreshAll"
-        />
-      </div>
+    </div>
+
+    <!-- 整页级视图开关:统计条在本行下方展开/收起 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || tableLoading"
+        @click="refreshAll"
+      />
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
@@ -114,36 +116,63 @@
             @keyup.enter="searchStudents"
             @clear="searchStudents"
           />
-          <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
         </div>
       </div>
 
-      <el-table :data="pagedStudents" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column prop="studentNo" label="学号" width="140" />
-        <el-table-column prop="studentName" label="姓名" min-width="120" show-overflow-tooltip />
-        <el-table-column label="性别" width="80">
-          <template #default="{ row }">
-            {{ genderLabel(row.gender) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="guardianName" label="监护人" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="guardianPhone" label="监护人电话" width="150" />
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="studentStatusTagType(row.status)">
-              {{ studentStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="enrolledAt" label="入学日期" width="130" />
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openStudentDialog('edit', row)">编辑</el-button>
-            <el-button link type="danger" @click="confirmDeleteStudent(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 本表主操作:表格上方一行、左对齐 -->
+      <div class="table-toolbar">
+        <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="pagedStudents"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="tableLoading"
+          :height="height"
+        >
+          <el-table-column prop="studentNo" label="学号" width="140" fixed="left" />
+          <el-table-column
+            prop="studentName"
+            label="姓名"
+            min-width="120"
+            show-overflow-tooltip
+            fixed="left"
+          />
+          <el-table-column label="性别" width="80">
+            <template #default="{ row }">
+              {{ genderLabel(row.gender) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="guardianName"
+            label="监护人"
+            min-width="120"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="guardianPhone" label="监护人电话" width="150" />
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="studentStatusTagType(row.status)">
+                {{ studentStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="enrolledAt" label="入学日期" width="130" />
+          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openStudentDialog('edit', row)"
+                >编辑</el-button
+              >
+              <el-button link type="danger" @click="confirmDeleteStudent(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!tableLoading && pagedStudents.length === 0" class="education-empty">
         当前筛选范围下暂无学员，点击"新增学员"录入。
@@ -166,34 +195,47 @@
         <div class="panel-title">
           报名记录<span class="panel-count">共 {{ enrollmentTotal }} 条</span>
         </div>
+      </div>
+
+      <div class="table-toolbar">
         <el-button type="primary" @click="openDialog">新增报名</el-button>
       </div>
 
-      <el-table :data="records" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column prop="enrollmentNo" label="报名编号" width="160" />
-        <el-table-column label="学员" min-width="180">
-          <template #default="{ row }">
-            {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="班级" min-width="180">
-          <template #default="{ row }">
-            {{ row.className || formatClass(row.classId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="enrollmentTagType(row.status)">
-              {{ enrollmentStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="来源渠道" width="140">
-          <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
-        </el-table-column>
-        <el-table-column prop="enrolledAt" label="报名日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
-      </el-table>
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="records"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="tableLoading"
+          :height="height"
+        >
+          <el-table-column prop="enrollmentNo" label="报名编号" width="160" fixed="left" />
+          <el-table-column label="学员" min-width="180">
+            <template #default="{ row }">
+              {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="班级" min-width="180">
+            <template #default="{ row }">
+              {{ row.className || formatClass(row.classId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="enrollmentTagType(row.status)">
+                {{ enrollmentStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="来源渠道" width="140">
+            <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
+          </el-table-column>
+          <el-table-column prop="enrolledAt" label="报名日期" width="140" />
+          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!tableLoading && records.length === 0" class="education-empty">
         当前筛选范围下暂无报名记录。
@@ -216,40 +258,59 @@
         <div class="panel-title">
           家长联系人<span class="panel-count">共 {{ parentTotal }} 条</span>
         </div>
+      </div>
+
+      <div class="table-toolbar">
         <el-button type="primary" @click="openParentDialog">新增家长联系人</el-button>
       </div>
 
-      <el-table :data="studentParents" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column label="学员" min-width="180">
-          <template #default="{ row }">
-            {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="parentName" label="联系人" min-width="140" show-overflow-tooltip />
-        <el-table-column label="关系" width="120">
-          <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
-        </el-table-column>
-        <el-table-column prop="parentPhone" label="联系电话" width="160" />
-        <el-table-column prop="wechatNo" label="微信号" width="160" />
-        <el-table-column label="主联系人" width="100">
-          <template #default="{ row }">
-            {{ row.isPrimary ? '是' : '否' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="紧急联系" width="100">
-          <template #default="{ row }">
-            {{ row.isEmergencyContact ? '是' : '否' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="studentParentTagType(row.status)">
-              {{ studentParentStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
-      </el-table>
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="studentParents"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="tableLoading"
+          :height="height"
+        >
+          <el-table-column label="学员" min-width="180" fixed="left">
+            <template #default="{ row }">
+              {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="parentName"
+            label="联系人"
+            min-width="140"
+            show-overflow-tooltip
+            fixed="left"
+          />
+          <el-table-column label="关系" width="120">
+            <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
+          </el-table-column>
+          <el-table-column prop="parentPhone" label="联系电话" width="160" />
+          <el-table-column prop="wechatNo" label="微信号" width="160" />
+          <el-table-column label="主联系人" width="100">
+            <template #default="{ row }">
+              {{ row.isPrimary ? '是' : '否' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="紧急联系" width="100">
+            <template #default="{ row }">
+              {{ row.isEmergencyContact ? '是' : '否' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="studentParentTagType(row.status)">
+                {{ studentParentStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!tableLoading && studentParents.length === 0" class="education-empty">
         当前筛选范围下暂无家长联系人。
@@ -497,7 +558,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'

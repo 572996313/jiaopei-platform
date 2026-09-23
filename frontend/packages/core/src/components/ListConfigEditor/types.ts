@@ -21,6 +21,8 @@ export interface ColumnRow {
   type: string
   width?: number | null
   minWidth?: number | null
+  /** 固定列方向:left 钉在左侧、right 钉在右侧,缺省不固定 */
+  fixed?: string
   showOverflowTooltip?: boolean
   dictType?: string
   tagTypeMap?: KeyValuePair[]
@@ -122,6 +124,13 @@ export const COLUMN_TYPE_OPTIONS = [
   { value: 'boolean', label: 'boolean(是/否)' },
   { value: 'tags', label: 'tags(标签组,数组字段)' },
   { value: 'map', label: 'map(值映射,原样翻译)' },
+]
+
+/** 列固定方向:宽表横向滚动时把首列(名称/编码)钉住,避免读行错行 */
+export const COLUMN_FIXED_OPTIONS = [
+  { value: '', label: '不固定(默认)' },
+  { value: 'left', label: 'left(钉在左侧)' },
+  { value: 'right', label: 'right(钉在右侧)' },
 ]
 
 export const QUERY_TYPE_OPTIONS = [
@@ -287,6 +296,7 @@ export function parseColumns(json: string): ColumnRow[] {
         type: typeof obj.type === 'string' ? obj.type : 'text',
         width: readNumber(obj, 'width'),
         minWidth: readNumber(obj, 'minWidth'),
+        fixed: readString(obj, 'fixed'),
         showOverflowTooltip: readBool(obj, 'showOverflowTooltip'),
         dictType: readString(obj, 'dictType'),
         tagTypeMap: readPairs(obj, 'tagTypeMap'),
@@ -317,6 +327,9 @@ export function columnsToJson(rows: ColumnRow[]): string {
       }
       if (row.minWidth != null) {
         item.minWidth = row.minWidth
+      }
+      if (row.fixed && row.fixed.trim()) {
+        item.fixed = row.fixed.trim()
       }
       if (row.showOverflowTooltip === true) {
         item.showOverflowTooltip = true

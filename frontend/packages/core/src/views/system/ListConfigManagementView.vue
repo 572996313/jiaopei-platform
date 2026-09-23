@@ -6,90 +6,105 @@
       </article>
       <template v-else>
         <div class="education-table-head">
-          <div class="panel-title">
-            列表配置<span class="panel-count">共 {{ listConfigRecords.length }} 条</span>
-          </div>
-          <div class="table-actions">
-            <span class="education-context-text"
-              >维护列表的展示列与查询条件,保存后立即生效,无需发版。</span
-            >
-            <el-button @click="guideDialogVisible = true">使用教程</el-button>
-            <el-button
-              v-if="permissions.canManageListConfigs"
-              type="primary"
-              @click="openCreateListConfigDialog"
-              >新增配置</el-button
-            >
+          <div>
+            <div class="panel-title">
+              列表配置<span class="panel-count">共 {{ listConfigRecords.length }} 条</span>
+            </div>
+            <!-- 说明文案放在标题下方,不占用表头右侧 -->
+            <div class="education-context-text">
+              维护列表的展示列与查询条件,保存后立即生效,无需发版。
+            </div>
           </div>
         </div>
 
-        <el-table
-          :data="listConfigRecords"
-          border
-          v-loading="listConfigLoading"
-          :height="TABLE_FILL_HEIGHT"
-        >
-          <el-table-column
-            prop="resourceCode"
-            label="资源编码"
-            min-width="150"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            prop="resourceName"
-            label="资源名称"
-            min-width="120"
-            show-overflow-tooltip
-          />
-          <el-table-column prop="endpoint" label="分页接口" min-width="190" show-overflow-tooltip />
-          <el-table-column label="关联数据源" min-width="220">
-            <template #default="{ row }">
-              <template v-if="referencedLoaders(row).length">
-                <el-tooltip
-                  v-for="code in referencedLoaders(row)"
-                  :key="code"
-                  :content="dataSourceEndpointHint(code)"
-                  placement="top"
-                >
-                  <el-tag size="small" class="source-ref-tag" :type="sourceRefTagType(code)">
-                    {{ code }}
-                  </el-tag>
-                </el-tooltip>
-              </template>
-              <span v-else class="education-context-text">-</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="pageSize" label="每页条数" width="90" />
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                statusLabel(row.status, statusLabelMap)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
-          <el-table-column
+        <div class="table-toolbar">
+          <el-button @click="guideDialogVisible = true">使用教程</el-button>
+          <el-button
             v-if="permissions.canManageListConfigs"
-            label="操作"
-            width="150"
-            fixed="right"
+            type="primary"
+            @click="openCreateListConfigDialog"
+            >新增配置</el-button
           >
-            <template #default="{ row }">
-              <div class="system-operation-group">
-                <el-button text type="primary" @click="openEditListConfigDialog(row)"
-                  >编辑</el-button
-                >
-                <el-button
-                  text
-                  type="danger"
-                  :disabled="seedListConfigIds.has(row.id)"
-                  @click="handleDeleteListConfig(row)"
-                  >删除</el-button
-                >
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+        </div>
+
+        <TableFillBox v-slot="{ height }">
+          <el-table
+            :data="listConfigRecords"
+            border
+            stripe
+            row-key="id"
+            highlight-current-row
+            v-loading="listConfigLoading"
+            :height="height"
+          >
+            <el-table-column
+              prop="resourceCode"
+              label="资源编码"
+              min-width="150"
+              show-overflow-tooltip
+              fixed="left"
+            />
+            <el-table-column
+              prop="resourceName"
+              label="资源名称"
+              min-width="120"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="endpoint"
+              label="分页接口"
+              min-width="190"
+              show-overflow-tooltip
+            />
+            <el-table-column label="关联数据源" min-width="220">
+              <template #default="{ row }">
+                <template v-if="referencedLoaders(row).length">
+                  <el-tooltip
+                    v-for="code in referencedLoaders(row)"
+                    :key="code"
+                    :content="dataSourceEndpointHint(code)"
+                    placement="top"
+                  >
+                    <el-tag size="small" class="source-ref-tag" :type="sourceRefTagType(code)">
+                      {{ code }}
+                    </el-tag>
+                  </el-tooltip>
+                </template>
+                <span v-else class="education-context-text">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="pageSize" label="每页条数" width="90" />
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="statusTagType(row.status)">{{
+                  statusLabel(row.status, statusLabelMap)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+            <el-table-column
+              v-if="permissions.canManageListConfigs"
+              label="操作"
+              width="150"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <div class="system-operation-group">
+                  <el-button text type="primary" @click="openEditListConfigDialog(row)"
+                    >编辑</el-button
+                  >
+                  <el-button
+                    text
+                    type="danger"
+                    :disabled="seedListConfigIds.has(row.id)"
+                    @click="handleDeleteListConfig(row)"
+                    >删除</el-button
+                  >
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
       </template>
     </article>
 
@@ -382,7 +397,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import {

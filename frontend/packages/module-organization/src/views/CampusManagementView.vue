@@ -21,15 +21,17 @@
           />
         </el-select>
       </div>
-      <div class="page-toolbar-actions">
-        <el-button @click="statsVisible = !statsVisible">
-          统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-            ><ArrowDown
-          /></el-icon>
-        </el-button>
-        <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
-      </div>
+    </div>
+
+    <!-- 整页级视图开关:统计条在本行下方展开/收起,不要塞进某一张卡片的工具栏 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid campus-stat-grid">
@@ -56,10 +58,20 @@
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
           </div>
+        </div>
+        <!-- 本卡片自身的主操作:表格上方一行、左对齐(整页级开关在上面那行) -->
+        <div class="table-toolbar">
           <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
         </div>
-        <el-table :data="campuses" border :max-height="TABLE_STACK_MAX_HEIGHT">
-          <el-table-column prop="campusCode" label="校区编码" width="150" />
+        <el-table
+          :data="campuses"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          :max-height="TABLE_STACK_MAX_HEIGHT"
+        >
+          <el-table-column prop="campusCode" label="校区编码" width="150" fixed="left" />
           <el-table-column
             prop="campusName"
             label="校区名称"
@@ -94,10 +106,19 @@
             </div>
             <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
           </div>
+        </div>
+        <div class="table-toolbar">
           <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
         </div>
-        <el-table :data="classrooms" border :max-height="TABLE_STACK_MAX_HEIGHT">
-          <el-table-column prop="classroomCode" label="教室编码" width="150" />
+        <el-table
+          :data="classrooms"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          :max-height="TABLE_STACK_MAX_HEIGHT"
+        >
+          <el-table-column prop="classroomCode" label="教室编码" width="150" fixed="left" />
           <el-table-column
             prop="classroomName"
             label="教室名称"
@@ -140,10 +161,19 @@
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
           </div>
+        </div>
+        <div class="table-toolbar">
           <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
         </div>
-        <el-table :data="terms" border :max-height="TABLE_STACK_MAX_HEIGHT">
-          <el-table-column prop="termCode" label="学期编码" width="150" />
+        <el-table
+          :data="terms"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          :max-height="TABLE_STACK_MAX_HEIGHT"
+        >
+          <el-table-column prop="termCode" label="学期编码" width="150" fixed="left" />
           <el-table-column prop="termName" label="学期名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="academicYear" label="学年" width="120" />
           <el-table-column label="学季" width="120">
@@ -178,13 +208,20 @@
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
           </div>
-          <div class="resource-head-actions">
-            <el-button @click="router.push('/time-slots')">网格编辑</el-button>
-            <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
-          </div>
         </div>
-        <el-table :data="timeSlots" border :max-height="TABLE_STACK_MAX_HEIGHT">
-          <el-table-column prop="slotCode" label="时间段编码" width="150" />
+        <div class="table-toolbar">
+          <el-button @click="router.push('/time-slots')">网格编辑</el-button>
+          <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
+        </div>
+        <el-table
+          :data="timeSlots"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          :max-height="TABLE_STACK_MAX_HEIGHT"
+        >
+          <el-table-column prop="slotCode" label="时间段编码" width="150" fixed="left" />
           <el-table-column
             prop="slotName"
             label="时间段名称"

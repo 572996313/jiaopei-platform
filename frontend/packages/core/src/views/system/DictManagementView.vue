@@ -15,6 +15,8 @@
         <div class="panel-card">
           <div class="education-table-head">
             <div class="panel-title">字典类型</div>
+          </div>
+          <div class="table-toolbar">
             <el-button
               v-if="permissions.canManageDicts"
               type="primary"
@@ -23,53 +25,63 @@
               >新增类型</el-button
             >
           </div>
-          <el-table
-            :data="dictTypes"
-            border
-            highlight-current-row
-            v-loading="dictTypesLoading"
-            :height="TABLE_FILL_HEIGHT"
-            @current-change="handleDictTypeChange"
-          >
-            <el-table-column
-              prop="typeCode"
-              label="类型编码"
-              min-width="160"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              prop="typeName"
-              label="类型名称"
-              min-width="180"
-              show-overflow-tooltip
-            />
-            <el-table-column label="状态" width="110">
-              <template #default="{ row }">
-                <el-tag :type="statusTagType(row.status)">{{
-                  statusLabel(row.status, statusLabelMap)
-                }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
-              <template #default="{ row }">
-                <el-button
-                  link
-                  type="primary"
-                  size="small"
-                  @click.stop="openEditDictTypeDialog(row)"
-                  >编辑</el-button
-                >
-                <el-button link type="danger" size="small" @click.stop="removeDictType(row)"
-                  >删除</el-button
-                >
-              </template>
-            </el-table-column>
-          </el-table>
+          <TableFillBox v-slot="{ height }">
+            <el-table
+              :data="dictTypes"
+              border
+              stripe
+              row-key="id"
+              highlight-current-row
+              v-loading="dictTypesLoading"
+              :height="height"
+              @current-change="handleDictTypeChange"
+            >
+              <el-table-column
+                prop="typeCode"
+                label="类型编码"
+                min-width="160"
+                show-overflow-tooltip
+                fixed="left"
+              />
+              <el-table-column
+                prop="typeName"
+                label="类型名称"
+                min-width="180"
+                show-overflow-tooltip
+              />
+              <el-table-column label="状态" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="statusTagType(row.status)">{{
+                    statusLabel(row.status, statusLabelMap)
+                  }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
+                <template #default="{ row }">
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    @click.stop="openEditDictTypeDialog(row)"
+                    >编辑</el-button
+                  >
+                  <el-button link type="danger" size="small" @click.stop="removeDictType(row)"
+                    >删除</el-button
+                  >
+                </template>
+              </el-table-column>
+            </el-table>
+          </TableFillBox>
         </div>
 
         <div class="panel-card">
           <div class="education-table-head">
             <div class="panel-title">字典条目</div>
+          </div>
+          <div class="education-context-text system-dict-current">
+            当前类型:{{ selectedDictTypeCode || '未选择' }}
+          </div>
+          <div class="table-toolbar">
             <el-button
               v-if="permissions.canManageDicts"
               type="primary"
@@ -79,37 +91,39 @@
               >新增条目</el-button
             >
           </div>
-          <div class="education-context-text system-dict-current">
-            当前类型:{{ selectedDictTypeCode || '未选择' }}
-          </div>
-          <el-table
-            :data="selectedDictItems"
-            border
-            v-loading="dictItemsLoading"
-            :height="TABLE_FILL_HEIGHT"
-          >
-            <el-table-column prop="itemCode" label="编码" width="140" />
-            <el-table-column prop="itemName" label="名称" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="itemValue" label="值" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="sortNo" label="排序" width="80" />
-            <el-table-column label="状态" width="110">
-              <template #default="{ row }">
-                <el-tag :type="statusTagType(row.status)">{{
-                  statusLabel(row.status, statusLabelMap)
-                }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
-              <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="openEditDictItemDialog(row)"
-                  >编辑</el-button
-                >
-                <el-button link type="danger" size="small" @click="removeDictItem(row)"
-                  >删除</el-button
-                >
-              </template>
-            </el-table-column>
-          </el-table>
+          <TableFillBox v-slot="{ height }">
+            <el-table
+              :data="selectedDictItems"
+              border
+              stripe
+              row-key="id"
+              highlight-current-row
+              v-loading="dictItemsLoading"
+              :height="height"
+            >
+              <el-table-column prop="itemCode" label="编码" width="140" fixed="left" />
+              <el-table-column prop="itemName" label="名称" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="itemValue" label="值" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="sortNo" label="排序" width="80" />
+              <el-table-column label="状态" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="statusTagType(row.status)">{{
+                    statusLabel(row.status, statusLabelMap)
+                  }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="openEditDictItemDialog(row)"
+                    >编辑</el-button
+                  >
+                  <el-button link type="danger" size="small" @click="removeDictItem(row)"
+                    >删除</el-button
+                  >
+                </template>
+              </el-table-column>
+            </el-table>
+          </TableFillBox>
         </div>
       </div>
     </template>
@@ -229,7 +243,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import {

@@ -29,21 +29,22 @@
           @clear="searchTeachers"
         />
       </div>
-      <div class="page-toolbar-actions">
-        <el-button @click="statsVisible = !statsVisible">
-          统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-            ><ArrowDown
-          /></el-icon>
-        </el-button>
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || tableLoading"
-          @click="refreshAll"
-        />
-        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
-      </div>
+    </div>
+
+    <!-- 整页级视图开关:统计条在本行下方展开/收起 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || tableLoading"
+        @click="refreshAll"
+      />
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
@@ -71,41 +72,59 @@
         </div>
       </div>
 
-      <el-table :data="teachers" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column prop="teacherCode" label="教师编码" width="160" />
-        <el-table-column
-          prop="teacherName"
-          label="教师姓名"
-          min-width="160"
-          show-overflow-tooltip
-        />
-        <el-table-column label="校区" min-width="160">
-          <template #default="{ row }">
-            {{ formatCampus(row.campusId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="phone" label="手机号" width="150" />
-        <el-table-column label="用工类型" width="120">
-          <template #default="{ row }">
-            {{ employmentTypeLabel(row.employmentType) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="teacherStatusTagType(row.status)">
-              {{ teacherStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="hiredAt" label="入职日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openTeacherDialog('edit', row)">编辑</el-button>
-            <el-button link type="danger" @click="confirmDeleteTeacher(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 本表主操作:表格上方一行、左对齐 -->
+      <div class="table-toolbar">
+        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="teachers"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="tableLoading"
+          :height="height"
+        >
+          <el-table-column prop="teacherCode" label="教师编码" width="160" fixed="left" />
+          <el-table-column
+            prop="teacherName"
+            label="教师姓名"
+            min-width="160"
+            show-overflow-tooltip
+            fixed="left"
+          />
+          <el-table-column label="校区" min-width="160">
+            <template #default="{ row }">
+              {{ formatCampus(row.campusId) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="phone" label="手机号" width="150" />
+          <el-table-column label="用工类型" width="120">
+            <template #default="{ row }">
+              {{ employmentTypeLabel(row.employmentType) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="teacherStatusTagType(row.status)">
+                {{ teacherStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="hiredAt" label="入职日期" width="140" />
+          <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+                >编辑</el-button
+              >
+              <el-button link type="danger" @click="confirmDeleteTeacher(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!tableLoading && teachers.length === 0" class="education-empty">
         当前筛选范围下暂无教师数据。
@@ -197,7 +216,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'

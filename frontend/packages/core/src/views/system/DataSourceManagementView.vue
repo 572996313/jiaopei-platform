@@ -6,86 +6,101 @@
       </article>
       <template v-else>
         <div class="education-table-head">
-          <div class="panel-title">
-            数据源配置<span class="panel-count">共 {{ dataSourceRecords.length }} 条</span>
-          </div>
-          <div class="table-actions">
-            <span class="education-context-text"
-              >维护页面下拉选项的数据源(接口字段映射),改一条配置即可切换接口,无需改代码。</span
-            >
-            <el-button @click="guideDialogVisible = true">帮助</el-button>
-            <el-button
-              v-if="permissions.canManageDataSources"
-              type="primary"
-              @click="openCreateDialog"
-              >新增数据源</el-button
-            >
+          <div>
+            <div class="panel-title">
+              数据源配置<span class="panel-count">共 {{ dataSourceRecords.length }} 条</span>
+            </div>
+            <!-- 说明文案放在标题下方,不占用表头右侧 -->
+            <div class="education-context-text">
+              维护页面下拉选项的数据源(接口字段映射),改一条配置即可切换接口,无需改代码。
+            </div>
           </div>
         </div>
 
-        <el-table
-          :data="dataSourceRecords"
-          border
-          v-loading="dataSourceLoading"
-          :height="TABLE_FILL_HEIGHT"
-        >
-          <el-table-column
-            prop="sourceCode"
-            label="数据源编码"
-            min-width="140"
-            show-overflow-tooltip
-          />
-          <el-table-column prop="sourceName" label="名称" min-width="120" show-overflow-tooltip />
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">
-              <el-tag :type="row.sourceType === 'dict' ? 'warning' : 'primary'" size="small">{{
-                sourceTypeLabel(row.sourceType)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="接口路径 / 字典类型" min-width="210">
-            <template #default="{ row }">
-              <code class="source-endpoint">{{
-                row.sourceType === 'dict' ? row.dictType : row.endpoint
-              }}</code>
-            </template>
-          </el-table-column>
-          <el-table-column label="值/标签字段" min-width="130">
-            <template #default="{ row }">
-              <span v-if="row.sourceType === 'api'" class="source-keys"
-                >{{ row.valueKey || 'id' }} → {{ row.labelKey }}</span
-              >
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                statusLabel(row.status, statusLabelMap)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="description" label="说明" min-width="160" show-overflow-tooltip />
-          <el-table-column
+        <div class="table-toolbar">
+          <el-button @click="guideDialogVisible = true">帮助</el-button>
+          <el-button
             v-if="permissions.canManageDataSources"
-            label="操作"
-            width="140"
-            fixed="right"
+            type="primary"
+            @click="openCreateDialog"
+            >新增数据源</el-button
           >
-            <template #default="{ row }">
-              <div class="system-operation-group">
-                <el-button text type="primary" @click="openEditDialog(row)">编辑</el-button>
-                <el-button
-                  text
-                  type="danger"
-                  :disabled="seedDataSourceIds.has(row.id)"
-                  @click="handleDelete(row)"
-                  >删除</el-button
+        </div>
+
+        <TableFillBox v-slot="{ height }">
+          <el-table
+            :data="dataSourceRecords"
+            border
+            stripe
+            row-key="id"
+            highlight-current-row
+            v-loading="dataSourceLoading"
+            :height="height"
+          >
+            <el-table-column
+              prop="sourceCode"
+              label="数据源编码"
+              min-width="140"
+              show-overflow-tooltip
+              fixed="left"
+            />
+            <el-table-column prop="sourceName" label="名称" min-width="120" show-overflow-tooltip />
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.sourceType === 'dict' ? 'warning' : 'primary'" size="small">{{
+                  sourceTypeLabel(row.sourceType)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="接口路径 / 字典类型" min-width="210">
+              <template #default="{ row }">
+                <code class="source-endpoint">{{
+                  row.sourceType === 'dict' ? row.dictType : row.endpoint
+                }}</code>
+              </template>
+            </el-table-column>
+            <el-table-column label="值/标签字段" min-width="130">
+              <template #default="{ row }">
+                <span v-if="row.sourceType === 'api'" class="source-keys"
+                  >{{ row.valueKey || 'id' }} → {{ row.labelKey }}</span
                 >
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="statusTagType(row.status)">{{
+                  statusLabel(row.status, statusLabelMap)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="description"
+              label="说明"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              v-if="permissions.canManageDataSources"
+              label="操作"
+              width="140"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <div class="system-operation-group">
+                  <el-button text type="primary" @click="openEditDialog(row)">编辑</el-button>
+                  <el-button
+                    text
+                    type="danger"
+                    :disabled="seedDataSourceIds.has(row.id)"
+                    @click="handleDelete(row)"
+                    >删除</el-button
+                  >
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
       </template>
     </article>
 
@@ -229,7 +244,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { onMounted, reactive, ref } from 'vue'
 import {
   createDataSource,

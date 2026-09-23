@@ -2,12 +2,15 @@
   <section class="education-page">
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          {{ pageTitle
-          }}<span v-if="config?.page.showCount" class="panel-count">{{ countText }}</span>
-        </div>
-        <div v-if="config?.page.description" class="table-actions">
-          <span class="education-context-text">{{ config.page.description }}</span>
+        <div>
+          <div class="panel-title">
+            {{ pageTitle
+            }}<span v-if="config?.page.showCount" class="panel-count">{{ countText }}</span>
+          </div>
+          <!-- 说明文案放在标题下方:页头右侧留给将来的状态区,也不再往按钮的位置塞废话 -->
+          <div v-if="config?.page.description" class="education-context-text">
+            {{ config.page.description }}
+          </div>
         </div>
       </div>
 

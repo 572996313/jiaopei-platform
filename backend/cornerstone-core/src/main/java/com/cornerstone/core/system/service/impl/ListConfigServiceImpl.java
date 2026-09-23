@@ -30,6 +30,9 @@ public class ListConfigServiceImpl implements ListConfigService {
     /** 列渲染类型:文本(默认)/日期时间/字典/布尔/标签数组/静态值映射 */
     private static final Set<String> COLUMN_TYPES = Set.of("text", "datetime", "dict", "boolean", "tags", "map");
 
+    /** 列固定方向:宽表横向滚动时钉住首/尾列,缺省不固定 */
+    private static final Set<String> COLUMN_FIXED_DIRECTIONS = Set.of("left", "right");
+
     /** 查询控件类型:输入框(默认)/下拉/字典下拉/日期 */
     private static final Set<String> QUERY_FIELD_TYPES = Set.of("input", "select", "dict-select", "date");
 
@@ -207,6 +210,11 @@ public class ListConfigServiceImpl implements ListConfigService {
         String renderer = optionalText(column, "renderer");
         if (renderer != null && renderer.isBlank()) {
             throw new BusinessException(ResultCode.BAD_REQUEST, where + " 的 renderer 不能为空字符串");
+        }
+        String fixed = optionalText(column, "fixed");
+        if (fixed != null && !COLUMN_FIXED_DIRECTIONS.contains(fixed)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                where + " 的 fixed 不支持：" + fixed + ",可选值 " + COLUMN_FIXED_DIRECTIONS + " 或不填");
         }
     }
 

@@ -59,16 +59,6 @@
         />
         <span class="datebar-hint">清空日期可查看全部排课</span>
       </div>
-      <div class="page-toolbar-actions">
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || lessonsLoading"
-          @click="refreshLessons"
-        />
-        <el-button @click="goTimetable">查看课表</el-button>
-        <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
-      </div>
     </div>
 
     <article class="panel-card education-panel">
@@ -83,83 +73,105 @@
         </div>
       </div>
 
-      <el-table :data="lessons" border v-loading="lessonsLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column prop="lessonDate" label="上课日期" width="120" />
-        <el-table-column label="星期" width="100">
-          <template #default="{ row }">
-            {{ weekdayLabel(row.lessonWeekday) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="班级" min-width="160">
-          <template #default="{ row }">
-            {{ formatClass(row.classId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="教室" min-width="150">
-          <template #default="{ row }">
-            {{ formatClassroom(row.classroomId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="时段" min-width="170">
-          <template #default="{ row }">
-            {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="教师" min-width="200">
-          <template #default="{ row }">
-            {{ formatTeacherNames(row.teacherIds) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="lessonTitle"
-          label="课程主题"
-          min-width="160"
-          show-overflow-tooltip
+      <!-- 主操作按钮统一放在表格上方一行、左对齐 -->
+      <div class="table-toolbar">
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="lookupLoading || lessonsLoading"
+          @click="refreshLessons"
         />
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <div class="lesson-status-cell">
-              <el-tag :type="lessonStatusTagType(row.lessonStatus)">
-                {{ lessonStatusLabel(row.lessonStatus) }}
-              </el-tag>
-              <el-tag v-if="row.pendingMakeup === true" size="small" type="danger" effect="plain"
-                >待补课</el-tag
-              >
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="停补关联" min-width="200">
-          <template #default="{ row }">
-            <div class="relation-cell">
-              <span>{{ lessonRelationSummary(row) }}</span>
-              <el-button
-                v-if="relationJumpLabel(row)"
-                link
-                type="primary"
-                @click="jumpToRelatedLesson(row)"
-              >
-                {{ relationJumpLabel(row) }}
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="170" fixed="right">
-          <template #default="{ row }">
-            <div class="system-operation-group">
-              <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
-              <el-button
-                link
-                type="danger"
-                :loading="deletingLessonId === row.id"
-                @click="removeLesson(row)"
-              >
-                删除
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+        <el-button @click="goTimetable">查看课表</el-button>
+        <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
+      </div>
+
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="lessons"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="lessonsLoading"
+          :height="height"
+        >
+          <el-table-column prop="lessonDate" label="上课日期" width="120" />
+          <el-table-column label="星期" width="100">
+            <template #default="{ row }">
+              {{ weekdayLabel(row.lessonWeekday) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="班级" min-width="160">
+            <template #default="{ row }">
+              {{ formatClass(row.classId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="教室" min-width="150">
+            <template #default="{ row }">
+              {{ formatClassroom(row.classroomId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="时段" min-width="170">
+            <template #default="{ row }">
+              {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="教师" min-width="200">
+            <template #default="{ row }">
+              {{ formatTeacherNames(row.teacherIds) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="lessonTitle"
+            label="课程主题"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <div class="lesson-status-cell">
+                <el-tag :type="lessonStatusTagType(row.lessonStatus)">
+                  {{ lessonStatusLabel(row.lessonStatus) }}
+                </el-tag>
+                <el-tag v-if="row.pendingMakeup === true" size="small" type="danger" effect="plain"
+                  >待补课</el-tag
+                >
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+          <el-table-column label="停补关联" min-width="200">
+            <template #default="{ row }">
+              <div class="relation-cell">
+                <span>{{ lessonRelationSummary(row) }}</span>
+                <el-button
+                  v-if="relationJumpLabel(row)"
+                  link
+                  type="primary"
+                  @click="jumpToRelatedLesson(row)"
+                >
+                  {{ relationJumpLabel(row) }}
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="170" fixed="right">
+            <template #default="{ row }">
+              <div class="system-operation-group">
+                <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+                <el-button
+                  link
+                  type="danger"
+                  :loading="deletingLessonId === row.id"
+                  @click="removeLesson(row)"
+                >
+                  删除
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!lessonsLoading && lessons.length === 0" class="education-empty">
         当前筛选范围下暂无排课记录。
@@ -221,7 +233,7 @@ import {
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import {
   compactTimeRange,

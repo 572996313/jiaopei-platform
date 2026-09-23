@@ -2,15 +2,17 @@
   <section class="education-page">
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          功能权限总览<span class="panel-count"
-            >共 {{ overview?.permissions.length || 0 }} 个权限码</span
-          >
+        <div>
+          <div class="panel-title">
+            功能权限总览<span class="panel-count"
+              >共 {{ overview?.permissions.length || 0 }} 个权限码</span
+            >
+          </div>
+          <div class="education-context-text">
+            权限码与受控接口/持有角色/列表按钮/菜单节点的关系总览,数据实时聚合自代码与配置。
+          </div>
         </div>
         <div class="table-actions">
-          <span class="education-context-text"
-            >权限码与受控接口/持有角色/列表按钮/菜单节点的关系总览,数据实时聚合自代码与配置。</span
-          >
           <el-button :loading="loading" @click="loadAll">刷新</el-button>
         </div>
       </div>

@@ -13,6 +13,8 @@ export interface ListColumnConfig {
   label: string
   width?: number
   minWidth?: number
+  /** 固定列:宽表横向滚动时把"这行是谁"钉在视野里,首列推荐 left */
+  fixed?: 'left' | 'right'
   showOverflowTooltip?: boolean
   /** 渲染类型,缺省 text */
   type?: ListColumnType

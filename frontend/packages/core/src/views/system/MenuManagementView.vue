@@ -6,64 +6,80 @@
       </article>
       <template v-else>
         <div class="education-table-head">
-          <div class="panel-title">
-            菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span>
-          </div>
-          <div class="table-actions">
-            <span class="education-context-text">
+          <div>
+            <div class="panel-title">
+              菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span>
+            </div>
+            <!-- 说明文案放在标题下方,不占用表头右侧 -->
+            <div class="education-context-text">
               菜单节点决定页面可见性,按钮节点承载接口权限码;在角色管理的「分配菜单」里勾选按钮即授权。
-            </span>
-            <el-button
-              v-if="permissions.canManageMenus"
-              type="primary"
-              @click="openCreateMenuDialog"
-              >新增菜单</el-button
-            >
+            </div>
           </div>
         </div>
 
-        <el-table
-          :data="flattenedMenus"
-          border
-          row-key="id"
-          :tree-props="{ children: 'children' }"
-          v-loading="menuTreeLoading"
-          :height="TABLE_FILL_HEIGHT"
-        >
-          <el-table-column prop="menuName" label="名称" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="menuCode" label="编码" width="180" />
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">{{ menuTypeLabel(row.menuType) }}</template>
-          </el-table-column>
-          <el-table-column prop="path" label="路径" min-width="160" show-overflow-tooltip />
-          <el-table-column label="权限码" min-width="170">
-            <template #default="{ row }">
-              <el-tooltip v-if="row.permissionCode" :content="row.permissionCode" placement="top">
-                <span>{{ permissionOptionLabel(row.permissionCode || '') }}</span>
-              </el-tooltip>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="可见" width="80">
-            <template #default="{ row }">{{ row.visible === false ? '否' : '是' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                statusLabel(row.status, statusLabelMap)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-          <el-table-column v-if="permissions.canManageMenus" label="操作" width="140" fixed="right">
-            <template #default="{ row }">
-              <div class="system-operation-group">
-                <el-button text type="primary" @click="openEditMenuDialog(row)">编辑</el-button>
-                <el-button text type="danger" @click="handleDeleteMenu(row)">删除</el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-toolbar">
+          <el-button v-if="permissions.canManageMenus" type="primary" @click="openCreateMenuDialog"
+            >新增菜单</el-button
+          >
+        </div>
+
+        <TableFillBox v-slot="{ height }">
+          <el-table
+            :data="flattenedMenus"
+            border
+            stripe
+            row-key="id"
+            highlight-current-row
+            :tree-props="{ children: 'children' }"
+            v-loading="menuTreeLoading"
+            :height="height"
+          >
+            <el-table-column
+              prop="menuName"
+              label="名称"
+              min-width="180"
+              show-overflow-tooltip
+              fixed="left"
+            />
+            <el-table-column prop="menuCode" label="编码" width="180" />
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">{{ menuTypeLabel(row.menuType) }}</template>
+            </el-table-column>
+            <el-table-column prop="path" label="路径" min-width="160" show-overflow-tooltip />
+            <el-table-column label="权限码" min-width="170">
+              <template #default="{ row }">
+                <el-tooltip v-if="row.permissionCode" :content="row.permissionCode" placement="top">
+                  <span>{{ permissionOptionLabel(row.permissionCode || '') }}</span>
+                </el-tooltip>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="可见" width="80">
+              <template #default="{ row }">{{ row.visible === false ? '否' : '是' }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="statusTagType(row.status)">{{
+                  statusLabel(row.status, statusLabelMap)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+            <el-table-column
+              v-if="permissions.canManageMenus"
+              label="操作"
+              width="140"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <div class="system-operation-group">
+                  <el-button text type="primary" @click="openEditMenuDialog(row)">编辑</el-button>
+                  <el-button text type="danger" @click="handleDeleteMenu(row)">删除</el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
       </template>
     </article>
 
@@ -210,7 +226,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import {

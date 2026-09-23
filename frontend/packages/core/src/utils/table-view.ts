@@ -1,14 +1,13 @@
 /**
  * 表格视口统一规范:
- * - 主列表:表格传 height="100%" 占满所在卡片,卡片/页面(见 styles/index.css 视口填充段)
- *   负责给出确定高度;数据超出表体内部滚动,表头吸顶,整页尽量一屏放下。
+ * - 主列表:表格高度由 TableFillBox 量出的真实像素给出(见 components/TableFillBox.vue),
+ *   数据超出表体内部滚动,表头吸顶,整页尽量一屏放下。
+ *   不要再传 '100%':Element Plus 会把 inner-wrapper 锁成 bodyScrollHeight,父链只有
+ *   min-height 时百分比按 auto 解析,一两行数据时横向滚动条就贴在最后一行下面。
  * - 次要表格(Tab 叠放、弹窗内):按行数上限(px)封顶(见 styles/index.css 的 .resource-grid
  *   段,数据少时的保底高度也在那边以 CSS 实现)。
  * 行高常量与 styles/index.css 里 .el-table 的紧凑密度覆盖保持同一档位。
  */
-
-/** 主列表表格:占满父容器剩余高度(el-table :height) */
-export const TABLE_FILL_HEIGHT = '100%'
 
 /** 表头高度(px),与 .el-table 紧凑表头覆盖一致 */
 const TABLE_HEADER_HEIGHT = 38

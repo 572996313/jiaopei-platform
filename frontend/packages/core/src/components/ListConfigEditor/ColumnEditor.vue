@@ -50,6 +50,19 @@
       </template>
     </el-table-column>
 
+    <el-table-column prop="fixed" label="固定列" width="140">
+      <template #default="{ row }">
+        <el-select v-model="row.fixed" size="small" placeholder="不固定">
+          <el-option
+            v-for="opt in COLUMN_FIXED_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+      </template>
+    </el-table-column>
+
     <!-- 展开行:跟类型相关的次要属性 -->
     <template #expand="{ row }">
       <div class="te-expand-grid">
@@ -122,7 +135,7 @@
 import { computed } from 'vue'
 import KeyValueEditor from './KeyValueEditor.vue'
 import TableEditorShell from './TableEditorShell.vue'
-import { COLUMN_TYPE_OPTIONS, rendererChoices, type ColumnRow } from './types'
+import { COLUMN_FIXED_OPTIONS, COLUMN_TYPE_OPTIONS, rendererChoices, type ColumnRow } from './types'
 
 const modelValue = defineModel<ColumnRow[]>({ required: true })
 

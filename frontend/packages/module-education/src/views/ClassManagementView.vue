@@ -49,21 +49,23 @@
           />
         </el-select>
       </div>
-      <div class="page-toolbar-actions">
-        <el-button @click="statsVisible = !statsVisible">
-          统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-            ><ArrowDown
-          /></el-icon>
-        </el-button>
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || tableLoading || parentLoading"
-          @click="refreshAll"
-        />
-        <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
-      </div>
+    </div>
+
+    <!-- 整页级视图开关与整页级主操作:统计条在本行下方展开/收起 -->
+    <div class="table-toolbar">
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || tableLoading || parentLoading"
+        @click="refreshAll"
+      />
+      <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
@@ -200,49 +202,63 @@
         <div class="panel-title">
           班级学员关系<span class="panel-count">共 {{ visibleRecords.length }} 条</span>
         </div>
+      </div>
+
+      <!-- 本表主操作:表格上方一行、左对齐 -->
+      <div class="table-toolbar">
         <el-button type="primary" @click="openDialog">新增入班</el-button>
       </div>
 
-      <el-table :data="visibleRecords" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-        <el-table-column label="班级" min-width="180">
-          <template #default="{ row }">
-            {{ formatClass(row.classId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="课程 / 班型" min-width="220">
-          <template #default="{ row }">
-            <div class="class-inline-meta">
-              <span>{{ formatCourse(classOf(row.classId)?.courseId) }}</span>
-              <span>{{ formatClassType(classOf(row.classId)?.classTypeId) }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="学员" min-width="180">
-          <template #default="{ row }">
-            {{ formatStudent(row.studentId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="classStudentTagType(row.status)">
-              {{ classStudentStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="joinedAt" label="入班日期" width="140" />
-        <el-table-column prop="leftAt" label="离班日期" width="140" />
-        <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <div class="table-actions">
-              <el-button link type="primary" @click="openParentPanel(row.studentId)"
-                >联系人</el-button
-              >
-              <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <TableFillBox v-slot="{ height }">
+        <el-table
+          :data="visibleRecords"
+          border
+          stripe
+          row-key="id"
+          highlight-current-row
+          v-loading="tableLoading"
+          :height="height"
+        >
+          <el-table-column label="班级" min-width="180" fixed="left">
+            <template #default="{ row }">
+              {{ formatClass(row.classId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="课程 / 班型" min-width="220">
+            <template #default="{ row }">
+              <div class="class-inline-meta">
+                <span>{{ formatCourse(classOf(row.classId)?.courseId) }}</span>
+                <span>{{ formatClassType(classOf(row.classId)?.classTypeId) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="学员" min-width="180">
+            <template #default="{ row }">
+              {{ formatStudent(row.studentId) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="classStudentTagType(row.status)">
+                {{ classStudentStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="joinedAt" label="入班日期" width="140" />
+          <el-table-column prop="leftAt" label="离班日期" width="140" />
+          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+          <el-table-column label="操作" width="160" fixed="right">
+            <template #default="{ row }">
+              <div class="table-actions">
+                <el-button link type="primary" @click="openParentPanel(row.studentId)"
+                  >联系人</el-button
+                >
+                <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </TableFillBox>
 
       <div v-if="!tableLoading && visibleRecords.length === 0" class="education-empty">
         当前筛选范围下暂无班级学员关系。
@@ -258,51 +274,64 @@
               当前班级：{{ formatClass(classId) }}，支持主讲切换、编辑和删除。
             </div>
           </div>
+        </div>
+
+        <div class="table-toolbar">
           <el-button link type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
         </div>
 
-        <el-table :data="classTeachers" border v-loading="tableLoading" :height="TABLE_FILL_HEIGHT">
-          <el-table-column label="教师" min-width="180">
-            <template #default="{ row }">
-              {{ formatTeacher(row.teacherId) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="角色" width="120">
-            <template #default="{ row }">
-              {{ classTeacherRoleLabel(row.teacherRole) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="主讲" width="90">
-            <template #default="{ row }">
-              {{ row.isPrimary ? '是' : '否' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="joinedAt" label="生效日期" width="130" />
-          <el-table-column prop="status" label="状态" width="110">
-            <template #default="{ row }">
-              <el-tag :type="classTeacherStatusTagType(row.status)">{{
-                classTeacherStatusLabel(row.status)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
-            <template #default="{ row }">
-              <div class="table-actions">
-                <el-button
-                  link
-                  type="warning"
-                  :disabled="row.isPrimary"
-                  @click="promotePrimaryTeacher(row)"
-                  >设为主讲</el-button
-                >
-                <el-button link type="primary" @click="openTeacherDialog('edit', row)"
-                  >编辑</el-button
-                >
-                <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+        <TableFillBox v-slot="{ height }">
+          <el-table
+            :data="classTeachers"
+            border
+            stripe
+            row-key="id"
+            highlight-current-row
+            v-loading="tableLoading"
+            :height="height"
+          >
+            <el-table-column label="教师" min-width="180" fixed="left">
+              <template #default="{ row }">
+                {{ formatTeacher(row.teacherId) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="角色" width="120">
+              <template #default="{ row }">
+                {{ classTeacherRoleLabel(row.teacherRole) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="主讲" width="90">
+              <template #default="{ row }">
+                {{ row.isPrimary ? '是' : '否' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="joinedAt" label="生效日期" width="130" />
+            <el-table-column prop="status" label="状态" width="110">
+              <template #default="{ row }">
+                <el-tag :type="classTeacherStatusTagType(row.status)">{{
+                  classTeacherStatusLabel(row.status)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="220" fixed="right">
+              <template #default="{ row }">
+                <div class="table-actions">
+                  <el-button
+                    link
+                    type="warning"
+                    :disabled="row.isPrimary"
+                    @click="promotePrimaryTeacher(row)"
+                    >设为主讲</el-button
+                  >
+                  <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+                    >编辑</el-button
+                  >
+                  <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
 
         <div v-if="!tableLoading && classTeachers.length === 0" class="education-empty">
           当前班级下暂无班级教师关系。
@@ -317,11 +346,10 @@
               当前学员：{{ formatStudent(contactStudentId) }}，支持主联系人切换、编辑和删除。
             </div>
           </div>
-          <div class="table-actions">
-            <el-button link type="primary" @click="openParentDialog('create')"
-              >新增联系人</el-button
-            >
-          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <el-button link type="primary" @click="openParentDialog('create')">新增联系人</el-button>
         </div>
 
         <div v-if="!contactStudentId" class="education-empty">
@@ -329,59 +357,65 @@
         </div>
 
         <template v-else>
-          <el-table
-            :data="studentParents"
-            border
-            v-loading="parentLoading"
-            :height="TABLE_FILL_HEIGHT"
-          >
-            <el-table-column
-              prop="parentName"
-              label="联系人"
-              min-width="140"
-              show-overflow-tooltip
-            />
-            <el-table-column label="关系" width="110">
-              <template #default="{ row }">
-                {{ parentRelationLabel(row.relationType) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="parentPhone" label="联系电话" width="150" />
-            <el-table-column label="主联系人" width="100">
-              <template #default="{ row }">
-                {{ row.primaryContact ? '是' : '否' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="紧急联系" width="100">
-              <template #default="{ row }">
-                {{ row.emergencyContact ? '是' : '否' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="studentParentTagType(row.status)">{{
-                  studentParentStatusLabel(row.status)
-                }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <div class="table-actions">
-                  <el-button
-                    link
-                    type="warning"
-                    :disabled="row.primaryContact"
-                    @click="promotePrimaryParent(row)"
-                    >设为主联系人</el-button
-                  >
-                  <el-button link type="primary" @click="openParentDialog('edit', row)"
-                    >编辑</el-button
-                  >
-                  <el-button link type="danger" @click="removeStudentParent(row)">删除</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
+          <TableFillBox v-slot="{ height }">
+            <el-table
+              :data="studentParents"
+              border
+              stripe
+              row-key="id"
+              highlight-current-row
+              v-loading="parentLoading"
+              :height="height"
+            >
+              <el-table-column
+                prop="parentName"
+                label="联系人"
+                min-width="140"
+                show-overflow-tooltip
+                fixed="left"
+              />
+              <el-table-column label="关系" width="110">
+                <template #default="{ row }">
+                  {{ parentRelationLabel(row.relationType) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="parentPhone" label="联系电话" width="150" />
+              <el-table-column label="主联系人" width="100">
+                <template #default="{ row }">
+                  {{ row.primaryContact ? '是' : '否' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="紧急联系" width="100">
+                <template #default="{ row }">
+                  {{ row.emergencyContact ? '是' : '否' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="studentParentTagType(row.status)">{{
+                    studentParentStatusLabel(row.status)
+                  }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="220" fixed="right">
+                <template #default="{ row }">
+                  <div class="table-actions">
+                    <el-button
+                      link
+                      type="warning"
+                      :disabled="row.primaryContact"
+                      @click="promotePrimaryParent(row)"
+                      >设为主联系人</el-button
+                    >
+                    <el-button link type="primary" @click="openParentDialog('edit', row)"
+                      >编辑</el-button
+                    >
+                    <el-button link type="danger" @click="removeStudentParent(row)">删除</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </TableFillBox>
 
           <div v-if="!parentLoading && studentParents.length === 0" class="education-empty">
             当前学员下暂无家长联系人。
@@ -842,7 +876,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_FILL_HEIGHT } from '@cornerstone/core/utils/table-view'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
