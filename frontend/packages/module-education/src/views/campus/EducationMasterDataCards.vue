@@ -8,9 +8,7 @@
   <article class="panel-card resource-card">
     <div class="resource-head">
       <div>
-        <div class="panel-title">
-          课程分类<span class="panel-count">共 {{ courseCategories.length }} 条</span>
-        </div>
+        <div class="panel-title">课程分类</div>
         <div class="education-context-text">当前机构：{{ formatInstitution(institutionId) }}</div>
       </div>
     </div>
@@ -42,9 +40,7 @@
   <article class="panel-card resource-card">
     <div class="resource-head">
       <div>
-        <div class="panel-title">
-          课程列表<span class="panel-count">共 {{ courseTotal }} 条</span>
-        </div>
+        <div class="panel-title">课程列表</div>
         <div class="education-context-text">课程作为排课与班级主档的前置档案</div>
       </div>
     </div>
@@ -102,9 +98,7 @@
   <article class="panel-card resource-card">
     <div class="resource-head">
       <div>
-        <div class="panel-title">
-          班型列表<span class="panel-count">共 {{ classTypes.length }} 条</span>
-        </div>
+        <div class="panel-title">班型列表</div>
         <div class="education-context-text">后续用于成班规则和班级主档承接</div>
       </div>
     </div>

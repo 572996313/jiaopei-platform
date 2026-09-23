@@ -1,18 +1,7 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div>
-          <div class="panel-title">
-            注册凭证<span class="panel-count">共 {{ total }} 条</span>
-          </div>
-          <!-- 说明文案放在标题下方,不占用表头右侧 -->
-          <div class="education-context-text">
-            邀请码供新账号自助注册(自动归属机构并分配角色)；激活码供预建账号自设密码启用。
-          </div>
-        </div>
-      </div>
-
+      <!-- 页头 h1 已是"注册凭证";邀请码/激活码的差别在"类型"列里,不在表头复述一遍 -->
       <!-- 主操作按钮:放查询条件上方,条件与表格贴着看 -->
       <div class="table-toolbar">
         <el-button v-if="permissions.canManageInvitations" @click="openActivationDialog"
@@ -481,13 +470,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.panel-count {
-  margin-left: 8px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
 .invitation-code {
   font-family: var(--el-font-family-mono, monospace);
   font-size: 13px;

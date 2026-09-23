@@ -1,25 +1,19 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div>
-          <div class="panel-title">机构资料</div>
-          <div class="education-context-text">
-            维护当前登录账号所属机构的基础档案;机构 ID 和机构编码只读,不提供多机构切换。
-          </div>
-        </div>
-        <div class="table-actions">
-          <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile"
-            >刷新机构资料</el-button
-          >
-          <el-button
-            v-if="permissions.canWriteInstitution"
-            type="primary"
-            :loading="institutionSubmitting"
-            @click="submitInstitutionProfile"
-            >保存机构资料</el-button
-          >
-        </div>
+      <div class="education-context-text">机构 ID 与机构编码只读,不提供多机构切换。</div>
+
+      <div class="table-toolbar">
+        <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile"
+          >刷新机构资料</el-button
+        >
+        <el-button
+          v-if="permissions.canWriteInstitution"
+          type="primary"
+          :loading="institutionSubmitting"
+          @click="submitInstitutionProfile"
+          >保存机构资料</el-button
+        >
       </div>
 
       <el-alert

@@ -85,9 +85,7 @@
       <article class="panel-card">
         <div class="education-table-head">
           <div>
-            <div class="panel-title">
-              班级主档<span class="panel-count">共 {{ classes.length }} 个班级</span>
-            </div>
+            <div class="panel-title">班级主档</div>
             <div class="education-context-text">
               当前班级：{{ formatClass(classId) }} / 课程：{{
                 formatCourse(currentClass?.courseId)
@@ -199,9 +197,7 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          班级学员关系<span class="panel-count">共 {{ visibleRecords.length }} 条</span>
-        </div>
+        <div class="panel-title">班级学员关系</div>
       </div>
 
       <!-- 本表主操作:表格上方一行、左对齐 -->

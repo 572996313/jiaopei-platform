@@ -1,13 +1,8 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div>
-          <div class="panel-title">操作日志</div>
-          <div class="education-context-text">
-            查询业务系统写操作与登录/登出的留痕记录。请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
-          </div>
-        </div>
+      <div class="education-context-text">
+        请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
       </div>
 
       <div class="table-toolbar">

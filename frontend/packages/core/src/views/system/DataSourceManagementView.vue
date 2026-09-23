@@ -5,17 +5,7 @@
         {{ dataSourceSectionError }}
       </article>
       <template v-else>
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">
-              数据源配置<span class="panel-count">共 {{ dataSourceRecords.length }} 条</span>
-            </div>
-            <!-- 说明文案放在标题下方,不占用表头右侧 -->
-            <div class="education-context-text">
-              维护页面下拉选项的数据源(接口字段映射),改一条配置即可切换接口,无需改代码。
-            </div>
-          </div>
-        </div>
+        <div class="education-context-text">页面下拉选项的接口与字段映射在此维护。</div>
 
         <div class="table-toolbar">
           <el-button @click="guideDialogVisible = true">帮助</el-button>
@@ -474,13 +464,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.panel-count {
-  margin-left: 8px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
 .source-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

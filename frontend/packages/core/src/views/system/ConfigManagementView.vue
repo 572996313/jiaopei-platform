@@ -1,7 +1,6 @@
 <template>
   <ConfigurableCrudPage
     resource-code="system-configs"
-    page-title="系统参数"
     :form-context="configFormContext"
     :crud="configCrud"
   />

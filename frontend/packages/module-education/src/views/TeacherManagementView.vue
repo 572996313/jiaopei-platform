@@ -64,9 +64,6 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          教师列表<span class="panel-count">共 {{ teacherTotal }} 条</span>
-        </div>
         <div class="education-context-text">
           当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
         </div>

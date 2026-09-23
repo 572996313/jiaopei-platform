@@ -1,7 +1,6 @@
 <template>
   <ConfigurableCrudPage
     resource-code="system-roles"
-    page-title="角色列表"
     :form-context="roleFormContext"
     :crud="roleCrud"
   >

@@ -69,14 +69,10 @@
       <article class="panel-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">
-              节次时间设置
-              <span class="panel-count"
-                >{{ rows.length }} 个节次 × {{ config.weekdays.length }} 天</span
-              >
-            </div>
+            <div class="panel-title">节次时间设置</div>
             <div class="education-context-text">
-              当前模板:{{ selectedTemplate.templateName }};点击单元格可修改或清空该节该天的时间
+              当前模板:{{ selectedTemplate.templateName }};网格 {{ rows.length }} 个节次 ×
+              {{ config.weekdays.length }} 天;点击单元格可修改或清空该节该天的时间
             </div>
           </div>
           <div class="ts-grid-actions">

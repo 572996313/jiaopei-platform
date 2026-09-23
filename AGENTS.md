@@ -290,7 +290,8 @@ pnpm dev:h5            # H5 调试
 - **宽表的读行定位三件套**：主列表一律 `border stripe row-key="id" highlight-current-row`，并把身份列（通常是第一列）`fixed="left"` 固定，滚动看后面列时行身份与当前行不丢。配置化列表走 `ListColumnConfig.fixed`（`'left'|'right'`，对应 `sys_list_config.columns_json` 的 `fixed` 键），列表配置编辑器有「固定列」下拉，后端 `ListConfigServiceImpl.validateColumn` 只放行 `left`/`right`/不填。
 - **默认不加勾选列**：本仓库后端**没有任何批量写接口**，行内操作（删除/启停）都是单行且可逆，加 checkbox 属于伪需求。出现真批量端点时再全系统统一加 `type="selection"`，不要个别页面先加。选中态现在的用途是"钉住正在看的行"，不是批量入口。
 - **按钮与条件的落点顺序**：表格上方固定为「主操作按钮行 `.table-toolbar` → 查询条件行 `.table-filters` → 表格」，两行都左对齐，理由是查询条件要贴着表格（改条件马上看结果），按钮不许夹在中间。整页级的开关（统计条展开、整页刷新、整页主档新增）放页面级 `.table-toolbar`，也在 `.page-toolbar` 筛选栏上方；`.page-toolbar` 只装跨卡片的筛选条件。卡片内的搜索框不再挂标题右侧（`.panel-head-actions` 已删）。行内操作仍在操作列用 `.table-actions` 包 link 按钮，不参与上面的规则。
-- **说明文案落点与口径**：`.education-table-head` 右侧不塞文案；确有说明就放标题下方一行 `.education-context-text`。文案只写"这份数据能改什么、怎么生效"，**不写"支持创建、编辑、启停、重置密码"这类把按钮名字复述一遍的废话**；`page_json.description` 同理（V48 已清掉 users/roles 两条并把三条配置的首列固定）。
+- **标题与条数都不重复展示**：页头 `h1.page-title`（`AppLayout.vue`）显示的就是当前菜单节点名，所以**以页面为单位**判断——一屏只有一张主表的页面不渲染 `.panel-title`（连同空掉的 `.education-table-head` 一起删，配置化列表页由 `ConfigurableCrudPage` 统一不渲染）；一屏并排/叠放多张表的页面每张表必须保留标题作区分（校区页四张卡、学员页三张表、时间段编辑器的两个面板都是）。条数全站不显示：分页表看分页器的总数，不分页的表都是刻意选定的小体量表（判据见「前端 / 小程序约定」分页条目）。`.panel-count` 类已删，唯一例外是编辑器里的规模回显（如时间段"N 个节次 × M 天"），那种要并进 `.education-context-text` 而不是复活计数类。`page_json` 的 `title`/`showCount`/`countFormat` 三键随之前端渲染一起删除（V49 清存量），**界面不渲染的配置键一律不留**。
+- **说明文案落点与口径**：`.education-table-head` 右侧不塞文案，卡片标题右侧也不挂按钮（按钮进 `.table-toolbar`）。确有说明就单独一行 `.education-context-text`（作卡片首行时自带下边距，见 `styles/index.css`）。口径：**只写"不看就会用错"或"改完怎么生效"**，例如"在角色管理的「分配菜单」里勾选按钮即授权""保存后需重新登录生效""敏感信息已脱敏展示"。删掉的是两类：把按钮名字复述一遍的（"支持创建、编辑、启停"）、以及功能说明伪装成指引的（"邀请码供新账号自助注册；激活码供预建账号自设密码启用""维护全局字典类型与条目"）。**动态回显不是文案**——"当前机构：X""当前模板：Y"是数据，一律保留。`page_json.description` 同理（V48 清掉 users/roles 两条，V49 收掉壳配置三键）。
 
 ## 实体 / DTO 字段说明规范（软规范）
 

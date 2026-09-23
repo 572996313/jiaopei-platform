@@ -1,17 +1,12 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div>
-          <div class="panel-title">
-            {{ pageTitle
-            }}<span v-if="config?.page.showCount" class="panel-count">{{ countText }}</span>
-          </div>
-          <!-- 说明文案放在标题下方:页头右侧留给将来的状态区,也不再往按钮的位置塞废话 -->
-          <div v-if="config?.page.description" class="education-context-text">
-            {{ config.page.description }}
-          </div>
-        </div>
+      <!--
+        配置化列表服务的是"一屏一张表"的页面,页头 h1 已经取了菜单名,这里不再重复标题,
+        也不显示条数(分页数由分页器承担,不分页的表体量小)。只保留"怎么生效"这一类说明行。
+      -->
+      <div v-if="config?.page.description" class="education-context-text">
+        {{ config.page.description }}
       </div>
 
       <ConfigurableList
@@ -20,7 +15,6 @@
         :context="listContext"
         :actions="resolvedActions"
         :empty-text="config?.page.emptyText ?? '暂无数据'"
-        @loaded="onLoaded"
       />
     </article>
 
@@ -75,23 +69,18 @@ import { buildDeleteHandler, buildToggleStatusHandler } from './actions'
 import { parsePageConfig } from './types'
 import type { CrudPageConfig, CrudPageOptions } from './types'
 
-const props = withDefaults(
-  defineProps<{
-    /** 列表/表单配置资源编码,如 system-users */
-    resourceCode: string
-    /** 页面主标题兜底(优先 page_json.title,再此值,再 resourceName) */
-    pageTitle?: string
-    /** 列表渲染上下文(机构名称映射、查询下拉数据源、业务数据目录) */
-    listContext?: RenderContext
-    /** 表单 optionsLoader 数据源上下文 */
-    formContext?: RenderContext
-    /** 表单字段联动回调(如机构变化刷新下级下拉),透传给 ConfigurableForm */
-    onFieldChange?: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void>
-    /** 资源 CRUD 实现画像:api / payload 组装 / 内置动作(含 extraActions 覆盖) */
-    crud?: CrudPageOptions
-  }>(),
-  { pageTitle: '' }
-)
+const props = defineProps<{
+  /** 列表/表单配置资源编码,如 system-users */
+  resourceCode: string
+  /** 列表渲染上下文(机构名称映射、查询下拉数据源、业务数据目录) */
+  listContext?: RenderContext
+  /** 表单 optionsLoader 数据源上下文 */
+  formContext?: RenderContext
+  /** 表单字段联动回调(如机构变化刷新下级下拉),透传给 ConfigurableForm */
+  onFieldChange?: Record<string, (form: Record<string, any>, field: FormFieldConfig) => void>
+  /** 资源 CRUD 实现画像:api / payload 组装 / 内置动作(含 extraActions 覆盖) */
+  crud?: CrudPageOptions
+}>()
 
 const listConfigStore = useListConfigStore()
 const slots = useSlots()
@@ -99,7 +88,6 @@ const slots = useSlots()
 const listRef = ref<InstanceType<typeof ConfigurableList> | null>(null)
 const formRef = ref<InstanceType<typeof ConfigurableForm> | null>(null)
 const config = ref<CrudPageConfig | null>(null)
-const total = ref(0)
 
 function toMessage(error: unknown, fallback: string): string {
   const custom = props.crud?.toMessage
@@ -137,19 +125,6 @@ function rowName(row?: Record<string, any>): string {
 
 const resourceName = computed(
   () => props.crud?.resourceName || config.value?.list.resourceName || props.resourceCode
-)
-
-/** 页面主标题:page_json.title 优先,其次 pageTitle prop,再 resourceName */
-const pageTitle = computed(
-  () =>
-    config.value?.page?.title ||
-    props.pageTitle ||
-    config.value?.list.resourceName ||
-    props.resourceCode
-)
-
-const countText = computed(() =>
-  (config.value?.page?.countFormat ?? '共 {total} 条').replace(/\{total\}/g, String(total.value))
 )
 
 /** 弹窗标题:create/edit 文案各自替换 {name} 占位符 */
@@ -222,10 +197,6 @@ const initialForForm = computed(() => {
   const row = modal.selectedRow.value
   return props.crud?.buildInitial?.(modal.mode.value, row) ?? (row ? { ...row } : {})
 })
-
-function onLoaded(payload: { total: number; records: Record<string, any>[] }) {
-  total.value = payload.total
-}
 
 async function submit() {
   await modal.submit(

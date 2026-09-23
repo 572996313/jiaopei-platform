@@ -17,16 +17,10 @@ import type {
   QueryFieldConfig,
 } from '../ConfigurableList/types'
 
-/** 页面壳配置(存 page_json):标题 / 计数 / 空态等描述性文案 */
+/** 页面壳配置(存 page_json):空态等描述性文案(页头 h1 已取菜单名,卡片不再渲染标题/计数) */
 export interface PageShellConfig {
-  /** 页面主标题,缺省回退列表配置 resourceName */
-  title?: string
-  /** 标题旁的描述性文案(如 “支持创建、编辑、启停…” ),缺省不显示 */
+  /** 标题下方的描述性文案(说明"怎么生效"这一类),缺省不显示 */
   description?: string
-  /** 是否显示「共 X 条」计数,缺省 true */
-  showCount?: boolean
-  /** 计数格式,{total} 为占位符,缺省 '共 {total} 条' */
-  countFormat?: string
   /** 表格空态文案,缺省 '暂无数据' */
   emptyText?: string
 }
@@ -141,10 +135,7 @@ export interface CrudPageOptions {
 
 /** page_json / dialog_json / actionType 的默认值,后端未配置时按此回退,行为与现状一致 */
 export const DEFAULT_PAGE_SHELL: Required<PageShellConfig> = {
-  title: '',
   description: '',
-  showCount: true,
-  countFormat: '共 {total} 条',
   emptyText: '暂无数据',
 }
 
@@ -180,10 +171,7 @@ export function parsePageShell(raw: string | null | undefined): Required<PageShe
     try {
       const obj: unknown = JSON.parse(raw)
       if (isPlainObject(obj)) {
-        page.title = readString(obj, 'title', '')
         page.description = readString(obj, 'description', '')
-        page.showCount = readBool(obj, 'showCount', DEFAULT_PAGE_SHELL.showCount)
-        page.countFormat = readString(obj, 'countFormat', DEFAULT_PAGE_SHELL.countFormat)
         page.emptyText = readString(obj, 'emptyText', DEFAULT_PAGE_SHELL.emptyText)
       }
     } catch {
@@ -191,10 +179,7 @@ export function parsePageShell(raw: string | null | undefined): Required<PageShe
     }
   }
   return {
-    title: page.title || '',
     description: page.description || '',
-    showCount: page.showCount ?? DEFAULT_PAGE_SHELL.showCount,
-    countFormat: page.countFormat || DEFAULT_PAGE_SHELL.countFormat,
     emptyText: page.emptyText || DEFAULT_PAGE_SHELL.emptyText,
   }
 }

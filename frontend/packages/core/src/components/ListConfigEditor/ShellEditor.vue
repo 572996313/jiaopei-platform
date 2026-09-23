@@ -4,20 +4,11 @@
     <div class="block-card">
       <div class="block-card-head">
         <span class="block-card-title">页面显示(页面壳)</span>
-        <span class="block-card-sub">顶部标题、计数、空态文案</span>
+        <span class="block-card-sub">说明与空态文案(页面标题取菜单名,不在此配置)</span>
       </div>
       <div class="form-grid">
-        <el-form-item label="页面大标题 title" class="full-span">
-          <el-input v-model="page.title" placeholder="留空则显示资源名称,如 用户管理" />
-        </el-form-item>
-        <el-form-item label="标题右侧说明 description" class="full-span">
-          <el-input v-model="page.description" placeholder="一句话说明这个页面是干什么的(选填)" />
-        </el-form-item>
-        <el-form-item label="显示共 X 条">
-          <el-switch v-model="page.showCount" />
-        </el-form-item>
-        <el-form-item label="计数文案 countFormat">
-          <el-input v-model="page.countFormat" placeholder="共 {total} 条" />
+        <el-form-item label="标题下方说明 description" class="full-span">
+          <el-input v-model="page.description" placeholder="只写「怎么生效」这类说明(选填)" />
         </el-form-item>
         <el-form-item label="空数据文案 emptyText" class="full-span">
           <el-input v-model="page.emptyText" placeholder="暂无数据" />

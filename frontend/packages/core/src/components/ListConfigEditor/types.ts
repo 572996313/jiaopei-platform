@@ -84,12 +84,9 @@ export interface FormConfigState {
   fields: FormFieldRow[]
 }
 
-/** 页面壳配置(pageJson) */
+/** 页面壳配置(pageJson):只有说明与空态两键——页头 h1 取菜单名,标题与计数已由界面承担,不再可配 */
 export interface PageShellState {
-  title: string
   description: string
-  showCount: boolean
-  countFormat: string
   emptyText: string
 }
 
@@ -616,10 +613,7 @@ export function formToJson(state: FormConfigState): string | null {
 
 export function parsePageShell(json: string | null | undefined): PageShellState {
   const fallback = {
-    title: '',
     description: '',
-    showCount: true,
-    countFormat: '共 {total} 条',
     emptyText: '暂无数据',
   }
   if (!json || !json.trim()) {
@@ -631,10 +625,7 @@ export function parsePageShell(json: string | null | undefined): PageShellState 
       return { ...fallback }
     }
     return {
-      title: readString(parsed, 'title') ?? '',
       description: readString(parsed, 'description') ?? '',
-      showCount: typeof parsed.showCount === 'boolean' ? parsed.showCount : fallback.showCount,
-      countFormat: readString(parsed, 'countFormat') ?? fallback.countFormat,
       emptyText: readString(parsed, 'emptyText') ?? fallback.emptyText,
     }
   } catch {
@@ -644,17 +635,8 @@ export function parsePageShell(json: string | null | undefined): PageShellState 
 
 export function pageShellToJson(state: PageShellState): string | null {
   const item: Record<string, unknown> = {}
-  if (state.title && state.title.trim()) {
-    item.title = state.title.trim()
-  }
   if (state.description && state.description.trim()) {
     item.description = state.description.trim()
-  }
-  if (state.showCount !== true) {
-    item.showCount = false
-  }
-  if (state.countFormat && state.countFormat !== '共 {total} 条') {
-    item.countFormat = state.countFormat.trim()
   }
   if (state.emptyText && state.emptyText !== '暂无数据') {
     item.emptyText = state.emptyText.trim()
@@ -739,10 +721,7 @@ export function createBlankFormState(): ListConfigFormState {
     actions: [],
     form: { gridColumns: 2, fields: [] },
     page: {
-      title: '',
       description: '',
-      showCount: true,
-      countFormat: '共 {total} 条',
       emptyText: '暂无数据',
     },
     dialog: {

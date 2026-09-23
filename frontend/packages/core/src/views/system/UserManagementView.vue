@@ -2,7 +2,6 @@
   <ConfigurableCrudPage
     ref="userCrudPageRef"
     resource-code="system-users"
-    page-title="用户列表"
     :list-context="listRenderContext"
     :form-context="userFormContext"
     :crud="userCrud"

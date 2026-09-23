@@ -25,20 +25,19 @@
 
 | 字段 | 类型 | 必填 | 默认 | 说明 |
 |---|---|---|---|---|
-| title | string | 否 | 列表配置 resourceName | 页面主标题 |
-| description | string | 否 | 空 | 标题右侧描述文案 |
-| showCount | boolean | 否 | true | 是否显示「共 X 条」 |
-| countFormat | string | 否 | `共 {total} 条` | 计数模板,`{total}` 为占位符 |
+| description | string | 否 | 空 | 表格上方一行说明,只写「怎么生效」这一类 |
 | emptyText | string | 否 | 暂无数据 | 表格空态文案 |
+
+页面主标题不在此配置:页头 `h1` 取的就是菜单节点名(`sys_menu.menuName`),卡片再写一遍属于重复展示。
+条数同样不配:分页表由分页器总数承担,不分页的表都是刻意选定的小体量表(见 AGENTS.md 分页边界)。
+因此历史上种过的 `title` / `showCount` / `countFormat` 三个键已由 V49 从 `page_json` 清除,前端也不再解析——
+**配了不生效的键一律不留**。
 
 示例:
 
 ```json
 {
-  "title": "系统参数",
-  "description": "维护全局键值参数(token 有效期等),支持新增、编辑与删除。",
-  "showCount": true,
-  "countFormat": "共 {total} 条",
+  "description": "维护全局键值参数(token 有效期、密码强度策略等)",
   "emptyText": "暂无数据"
 }
 ```

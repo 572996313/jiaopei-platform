@@ -63,9 +63,6 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          排课列表<span class="panel-count">共 {{ lessonTotal }} 条</span>
-        </div>
         <div class="education-context-text">
           校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
             lessonDate || '全部'

@@ -5,17 +5,7 @@
         {{ listConfigSectionError }}
       </article>
       <template v-else>
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">
-              列表配置<span class="panel-count">共 {{ listConfigRecords.length }} 条</span>
-            </div>
-            <!-- 说明文案放在标题下方,不占用表头右侧 -->
-            <div class="education-context-text">
-              维护列表的展示列与查询条件,保存后立即生效,无需发版。
-            </div>
-          </div>
-        </div>
+        <div class="education-context-text">配置改完保存即生效,不需要发版。</div>
 
         <div class="table-toolbar">
           <el-button @click="guideDialogVisible = true">使用教程</el-button>
@@ -682,10 +672,11 @@ const fieldGuideGroups: FieldGuideGroup[] = [
   {
     title: '页面显示(page)',
     rows: [
-      { field: 'title', meaning: '页面大标题(缺省=资源名)', values: '如 用户管理' },
-      { field: 'description', meaning: '标题右侧说明', values: '如 维护系统用户与绑定' },
-      { field: 'showCount', meaning: '是否显示"共 X 条"', values: 'true / false' },
-      { field: 'countFormat', meaning: '计数文案模板', values: '共 {total} 条' },
+      {
+        field: 'description',
+        meaning: '说明行(只写「怎么生效」;页面标题取菜单名,条数由分页器承担)',
+        values: '如 配置改完保存即生效',
+      },
       { field: 'emptyText', meaning: '表格空数据文案', values: '暂无数据' },
     ],
   },
@@ -1113,13 +1104,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.panel-count {
-  margin-left: 8px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
 .source-ref-tag {
   margin: 0 4px 4px 0;
 }

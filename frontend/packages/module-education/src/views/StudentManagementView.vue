@@ -103,9 +103,7 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          学员档案<span class="panel-count">共 {{ studentTotal }} 条</span>
-        </div>
+        <div class="panel-title">学员档案</div>
       </div>
 
       <!-- 本表主操作:表格上方一行、左对齐,排在查询条件上面 -->
@@ -193,9 +191,7 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          报名记录<span class="panel-count">共 {{ enrollmentTotal }} 条</span>
-        </div>
+        <div class="panel-title">报名记录</div>
       </div>
 
       <div class="table-toolbar">
@@ -256,9 +252,7 @@
 
     <article class="panel-card education-panel">
       <div class="education-table-head">
-        <div class="panel-title">
-          家长联系人<span class="panel-count">共 {{ parentTotal }} 条</span>
-        </div>
+        <div class="panel-title">家长联系人</div>
       </div>
 
       <div class="table-toolbar">

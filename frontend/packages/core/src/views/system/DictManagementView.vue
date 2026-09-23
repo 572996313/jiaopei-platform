@@ -4,13 +4,7 @@
       {{ dictSectionError }}
     </article>
     <template v-else>
-      <div class="education-table-head">
-        <div class="panel-title">字典管理</div>
-        <div class="education-context-text">
-          维护全局字典类型与条目,业务表单的下拉选项与列表回显实时生效。
-        </div>
-      </div>
-
+      <!-- 页头 h1 已是"字典管理",这里不再重复标题;两张子表各自带标题作区分 -->
       <div class="system-dict-grid">
         <div class="panel-card">
           <div class="education-table-head">

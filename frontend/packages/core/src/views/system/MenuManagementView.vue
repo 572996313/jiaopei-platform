@@ -5,16 +5,8 @@
         {{ menuSectionError }}
       </article>
       <template v-else>
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">
-              菜单与按钮<span class="panel-count">共 {{ flattenedMenus.length }} 条</span>
-            </div>
-            <!-- 说明文案放在标题下方,不占用表头右侧 -->
-            <div class="education-context-text">
-              菜单节点决定页面可见性,按钮节点承载接口权限码;在角色管理的「分配菜单」里勾选按钮即授权。
-            </div>
-          </div>
+        <div class="education-context-text">
+          菜单节点决定页面可见性,按钮节点承载接口权限码;在角色管理的「分配菜单」里勾选按钮即授权。
         </div>
 
         <div class="table-toolbar">

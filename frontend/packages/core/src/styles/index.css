@@ -445,14 +445,6 @@ body {
   transform: rotate(180deg);
 }
 
-/* 面板标题旁的条数小字 */
-.panel-count {
-  margin-left: 10px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
 .education-stat-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -599,6 +591,15 @@ body {
 .education-context-text {
   color: #5c6b82;
   font-size: 14px;
+}
+
+/*
+ * 说明行现在是卡片首行(标题不再重复页头菜单名),下方紧贴工具栏或表格,
+ * 需要自己拉开间距。只命中块级用法,不命中权限卡片里复用同类的行内 span。
+ */
+.education-panel > .education-context-text,
+.education-table-head > .education-context-text:only-child {
+  margin-bottom: 12px;
 }
 
 .education-table-head {

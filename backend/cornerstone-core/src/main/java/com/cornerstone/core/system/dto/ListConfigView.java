@@ -13,7 +13,7 @@ public record ListConfigView(
     @Schema(description = "查询条件配置 JSON 数组") String queryJson,
     @Schema(description = "按钮配置 JSON 数组,为空时前端回退插槽模式") String actionsJson,
     @Schema(description = "弹窗表单配置 JSON(fields 数组),为空表示未配置表单") String formJson,
-    @Schema(description = "页面壳配置 JSON(title/description/showCount/countFormat/emptyText),为空时前端回退默认壳") String pageJson,
+    @Schema(description = "页面壳配置 JSON(description/emptyText),页面标题取菜单名、条数由分页器承担,为空时前端回退默认壳") String pageJson,
     @Schema(description = "弹窗壳配置 JSON(width/createTitle/editTitle/submitText/cancelText/createMessage/updateMessage/reloadAfterSubmit),为空时前端回退默认弹窗") String dialogJson,
     @Schema(description = "状态(active=启用,disabled=停用)") String status,
     @Schema(description = "备注") String remark

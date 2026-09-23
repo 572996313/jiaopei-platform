@@ -51,9 +51,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">
-              校区列表<span class="panel-count">共 {{ campuses.length }} 条</span>
-            </div>
+            <div class="panel-title">校区列表</div>
             <div class="education-context-text">
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
@@ -101,9 +99,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">
-              教室列表<span class="panel-count">共 {{ classrooms.length }} 条</span>
-            </div>
+            <div class="panel-title">教室列表</div>
             <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
           </div>
         </div>
@@ -154,9 +150,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">
-              学期列表<span class="panel-count">共 {{ terms.length }} 条</span>
-            </div>
+            <div class="panel-title">学期列表</div>
             <div class="education-context-text">
               当前机构：{{ formatInstitution(institutionId) }}
             </div>
@@ -201,9 +195,7 @@
       <article class="panel-card resource-card">
         <div class="resource-head">
           <div>
-            <div class="panel-title">
-              时间段列表<span class="panel-count">共 {{ timeSlots.length }} 条</span>
-            </div>
+            <div class="panel-title">时间段列表</div>
             <div class="education-context-text">
               当前机构：{{ formatInstitution(institutionId) }}
             </div>

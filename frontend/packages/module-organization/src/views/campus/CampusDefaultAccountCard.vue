@@ -7,9 +7,7 @@
   <article class="panel-card resource-card">
     <div class="resource-head">
       <div>
-        <div class="panel-title">
-          校区默认账号<span class="panel-count">共 {{ preferences.length }} 条</span>
-        </div>
+        <div class="panel-title">校区默认账号</div>
         <div class="education-context-text">
           {{ campusId ? `当前校区：${campusLabel}` : '请先在上方筛选校区' }}
         </div>
