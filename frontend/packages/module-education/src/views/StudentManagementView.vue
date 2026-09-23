@@ -355,10 +355,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="性别">
-          <el-select v-model="studentForm.gender" placeholder="选择性别" clearable>
-            <el-option label="男" value="male" />
-            <el-option label="女" value="female" />
-          </el-select>
+          <DictSelect v-model="studentForm.gender" type-code="gender" placeholder="选择性别" />
         </el-form-item>
         <el-form-item label="出生日期">
           <el-date-picker
@@ -573,8 +570,11 @@ import {
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useDictStore } from '@cornerstone/core/stores/dict'
+import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 
 const institutionStore = useInstitutionStore()
+const dictStore = useDictStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 const { institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
@@ -695,11 +695,18 @@ function formatStudent(id?: string | null) {
 }
 
 function genderLabel(gender?: string | null) {
+  const dictLabel = dictStore.labelOf('gender', gender)
+  if (dictLabel) {
+    return dictLabel
+  }
+  // 字典未加载时的静态兜底，取值口径与 gender 字典一致（小写 item_value）
   switch (gender) {
     case 'male':
       return '男'
     case 'female':
       return '女'
+    case 'unknown':
+      return '未知'
     default:
       return '—'
   }
@@ -1240,6 +1247,8 @@ watch(
 )
 
 onMounted(() => {
+  // 性别选项与列表回显统一走 gender 字典（V51 起与小程序共用同一套值）
+  void dictStore.ensureLoaded(['gender']).catch(() => undefined)
   initializePage()
 })
 </script>

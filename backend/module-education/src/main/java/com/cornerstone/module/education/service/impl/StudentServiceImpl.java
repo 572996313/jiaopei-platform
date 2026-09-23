@@ -11,6 +11,7 @@ import com.cornerstone.module.education.dto.StudentPageQuery;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.service.StudentService;
+import com.cornerstone.module.education.service.support.GenderDictValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
@@ -26,12 +27,14 @@ public class StudentServiceImpl implements StudentService {
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
+    private final GenderDictValidator genderDictValidator;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
-                              CampusMapper campusMapper) {
+                              CampusMapper campusMapper, GenderDictValidator genderDictValidator) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
+        this.genderDictValidator = genderDictValidator;
     }
 
     @Override
@@ -104,7 +107,7 @@ public class StudentServiceImpl implements StudentService {
         entity.setCampusId(request.campusId());
         entity.setStudentNo(studentNo);
         entity.setStudentName(normalize(request.studentName()));
-        entity.setGender(normalizeToNull(request.gender()));
+        entity.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
         entity.setBirthday(request.birthday());
         entity.setGuardianName(normalizeToNull(request.guardianName()));
         entity.setGuardianPhone(normalizeToNull(request.guardianPhone()));
@@ -144,7 +147,7 @@ public class StudentServiceImpl implements StudentService {
             existing.setStudentName(normalize(request.studentName()));
         }
         existing.setCampusId(request.campusId());
-        existing.setGender(normalizeToNull(request.gender()));
+        existing.setGender(genderDictValidator.normalizeAndValidate(request.gender()));
         existing.setBirthday(request.birthday());
         existing.setGuardianName(normalizeToNull(request.guardianName()));
         existing.setGuardianPhone(normalizeToNull(request.guardianPhone()));

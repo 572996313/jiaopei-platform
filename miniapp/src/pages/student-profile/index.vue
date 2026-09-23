@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
-import { bindSelfStudent, fetchMyStudentProfile, saveStudentProfile, type Gender } from '@/api/miniapp'
+import {
+  bindSelfStudent,
+  fetchGenderOptions,
+  fetchMyStudentProfile,
+  saveStudentProfile,
+  type DictOptionItem,
+} from '@/api/miniapp'
 import { isApiError } from '@/utils/request'
 
 // mode: bind=绑定已有档案;create=新建档案;edit=编辑已有档案
@@ -10,14 +16,11 @@ const submitting = ref(false)
 
 const studentNo = ref('')
 const studentName = ref('')
-const gender = ref<Gender>('UNKNOWN')
+const gender = ref('')
 const birthday = ref('')
 
-const genderOptions: Array<{ value: Gender; label: string }> = [
-  { value: 'MALE', label: '男' },
-  { value: 'FEMALE', label: '女' },
-  { value: 'UNKNOWN', label: '未知' },
-]
+// 性别选项来自系统字典 gender,与 PC 端同一套值(male/female/unknown)
+const genderOptions = ref<DictOptionItem[]>([])
 
 const title = computed(() => {
   if (mode.value === 'bind') return '绑定我的档案'
@@ -26,6 +29,13 @@ const title = computed(() => {
 })
 
 onLoad((options) => {
+  fetchGenderOptions()
+    .then((items) => {
+      genderOptions.value = items
+    })
+    .catch(() => {
+      // 字典拉取失败时选项为空,保存前会提示选择性别
+    })
   const m = options?.mode
   if (m === 'create' || m === 'edit') {
     mode.value = m
@@ -62,6 +72,9 @@ async function handleSubmit() {
     }
   } else if (!studentName.value.trim()) {
     uni.showToast({ title: '请输入学员姓名', icon: 'none' })
+    return
+  } else if (!gender.value) {
+    uni.showToast({ title: '请选择性别', icon: 'none' })
     return
   }
 
@@ -130,12 +143,12 @@ async function handleSubmit() {
         <view class="gender-group">
           <view
             v-for="opt in genderOptions"
-            :key="opt.value"
+            :key="opt.itemValue"
             class="gender-option"
-            :class="{ active: gender === opt.value }"
-            @click="gender = opt.value"
+            :class="{ active: gender === opt.itemValue }"
+            @click="gender = opt.itemValue"
           >
-            {{ opt.label }}
+            {{ opt.itemName }}
           </view>
         </view>
       </view>

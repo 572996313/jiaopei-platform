@@ -46,7 +46,8 @@ export function unbindStudent(studentId: string) {
   return requestDelete<void>('/miniapp/students/' + studentId)
 }
 
-export type Gender = 'MALE' | 'FEMALE' | 'UNKNOWN'
+/** 性别取值统一走系统字典 gender(item_value,如 male/female/unknown),不再固定枚举 */
+export type Gender = string
 
 export interface StudentOwnProfile {
   bound: boolean
@@ -56,6 +57,33 @@ export interface StudentOwnProfile {
   gender: Gender | null
   birthday: string | null
   className: string | null
+}
+
+export interface DictOptionItem {
+  itemCode: string
+  itemName: string
+  itemValue: string
+}
+
+interface DictOptionGroup {
+  typeCode: string
+  items: DictOptionItem[]
+}
+
+// 字典选项与 PC 同一来源(仅登录即可访问),模块级缓存一次,页面直接复用
+let genderOptionsPromise: Promise<DictOptionItem[]> | null = null
+
+/** 拉取性别字典选项(缓存整个应用生命周期内一次) */
+export function fetchGenderOptions() {
+  if (!genderOptionsPromise) {
+    genderOptionsPromise = requestGet<DictOptionGroup[]>('/system/dicts/options', { typeCodes: 'gender' })
+      .then((groups) => groups.find((group) => group.typeCode === 'gender')?.items ?? [])
+      .catch((error) => {
+        genderOptionsPromise = null // 失败不缓存,下次重试
+        throw error
+      })
+  }
+  return genderOptionsPromise
 }
 
 /** 学生端-我的档案(未绑定 bound=false) */

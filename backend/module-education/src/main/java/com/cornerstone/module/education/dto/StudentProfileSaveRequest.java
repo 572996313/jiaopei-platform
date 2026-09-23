@@ -12,7 +12,7 @@ public record StudentProfileSaveRequest(
     @Size(max = 32, message = "学员姓名不能超过32个字符")
     String studentName,
 
-    @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"},
+    @Schema(description = "性别字典(gender:male=男,female=女,unknown=未知)", allowableValues = {"male", "female", "unknown"},
             requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "性别不能为空")
     @Size(max = 16, message = "性别取值不正确")

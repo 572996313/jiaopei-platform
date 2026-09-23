@@ -10,7 +10,7 @@ public record StudentBriefView(
     String studentNo,
     @Schema(description = "学员姓名")
     String studentName,
-    @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)")
+    @Schema(description = "性别字典(gender:male=男,female=女,unknown=未知)")
     String gender,
     @Schema(description = "班级名称(取当前所在班,无则为空)")
     String className,

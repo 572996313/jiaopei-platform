@@ -21,7 +21,7 @@ public record TeacherUpdateRequest(
     @Schema(description = "联系电话")
     @JsonAlias({"mobile", "teacher_phone"})
     String phone,
-    @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"})
+    @Schema(description = "性别字典(gender:male=男,female=女,unknown=未知)", allowableValues = {"male", "female", "unknown"})
     String gender,
     @Schema(description = "职称(如 初级/中级/高级)")
     String title,

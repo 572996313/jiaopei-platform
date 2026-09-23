@@ -3,15 +3,18 @@ import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
+  fetchGenderOptions,
   fetchMyStudentProfile,
   listMyStudents,
   unbindStudent,
+  type DictOptionItem,
   type StudentBrief,
   type StudentOwnProfile,
 } from '@/api/miniapp'
 
 const authStore = useAuthStore()
 const boundStudents = ref<StudentBrief[]>([])
+const genderOptions = ref<DictOptionItem[]>([])
 const myProfile = ref<StudentOwnProfile | null>(null)
 
 const displayName = computed(
@@ -45,11 +48,24 @@ onShow(() => {
 })
 
 async function loadMyProfile() {
+  // 性别回显走 gender 字典,与 PC 端同一套值;拉取失败退回原始值显示
+  fetchGenderOptions()
+    .then((items) => {
+      genderOptions.value = items
+    })
+    .catch(() => undefined)
   try {
     myProfile.value = await fetchMyStudentProfile()
   } catch {
     myProfile.value = null
   }
+}
+
+function genderText(gender?: string | null) {
+  if (!gender) {
+    return '-'
+  }
+  return genderOptions.value.find((item) => item.itemValue === gender)?.itemName || gender
 }
 
 async function loadStudents() {
@@ -198,7 +214,7 @@ function handleDeregister() {
         </view>
         <view class="profile-detail">
           <text class="detail-label">性别</text>
-          <text class="detail-value">{{ myProfile.gender === 'MALE' ? '男' : myProfile.gender === 'FEMALE' ? '女' : '-' }}</text>
+          <text class="detail-value">{{ genderText(myProfile.gender) }}</text>
         </view>
         <view class="profile-detail">
           <text class="detail-label">生日</text>

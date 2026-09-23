@@ -1,6 +1,8 @@
 package com.cornerstone.module.education;
 
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.service.SystemDictService;
+import com.cornerstone.module.education.service.support.GenderDictValidator;
 import com.cornerstone.module.education.domain.entity.ClassChangeNoticeEntity;
 import com.cornerstone.module.education.domain.entity.ClassTeacherEntity;
 import com.cornerstone.module.education.domain.entity.ClassTypeEntity;
@@ -59,6 +61,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class EducationThirdMainlineValidationTest {
@@ -102,12 +105,15 @@ class EducationThirdMainlineValidationTest {
     @Mock
     private TermMapper termMapper;
 
+    // 本测试的请求 gender 均为空，校验器只会走"空值落 NULL"分支，不需要打桩
+    private final GenderDictValidator genderDictValidator = new GenderDictValidator(mock(SystemDictService.class));
+
     @Mock
     private ClassChangeNoticeService classChangeNoticeService;
 
     @Test
     void createTeacherRejectsDuplicateTeacherCode() {
-        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper);
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper, genderDictValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(1L);
 
@@ -118,7 +124,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsDuplicateStudentNo() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, genderDictValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectCount(any())).thenReturn(1L);
 
@@ -129,7 +135,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsFutureBirthday() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, genderDictValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createStudent(studentRequest("S002", LocalDate.now().plusDays(1))));

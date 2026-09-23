@@ -18,7 +18,7 @@ public record StudentUpdateRequest(
     @Schema(description = "学员姓名")
     @JsonAlias({"name", "student_name"})
     String studentName,
-    @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"})
+    @Schema(description = "性别字典(gender:male=男,female=女,unknown=未知)", allowableValues = {"male", "female", "unknown"})
     String gender,
     @Schema(description = "出生日期")
     LocalDate birthday,

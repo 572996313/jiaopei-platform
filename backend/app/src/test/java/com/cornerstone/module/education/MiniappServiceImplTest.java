@@ -18,7 +18,10 @@ import com.cornerstone.module.education.dto.StudentProfileSaveRequest;
 import com.cornerstone.module.education.mapper.UserStudentRelMapper;
 import com.cornerstone.module.education.service.impl.MiniappServiceImpl;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemConfigService;
+import com.cornerstone.core.system.service.SystemDictService;
+import com.cornerstone.module.education.service.support.GenderDictValidator;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
@@ -56,14 +59,20 @@ class MiniappServiceImplTest {
     private final ClassroomMapper classroomMapper = mock(ClassroomMapper.class);
     private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
+    private final SystemDictService systemDictService = mock(SystemDictService.class);
+    private final GenderDictValidator genderDictValidator = new GenderDictValidator(systemDictService);
 
     private MiniappServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
-            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService);
+            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService, genderDictValidator);
         when(systemConfigService.getIntConfig("auth.register.default_institution_id", 1)).thenReturn(1);
+        when(systemDictService.listItems("gender")).thenReturn(List.of(
+            new DictItemView(40L, 5L, "male", "男", "male", 10, "active", null),
+            new DictItemView(41L, 5L, "female", "女", "female", 20, "active", null),
+            new DictItemView(42L, 5L, "unknown", "未知", "unknown", 30, "active", null)));
         authenticate(1L);
     }
 
@@ -349,14 +358,14 @@ class MiniappServiceImplTest {
         when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小花", "FEMALE", null));
+        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
 
         assertEquals(Boolean.TRUE, profile.bound());
         assertEquals("小花", profile.studentName());
         ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
         verify(studentMapper).insert(captor.capture());
         assertEquals(2L, captor.getValue().getUserId());
-        assertEquals("FEMALE", captor.getValue().getGender());
+        assertEquals("female", captor.getValue().getGender());
         assertTrue(captor.getValue().getStudentNo() != null && captor.getValue().getStudentNo().startsWith("S"));
     }
 
@@ -368,11 +377,21 @@ class MiniappServiceImplTest {
         when(studentMapper.selectOne(any())).thenReturn(student);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小明改", "MALE", null));
+        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小明改", "male", null));
 
         assertEquals("小明改", profile.studentName());
-        assertEquals("MALE", profile.gender());
+        assertEquals("male", profile.gender());
         verify(studentMapper).updateById(student);
+    }
+
+    @Test
+    void saveStudentProfileRejectsGenderOutsideDict() {
+        authenticateStudent(2L);
+        // 历史大写值不再受理：写入口径统一为 gender 字典的 item_value
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.saveStudentProfile(new StudentProfileSaveRequest("小明", "MALE", null)));
+        assertTrue(error.getMessage().contains("性别取值无效"));
+        verify(studentMapper, never()).updateById(any(StudentEntity.class));
     }
 
     // ---- helpers ----
