@@ -290,8 +290,22 @@ pnpm dev:h5            # H5 调试
 - **宽表的读行定位三件套**：主列表一律 `border stripe row-key="id" highlight-current-row`，并把身份列（通常是第一列）`fixed="left"` 固定，滚动看后面列时行身份与当前行不丢。配置化列表走 `ListColumnConfig.fixed`（`'left'|'right'`，对应 `sys_list_config.columns_json` 的 `fixed` 键），列表配置编辑器有「固定列」下拉，后端 `ListConfigServiceImpl.validateColumn` 只放行 `left`/`right`/不填。
 - **默认不加勾选列**：本仓库后端**没有任何批量写接口**，行内操作（删除/启停）都是单行且可逆，加 checkbox 属于伪需求。出现真批量端点时再全系统统一加 `type="selection"`，不要个别页面先加。选中态现在的用途是"钉住正在看的行"，不是批量入口。
 - **按钮与条件的落点顺序**：表格上方固定为「主操作按钮行 `.table-toolbar` → 查询条件行 `.table-filters` → 表格」，两行都左对齐，理由是查询条件要贴着表格（改条件马上看结果），按钮不许夹在中间。整页级的开关（统计条展开、整页刷新、整页主档新增）放页面级 `.table-toolbar`，也在 `.page-toolbar` 筛选栏上方；`.page-toolbar` 只装跨卡片的筛选条件。卡片内的搜索框不再挂标题右侧（`.panel-head-actions` 已删）。行内操作仍在操作列用 `.table-actions` 包 link 按钮，不参与上面的规则。
-- **标题与条数都不重复展示**：页头 `h1.page-title`（`AppLayout.vue`）显示的就是当前菜单节点名，所以**以页面为单位**判断——一屏只有一张主表的页面不渲染 `.panel-title`（连同空掉的 `.education-table-head` 一起删，配置化列表页由 `ConfigurableCrudPage` 统一不渲染）；一屏并排/叠放多张表的页面每张表必须保留标题作区分（校区页四张卡、学员页三张表、时间段编辑器的两个面板都是）。条数全站不显示：分页表看分页器的总数，不分页的表都是刻意选定的小体量表（判据见「前端 / 小程序约定」分页条目）。`.panel-count` 类已删，唯一例外是编辑器里的规模回显（如时间段"N 个节次 × M 天"），那种要并进 `.education-context-text` 而不是复活计数类。`page_json` 的 `title`/`showCount`/`countFormat` 三键随之前端渲染一起删除（V49 清存量），**界面不渲染的配置键一律不留**。
+- **标题与条数都不重复展示**：顶栏页签上显示的就是当前菜单节点名（`AppLayout.vue`，原来的 `h1.page-title` 已随多页签删除），所以**以页面为单位**判断——一屏只有一张主表的页面不渲染 `.panel-title`（连同空掉的 `.education-table-head` 一起删，配置化列表页由 `ConfigurableCrudPage` 统一不渲染）；一屏并排/叠放多张表的页面每张表必须保留标题作区分（校区页四张卡、学员页三张表、时间段编辑器的两个面板都是）。条数全站不显示：分页表看分页器的总数，不分页的表都是刻意选定的小体量表（判据见「前端 / 小程序约定」分页条目）。`.panel-count` 类已删，唯一例外是编辑器里的规模回显（如时间段"N 个节次 × M 天"），那种要并进 `.education-context-text` 而不是复活计数类。`page_json` 的 `title`/`showCount`/`countFormat` 三键随之前端渲染一起删除（V49 清存量），**界面不渲染的配置键一律不留**。
 - **说明文案落点与口径**：`.education-table-head` 右侧不塞文案，卡片标题右侧也不挂按钮（按钮进 `.table-toolbar`）。确有说明就单独一行 `.education-context-text`（作卡片首行时自带下边距，见 `styles/index.css`）。口径：**只写"不看就会用错"或"改完怎么生效"**，例如"在角色管理的「分配菜单」里勾选按钮即授权""保存后需重新登录生效""敏感信息已脱敏展示"。删掉的是两类：把按钮名字复述一遍的（"支持创建、编辑、启停"）、以及功能说明伪装成指引的（"邀请码供新账号自助注册；激活码供预建账号自设密码启用""维护全局字典类型与条目"）。**动态回显不是文案**——"当前机构：X""当前模板：Y"是数据，一律保留。`page_json.description` 同理（V48 清掉 users/roles 两条，V49 收掉壳配置三键）。
+
+### 多页签与页面缓存（keep-alive）
+
+顶栏第二行是页签栏（`packages/core/src/stores/tabs.ts` + `AppLayout.vue`）：打开过的页面各占一个页签，来回切换不丢现场（表单草稿、已加载数据、滚动位置），刷新只靠页签上的刷新按钮，**不做进入页签自动重拉**。
+
+- **页签按 `route.path` 唯一**，同一路径换查询参数（工作台跳课表带 `?date=`、列表带 `?editId=`）不另开页签，只更新该页签记的 `fullPath`。所以**新页面的路由必须有 `name`**，没有 name 的记录（纯 redirect）不登记页签。
+- **缓存 key 是 `path#seq`**：`seq` 在刷新、关闭后重开时自增，换号即让 keep-alive 认不出旧实例、重挂干净页面。**不用 `include`**，因为 include 认组件 name 而路由组件全是懒加载的，页签只拿得到路径；代价是关掉/刷新过的页签会留一个失活实例在缓存里，由 `:max`（`MAX_CACHED_PAGES = MAX_OPEN_TABS + 2`）按 LRU 挤出，这是可接受的。
+- **页面不能再依赖"每次进入都重新挂载"来拉数**：进页面即拉数的写法只在首次生效，切回来是旧数据。要在同页查询参数变化时响应，就 `watch(() => route.query, ...)` 并**必须用 `if (route.name !== '自己的路由名') return` 守卫**（失活期间路由也会变，排课 `ScheduleManageView`、考勤 `ScheduleAttendanceView` 是参照实现）。
+- **切换/重置机构要 `tabs.refreshAll()`**：失活页面的 `watch(currentInstitutionId)` 在缓存期间不会补跑，不换 key 就会把上一个机构的数据留在页签里。退出登录 `tabs.clear()`。
+- **页签交互固定五件**（照浏览器习惯，别自创）：左键切换、中键关闭、拖拽换顺序、页签内刷新按钮、右键菜单。菜单项就五条且顺序不动：**刷新页面 / 关闭当前 / 关闭其他 / 关闭左侧 / 关闭右侧**，范围一律**相对被右键的那个页签**算（和浏览器一致，也对齐 `closeGroup(mode, path)` 的四种 mode）；用不了的置灰而不是隐藏。菜单是自绘的 `.tab-context-menu`（`position: fixed` 跟随鼠标），不用 `el-dropdown`：页签行有 `overflow-x: auto`，弹层会被裁掉。
+- **不提供"关闭全部"**：底座不知道首页在哪（`/dashboard` 是壳工程 `src/router/index.ts` 的 redirect，core 不许 import 壳），关空了内容区就没东西可渲染。同理**只剩一个页签时不给关闭**（× 不渲染、菜单四条关闭全置灰）。要加这条必须先给 core 一个"回得去的那一页"的扩展点，别在个别页面偷偷写死 `/dashboard`。
+- 拖拽排序只改列表顺序，**不改缓存 key**（key 是 `path#seq`），所以挪页签不会把页面重挂一遍。
+- 页签列表存本机 `localStorage` key `cornerstone-open-tabs`（与菜单偏好、导航模式同类，只影响当前浏览器，不随账号同步），上限 `MAX_OPEN_TABS = 10`，淘汰最早打开且非当前页的页签；只剩一个页签时不提供关闭（底座不知道首页路径）。
+- **顶栏分两行，不许合并**：第一行 `.app-header` 只放账号区（机构 + 用户下拉，以后消息中心之类的入口也归这一行，右对齐）；第二行 `.app-tabbar` 是页签栏（下划线式选中态，`::after` 压住底边和内容区连成一块）。原 `h1.page-title` 已删，页面标题只在页签上出现一次，**页面内不要再渲染与菜单同名的大标题**（见上一节）。注意这两行的高度合计是列表页 `TableFillBox` 量高的基准，再加行会压缩内容区。
 
 ## 实体 / DTO 字段说明规范（软规范）
 

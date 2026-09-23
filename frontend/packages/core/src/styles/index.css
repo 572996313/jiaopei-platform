@@ -279,22 +279,154 @@ body {
   margin-bottom: 16px;
 }
 
+/* 顶栏这一行只放账号区(机构 + 用户),后续消息中心之类的入口也归它;页面标题在下面的页签行 */
 .app-header {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 
 .page-kicker {
   color: #5c6b82;
 }
 
-.page-title {
-  margin: 0;
-  font-size: 18px;
+/* ============ 多页签栏:自成一行,压在内容区上方 ============ */
+
+.app-tabbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  /*
+   * 页签多到溢出时靠横向滚动,不出滚动条:Windows 经典滚动条有 15px 实体高度,
+   * 会把这一行顶高一截,而这一行的高度是列表页量高的基准之一。当前页签会自动滚进可视区。
+   */
+  scrollbar-width: none;
+}
+
+.app-tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.app-tab {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px 7px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+
+.app-tab.is-dragging {
+  opacity: 0.45;
+}
+
+.app-tab:hover {
+  color: var(--brand-navy);
+}
+
+/* 下划线式选中态:压住分页栏的底边,页签与它下面的内容连成一块 */
+.app-tab.is-active {
+  color: var(--brand-blue);
   font-weight: 600;
+}
+
+.app-tab.is-active::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: -1px;
+  left: 6px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--brand-blue);
+}
+
+.app-tab-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 页签内操作:悬停或激活时才露出,免得整排页签看着全是按钮 */
+.app-tab-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background-color 0.15s;
+}
+
+.app-tab:hover .app-tab-action,
+.app-tab.is-active .app-tab-action {
+  opacity: 0.8;
+}
+
+.app-tab-action:hover {
+  background-color: rgba(20, 33, 61, 0.12);
+  opacity: 1;
+}
+
+/* 页签右键菜单:跟着鼠标定位,所以 fixed,不放进页签行(那行 overflow-x 会把它裁掉) */
+.tab-context-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 152px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(20, 33, 61, 0.16);
+}
+
+.tab-context-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--brand-navy);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab-context-item:hover:not(:disabled) {
+  background: #e8f1fb;
+  color: var(--brand-blue);
+}
+
+.tab-context-item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* 刷新与"关闭 ×"是两类动作,中间断一道线 */
+.tab-context-item.is-divided {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .app-content {
@@ -306,6 +438,7 @@ body {
 
 .header-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 12px;
 }

@@ -154,7 +154,6 @@
       />
 
       <header class="app-header">
-        <h1 class="page-title">{{ currentTitle }}</h1>
         <div class="header-actions">
           <div class="header-institution-block">
             <el-tag
@@ -215,9 +214,74 @@
         </div>
       </header>
 
+      <!--
+        页签单独一行,不和右上角的机构/账号挤在同一行:那一行留给账号区,
+        以后消息中心之类的入口也放那里。页面标题只在页签上出现一次。
+      -->
+      <nav ref="tabStripRef" class="app-tabbar" @scroll="tabMenu = null">
+        <div
+          v-for="(tab, index) in tabs.tabs"
+          :key="tab.path"
+          class="app-tab"
+          :class="{
+            'is-active': tab.path === tabs.activePath,
+            'is-dragging': draggingIndex === index,
+          }"
+          draggable="true"
+          @click="activateTab(tab.path)"
+          @auxclick="onTabAuxClick(tab.path, $event)"
+          @contextmenu.prevent="openTabMenu(tab, $event)"
+          @dragstart="onTabDragStart(index, $event)"
+          @dragover.prevent
+          @drop.prevent="onTabDrop(index)"
+          @dragend="draggingIndex = null"
+        >
+          <span class="app-tab-label">{{ tab.label || tab.path }}</span>
+          <el-icon class="app-tab-action" title="刷新该页" @click.stop="tabs.refresh(tab.path)">
+            <Refresh />
+          </el-icon>
+          <el-icon
+            v-if="tabs.closable"
+            class="app-tab-action"
+            title="关闭页签"
+            @click.stop="closeTab(tab.path)"
+          >
+            <Close />
+          </el-icon>
+        </div>
+      </nav>
+
       <main class="app-content">
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <!--
+            按页签换 key:同一页面切回来命中缓存(现场不丢),刷新或关掉重开时 key 变了,
+            重新挂一个干净实例。没走 include 是因为 include 认组件 name,而路由组件是懒加载的,
+            页签只拿得到路径;遗留的失活实例交给 max 按 LRU 挤出。
+          -->
+          <KeepAlive :max="MAX_CACHED_PAGES">
+            <component :is="Component" v-if="Component" :key="tabs.cacheKey(route.path)" />
+          </KeepAlive>
+        </RouterView>
       </main>
+    </div>
+
+    <!-- ============ 页签右键菜单 ============ -->
+    <div
+      v-if="tabMenu"
+      class="tab-context-menu"
+      :style="{ left: `${tabMenu.x}px`, top: `${tabMenu.y}px` }"
+    >
+      <button
+        v-for="item in tabMenuActions"
+        :key="item.action"
+        type="button"
+        class="tab-context-item"
+        :class="{ 'is-divided': item.action === 'single' }"
+        :disabled="!item.enabled"
+        @click="runTabMenu(item.action)"
+      >
+        {{ item.label }}
+      </button>
     </div>
 
     <!-- ============ 菜单偏好设置 ============ -->
@@ -249,9 +313,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Check, Setting } from '@element-plus/icons-vue'
+import { ArrowDown, Check, Close, Refresh, Setting } from '@element-plus/icons-vue'
 import {
   contributedNavItems,
   currentBrand,
@@ -259,6 +323,12 @@ import {
 } from '@cornerstone/core/extension/module-extensions'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import {
+  MAX_CACHED_PAGES,
+  useTabsStore,
+  type PageTab,
+  type TabCloseMode,
+} from '@cornerstone/core/stores/tabs'
 import type { SystemMenuTreeNode } from '@cornerstone/core/api/system'
 import { resolveMenuIcon } from '@cornerstone/core/constants/menuIcons'
 
@@ -429,10 +499,7 @@ const coreSidebarDefinitions: SidebarDefinition[] = [
 ]
 
 /** 业务登记的在前、底座自有在后；组间顺序看 groupOrder，组内保持登记顺序 */
-const sidebarDefinitions = computed(() => [
-  ...contributedNavItems(),
-  ...coreSidebarDefinitions,
-])
+const sidebarDefinitions = computed(() => [...contributedNavItems(), ...coreSidebarDefinitions])
 
 /** 配置化目录的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
 function displayLabel(item: SidebarDefinition): string {
@@ -479,29 +546,192 @@ const navGroups = computed(() => {
   return buckets.sort((a, b) => a.order - b.order)
 })
 
-/** ================= 当前页匹配(标题 / 高亮) ================= */
+/** ================= 当前页匹配(页签标题 / 高亮) ================= */
 
-/** 当前路径命中的子项(用于标题与高亮,子项优先于父项) */
-const matchedChild = computed(() => {
+/**
+ * 路径 → 菜单节点标题(子项优先于父项)。菜单树还没就绪时返回 null,
+ * 由调用方回退到页签登记时记下的标题。
+ */
+function titleOfPath(path: string): string | null {
   for (const item of sidebarDefinitions.value) {
     for (const child of resolveVisibleChildren(item)) {
-      if (child.prefixes.some((prefix) => route.path.startsWith(prefix))) {
-        return child
+      if (child.prefixes.some((prefix) => path.startsWith(prefix))) {
+        return child.title
       }
     }
   }
-  return null
+  return (
+    sidebarDefinitions.value.find((item) => item.prefixes.some((prefix) => path.startsWith(prefix)))
+      ?.title ?? null
+  )
+}
+
+/** ================= 多页签(切页不丢现场) ================= */
+
+const tabs = useTabsStore()
+
+/** 路由落定即登记页签;纯 redirect 记录没有组件,不占页签 */
+watch(
+  () => route.fullPath,
+  () => {
+    if (!route.name) {
+      return
+    }
+    tabs.open({ path: route.path, fullPath: route.fullPath, label: titleOfPath(route.path) || '' })
+  },
+  { immediate: true }
+)
+
+/** 菜单树晚到或后台改过菜单名:所有页签(含未激活的)按最新菜单重算标题 */
+watch(
+  () => auth.currentMenus,
+  () => {
+    for (const tab of tabs.tabs) {
+      const title = titleOfPath(tab.path)
+      if (title) {
+        tab.label = title
+      }
+    }
+  }
+)
+
+/** 本机页签偏好:与菜单偏好一样只存当前浏览器,不随账号同步 */
+watch(
+  () => tabs.tabs,
+  () => tabs.persist(),
+  { deep: true }
+)
+
+/**
+ * 切换/重置机构后让全部页签换 key:失活页面的 watch 在缓存期间不会补跑,
+ * 光靠它们自己拉数会把上一个机构的数据留在页签里。
+ */
+watch(
+  () => institutionStore.currentInstitutionId,
+  (id, prevId) => {
+    if (prevId && id !== prevId) {
+      tabs.refreshAll()
+    }
+  }
+)
+
+/** 恢复出来的页签可能指向已卸载模块的路由,进不去就不留着 */
+onMounted(() => {
+  for (const tab of [...tabs.tabs]) {
+    if (!router.resolve(tab.path).matched.some((record) => record.name)) {
+      tabs.closeGroup('single', tab.path)
+    }
+  }
 })
 
-const currentTitle = computed(() => {
-  return (
-    matchedChild.value?.title ??
-    sidebarDefinitions.value.find((item) =>
-      item.prefixes.some((prefix) => route.path.startsWith(prefix))
-    )?.title ??
-    brand.product
-  )
-})
+function activateTab(path: string) {
+  const tab = tabs.tabs.find((item) => item.path === path)
+  if (!tab || path === route.path) {
+    return
+  }
+  router.push(tab.fullPath)
+}
+
+/** 关闭一条:× 按钮、鼠标中键、右键菜单的"关闭当前"共用 */
+function closeTab(path: string) {
+  const target = tabs.closeGroup('single', path)
+  if (target) {
+    router.push(target)
+  }
+}
+
+function onTabAuxClick(path: string, event: MouseEvent) {
+  // 浏览器习惯:中键点页签即关闭
+  if (event.button === 1 && tabs.closable) {
+    closeTab(path)
+  }
+}
+
+/** ================= 页签右键菜单 ================= */
+
+/** 菜单里的动作:刷新不改页签列表,其余四种是按被右键页签算的关闭范围 */
+type TabMenuAction = 'refresh' | TabCloseMode
+
+const TAB_MENU_WIDTH = 152
+const TAB_MENU_HEIGHT = 172
+
+const tabMenu = ref<{ path: string; x: number; y: number } | null>(null)
+
+/** 被右键页签的位置:左侧/右侧两项的可用范围按它算 */
+const tabMenuIndex = computed(() =>
+  tabMenu.value ? tabs.tabs.findIndex((item) => item.path === tabMenu.value?.path) : -1
+)
+
+const tabMenuActions = computed<Array<{ label: string; action: TabMenuAction; enabled: boolean }>>(
+  () => {
+    const index = tabMenuIndex.value
+    const total = tabs.tabs.length
+    return [
+      { label: '刷新页面', action: 'refresh', enabled: true },
+      { label: '关闭当前', action: 'single', enabled: total > 1 },
+      { label: '关闭其他', action: 'others', enabled: total > 1 },
+      { label: '关闭左侧', action: 'left', enabled: index > 0 },
+      { label: '关闭右侧', action: 'right', enabled: index >= 0 && index < total - 1 },
+    ]
+  }
+)
+
+function openTabMenu(tab: PageTab, event: MouseEvent) {
+  tabMenu.value = {
+    path: tab.path,
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - TAB_MENU_WIDTH - 8)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - TAB_MENU_HEIGHT - 8)),
+  }
+}
+
+function runTabMenu(action: TabMenuAction) {
+  const target = tabMenu.value
+  tabMenu.value = null
+  if (!target) {
+    return
+  }
+  if (action === 'refresh') {
+    tabs.refresh(target.path)
+    return
+  }
+  const next = tabs.closeGroup(action, target.path)
+  if (next) {
+    router.push(next)
+  }
+}
+
+/** ================= 页签拖拽排序 ================= */
+
+const draggingIndex = ref<number | null>(null)
+
+function onTabDragStart(index: number, event: DragEvent) {
+  draggingIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    // Firefox 要求先 setData 才允许拖拽,值本身用不上
+    event.dataTransfer.setData('text/plain', tabs.tabs[index]?.path ?? '')
+  }
+}
+
+function onTabDrop(index: number) {
+  if (draggingIndex.value !== null) {
+    tabs.move(draggingIndex.value, index)
+  }
+  draggingIndex.value = null
+}
+
+/** 页签多到溢出时,切过去的页签要自己滚进可视区(block: nearest 避免顺带把页面滚走) */
+const tabStripRef = ref<HTMLElement | null>(null)
+
+watch(
+  () => tabs.activePath,
+  async () => {
+    await nextTick()
+    tabStripRef.value
+      ?.querySelector('.app-tab.is-active')
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }
+)
 
 function isNavItemActive(item: { prefixes: string[] }) {
   return item.prefixes.some((prefix) => route.path.startsWith(prefix))
@@ -681,9 +911,12 @@ function handleRailChildClick(item: RailItem) {
   }
 }
 
-/** 点击侧边栏之外的区域:收起钉住的窄栏浮层(pin-outside)与 smart 模式下展开的组 */
+/** 点击侧边栏之外的区域:收起钉住的窄栏浮层(pin-outside)、smart 模式下展开的组,以及页签右键菜单 */
 function handleDocumentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null
+  if (tabMenu.value && !target?.closest('.tab-context-menu')) {
+    tabMenu.value = null
+  }
   const insideSidebar = !!target?.closest('.app-sidebar')
   if (
     pinnedRailKey.value &&
@@ -697,12 +930,20 @@ function handleDocumentClick(event: MouseEvent) {
   }
 }
 
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && tabMenu.value) {
+    tabMenu.value = null
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('keydown', handleDocumentKeydown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('keydown', handleDocumentKeydown)
 })
 
 /** ================= 顶栏用户操作 ================= */
@@ -724,6 +965,8 @@ function handleUserCommand(command: string | number | object) {
 async function handleLogout() {
   await auth.logout()
   institutionStore.reset()
+  // 页签属于上一个账号的浏览现场,连同缓存一起清掉
+  tabs.clear()
   router.push('/login')
 }
 </script>
