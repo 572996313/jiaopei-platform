@@ -1,4 +1,4 @@
-import { requestGet, requestPost } from '@/utils/request'
+import { requestGet, requestPost, type RecoveryOptions } from '@/utils/request'
 
 export interface LoginResponse {
   userId: string
@@ -42,8 +42,8 @@ export interface InvitationPrecheckView {
 }
 
 /** 微信小程序登录:code 换 openid,已注册直接返回令牌,未注册时 registered=false */
-export function wechatLogin(code: string) {
-  return requestPost<WechatLoginResponse>('/auth/wechat/login', { code })
+export function wechatLogin(code: string, options?: RecoveryOptions) {
+  return requestPost<WechatLoginResponse>('/auth/wechat/login', { code }, options)
 }
 
 /** 扫码注册入口:校验小程序码 scene 里携带的邀请码 */

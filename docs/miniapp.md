@@ -139,7 +139,12 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 - **雪花 ID 精度保护**:后端 19 位 Long 以 JSON 数字传输会超出 JS 安全整数范围,
   `utils/request.ts` 关闭自动 JSON.parse,先用与 `frontend/src/api/http.ts` 相同的
   正则把 `id/*Id/*Ids/*By` 字段转字符串再解析。
-- **401 处理**:任何接口返回 401 时清除本地会话并跳回登录页。
+- **401 处理**:令牌被服务端判失效(过期或被管理端踢下线)时,请求层先**静默重登一次**
+  (`wx.login` + `/auth/wechat/login`,并发请求共用同一次重登)并重放原请求;重登仍失败才
+  清除本地会话并跳回登录页。
+- **会话只存 storage 一份**:`utils/auth-session.ts` 是唯一真相,`useAuthStore().isLoggedIn()`
+  现读现判。**不要在 store 里再缓存一份 session 快照**——401 只会清 storage,内存副本清不掉,
+  登录页与首页的 `onShow` 判据会互相矛盾、来回 `reLaunch`。
 
 ## 常见问题
 
@@ -148,8 +153,8 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
   正式环境必须配置 HTTPS 域名并在小程序后台加入 request 合法域名。
 - **code 无效/已被使用**:`wx.login` 的 code 一次性有效,报"微信登录失败"时重试即可,
   勿在前后端重复使用同一 code。
-- **jwt 已过期**:默认 12 小时(系统配置 `auth.token.expire_hours`),过期后请求层会
-  自动退回登录页。
+- **jwt 已过期**:默认 12 小时(系统配置 `auth.token.expire_hours`),过期后请求层会静默
+  重登并重放请求,用户无感;只有重登失败(账号已注销、微信侧异常)才会退回登录页。
 
 ## 后续迭代方向
 

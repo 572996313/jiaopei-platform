@@ -17,12 +17,12 @@ const features = [
 ]
 
 onShow(() => {
-  if (!authStore.isLoggedIn) {
+  if (!authStore.isLoggedIn()) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
   authStore.refreshUserInfo().catch(() => {
-    // 401 时请求层已统一跳回登录页
+    // 静默重登也救不回来时,请求层已清掉本地会话并跳回登录页
   })
 })
 </script>

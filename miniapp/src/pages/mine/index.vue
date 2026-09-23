@@ -34,7 +34,7 @@ const roleText = computed(() => {
 })
 
 onShow(() => {
-  if (!authStore.isLoggedIn) {
+  if (!authStore.isLoggedIn()) {
     return
   }
   if (isStudent.value) {

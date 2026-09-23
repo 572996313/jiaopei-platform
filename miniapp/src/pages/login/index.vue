@@ -9,7 +9,7 @@ const loading = ref(false)
 
 onShow(() => {
   // 已登录用户从分享/扫码等入口回到小程序时,直接进入首页
-  if (authStore.isLoggedIn) {
+  if (authStore.isLoggedIn()) {
     uni.reLaunch({ url: '/pages/index/index' })
   }
 })
