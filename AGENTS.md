@@ -45,7 +45,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 - **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名、容器与镜像名**保持 jiaopei 不变**（那是本项目的部署标识，不属于底座身份）。表前缀属另一码事：底座表 `sys_`、业务表 `jp_`，阶段五-0b 已把底座四张表从 `jp_` 改到 `sys_`。
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
 - `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
-- 业务专属的第三方依赖放各自模块的 pom：`wx-java-miniapp-spring-boot-starter` 已随微信登录下沉到 `module-education`（版本仍由 parent 的 `dependencyManagement` 管），core 不再声明。core 的 pom 里**不允许**出现 `module-*` 依赖，也不允许出现只有业务模块用得上的第三方 SDK。
+- 业务专属的第三方依赖放各自模块的 pom：`wx-java-miniapp-spring-boot-starter` 已随微信登录下沉到 `module-education`（版本仍由 parent 的 `dependencyManagement` 管），core 不再声明。core 的 pom 里**不允许**出现 `module-*` 依赖，也不允许出现只有业务模块用得上的第三方 SDK。判据是"这段依赖服务的是谁的功能"，不是"有没有业务模块用得上"：`easyexcel`（连带它传递进来的 POI）自「用户账号批量导入」起服务的是底座自己的功能（模板生成与 xlsx 解析全在 `core/auth` 下，消费方装了底座就带这套），因此进 core 合规；只服务某个行业表意的 SDK（微信、支付、地图一类）仍留在业务模块。
 - 新增类放在自己所属模块，不要在 `app/src/main/java` 下写业务代码（该模块只放主类与资源）。
 
 ### 模块装配与开关（阶段二C 起为真开关）
@@ -68,6 +68,7 @@ cornerstone:
 - `false` 时该模块整包不注册：接口 404、`/v3/api-docs` 与「功能权限总览」都不再列出，`/api/system/bootstrap` 的模块清单里也没有它。
 - 依赖方向 `education → organization`，**关 organization 必须同时关 education**（只关前者会让后端的模块清单出现"装了但接口没挂上"的半残状态）。
 - 迁移目录是可配的两组列表：业务库 `cornerstone.flyway.locations`（教培只配 `classpath:db/migration`）、日志库 `cornerstone.flyway.audit-locations`（教培只配 `classpath:db/audit-migration`）。模块要自带脚本时在此追加该 jar 内目录，不改代码。**这两项必须经 `CornerstoneProperties` 绑定，不能用 `@Value`**：YAML 列表在 Environment 里是 `locations[0]`/`[1]`，`@Value` 取不到列表只会静默回落到默认值，症状是"配了没生效、Flyway 报 `No migrations found`、启动不报错"。教培自己的配置值恰好等于默认值，所以这个坑只有下游配第二条目录时才暴露（守护：`CornerstoneBaselineGuardTest#flywayLocationsMustBindTheYamlListForm`）。`CornerstoneProperties` 由底座自己的 `CornerstonePropertiesConfiguration`（`@EnableConfigurationProperties`）登记，**下游不需要、也不应该**把 `com.cornerstone.core.config.properties` 列进它的 `@ConfigurationPropertiesScan`——那条要求漏写的症状同样是"配置全取默认值且不报错"（守护：`ModuleSwitchGuardTest#coreMustSelfRegisterItsConfigurationProperties`）。
+- **改底座种下的那几行数据要两边各写一份迁移**。core jar 自带的 `cornerstone/migration/V100~V199` 是"下游从零建库"才走的路径，**教培自己的 `locations` 里没有这条目录**，本项目的库是从 `app/` 的 V1..V55 长起来的，所以 V1xx 在教培一条都不执行（反过来，新下游只跑 V1xx，拿不到 `app/` 的脚本）。落到实操：给 `sys_list_config`/`sys_menu`/`sys_system_config` 这类**底座持有的行**加字段或改值时，core 侧新增一个 `V10<n>`、`app/` 侧同时新增一个 `V5<n>`，两份 UPDATE 内容一字不差，并在各自头部注释写明另一个文件（参照 `V104__add_user_import_toolbar_action.sql` 与 `V55__add_user_import_toolbar_action.sql`）。只写 core 那份的症状是"教培页面上按钮没出现、也不报错"；只写 `app/` 那份则新项目永远缺这个按钮。V1xx 基线脚本（`V100`/`V101`）已发过下游，**同样不许原地改**，checksum 一变下游直接拒绝启动。
 
 必须知道的三个连带约束：
 
@@ -209,6 +210,8 @@ pnpm dev:h5            # H5 调试
 - 底座确需感知业务数据时（如注销账号清理学员关联、判定登录令牌属于哪个端），用**事件**（底座发 `UserAccountDeregisteredEvent`，业务模块 `@EventListener` 监听）或 **SPI 接口**（接口定义在底座如 `PortalResolver`，实现放业务模块；单实现经 `ObjectProvider` 可选注入，多实现（如各端判定）注入 `List<T>` 按装配顺序取第一个非空结果，全都不适用时底座落回默认值），不要在底座里直接 import 业务 mapper。**业务属性往底座表加列不算解耦**（如"用户默认校区"，阶段五-0a 已迁成 `module-organization` 自己的 `jp_user_campus_pref`）。
 - **底座不得按接口路径/字段值硬编码业务语义**：如审计的操作类型，改成由业务控制器自己标 `@OperateLog(actionType = ActionType.LOGIN)`，`OperateLogAspect` 只认注解，不再写死 `/api/auth/wechat/login` 这类业务路径。行业专属枚举（`Portal` 之类只服务某个业务端的枚举）不进底座，直接删；底座只留通用默认。
 - 新的小程序/行业专属服务放业务包（参照 `MiniappServiceImpl` 已迁至 `education.service`），`auth` 只留通用登录态。
+- **底座自带的通用能力接口**（换行业照样要用的一律进 `core`，不再放业务模块）：`/api/system/user-import` 三条——`GET /template` 下载 xlsx 模板、`POST /preview` 逐行校验不落库、`POST /commit` 整批新建登录账号，实现 `com.cornerstone.core.auth.service.impl.UserAccountImportServiceImpl` + `SystemUserImportController`，权限串 `system:user:manage`（与 `SystemUserController` 全部方法同码）。三条约定别改回去：模板列是 `@ExcelProperty(index=n)` 按位置解析（客户改表头不影响），数据必须在第一个工作表，单次上限 500 行；**归属机构只取 `AuthContext.requireUser().orgId()`，模板没有机构列、接口也不收 `institutionId`**——批量入口一旦允许指定机构，等于允许往别人机构里整批写账号；**初始口令必填**，不许复用 `SystemUserServiceImpl#initialPassword` 那个公共兜底口令（单个建号是便利，批量等于给一整批人发同一个号且全程无提示）。登录账号是全系统唯一键，所以同号分两种结论要分开报：本机构已有→跳过新建（`notice`）、他机构占用→报错换号，合成一句"已存在"会让操作员以为账号在自己名下。
+- **列表按钮走配置不走硬编码**：按钮定义在 `sys_list_config.actions_json`（`action`/`label`/`position`/`buttonType`/`permission`），前端 `ConfigurableList` 按 `auth.hasPermission(permission)` 显隐，动作实现注册在页面的 `CrudPageOptions.extraActions`。**`actions_json` 里的 `action` 串必须与 `extraActions` 的键一字不差**，对不上就是点了没反应（配置里 `action` 写错没有任何校验能发现）。改按钮要两边一起改：新增迁移整值覆盖 `actions_json`（`NULL`=未配置→回退 `#actions` 插槽模式，`[]`=明确无按钮）+ 前端补 handler，参照用户管理页的 `user-import`。
 - **命名边界（阶段四定稿，改名字时照这张表判断，别顺手连数据库名一起改）**：
   - 属于底座身份 → 用 `cornerstone`：Java 包根 `com.cornerstone.*`、Maven groupId、Spring 配置前缀 `cornerstone.*`、Redis key 前缀 `cornerstone:`、前端 npm scope `@cornerstone/*`、浏览器 storage key `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences`、小程序 `cornerstone.mini.auth.session`、Hikari 池名 `cornerstone-*-pool`。
   - 属于本项目部署/业务标识 → **保持 `jiaopei` / `jp_`**：库名 `jiaopei_platform` 与日志库 `jiaopei_log`、MySQL 账号、业务表前缀 `jp_`（**底座表已在阶段五-0b 统一改 `sys_`**，见「模块划分与持久化」的 Flyway 条目；索引/外键/检查约束名 `uk_jp_*`/`fk_jp_*`/`chk_jp_*` 保持原样，不随表改名）、artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`。改这些要生产数据迁移，不属于改名范围。
@@ -219,7 +222,7 @@ pnpm dev:h5            # H5 调试
 
 以下为审查发现的高频问题固化的硬约定：
 
-1. **租户隔离**：客户端传入的 `institutionId`/`campusId` 只是筛选条件，服务端必须与当前登录用户所属机构比对（`AuthContext.requireUser()`），不允许拿任意入参直查他机构数据。参照 `SystemInstitutionController` 的正确写法。
+1. **租户隔离**：客户端传入的 `institutionId`/`campusId` 只是筛选条件，服务端必须与当前登录用户所属机构比对（`AuthContext.requireUser()`），不允许拿任意入参直查他机构数据。参照 `SystemInstitutionController` 的正确写法。**整批写入口（批量导入一类）干脆不接受机构参数**，只认登录态所在机构——少一个参数就少一条绕过比对的通道，参照 `SystemUserImportController`（见「底座边界」）。
 2. **权限回收即时生效**：修改角色权限、用户角色、菜单授权后必须让受影响用户下线——**底座已经兜住这三条路径**（阶段五-1e）：`SystemRoleServiceImpl.updateRole` 与 `SystemMenuServiceImpl.updateRoleMenus` 调 `AuthApplicationService.invalidateUserSessionsByRole(roleId)`（按 `sys_user_role_rel` 反查持有用户），`SystemUserServiceImpl.updateRoles` 调 `invalidateUserSessions(userId)`。业务模块新增"改授权"的接口时仍要自己调对应那个方法，权限快照写进 JWT，不清会话则 12 小时内旧权限继续可用。两条约束：**改菜单节点自身权限码（`updateMenu`/`deleteMenu`）底座没覆盖**（两跳反查，见 `docs/底座下游接入说明.md` 第 6 节 15 条）；`SystemMenuServiceImpl` 注 `AuthApplicationService` 必须走 `ObjectProvider`——`AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService` 已成环，构造注入会让容器启动失败。
 3. **逻辑删除与唯一索引**：配合 `@TableLogic` 的唯一索引必须包含 `deleted` 列（如 `uk(code, deleted)`），否则“删除后重建同名记录”必撞键（V18 已为 `sys_menu` 擦过一次）。
 4. **先查后插必须有兜底**：冲突校验（排课撞教师/教室/班级、绑定唯一性）selectCount 后 insert 存在并发竞态，必须配数据库唯一约束或显式锁；多表写操作必须 `@Transactional`，注意同类内自调用事务不生效。

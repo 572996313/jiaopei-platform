@@ -7,6 +7,12 @@
     :crud="userCrud"
   />
 
+  <!-- 批量导入账号向导(整批建号,与单个新增分开) -->
+  <UserAccountImportDialog
+    v-model="importDialogVisible"
+    @imported="userCrudPageRef?.reload()"
+  />
+
   <!-- 分配角色弹窗(业务专属,宿主实现) -->
   <el-dialog v-model="roleAssignDialogVisible" title="分配角色" width="520px">
     <div class="education-dialog-context">
@@ -52,6 +58,7 @@ import {
 import type { SystemRoleSummary, SystemUserSummary } from '@cornerstone/core/api/system'
 import { fetchInstitutions, type InstitutionSummary } from '@cornerstone/core/api/tenant'
 import ConfigurableCrudPage from '@cornerstone/core/components/ConfigurableCrudPage/index.vue'
+import UserAccountImportDialog from '@cornerstone/core/views/system/UserAccountImportDialog.vue'
 import type { CrudPageOptions } from '@cornerstone/core/components/ConfigurableCrudPage/types'
 import type { RenderContext } from '@cornerstone/core/components/ConfigurableList/renderers'
 import {
@@ -70,6 +77,9 @@ const statusOptions = useStatusOptions()
 const userCrudPageRef = ref<InstanceType<typeof ConfigurableCrudPage> | null>(null)
 const institutions = ref<InstitutionSummary[]>([])
 const roles = ref<SystemRoleSummary[]>([])
+
+/** 批量导入账号向导开关 */
+const importDialogVisible = ref(false)
 
 /** 分配角色弹窗状态(与新增/编辑弹窗分离,宿主独立管理) */
 const roleAssignDialogVisible = ref(false)
@@ -162,6 +172,11 @@ const userCrud: CrudPageOptions = {
       remark: row.remark || undefined,
     }),
   extraActions: {
+    'user-import': {
+      handler: () => {
+        importDialogVisible.value = true
+      },
+    },
     'user-reset-password': {
       handler: (row) => void handleResetPassword(row as SystemUserSummary),
     },

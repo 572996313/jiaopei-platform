@@ -65,5 +65,10 @@
             <artifactId>jjwt-jackson</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- 用户账号批量导入要解析客户上传的 xlsx，底座自带的通用能力；模板生成用其传递进来的 POI -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
     </dependencies>
 </project>
