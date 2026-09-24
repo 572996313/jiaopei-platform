@@ -33,5 +33,10 @@
             <groupId>com.github.binarywang</groupId>
             <artifactId>wx-java-miniapp-spring-boot-starter</artifactId>
         </dependency>
+        <!-- 账号批量导入要解析客户上传的 xlsx,只在业务侧用,底座不引(模板生成用其传递进来的 POI) -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
     </dependencies>
 </project>

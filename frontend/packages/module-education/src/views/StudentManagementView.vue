@@ -109,6 +109,9 @@
       <!-- 本表主操作:表格上方一行、左对齐,排在查询条件上面 -->
       <div class="table-toolbar">
         <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+        <el-button v-if="canImportAccounts" @click="importDialogVisible = true">
+          批量导入账号
+        </el-button>
       </div>
 
       <div class="table-filters">
@@ -543,6 +546,14 @@
         >
       </template>
     </el-dialog>
+
+    <!-- 账号批量导入向导:一行=一个账号绑一个学员,导入后在同一处批量出激活码 -->
+    <StudentAccountImportDialog
+      v-model="importDialogVisible"
+      :institution-id="institutionId"
+      :campus-id="campusId"
+      @imported="refreshAll"
+    />
   </section>
 </template>
 
@@ -569,10 +580,13 @@ import { useEducationScope } from '@cornerstone/module-education/composables/use
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import StudentAccountImportDialog from '@cornerstone/module-education/views/components/StudentAccountImportDialog.vue'
 
 const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
+const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 const { institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
@@ -602,6 +616,7 @@ const formError = ref('')
 const parentFormError = ref('')
 const dialogVisible = ref(false)
 const parentDialogVisible = ref(false)
+const importDialogVisible = ref(false)
 const lookupLoading = ref(false)
 const tableLoading = ref(false)
 const submitting = ref(false)
@@ -647,6 +662,9 @@ const parentForm = reactive({
   status: 'active',
   remark: '',
 })
+
+/** 导入会建账号并绑学员档案，与后端接口的 education:write 同一口径 */
+const canImportAccounts = computed(() => auth.hasPermission('education:write'))
 
 const classMap = computed(() => {
   return new Map(
