@@ -298,9 +298,17 @@ body {
   display: flex;
   flex-shrink: 0;
   align-items: stretch;
-  gap: 4px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
+}
+
+/* 只有页签这一段横向滚,行尾的「最近查看」入口不参与滚动 */
+.app-tab-strip {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: stretch;
+  gap: 4px;
   overflow-x: auto;
   /*
    * 页签多到溢出时靠横向滚动,不出滚动条:Windows 经典滚动条有 15px 实体高度,
@@ -309,7 +317,7 @@ body {
   scrollbar-width: none;
 }
 
-.app-tabbar::-webkit-scrollbar {
+.app-tab-strip::-webkit-scrollbar {
   display: none;
 }
 
@@ -387,6 +395,27 @@ body {
   opacity: 1;
 }
 
+/* 行尾的「最近查看」入口:用一条竖线和页签隔开,它不是页签、也不跟着滚 */
+.app-tab-history {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 12px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.app-tab-history:hover,
+.app-tab-history.is-open {
+  color: var(--brand-blue);
+}
+
 /* 页签右键菜单:跟着鼠标定位,所以 fixed,不放进页签行(那行 overflow-x 会把它裁掉) */
 .tab-context-menu {
   position: fixed;
@@ -427,6 +456,37 @@ body {
   margin-top: 4px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
+}
+
+/* 最近查看:复用上面那套自绘浮层,只是定高可滚 + 标题截断 */
+.app-history-menu {
+  width: 220px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.app-history-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 已经开着的记录前面点个圆点:点它是切过去,不是新开一页 */
+.app-history-item.is-opened::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--brand-blue);
+  vertical-align: middle;
+}
+
+.app-history-empty {
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .app-content {

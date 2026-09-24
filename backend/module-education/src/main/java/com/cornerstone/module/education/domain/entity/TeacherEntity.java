@@ -19,6 +19,9 @@ public class TeacherEntity extends BaseEntity {
     @Schema(description = "校区ID")
     private Long campusId;
 
+    @Schema(description = "关联登录账号ID(sys_user_account.id),NULL=尚未开通或未绑定账号")
+    private Long userId;
+
     @Schema(description = "教师编号")
     private String teacherCode;
 
@@ -28,7 +31,7 @@ public class TeacherEntity extends BaseEntity {
     @Schema(description = "联系电话")
     private String phone;
 
-    @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"})
+    @Schema(description = "性别字典(gender:male=男,female=女,unknown=未知)", allowableValues = {"male", "female", "unknown"})
     private String gender;
 
     @Schema(description = "职称(如 初级/中级/高级)")

@@ -72,6 +72,11 @@
       <!-- 本表主操作:表格上方一行、左对齐 -->
       <div class="table-toolbar">
         <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+        <el-button v-if="canManage" :icon="Upload" @click="importVisible = true">
+          导入档案
+        </el-button>
+        <el-button :icon="Download" :loading="exporting" @click="handleExport">导出</el-button>
+        <el-button v-if="canManage" :icon="Link" @click="linkVisible = true">匹配账号</el-button>
       </div>
 
       <TableFillBox v-slot="{ height }">
@@ -98,6 +103,13 @@
             </template>
           </el-table-column>
           <el-table-column prop="phone" label="手机号" width="150" />
+          <el-table-column label="登录账号" width="110">
+            <template #default="{ row }">
+              <el-tag :type="row.userId ? 'success' : 'info'">
+                {{ row.userId ? '已绑定' : '未绑定' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="用工类型" width="120">
             <template #default="{ row }">
               {{ employmentTypeLabel(row.employmentType) }}
@@ -208,13 +220,18 @@
         }}</el-button>
       </template>
     </el-dialog>
+
+    <TeacherImportDialog v-model="importVisible" @imported="loadTeachers" />
+    <TeacherAccountLinkDialog v-model="linkVisible" @linked="loadTeachers" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import TeacherAccountLinkDialog from '@cornerstone/module-education/views/components/TeacherAccountLinkDialog.vue'
+import TeacherImportDialog from '@cornerstone/module-education/views/components/TeacherImportDialog.vue'
+import { ArrowDown, Download, Link, Refresh, Upload } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
@@ -224,11 +241,13 @@ import {
   updateTeacher,
   type TeacherSummary,
 } from '@cornerstone/module-education/api/education'
+import { exportTeachers } from '@cornerstone/module-education/api/teacherImport'
 import {
   fetchCampuses,
   type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
@@ -236,6 +255,7 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
+const auth = useAuthStore()
 const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
@@ -248,6 +268,12 @@ const teacherTotal = ref(0)
 const teacherKeyword = ref('')
 
 const statsVisible = ref(false)
+
+// 导入与匹配账号都会写库，与后端 @RequiresPermission("education:write") 同一口径
+const canManage = computed(() => auth.hasPermission('education:write'))
+const importVisible = ref(false)
+const linkVisible = ref(false)
+const exporting = ref(false)
 
 const dialogVisible = ref(false)
 const teacherDialogMode = ref<'create' | 'edit'>('create')
@@ -390,6 +416,26 @@ function searchTeachers() {
 function handleTeacherSizeChange() {
   teacherPage.value = 1
   return loadTeachers()
+}
+
+/** 导出走列表当前的筛选条件，不带分页：拿到的就是"我筛出来的这批人" */
+async function handleExport() {
+  if (!institutionId.value) {
+    ElMessage.warning('请先选择机构范围')
+    return
+  }
+  exporting.value = true
+  try {
+    await exportTeachers({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      keyword: trimToUndefined(teacherKeyword.value),
+    })
+  } catch (error) {
+    ElMessage.error(toMessage(error, '导出失败，请稍后重试'))
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {

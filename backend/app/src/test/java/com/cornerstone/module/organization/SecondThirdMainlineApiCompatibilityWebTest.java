@@ -43,6 +43,7 @@ import com.cornerstone.module.education.service.CourseService;
 import com.cornerstone.module.education.service.StudentService;
 import com.cornerstone.module.education.service.StudentParentService;
 import com.cornerstone.module.education.service.TeacherService;
+import com.cornerstone.module.education.service.TeacherAccountLinkService;
 import com.cornerstone.module.education.service.TeachingClassService;
 import com.cornerstone.module.organization.controller.ClassroomController;
 import com.cornerstone.module.organization.controller.TermController;
@@ -137,6 +138,9 @@ class SecondThirdMainlineApiCompatibilityWebTest {
 
     @MockBean
     private TeacherService teacherService;
+
+    @MockBean
+    private TeacherAccountLinkService teacherAccountLinkService;
 
     @MockBean
     private StudentService studentService;

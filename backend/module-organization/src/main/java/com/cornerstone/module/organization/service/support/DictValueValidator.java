@@ -5,6 +5,7 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -37,14 +38,20 @@ public class DictValueValidator {
         if (trimmed.isEmpty()) {
             return null;
         }
-        List<String> allowed = systemDictService.listItems(dictType).stream()
+        List<DictItemView> allowed = systemDictService.listItems(dictType).stream()
             .filter(item -> "active".equals(item.status()))
-            .map(DictItemView::itemValue)
             .toList();
-        if (!allowed.contains(trimmed)) {
+        if (allowed.stream().noneMatch(item -> trimmed.equals(item.itemValue()))) {
+            // 允许值写成「中文(代码)」，与表单下拉给操作员看的词条一致，报错只列代码等于让他在两处对不上
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                fieldLabel + "取值无效，可选值：" + String.join("/", allowed));
+                fieldLabel + "取值无效，可选值：" + allowed.stream().map(this::describe).collect(Collectors.joining("/")));
         }
         return trimmed;
+    }
+
+    private String describe(DictItemView item) {
+        String value = item.itemValue();
+        String label = item.itemName();
+        return label == null || label.isBlank() || label.equals(value) ? value : label + "(" + value + ")";
     }
 }

@@ -5,6 +5,8 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,14 +40,46 @@ public class DictValueValidator {
         if (trimmed.isEmpty()) {
             return null;
         }
-        List<String> allowed = systemDictService.listItems(dictType).stream()
+        List<DictItemView> allowed = systemDictService.listItems(dictType).stream()
             .filter(item -> "active".equals(item.status()))
-            .map(DictItemView::itemValue)
             .toList();
-        if (!allowed.contains(trimmed)) {
+        if (allowed.stream().noneMatch(item -> trimmed.equals(item.itemValue()))) {
+            // 允许值写成「中文(代码)」：导入模板的下拉给的是中文，报错只列代码等于让操作员在两处对不上
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                fieldLabel + "取值无效，可选值：" + String.join("/", allowed));
+                fieldLabel + "取值无效，可选值：" + allowed.stream().map(this::describe).collect(Collectors.joining("/")));
         }
         return trimmed;
+    }
+
+    private String describe(DictItemView item) {
+        String value = item.itemValue();
+        String label = item.itemName();
+        return label == null || label.isBlank() || label.equals(value) ? value : label + "(" + value + ")";
+    }
+
+    /**
+     * 该字典类型「item_name → item_value」反查表，只含启用条目。
+     *
+     * <p>存在的理由：导出文件里字典列是中文（见 {@link #labels}），操作员改完直接回灌是常态，
+     * 只认 item_value 等于逼他们先把整列翻译回去。命不中就原样交给 {@link #validate}，
+     * 由它报"取值无效 + 可选值"。</p>
+     */
+    public Map<String, String> valueByLabel(String dictType) {
+        return systemDictService.listItems(dictType).stream()
+            .filter(item -> "active".equals(item.status()))
+            .collect(Collectors.toMap(DictItemView::itemName, DictItemView::itemValue, (first, second) -> first));
+    }
+
+    /**
+     * 该字典类型「item_value → item_name」对照表，只含启用条目。
+     *
+     * <p>导出/回显整列翻译用：逐格查字典会把接口打爆，一次取全表自己建映射。</p>
+     * <p>字典里没有的值由调用方原样回显（与前端 {@code dictStore.displayLabel} 同口径），
+     * 不许硬映射成某个合法值，脏数据要看得见。</p>
+     */
+    public Map<String, String> labels(String dictType) {
+        return systemDictService.listItems(dictType).stream()
+            .filter(item -> "active".equals(item.status()))
+            .collect(Collectors.toMap(DictItemView::itemValue, DictItemView::itemName, (first, second) -> first));
     }
 }

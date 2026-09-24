@@ -85,7 +85,7 @@ cornerstone:
 mvn -q test                                                # 全量测试（改动必跑，不只是 mvn compile）
 mvn -q -Dtest=AuthControllerWebTest test                   # 单个测试类
 mvn -q -Dtest=AuthControllerWebTest#方法名 test             # 单个测试方法
-mvn -q -DskipTests package                                 # 打包全部模块，产物 app/target/jiaopei-platform-backend-<版本>.jar
+mvn -q -DskipTests clean package                           # 打包全部模块，产物 app/target/jiaopei-platform-backend-<版本>.jar（必须带 clean，见「改代码后必须重启后端」）
 mvn -q -pl module-education -am -DskipTests package         # 只构建某业务模块及其依赖（-am 自动带上 core）
 mvn -q -pl app spring-boot:run                             # 本地运行（需先起 MySQL/Redis，且 core/业务模块已 install 到本地仓库）
 mvn -q dependency:go-offline                               # 预拉依赖（Dockerfile 构建也走这一步）
@@ -99,8 +99,10 @@ mvn -q dependency:go-offline                               # 预拉依赖（Dock
 
 旧进程不会加载新代码，不重启就是“改了没效果”的假象。**直接用仓库脚本**（Git Bash）：
 
+> 打包必须带 `clean`（脚本已改成 `mvn -DskipTests clean package`）。`maven-jar-plugin` 默认 `forceCreation=false`：`app` 模块自身没有源码改动时**跳过重打 fat jar**，`app/target` 里的 jar 仍是旧内容，`BOOT-INF/lib/module-education-*.jar` 也还是上一次的——症状同样是"改了代码、重启也做了、行为却没变，而且一句错都不报"。多模块改完业务代码手工打包时同理。
+
 ```bash
-scripts/restart-backend.sh              # 停旧进程 -> mvn package -> 后台启动 -> 健康检查轮询
+scripts/restart-backend.sh              # 停旧进程 -> mvn clean package -> 后台启动 -> 健康检查轮询
 scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
 ```
 
@@ -259,7 +261,7 @@ pnpm dev:h5            # H5 调试
 
 判断标准：**取值可枚举、给用户选择、运维可能扩充**的字段（如性别），唯一事实源是系统字典 `sys_dict_type`/`sys_dict_item`，禁止各端各自硬编码取值或中文标签。**边界**：由代码逻辑判定的状态值（`status=active/disabled`、课次状态、`deleted` 等）**不入字典**——它们在代码里分支比对，进了字典就等于允许运维在页面上改掉判定逻辑依赖的值。
 
-1. **规范值是 `item_value`**：小写+下划线（如 `male`），入库、接口、前端状态全部用它；中文标签只来自 `item_name`，任何端不许自建映射。存量性别的大写值（`MALE/FEMALE/UNKNOWN`）已由 V51 归一。
+1. **规范值是 `item_value`**：小写+下划线（如 `male`），入库、接口、前端状态全部用它；中文标签只来自 `item_name`，任何端不许自建映射（"自建"指在代码里写常量表；**从字典服务查 `item_name` 不算**，见第 5 条）。存量性别的大写值（`MALE/FEMALE/UNKNOWN`）已由 V51 归一。
 2. **新增枚举字段必须五处同步**，缺一即视为未完成：
    - `app/` 迁移种入字典类型+条目（参照 V51）；
    - DB 列 COMMENT 与 DTO `@Schema` 写成「字典(类型码:值=含义)」格式并带 `allowableValues`（参照 gender 字段现状）；
@@ -268,6 +270,12 @@ pnpm dev:h5            # H5 调试
    - 小程序用 `GET /api/system/dicts/options?typeCodes=<码>` 拉选项（该接口登录即可访问，无需新增端点），参照 `miniapp/src/api/miniapp.ts` 的 `fetchGenderOptions()`。
 3. **`item_value` 不允许原地改**（已上生产的同迁移脚本禁改规矩）：需要改名/换值时新增 `V<n+1>` 归一存量数据（UPDATE + 列注释），与代码同批发布。
 4. **回显兜底口径：未知值显示原始值**，不显示空白也不硬映射成"未知"或某个合法值（PC 走 `dictStore.displayLabel`，小程序参照 `genderText`、`DictSelect` 的 `keepUnknownValue`）——脏数据要可见而不是被静默吞掉。各端**不再写字典值的静态中文映射兜底**（V52/V53 收口时已删），字典拉不到就显示原始 `item_value`，宁可难看也不许两处漂移。
+5. **文件出口（导出 xlsx、导入模板、校验报错）也算"给人看的地方"，字典列一律 `item_name`**，落库/接口传输才用 `item_value`。凡是做了导入或导出的字典字段，下面几条一起守（参照教师档案的 `gender`/`employment_type`）：
+   - 导出翻译走 `DictValueValidator.labels(类型码)`（`item_value → item_name`），**整批取一次建映射**，不许逐格查字典；字典里没有的值原样导出（同第 4 条）。
+   - 模板下拉与说明页给中文条目名；导入侧先 `valueByLabel(类型码)`（`item_name → item_value`）反查再校验，因此**中文和 `item_value` 都认**——"导出 → 改几格 → 原样传回"是最常见用法，只认代码等于逼操作员先把整列翻译回去。
+   - 报错里的允许值写成 `中文(代码)`（`DictValueValidator#describe`）：模板下拉显示"男"、报错说"可选值：male/female/unknown"，操作员不知道自己哪儿错。
+   - **留空/为 null 的值不参与翻译**：不可变 `Map`（`Map.of`）对 null 键直接抛 NPE，症状是"字典列留空反而 500"，查表前先挡掉 null 与空串（参照 `TeacherImportServiceImpl#labelToValue`）。测试里用真实 `Map.of` 当 stub 才能复现，别写成对 null 宽容的假实现把它盖掉。
+   - **代码判定的状态值不翻译**（如教师 `status=active/suspended/left`）：导出与模板都写代码值，别为了"好看"把它塞进字典（边界见本节开头）。
 
 ## 前端模块划分与装配（阶段三 起为 pnpm workspace）
 
@@ -313,17 +321,18 @@ pnpm dev:h5            # H5 调试
 
 ### 多页签与页面缓存（keep-alive）
 
-顶栏第二行是页签栏（`packages/core/src/stores/tabs.ts` + `AppLayout.vue`）：打开过的页面各占一个页签，来回切换不丢现场（表单草稿、已加载数据、滚动位置），刷新只靠页签上的刷新按钮，**不做进入页签自动重拉**。
+顶栏第二行是页签栏（`packages/core/src/stores/tabs.ts` + `AppLayout.vue`）：打开过的页面各占一个页签，来回切换不丢现场（表单草稿、已加载数据、滚动位置），刷新只在页签右键菜单里，**不做进入页签自动重拉**。
 
 - **页签按 `route.path` 唯一**，同一路径换查询参数（工作台跳课表带 `?date=`、列表带 `?editId=`）不另开页签，只更新该页签记的 `fullPath`。所以**新页面的路由必须有 `name`**，没有 name 的记录（纯 redirect）不登记页签。
 - **缓存 key 是 `path#seq`**：`seq` 在刷新、关闭后重开时自增，换号即让 keep-alive 认不出旧实例、重挂干净页面。**不用 `include`**，因为 include 认组件 name 而路由组件全是懒加载的，页签只拿得到路径；代价是关掉/刷新过的页签会留一个失活实例在缓存里，由 `:max`（`MAX_CACHED_PAGES = MAX_OPEN_TABS + 2`）按 LRU 挤出，这是可接受的。
 - **页面不能再依赖"每次进入都重新挂载"来拉数**：进页面即拉数的写法只在首次生效，切回来是旧数据。要在同页查询参数变化时响应，就 `watch(() => route.query, ...)` 并**必须用 `if (route.name !== '自己的路由名') return` 守卫**（失活期间路由也会变，排课 `ScheduleManageView`、考勤 `ScheduleAttendanceView` 是参照实现）。
 - **切换/重置机构要 `tabs.refreshAll()`**：失活页面的 `watch(currentInstitutionId)` 在缓存期间不会补跑，不换 key 就会把上一个机构的数据留在页签里。退出登录 `tabs.clear()`。
-- **页签交互固定五件**（照浏览器习惯，别自创）：左键切换、中键关闭、拖拽换顺序、页签内刷新按钮、右键菜单。菜单项就五条且顺序不动：**刷新页面 / 关闭当前 / 关闭其他 / 关闭左侧 / 关闭右侧**，范围一律**相对被右键的那个页签**算（和浏览器一致，也对齐 `closeGroup(mode, path)` 的四种 mode）；用不了的置灰而不是隐藏。菜单是自绘的 `.tab-context-menu`（`position: fixed` 跟随鼠标），不用 `el-dropdown`：页签行有 `overflow-x: auto`，弹层会被裁掉。
+- **页签交互固定四件**（照浏览器习惯，别自创）：左键切换、中键关闭、拖拽换顺序、右键菜单。**页签上只暴露 × 一个操作图标，刷新不放外面**（用户反馈：外露的刷新按钮总是误操作，右键菜单里已经有了）。菜单项就五条且顺序不动：**刷新页面 / 关闭当前 / 关闭其他 / 关闭左侧 / 关闭右侧**，范围一律**相对被右键的那个页签**算（和浏览器一致，也对齐 `closeGroup(mode, path)` 的四种 mode）；用不了的置灰而不是隐藏。菜单是自绘的 `.tab-context-menu`（`position: fixed` 跟随鼠标），不用 `el-dropdown`：页签行有 `overflow-x: auto`，弹层会被裁掉。
 - **不提供"关闭全部"**：底座不知道首页在哪（`/dashboard` 是壳工程 `src/router/index.ts` 的 redirect，core 不许 import 壳），关空了内容区就没东西可渲染。同理**只剩一个页签时不给关闭**（× 不渲染、菜单四条关闭全置灰）。要加这条必须先给 core 一个"回得去的那一页"的扩展点，别在个别页面偷偷写死 `/dashboard`。
 - 拖拽排序只改列表顺序，**不改缓存 key**（key 是 `path#seq`），所以挪页签不会把页面重挂一遍。
 - 页签列表存本机 `localStorage` key `cornerstone-open-tabs`（与菜单偏好、导航模式同类，只影响当前浏览器，不随账号同步），上限 `MAX_OPEN_TABS = 10`，淘汰最早打开且非当前页的页签；只剩一个页签时不提供关闭（底座不知道首页路径）。
-- **顶栏分两行，不许合并**：第一行 `.app-header` 只放账号区（机构 + 用户下拉，以后消息中心之类的入口也归这一行，右对齐）；第二行 `.app-tabbar` 是页签栏（下划线式选中态，`::after` 压住底边和内容区连成一块）。原 `h1.page-title` 已删，页面标题只在页签上出现一次，**页面内不要再渲染与菜单同名的大标题**（见上一节）。注意这两行的高度合计是列表页 `TableFillBox` 量高的基准，再加行会压缩内容区。
+- **「最近查看」入口固定在页签行尾**（`tabs.history` + `.app-tab-history`）：页签会被上限静默淘汰、也会被自己关掉，这条列表是"回得去刚才那几页"的唯一线索。口径：按路径去重、每次访问提到最前（**是 LRU 不是访问堆栈**），上限 `MAX_VISITED_PAGES = 20`，存本机 `cornerstone-visited-pages`，`clear()` 时和页签一起清（同属上一个账号的浏览现场），`onMounted` 与页签一样用 `router.resolve(...).matched` 剪掉进不去的条目。条目标题同样走 `titleOfPath`（菜单树晚到时 `renameVisits` 补）。**已经开着的条目前面点圆点**——点它是切回原现场，不是新开一页。**它不参与横向滚动**：`.app-tabbar` 是行容器，`.app-tab-strip` 才是滚的那一段，入口在滚动区外面（否则页签一多它就被滚走，失去意义）。下拉用自绘的 `.tab-context-menu` 复用样式，理由同右键菜单。加/减这类"访问现场"记录只动 `stores/tabs.ts`，不要在页面里另起一份。
+- **顶栏分两行，不许合并**：第一行 `.app-header` 只放账号区（机构 + 用户下拉，以后消息中心之类的入口也归这一行，右对齐）；第二行 `.app-tabbar` 是页签栏（下划线式选中态，`::after` 压住底边和内容区连成一块；内部只有 `.app-tab-strip` 横向滚，行尾的「最近查看」入口固定在滚动区外面）。原 `h1.page-title` 已删，页面标题只在页签上出现一次，**页面内不要再渲染与菜单同名的大标题**（见上一节）。注意这两行的高度合计是列表页 `TableFillBox` 量高的基准，再加行会压缩内容区（往这两行里加东西可以，加行不行）。
 
 ## 实体 / DTO 字段说明规范（软规范）
 

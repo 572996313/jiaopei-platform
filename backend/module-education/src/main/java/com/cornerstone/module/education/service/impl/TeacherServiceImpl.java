@@ -1,12 +1,16 @@
 package com.cornerstone.module.education.service.impl;
 
+import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cornerstone.core.auth.domain.UserAccountEntity;
+import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.dto.TeacherCreateRequest;
+import com.cornerstone.module.education.dto.TeacherExportRow;
 import com.cornerstone.module.education.dto.TeacherPageQuery;
 import com.cornerstone.module.education.dto.TeacherUpdateRequest;
 import com.cornerstone.module.education.mapper.TeacherMapper;
@@ -15,25 +19,38 @@ import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TeacherServiceImpl implements TeacherService {
 
+    /** 导出是不分页的全量查询，超过这个量级说明筛选条件没收紧，宁可直接拒绝也不要把内存和浏览器一起拖死 */
+    private static final int MAX_EXPORT_ROWS = 5000;
+
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
+    private final UserAccountMapper userAccountMapper;
     private final DictValueValidator dictValueValidator;
 
     public TeacherServiceImpl(TeacherMapper teacherMapper, InstitutionMapper institutionMapper,
-                              CampusMapper campusMapper, DictValueValidator dictValueValidator) {
+                              CampusMapper campusMapper, UserAccountMapper userAccountMapper,
+                              DictValueValidator dictValueValidator) {
         this.teacherMapper = teacherMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
+        this.userAccountMapper = userAccountMapper;
         this.dictValueValidator = dictValueValidator;
     }
 
@@ -54,6 +71,46 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public PageResult<TeacherEntity> pageTeachers(TeacherPageQuery query) {
+        Page<TeacherEntity> page = teacherMapper.selectPage(
+            new Page<>(query.getPage(), query.getPageSize()), buildWrapper(query));
+        return PageResult.of(page, page.getRecords());
+    }
+
+    @Override
+    public byte[] exportTeachers(TeacherPageQuery query) {
+        Long total = teacherMapper.selectCount(buildWrapper(query));
+        if (total == null || total == 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "当前筛选范围下没有教师数据可导出");
+        }
+        if (total > MAX_EXPORT_ROWS) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "待导出 " + total + " 条，超过单次上限 " + MAX_EXPORT_ROWS + " 条，请先按校区或关键字收窄范围");
+        }
+        List<TeacherEntity> teachers = teacherMapper.selectList(buildWrapper(query));
+        Map<Long, String> campusCodes = loadCampusCodes(teachers);
+        Map<Long, String> usernames = loadUsernames(teachers);
+        // 字典列一次取全表建映射：逐行翻译会把字典接口打爆
+        Map<String, String> genderLabels = dictValueValidator.labels("gender");
+        Map<String, String> employmentLabels = dictValueValidator.labels("employment_type");
+
+        List<TeacherExportRow> rows = teachers.stream()
+            .map(teacher -> new TeacherExportRow(teacher.getTeacherCode(), teacher.getTeacherName(),
+                teacher.getPhone(), valueOf(campusCodes, teacher.getCampusId()),
+                labelOf(genderLabels, teacher.getGender()), teacher.getTitle(),
+                labelOf(employmentLabels, teacher.getEmploymentType()),
+                teacher.getHiredAt() == null ? null : teacher.getHiredAt().toString(),
+                teacher.getStatus(), teacher.getRemark(), valueOf(usernames, teacher.getUserId())))
+            .toList();
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            EasyExcel.write(out, TeacherExportRow.class).sheet("教师档案").doWrite(rows);
+            return out.toByteArray();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("生成教师档案导出文件失败", exception);
+        }
+    }
+
+    /** 列表、分页与导出共用同一套筛选条件，三处各拼一遍迟早查出不同结果 */
+    private LambdaQueryWrapper<TeacherEntity> buildWrapper(TeacherPageQuery query) {
         LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
             .orderByAsc(TeacherEntity::getInstitutionId)
             .orderByAsc(TeacherEntity::getCampusId)
@@ -77,9 +134,44 @@ public class TeacherServiceImpl implements TeacherService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(TeacherEntity::getStatus, status);
         }
-        Page<TeacherEntity> page = teacherMapper.selectPage(
-            new Page<>(query.getPage(), query.getPageSize()), wrapper);
-        return PageResult.of(page, page.getRecords());
+        return wrapper;
+    }
+
+    /** 校区编码而不是中文名：导出要能改完导回去，中文名没有唯一性保证 */
+    private Map<Long, String> loadCampusCodes(List<TeacherEntity> teachers) {
+        Set<Long> campusIds = ids(teachers.stream().map(TeacherEntity::getCampusId).collect(Collectors.toSet()));
+        if (campusIds.isEmpty()) {
+            return Map.of();
+        }
+        return campusMapper.selectBatchIds(campusIds).stream()
+            .collect(Collectors.toMap(CampusEntity::getId, campus -> campus.getCampusCode() == null
+                ? String.valueOf(campus.getId()) : campus.getCampusCode(), (first, second) -> first));
+    }
+
+    private Map<Long, String> loadUsernames(List<TeacherEntity> teachers) {
+        Set<Long> userIds = ids(teachers.stream().map(TeacherEntity::getUserId).collect(Collectors.toSet()));
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        List<UserAccountEntity> accounts = new ArrayList<>(userAccountMapper.selectBatchIds(userIds));
+        return accounts.stream().collect(Collectors.toMap(UserAccountEntity::getId,
+            account -> account.getUsername() == null ? String.valueOf(account.getId()) : account.getUsername(),
+            (first, second) -> first));
+    }
+
+    /** selectBatchIds 不接受含 null 的集合，也不接受空集合，这里一并滤掉 */
+    private Set<Long> ids(Set<Long> raw) {
+        return raw.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+    }
+
+    /** 校区与关联账号都可以为空，而 {@code Map.of()} 的 {@code get(null)} 直接抛 NPE，取值统一走这里 */
+    private static String valueOf(Map<Long, String> values, Long id) {
+        return id == null ? null : values.get(id);
+    }
+
+    /** 字典列翻译成中文名；字典里没有这个值就照原样导出，宁可难看也不硬映射成合法值 */
+    private static String labelOf(Map<String, String> labels, String value) {
+        return value == null ? null : labels.getOrDefault(value, value);
     }
 
     @Override
@@ -168,7 +260,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     public void deleteTeacher(Long id) {
         requireTeacher(id);
-        teacherMapper.deleteById(id);
+        teacherMapper.softDeleteAndUnlink(id);
     }
 
     private TeacherEntity requireTeacher(Long id) {

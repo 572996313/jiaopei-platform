@@ -29,6 +29,8 @@ export interface TeacherSummary {
   status?: string | null
   hiredAt?: string | null
   remark?: string | null
+  /** 关联登录账号ID：null = 尚未开通或未绑定账号 */
+  userId?: string | null
 }
 
 export interface TeachingClassSummary {

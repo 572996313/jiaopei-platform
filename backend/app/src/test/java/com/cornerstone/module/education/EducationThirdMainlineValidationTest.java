@@ -44,6 +44,7 @@ import com.cornerstone.module.education.service.impl.StudentParentServiceImpl;
 import com.cornerstone.module.education.service.impl.TeacherServiceImpl;
 import com.cornerstone.module.education.service.impl.TeachingClassServiceImpl;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
+import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
@@ -106,6 +107,9 @@ class EducationThirdMainlineValidationTest {
     private CampusMapper campusMapper;
 
     @Mock
+    private UserAccountMapper userAccountMapper;
+
+    @Mock
     private TermMapper termMapper;
 
     // 字典校验器读 SystemDictService；请求里字典字段为空时只走"空值落 NULL"分支，无需打桩
@@ -117,7 +121,8 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createTeacherRejectsDuplicateTeacherCode() {
-        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper, dictValueValidator);
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
+            userAccountMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(1L);
 

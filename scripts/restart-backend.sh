@@ -24,8 +24,10 @@ fi
 
 # 2. 打包
 if [[ "${1:-}" != "--skip-build" ]]; then
-  echo "开始打包后端（mvn -DskipTests package）..."
-  (cd "$ROOT/backend" && mvn -q -DskipTests package)
+  echo "开始打包后端（mvn -DskipTests clean package）..."
+  # 必须带 clean：maven-jar-plugin 默认 forceCreation=false，app 模块自身没改动时直接跳过重打，
+  # fat jar 里的 BOOT-INF/lib/module-*.jar 还是上一次的，症状是"改了代码重启却不生效、也不报错"
+  (cd "$ROOT/backend" && mvn -q -DskipTests clean package)
 fi
 
 # 3. 取 jar：jar 名带版本号，写死每次转版本都要回来改（0f 就改过一回），按前缀取最新修改的那个。

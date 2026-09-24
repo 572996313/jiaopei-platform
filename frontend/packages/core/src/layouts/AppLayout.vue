@@ -218,38 +218,49 @@
         页签单独一行,不和右上角的机构/账号挤在同一行:那一行留给账号区,
         以后消息中心之类的入口也放那里。页面标题只在页签上出现一次。
       -->
-      <nav ref="tabStripRef" class="app-tabbar" @scroll="tabMenu = null">
-        <div
-          v-for="(tab, index) in tabs.tabs"
-          :key="tab.path"
-          class="app-tab"
-          :class="{
-            'is-active': tab.path === tabs.activePath,
-            'is-dragging': draggingIndex === index,
-          }"
-          draggable="true"
-          @click="activateTab(tab.path)"
-          @auxclick="onTabAuxClick(tab.path, $event)"
-          @contextmenu.prevent="openTabMenu(tab, $event)"
-          @dragstart="onTabDragStart(index, $event)"
-          @dragover.prevent
-          @drop.prevent="onTabDrop(index)"
-          @dragend="draggingIndex = null"
-        >
-          <span class="app-tab-label">{{ tab.label || tab.path }}</span>
-          <el-icon class="app-tab-action" title="刷新该页" @click.stop="tabs.refresh(tab.path)">
-            <Refresh />
-          </el-icon>
-          <el-icon
-            v-if="tabs.closable"
-            class="app-tab-action"
-            title="关闭页签"
-            @click.stop="closeTab(tab.path)"
+      <div class="app-tabbar">
+        <nav ref="tabStripRef" class="app-tab-strip" @scroll="tabMenu = null">
+          <div
+            v-for="(tab, index) in tabs.tabs"
+            :key="tab.path"
+            class="app-tab"
+            :class="{
+              'is-active': tab.path === tabs.activePath,
+              'is-dragging': draggingIndex === index,
+            }"
+            draggable="true"
+            @click="activateTab(tab.path)"
+            @auxclick="onTabAuxClick(tab.path, $event)"
+            @contextmenu.prevent="openTabMenu(tab, $event)"
+            @dragstart="onTabDragStart(index, $event)"
+            @dragover.prevent
+            @drop.prevent="onTabDrop(index)"
+            @dragend="draggingIndex = null"
           >
-            <Close />
-          </el-icon>
-        </div>
-      </nav>
+            <span class="app-tab-label">{{ tab.label || tab.path }}</span>
+            <el-icon
+              v-if="tabs.closable"
+              class="app-tab-action"
+              title="关闭页签"
+              @click.stop="closeTab(tab.path)"
+            >
+              <Close />
+            </el-icon>
+          </div>
+        </nav>
+
+        <!-- 最近查看固定在行尾,不跟页签一起滚:页签被上限挤掉时靠它找回去,滚走了就本末倒置 -->
+        <button
+          ref="historyButtonRef"
+          type="button"
+          class="app-tab-history"
+          :class="{ 'is-open': !!historyMenu }"
+          title="最近查看的页面"
+          @click="toggleHistoryMenu"
+        >
+          最近查看
+        </button>
+      </div>
 
       <main class="app-content">
         <RouterView v-slot="{ Component }">
@@ -284,6 +295,26 @@
       </button>
     </div>
 
+    <!-- ============ 最近查看 ============ -->
+    <div
+      v-if="historyMenu"
+      class="tab-context-menu app-history-menu"
+      :style="{ left: `${historyMenu.x}px`, top: `${historyMenu.y}px` }"
+    >
+      <button
+        v-for="item in tabs.history"
+        :key="item.path"
+        type="button"
+        class="tab-context-item app-history-item"
+        :class="{ 'is-opened': openedPaths.has(item.path) }"
+        :title="item.fullPath"
+        @click="goVisited(item)"
+      >
+        {{ item.label || item.path }}
+      </button>
+      <div v-if="!tabs.history.length" class="app-history-empty">还没有访问记录</div>
+    </div>
+
     <!-- ============ 菜单偏好设置 ============ -->
     <el-dialog v-model="menuPreferencesVisible" title="菜单偏好" width="460px">
       <p class="menu-pref-tip">偏好仅保存在当前浏览器，不随账号同步。</p>
@@ -315,7 +346,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Check, Close, Refresh, Setting } from '@element-plus/icons-vue'
+import { ArrowDown, Check, Close, Setting } from '@element-plus/icons-vue'
 import {
   contributedNavItems,
   currentBrand,
@@ -328,6 +359,7 @@ import {
   useTabsStore,
   type PageTab,
   type TabCloseMode,
+  type VisitedPage,
 } from '@cornerstone/core/stores/tabs'
 import type { SystemMenuTreeNode } from '@cornerstone/core/api/system'
 import { resolveMenuIcon } from '@cornerstone/core/constants/menuIcons'
@@ -577,7 +609,13 @@ watch(
     if (!route.name) {
       return
     }
-    tabs.open({ path: route.path, fullPath: route.fullPath, label: titleOfPath(route.path) || '' })
+    const page = {
+      path: route.path,
+      fullPath: route.fullPath,
+      label: titleOfPath(route.path) || '',
+    }
+    tabs.open(page)
+    tabs.rememberVisit(page)
   },
   { immediate: true }
 )
@@ -592,6 +630,7 @@ watch(
         tab.label = title
       }
     }
+    tabs.renameVisits(titleOfPath)
   }
 )
 
@@ -615,13 +654,18 @@ watch(
   }
 )
 
-/** 恢复出来的页签可能指向已卸载模块的路由,进不去就不留着 */
+/** 恢复出来的页签/历史记录可能指向已卸载模块的路由,进不去就不留着 */
+function isReachable(path: string): boolean {
+  return router.resolve(path).matched.some((record) => record.name)
+}
+
 onMounted(() => {
   for (const tab of [...tabs.tabs]) {
-    if (!router.resolve(tab.path).matched.some((record) => record.name)) {
+    if (!isReachable(tab.path)) {
       tabs.closeGroup('single', tab.path)
     }
   }
+  tabs.pruneHistory(isReachable)
 })
 
 function activateTab(path: string) {
@@ -718,6 +762,42 @@ function onTabDrop(index: number) {
     tabs.move(draggingIndex.value, index)
   }
   draggingIndex.value = null
+}
+
+/** ================= 最近查看 ================= */
+
+/** 行尾那个入口的位置;菜单是右对齐挂在入口下面的 */
+const HISTORY_MENU_WIDTH = 220
+
+const historyButtonRef = ref<HTMLElement | null>(null)
+const historyMenu = ref<{ x: number; y: number } | null>(null)
+
+/** 已经开着的历史记录只是切过去,不另开页签,所以给个区别标记 */
+const openedPaths = computed(() => new Set(tabs.tabs.map((tab) => tab.path)))
+
+function toggleHistoryMenu() {
+  if (historyMenu.value) {
+    historyMenu.value = null
+    return
+  }
+  const rect = historyButtonRef.value?.getBoundingClientRect()
+  if (!rect) {
+    return
+  }
+  tabMenu.value = null
+  historyMenu.value = {
+    x: Math.max(8, rect.right - HISTORY_MENU_WIDTH),
+    y: rect.bottom + 6,
+  }
+}
+
+/** 点历史记录:没开过就等于新开一页,开过就是切回它最近那次的位置 */
+function goVisited(page: VisitedPage) {
+  historyMenu.value = null
+  if (page.path === route.path) {
+    return
+  }
+  router.push(page.fullPath)
 }
 
 /** 页签多到溢出时,切过去的页签要自己滚进可视区(block: nearest 避免顺带把页面滚走) */
@@ -917,6 +997,10 @@ function handleDocumentClick(event: MouseEvent) {
   if (tabMenu.value && !target?.closest('.tab-context-menu')) {
     tabMenu.value = null
   }
+  // 入口自身那一击交给 toggleHistoryMenu 处理,否则点了打不开
+  if (historyMenu.value && !target?.closest('.app-history-menu, .app-tab-history')) {
+    historyMenu.value = null
+  }
   const insideSidebar = !!target?.closest('.app-sidebar')
   if (
     pinnedRailKey.value &&
@@ -931,9 +1015,11 @@ function handleDocumentClick(event: MouseEvent) {
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && tabMenu.value) {
-    tabMenu.value = null
+  if (event.key !== 'Escape') {
+    return
   }
+  tabMenu.value = null
+  historyMenu.value = null
 }
 
 onMounted(() => {

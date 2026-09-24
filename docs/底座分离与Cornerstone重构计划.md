@@ -131,7 +131,7 @@ frontend/                        # pnpm workspace；根目录本身就是壳工�
 <details><summary>实际落地记录（与计划的差异）</summary>
 
 - Miniapp 四件套（Service/Impl/Controller/Test）+ 6 个学员 DTO（`auth/dto` 下 Bind/Student*）+ `UserStudentRelEntity`/`UserStudentRelMapper` 全部迁至 education 包，URL 与权限码未动。
-- `WechatAuthServiceImpl` 未按"整体搬迁"，改为计划中的事件方案：新增 `auth.event.UserAccountDeregisteredEvent`，education 侧 `StudentDeregistrationListener` 监听清理学员归属与关联（同步事件，同事务）。
+- `WechatAuthServiceImpl` 未按"整体搬迁"，改为计划中的事件方案：新增 `auth.event.UserAccountDeregisteredEvent`，education 侧 `EducationDeregistrationListener`（原 `StudentDeregistrationListener`，教师档案接入账号关联后改名）监听清理学员归属与关联、教师账号关联（同步事件，同事务）。
 - `SystemUserServiceImpl` 校区校验改 `auth.service.CampusBelongingValidator` SPI，`organization.service.impl.CampusBelongingValidatorImpl` 提供实现，`ObjectProvider` 可选注入。
 - ArchUnit 对 organization 的豁免按"类名含 Institution"实现（覆盖 CurrentInstitutionView 等），阶段二迁机构回底座后移除。
 - 前端拆为 `router/platform-routes.ts` + `router/business-routes.ts`，index.ts 只做组装；`InstitutionProfileView`（机构=租户）归底座侧，校区/时间段归业务侧。
