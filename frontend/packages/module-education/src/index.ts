@@ -88,7 +88,8 @@ registerNavItems([
     groupLabel: '日常教务',
     groupOrder: 20,
     prefixes: ['/students'],
-    alwaysVisible: true,
+    // 入口显隐与名称由 sys_menu 节点驱动(V61):角色没勾这个页面就看不到入口
+    menuCode: 'education_enrollments',
   },
   {
     key: 'classes',
@@ -100,7 +101,7 @@ registerNavItems([
     groupLabel: '班级与教学',
     groupOrder: 30,
     prefixes: ['/classes'],
-    alwaysVisible: true,
+    menuCode: 'education_classes',
   },
   {
     key: 'teachers',
@@ -112,7 +113,7 @@ registerNavItems([
     groupLabel: '档案中心',
     groupOrder: 40,
     prefixes: ['/teachers'],
-    alwaysVisible: true,
+    menuCode: 'education_teachers',
   },
 ])
 

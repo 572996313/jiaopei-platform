@@ -299,7 +299,7 @@ class WechatAuthServiceImplTest {
 
     private LoginResponse loginResponse() {
         return new LoginResponse(1L, 1L, "wx_" + OPENID, "微信用户",
-            List.of("MINIAPP_STUDENT"), List.of("miniapp:base"),
+            List.of("MINIAPP_STUDENT"), List.of("miniapp:access"),
             "Bearer", "access-token", false, "student");
     }
 }

@@ -55,7 +55,7 @@
                 <el-icon v-if="item.icon" class="nav-item-icon"
                   ><component :is="item.icon"
                 /></el-icon>
-                <span class="nav-item-label">{{ item.label }}</span>
+                <span class="nav-item-label">{{ displayLabel(item) }}</span>
               </RouterLink>
             </template>
           </div>
@@ -533,12 +533,13 @@ const coreSidebarDefinitions: SidebarDefinition[] = [
 /** 业务登记的在前、底座自有在后；组间顺序看 groupOrder，组内保持登记顺序 */
 const sidebarDefinitions = computed(() => [...contributedNavItems(), ...coreSidebarDefinitions])
 
-/** 配置化目录的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
+/** 配置化目录/单页入口的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
 function displayLabel(item: SidebarDefinition): string {
-  if (item.menuCatalogCode) {
-    const catalog = findMenuNode(auth.currentMenus, item.menuCatalogCode)
-    if (catalog?.menuName) {
-      return catalog.menuName
+  const code = item.menuCatalogCode ?? item.menuCode
+  if (code) {
+    const node = findMenuNode(auth.currentMenus, code)
+    if (node?.menuName) {
+      return node.menuName
     }
   }
   return item.label
@@ -546,6 +547,10 @@ function displayLabel(item: SidebarDefinition): string {
 
 const navItems = computed(() => {
   return sidebarDefinitions.value.filter((item) => {
+    // 单页入口：菜单节点没授给当前角色就不出现（后端照样拦，但别留一个点进去整页 403 的入口）
+    if (item.menuCode) {
+      return findMenuNode(auth.currentMenus, item.menuCode) !== null
+    }
     if (item.alwaysVisible) {
       return true
     }
@@ -592,10 +597,15 @@ function titleOfPath(path: string): string | null {
       }
     }
   }
-  return (
-    sidebarDefinitions.value.find((item) => item.prefixes.some((prefix) => path.startsWith(prefix)))
-      ?.title ?? null
+  const matched = sidebarDefinitions.value.find((item) =>
+    item.prefixes.some((prefix) => path.startsWith(prefix))
   )
+  if (!matched) {
+    return null
+  }
+  // 带 menuCode 的顶层项与目录子项同口径:标题跟着菜单节点走,后台改名页签同步
+  const nodeName = matched.menuCode ? findMenuNode(auth.currentMenus, matched.menuCode)?.menuName : null
+  return nodeName || matched.title
 }
 
 /** ================= 多页签(切页不丢现场) ================= */

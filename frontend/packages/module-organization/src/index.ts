@@ -51,7 +51,8 @@ registerNavItems([
     groupLabel: '档案中心',
     groupOrder: 40,
     prefixes: ['/campus'],
-    alwaysVisible: true,
+    // 入口显隐与名称由 sys_menu 节点驱动(V61):角色没勾这个页面就看不到入口
+    menuCode: 'organization_campus',
   },
   {
     key: 'time-slots',
@@ -63,7 +64,7 @@ registerNavItems([
     groupLabel: '档案中心',
     groupOrder: 40,
     prefixes: ['/time-slots'],
-    alwaysVisible: true,
+    menuCode: 'organization_time_slots',
   },
 ])
 

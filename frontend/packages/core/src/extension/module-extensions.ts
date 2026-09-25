@@ -93,7 +93,12 @@ export interface NavItemDefinition {
   /** 分组自上而下的顺序，小的在前；未传取 100，底座「系统设置」占 900 恒在最后 */
   groupOrder?: number
   prefixes: string[]
-  /** true=始终显示；false/未传=要有助手可见子项才显示（配置化目录用） */
+  /**
+   * 该入口对应的系统菜单节点 code：只有在当前用户已授权的菜单树里能找到这个节点才显示，
+   * 显示名同时改取节点的 menuName（后台可改名）。用于单页入口按授权显隐，底座只认 code 不认业务路由。
+   */
+  menuCode?: string
+  /** true=始终显示；false/未传=要有助手可见子项才显示（配置化目录用）。写了 menuCode 时以 menuCode 为准 */
   alwaysVisible?: boolean
   /** 命中该系统目录 code 时，子项改由后端菜单树动态提供 */
   menuCatalogCode?: string
