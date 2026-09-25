@@ -6,7 +6,8 @@
       </article>
       <template v-else>
         <div class="education-context-text">
-          菜单节点决定页面可见性,按钮节点承载接口权限码;在角色管理的「分配菜单」里勾选按钮即授权。
+          权限码按节点性质分配:页面节点挂进入本页所需的读取码,按钮节点只挂写操作码,目录节点不挂码。
+          在角色管理的「分配菜单」里勾选页面即可读、勾选按钮即可写。
         </div>
 
         <div class="table-toolbar">
@@ -130,7 +131,13 @@
               allow-create
               default-first-option
               clearable
-              placeholder="按钮节点必填,可从已知码中选择"
+              :placeholder="
+                menuForm.menuType === 'button'
+                  ? '按钮节点必填:本操作的写码,如 education:write'
+                  : menuForm.menuType === 'menu'
+                    ? '页面节点填进入本页所需的读取码;接口只需登录的页面留空'
+                    : '目录节点不挂权限码'
+              "
             >
               <el-option
                 v-for="item in permissionOptions"

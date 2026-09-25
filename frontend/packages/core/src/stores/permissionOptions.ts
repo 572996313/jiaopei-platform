@@ -5,9 +5,9 @@ import type { PermissionOption } from '@cornerstone/core/api/system'
 import { permissionGroups, permissionLabel } from '@cornerstone/core/constants/permissionLabels'
 
 /**
- * 权限码下拉选项缓存:以 /system/permission-options(后端 @RequiresPermission 注解扫描
- * + 启用按钮节点中文名)为权威源,供角色弹窗「预设权限」、菜单按钮 permissionCode 下拉、
- * 列表权限标签回显使用。
+ * 权限码下拉选项缓存:码清单以 /system/permission-options(后端 @RequiresPermission 注解扫描)为权威源,
+ * 中文名以登记表(底座静态表 + 模块 registerPermissionLabels)为准,后端给的菜单节点名只作补名兜底。
+ * 供角色弹窗「预设权限」、菜单节点 permissionCode 下拉、列表权限标签回显使用。
  * 模块级单例:同一会话共享一次加载结果,页面卸载不清空。
  * 接口失败时整体降级为前端静态常量表(离线兜底,不打断页面)。
  */
@@ -40,13 +40,15 @@ function keepUnique(options: PermissionOption[]): PermissionOption[] {
 }
 
 /**
- * 后端没挂按钮节点的码会把权限码本身当 label 返回(如某个业务模块的 read/write),
- * 这类空洞用静态表(底座码 + 模块经 registerPermissionLabels 贡献的码)补名。
+ * 中文名以登记表(底座码 + 模块经 registerPermissionLabels 贡献的码)为准。
+ * 一个码可以挂在多个页面节点上(如教务查看覆盖六页),节点名说的是"挂在哪",不是码叫什么;
+ * 只有登记表里没有这个码时(新模块还没登记、或后端新增了码)才用后端给的动态 label(节点名)。
  */
 function fillLabelFromStaticTable(options: PermissionOption[]): PermissionOption[] {
-  return options.map((item) =>
-    item.label && item.label !== item.code ? item : { ...item, label: permissionLabel(item.code) }
-  )
+  return options.map((item) => {
+    const registered = permissionLabel(item.code)
+    return registered === item.code ? item : { ...item, label: registered }
+  })
 }
 
 async function fetchOnce() {
@@ -110,12 +112,12 @@ export function usePermissionOptionGroups(): ComputedRef<PermissionGroupOption[]
   })
 }
 
-/** 平铺权限选项(菜单按钮 permissionCode 下拉等用) */
+/** 平铺权限选项(菜单节点 permissionCode 下拉等用) */
 export function usePermissionOptionList(): ComputedRef<Array<{ value: string; label: string }>> {
   return computed(() => currentOptions().map((item) => ({ value: item.code, label: item.label })))
 }
 
-/** 权限码 → 中文名:动态 label 优先(按钮节点 menuName),静态常量表兜底,最后回退为权限码本身 */
+/** 权限码 → 中文名:取规范化后的选项 label(登记表优先、节点名兜底),最后回退为权限码本身 */
 export function permissionOptionLabel(code: string): string {
   const dynamic = currentOptions().find((item) => item.code === code)
   if (dynamic?.label) {

@@ -173,6 +173,23 @@ pnpm dev:h5            # H5 调试
 
   **新增 `SystemConfigService.getConfigValue/getIntConfig/getBooleanConfig` 读取的 key 时，必须同步在 `app/` 迁移里种入 `sys_system_config` 并登记进上面的清单**——只写代码默认值回落等于隐藏配置：系统参数页看不见也改不了（V47 就是补的这两条历史欠账）。
 
+## 权限码与菜单节点的分配规则（必填）
+
+一句话判据：**只勾这个节点，这一页到底能不能用？** 只能解决导航、数据还读不到，就说明读取码漏挂在上层的另一个节点上（表现是"入口看得见、点进去整页 403"）。
+
+1. **读取码挂 `menu`（页面）节点**：勾页面 = 入口可见 + 能读，不留 403 空洞。业务页挂本模块读码（`education:read`/`organization:read`，见 V61），系统管理页挂该页自己的码（见 V62/底座 V105）。
+2. **写/操作码挂 `button` 节点**（`visible=0`，不进导航）：新增/编辑/删除/导入/维护一类，勾了才给。按钮节点仍受后端 `@RequiresPermission` 硬拦，前端隐藏按钮只是体验。
+3. **`catalog`（目录）节点永不挂码**：它是分组不是能力。
+4. **读写共用单码的页面（`system:user:manage` 一族，GET 也拦同一个码）把码挂在页面节点上，不再配同名"维护"按钮**。页面与按钮挂同一个码 = 勾哪个都等价，纯重复且会让人以为勾页面不够（历史上 103「菜单维护」与 109「功能权限查看」就是同一个 `system:menu:manage` 挂两处）。代价是这类页面没有"只看不动"的只读岗——要拆 `read`/`manage` 得连后端注解、角色 CSV、下游一起改，属于另一批。
+5. **接口只需登录的页面不挂码**（如功能权限总览，它的两个 GET 无 `@RequiresPermission`），节点只做导航。给它挂码等于"勾了这个页面就白送一个管理能力"，那是越权不是授权。
+6. **同一个码在同一页面只挂一处**；跨页面共用粗读码是有意设计（勾哪个页面决定进哪个页，读码是一份），不要为"每页一个读码"去拆权限串。
+7. 权限码的**中文名权威源是前端登记表**（见「前端模块划分与装配」的权限码标签条目），菜单节点名只作兜底与"挂在哪"的说明。
+8. **撤销授权有两条路**：角色 `permission_codes` CSV ∪ 已勾节点带的码（`UserAccessTokenService`），任一授予即生效，两边都要撤。admin 现在的 CSV 与菜单节点已完全重复，"CSV 只留兜底"的收敛口径另批处理。
+9. 改 `sys_menu` 里**底座种下的行**（id 1~14、18、101~111、115 这批）必须两边各写一份迁移且内容一字不差：底座 `cornerstone/migration/V10n`、教培 `app/.../db/migration/V6n`（见「模块装配与开关」的双轨规则）。业务页面/按钮（15~24、112~118）只在教培侧，改它只写 `app/` 那份。
+10. 权限码变更后要**重登才生效**（快照写进 JWT）；管理接口侧的会话失效链路见「安全与数据一致性约定」第 2 条。
+
+自查：`功能权限总览` 页（`/system/permission-overview`）的「未登记码」和「已登记未挂菜单」两组必须都是空的；非空即说明有码只存在于 CSV/列表按钮配置而没有节点承载，或反之。
+
 ## 统一响应与全局异常
 
 - `ApiResponseAdvice`（`@ControllerAdvice`）自动把 controller 返回值包成 `ApiResponse{code/success/message/data/timestamp/traceId/path}`，controller 直接返回数据对象即可，不要手动包 `ApiResponse`。`null` 与 `Resource` 不包装。
@@ -304,7 +321,7 @@ pnpm dev:h5            # H5 调试
     **入口显隐一律走菜单节点，不许再写 `alwaysVisible`**：单页入口在 `NavItemDefinition.menuCode` 里填自己的 `sys_menu` 页面节点 code，`AppLayout` 按"当前用户已授权菜单树里有没有这个节点"决定显隐，侧边栏名与页签名同时取节点 `menuName`（后台改名即生效，见 V61 的五个业务页 + 排课三页）。`alwaysVisible: true` 现在只剩壳的工作台在用（工作台是落地页，没有对应权限）。写 `alwaysVisible` 的业务入口等于绕过授权：没读权限的人照样看得见入口，点进去整页 403。页面节点自带本模块读取码（如 `organization_campus` 挂 `organization:read`），勾页面即给读码，与"角色预设权限 ∪ 已授菜单节点码"的快照口径一致（`UserAccessTokenService`），不存在"看得见却读不了"的中间态；写权限仍是隐藏按钮节点。注意预设权限与菜单两条路取并集，撤销要两边都撤。
   - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，且**底座不写死任何项目的口令**：值取壳工程自己 `.env.development` 里的 `VITE_DEV_LOGIN_USERNAME` / `VITE_DEV_LOGIN_PASSWORD`（该文件已 gitignore，本仓库那份写着 dev admin），没配就是空框，生产构建更不含。
   - **列表渲染器**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表。业务渲染器**自己取名称数据**（读模块自己的 store/接口，或改用 `type: 'map'`、字典列），core 不再透传业务目录；模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步两处：模块入口 `registerListRenderer` 登记、`sys_list_config` 种子里的 `renderer` 名保持一致。
-  - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。权威中文名是 `sys_menu` 按钮节点（`/system/permission-options` 动态返回），静态表只作接口不可用时的兜底与角色弹窗的分组名，因此**读取处一律现算**，不要在模块加载时取快照——注册晚于快照就会漏。
+  - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。**这张登记表是权限码中文名的权威源**，不是节点名：一个码可以挂在多个页面节点上（`education:read` 覆盖六页），节点名说的是"挂在哪"、不是"码叫什么"，所以展示时先查表、查不到才用后端给的节点名、最后回退裸码。**新增权限码必须同步补一条登记**，否则界面显示 `education:read(education:read)` 这种裸码。读取处一律**现算**，不要在模块加载时取快照——注册晚于快照就会漏。
   - **数据源候选**：`OPTIONS_LOADER_OPTIONS` 只列 `institutions`/`roles`/`status`；业务编码（如 `campuses`）在数据源配置页维护，编辑器下拉用 `allow-create` 直接输入。新增编码不改 core 代码，运行期命中不了宿主注入就自动走 `sys_data_source` 定义。
   - 页面插槽用于"业务页签注入到别的模块页面"（参照校区管理页里教务侧的课程/课程分类/班型三张卡片：宿主是 organization 的 `CampusManagementView`，内容来自 education 包的 `views/campus/EducationMasterDataCards.vue`）。宿主 `refreshAll` 末尾 `notifyPageRefresh(pageKey)`，插槽子组件订阅并自己拉数；**`onPageRefresh` 返回注销函数，必须在 `onUnmounted` 里调用**，否则订阅者随打开次数累积。
   - `registerPageSlot` 幂等、按 `order` 排序；插槽子组件依赖全局 `core/src/styles/index.css` 里的 Element Plus 布局类（不在 scoped 样式内），组件不要再自带 reset。

@@ -583,13 +583,13 @@ export function fetchPermissionOverview() {
   return requestGet<PermissionOverview>('/system/permission-overview')
 }
 
-/** 权限码下拉选项(角色弹窗「预设权限」/菜单按钮权限码下拉/列表权限标签回显的公共数据源) */
+/** 权限码下拉选项(角色弹窗「预设权限」/菜单节点权限码下拉/列表权限标签回显的公共数据源) */
 export interface PermissionOption {
   /** 权限码,如 system:user:manage */
   code: string
-  /** 中文名:优先按钮节点 menuName,缺失回退为权限码本身 */
+  /** 中文名:前端会先用权限码登记表覆盖,此处为挂载节点名(按钮优先、页面其次),无节点则等于权限码 */
   label: string
-  /** 挂载该权限码的启用按钮节点中文名列表(可空) */
+  /** 挂载该权限码的启用菜单节点中文名列表(可空) */
   menuNames: string[]
 }
 

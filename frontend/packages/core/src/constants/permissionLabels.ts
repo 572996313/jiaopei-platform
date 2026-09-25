@@ -9,8 +9,9 @@ export interface PermissionLabelItem {
 /**
  * 底座权限码中文名映射（与 cornerstone-core 各 Controller 的 @RequiresPermission 字面量一一对应）。
  * 业务模块的码不放这张表：由各自入口经 registerPermissionLabels 贡献，见 allPermissionLabels()。
- * 兜底用途：按钮权限模型的正式中文名来自 sys_menu 按钮节点的 menu_name，
- * 角色勾选的节点变更后以菜单管理维护的节点名为准；本表的 label 与各节点名逐字对齐，避免两处说法不一致。
+ * 这里是权限码中文名的**权威源**：一个码可以挂在多个页面节点上（如某个读码覆盖整个模块的页面），
+ * 节点名说的是"挂在哪"而不是"码叫什么"，所以展示时先查本表、再退到后端返回的节点名。
+ * 新增权限码时同步补一条，否则界面会把权限码本身当中文名显示。
  */
 const basePermissionLabels: PermissionLabelItem[] = [
   { code: 'system:user:manage', label: '用户维护', group: '系统管理' },

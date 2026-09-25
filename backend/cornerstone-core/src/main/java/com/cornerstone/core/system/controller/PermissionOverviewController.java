@@ -29,7 +29,7 @@ public class PermissionOverviewController {
     }
 
     @GetMapping("/permission-options")
-    @Operation(summary = "权限码下拉选项", description = "全量可分配权限码(以 @RequiresPermission 注解扫描为权威源,合并启用按钮节点中文名),供角色弹窗预设权限、菜单按钮权限码下拉、列表权限标签回显使用;仅需登录,不要求额外权限")
+    @Operation(summary = "权限码下拉选项", description = "全量可分配权限码(以 @RequiresPermission 注解扫描为权威源,合并启用菜单节点的中文名,按钮节点优先、页面节点其次),供角色弹窗预设权限、菜单节点权限码下拉、列表权限标签回显使用;仅需登录,不要求额外权限")
     public ApiResponse<List<PermissionOptionView>> options() {
         return ApiResponse.success("权限选项已加载", permissionOverviewService.permissionOptions());
     }

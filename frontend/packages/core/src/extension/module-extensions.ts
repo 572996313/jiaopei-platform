@@ -60,8 +60,8 @@ const permissionLabelContributions: PermissionLabelItem[] = []
 
 /**
  * 业务模块登记自己域名的权限码中文名与分组（如 organization:write → 组织维护）。
- * 权限码的权威源是后端 sys_menu 按钮节点（/system/permission-options 动态返回），
- * 本表只在接口不可用时作离线兜底，以及给角色弹窗的权限网格提供分组名。
+ * 这张表是权限码中文名的权威源（一个码可挂多个页面节点，节点名只说明挂在哪），
+ * /system/permission-options 动态返回的码清单里，本表没登记过的码才用后端给的节点名。
  */
 export function registerPermissionLabels(items: PermissionLabelItem[]) {
   for (const item of items) {

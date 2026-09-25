@@ -107,7 +107,7 @@
                 </div>
 
                 <div v-if="card.menuNodeNames.length" class="permission-card-section">
-                  <span class="permission-section-label">菜单按钮节点</span>
+                  <span class="permission-section-label">挂载节点</span>
                   <el-tag
                     v-for="name in card.menuNodeNames"
                     :key="name"
@@ -230,9 +230,10 @@ const danglingCount = computed(
   () => (overview.value?.permissions || []).filter((item) => item.dangling).length
 )
 
-/** 权限码中文名:菜单按钮节点名优先(角色勾选后以菜单管理维护为准),前端常量表兜底 */
+/** 权限码中文名:登记表优先(一个码可挂多个页面节点,节点名只说明挂在哪),节点名兜底,最后是权限码本身 */
 function displayName(code: string, menuNodeName?: string) {
-  return menuNodeName || permissionLabel(code)
+  const registered = permissionLabel(code)
+  return registered === code ? menuNodeName || code : registered
 }
 
 function buildCards(data: PermissionOverview): Map<string, PermissionCard> {
@@ -271,10 +272,9 @@ const allCards = computed(() =>
 function toTreeNodes(nodes: SystemMenuTreeNode[]): OverviewTreeNode[] {
   return nodes.map((node) => ({
     key: `menu:${node.id}`,
-    label:
-      node.menuType === 'button'
-        ? `${node.menuName}(${node.permissionCode || '无权限码'})`
-        : `${node.menuName}(${menuTypeLabel(node.menuType)})`,
+    label: node.permissionCode
+      ? `${node.menuName}(${node.permissionCode})`
+      : `${node.menuName}(${menuTypeLabel(node.menuType)})`,
     permCode: node.permissionCode || undefined,
     children: node.children?.length ? toTreeNodes(node.children) : undefined,
   }))

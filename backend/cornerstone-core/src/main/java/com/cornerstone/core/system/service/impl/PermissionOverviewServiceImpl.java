@@ -125,13 +125,15 @@ public class PermissionOverviewServiceImpl implements PermissionOverviewService 
     public List<PermissionOptionView> permissionOptions() {
         Map<String, List<PermissionEndpointInfoView>> registry = scanRegistry();
 
-        // 启用且带权限码的按钮节点:权限码 → 按钮中文名列表
+        // 启用且带权限码的菜单节点:权限码 → 中文名列表。按钮节点优先,其次页面节点
+        // (读取码挂在页面节点上,只查按钮会让下拉退化成裸权限码)
         Map<String, List<String>> menuNamesByCode = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenuEntity>()
-                .eq(SystemMenuEntity::getMenuType, "button")
                 .eq(SystemMenuEntity::getStatus, ACTIVE)
                 .isNotNull(SystemMenuEntity::getPermissionCode)
                 .ne(SystemMenuEntity::getPermissionCode, ""))
             .stream()
+            .sorted(Comparator.comparing((SystemMenuEntity menu) -> !"button".equals(menu.getMenuType()))
+                .thenComparing(SystemMenuEntity::getId))
             .collect(Collectors.groupingBy(SystemMenuEntity::getPermissionCode,
                 Collectors.mapping(SystemMenuEntity::getMenuName, Collectors.toList())));
 
