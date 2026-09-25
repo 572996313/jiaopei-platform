@@ -6,10 +6,11 @@ import type { PermissionLabelItem } from '@cornerstone/core/constants/permission
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 提供七类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
+ * 提供八类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
  * 侧边栏导航项（业务模块自己的页面入口）、品牌文案（壳工程登记本项目产物名）、
  * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）、
- * 注册凭证行操作（业务把端能力按钮注入凭证页操作列，如小程序码）。
+ * 注册凭证行操作（业务把端能力按钮注入凭证页操作列，如小程序码）、
+ * 横幅右侧动作（业务把全局入口注入顶栏，如公告铃铛）。
  * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
  * 模块未装配（清单里没挂）时查不到实现，底座按空数据降级而不是报错。
@@ -253,4 +254,32 @@ export function registerInvitationActions(items: InvitationActionDefinition[]) {
 /** 底座按行类型现算可见的业务行操作（模块登记晚于页面加载也不能漏渲染） */
 export function contributedInvitationActions(kind: string): InvitationActionDefinition[] {
   return invitationActionContributions.filter((item) => !item.kinds || item.kinds.includes(kind))
+}
+
+/**
+ * 横幅右侧的动作入口：铃铛这类"跟着登录账号走、不属于任何一个页面"的全局能力。
+ * 底座不认识公告/消息这类业务概念，组件按扩展点注入 `.banner-actions`，
+ * 自己取数、自己管状态；未装配业务模块时那一段直接不渲染。
+ */
+export interface BannerActionDefinition {
+  key: string
+  /** 横幅右侧自左向右顺序，未传取 100（底座的搜索/外观/机构/账号恒在其右） */
+  order?: number
+  component: Component
+}
+
+const bannerActionContributions: BannerActionDefinition[] = []
+
+export function registerBannerActions(items: BannerActionDefinition[]) {
+  for (const item of items) {
+    if (!bannerActionContributions.some((existing) => existing.key === item.key)) {
+      bannerActionContributions.push(item)
+      bannerActionContributions.sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
+    }
+  }
+}
+
+/** 底座现算要渲染的业务动作（登记晚于外壳加载也要出现，所以不取快照） */
+export function contributedBannerActions(): BannerActionDefinition[] {
+  return bannerActionContributions
 }

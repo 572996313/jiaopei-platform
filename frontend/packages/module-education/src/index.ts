@@ -1,7 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { AlarmClock, Avatar, Reading, User } from '@element-plus/icons-vue'
+import { AlarmClock, Avatar, Bell, Reading, User } from '@element-plus/icons-vue'
 import {
+  registerBannerActions,
   registerInvitationActions,
   registerNavItems,
   registerPermissionLabels,
@@ -47,6 +48,11 @@ export const educationRoutes: RouteRecordRaw[] = [
     name: 'schedule-completeness',
     component: () => import('@cornerstone/module-education/views/ScheduleCompletenessView.vue'),
   },
+  {
+    path: 'announcements',
+    name: 'announcements',
+    component: () => import('@cornerstone/module-education/views/AnnouncementCenterView.vue'),
+  },
 ]
 
 /**
@@ -56,6 +62,8 @@ export const educationRoutes: RouteRecordRaw[] = [
 registerPermissionLabels([
   { code: 'education:read', label: '教务查看', group: '教务管理' },
   { code: 'education:write', label: '教务维护', group: '教务管理' },
+  { code: 'announcement:read', label: '公告查看', group: '公告中心' },
+  { code: 'announcement:write', label: '公告维护', group: '公告中心' },
   { code: 'miniapp:access', label: '小程序端访问', group: '小程序端' },
 ])
 
@@ -115,6 +123,18 @@ registerNavItems([
     prefixes: ['/teachers'],
     menuCode: 'education_teachers',
   },
+  {
+    key: 'announcements',
+    to: '/announcements',
+    label: '公告中心',
+    title: '公告中心',
+    icon: Bell,
+    group: 'notice',
+    groupLabel: '消息通知',
+    groupOrder: 50,
+    prefixes: ['/announcements'],
+    menuCode: 'announcement_center',
+  },
 ])
 
 registerPageSlot('campus-detail', {
@@ -136,6 +156,20 @@ registerInvitationActions([
     order: 10,
     component: defineAsyncComponent(
       () => import('@cornerstone/module-education/views/invitation/InvitationWxacodeAction.vue')
+    ),
+  },
+])
+
+/**
+ * 顶栏右侧的全局入口：公告铃铛。它不属于任何一张页面（收件箱接口只认登录态、无权限码），
+ * 底座横幅不认识"公告"这个概念，组件按 registerBannerActions 注入。
+ */
+registerBannerActions([
+  {
+    key: 'education-announcement-bell',
+    order: 10,
+    component: defineAsyncComponent(
+      () => import('@cornerstone/module-education/views/announcement/AnnouncementBell.vue')
     ),
   },
 ])

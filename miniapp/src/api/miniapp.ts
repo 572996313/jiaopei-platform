@@ -65,7 +65,7 @@ export interface DictOptionItem {
   itemValue: string
 }
 
-interface DictOptionGroup {
+export interface DictOptionGroup {
   typeCode: string
   items: DictOptionItem[]
 }

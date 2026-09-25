@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onShow } from '@dcloudio/uni-app'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { fetchUnreadCount } from '@/api/announcement'
 
 const authStore = useAuthStore()
 
@@ -9,12 +10,15 @@ const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '',
 )
 
+// path 为空的卡片还没做，统一显示"敬请期待"
 const features = [
-  { icon: 'calendar', title: '课程表', desc: '查看孩子的上课安排' },
-  { icon: 'checkbox-filled', title: '考勤记录', desc: '出勤与请假情况' },
-  { icon: 'notification-filled', title: '消息通知', desc: '调课、停课提醒' },
-  { icon: 'wallet-filled', title: '课耗明细', desc: '课时使用与余额' },
+  { icon: 'calendar', title: '课程表', desc: '查看孩子的上课安排', path: '' },
+  { icon: 'checkbox-filled', title: '考勤记录', desc: '出勤与请假情况', path: '' },
+  { icon: 'notification-filled', title: '消息通知', desc: '学校发布的公告', path: '/pages/messages/index' },
+  { icon: 'wallet-filled', title: '课耗明细', desc: '课时使用与余额', path: '' },
 ]
+
+const unreadCount = ref(0)
 
 onShow(() => {
   if (!authStore.isLoggedIn()) {
@@ -24,7 +28,23 @@ onShow(() => {
   authStore.refreshUserInfo().catch(() => {
     // 静默重登也救不回来时,请求层已清掉本地会话并跳回登录页
   })
+  // 收件箱从详情页返回时会话仍有效，这里只补一次未读数
+  fetchUnreadCount()
+    .then((count) => {
+      unreadCount.value = count
+    })
+    .catch(() => {
+      unreadCount.value = 0
+    })
 })
+
+function openFeature(path: string) {
+  if (!path) {
+    uni.showToast({ title: '功能开发中', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: path })
+}
 </script>
 
 <template>
@@ -36,11 +56,17 @@ onShow(() => {
 
     <view class="section-title">常用服务</view>
     <view class="feature-grid">
-      <view v-for="item in features" :key="item.title" class="feature-card">
+      <view
+        v-for="item in features"
+        :key="item.title"
+        class="feature-card"
+        @click="openFeature(item.path)"
+      >
         <uni-icons :type="item.icon" size="26" color="#2563eb" />
+        <text v-if="item.path && unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
         <text class="feature-title">{{ item.title }}</text>
         <text class="feature-desc">{{ item.desc }}</text>
-        <text class="feature-tag">敬请期待</text>
+        <text v-if="!item.path" class="feature-tag">敬请期待</text>
       </view>
     </view>
 
@@ -123,6 +149,21 @@ onShow(() => {
   background: #f3f4f6;
   border-radius: 999rpx;
   padding: 4rpx 14rpx;
+}
+
+.badge {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  min-width: 34rpx;
+  height: 34rpx;
+  line-height: 34rpx;
+  padding: 0 8rpx;
+  text-align: center;
+  font-size: 20rpx;
+  color: #ffffff;
+  background: #dc2626;
+  border-radius: 999rpx;
 }
 
 .todo-note {

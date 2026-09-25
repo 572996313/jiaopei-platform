@@ -37,6 +37,19 @@
 			}
 		},
 		{
+			"path": "pages/messages/index",
+			"style": {
+				"navigationBarTitleText": "消息通知",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/messages/detail",
+			"style": {
+				"navigationBarTitleText": "公告详情"
+			}
+		},
+		{
 			"path": "pages/student-profile/index",
 			"style": {
 				"navigationBarTitleText": "我的档案"

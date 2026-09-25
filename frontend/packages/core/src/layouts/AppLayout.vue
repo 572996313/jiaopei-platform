@@ -16,6 +16,9 @@
       </div>
 
       <div class="banner-actions">
+        <!-- 业务登记的顶栏全局入口（公告铃铛一类），排在底座那几个固定项之前；没装业务模块这段就是空的 -->
+        <component v-for="action in bannerActions" :is="action.component" :key="action.key" />
+
         <!-- 窄栏把二级页收进悬停浮层了,搜索是它的兜底入口,所以不做成可关掉的装饰 -->
         <button type="button" class="banner-search" @click="searchOpen = true">
           <el-icon><Search /></el-icon>
@@ -386,6 +389,7 @@ import {
 } from '@element-plus/icons-vue'
 import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
 import {
+  contributedBannerActions,
   contributedNavItems,
   currentBrand,
   type NavItemDefinition,
@@ -471,6 +475,9 @@ function readStoredMenuPreferences(): MenuPreferences {
 const menuPreferences = ref<MenuPreferences>(readStoredMenuPreferences())
 const menuPreferencesVisible = ref(false)
 const searchOpen = ref(false)
+
+/** 顶栏业务入口：现算而不是加载时取快照，登记晚于外壳挂载也要出现 */
+const bannerActions = computed(() => contributedBannerActions())
 
 watch(
   menuPreferences,
