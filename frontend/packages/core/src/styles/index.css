@@ -949,9 +949,7 @@ body {
   color: #234c77;
 }
 
-.placeholder-card,
-.login-feature-card,
-.form-card {
+.placeholder-card {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -970,73 +968,587 @@ body {
   color: #5c6b82;
 }
 
+/* ============ 认证页外壳:流动底色 + 品牌区 + 玻璃表单卡 ============
+   登录/注册/激活/改密四页共用(LoginShell.vue),同一套版式跑两副配色:
+   默认明亮,.is-light 之外的一切走夜晚档;切档只换下面这批令牌值,规则本身不动。
+   夜晚档的底色只用同一段明度的色块:漂移改的是"光的位置"而不是"光的强度",
+   卡片内再压一层深色实底,白字对比度才不会随时间摆动。 */
+
 .login-shell {
+  --login-page: #0f1e35;
+  --login-blob-1: #21456f;
+  --login-blob-2: #1c3a63;
+  --login-blob-3: #2c3f6b;
+  --login-blob-4: rgba(249, 199, 79, 0.5);
+  --login-blob-4-alpha: 0.3;
+  --login-grid-line: rgba(255, 255, 255, 0.045);
+  --login-noise-alpha: 0.045;
+  --login-noise-blend: overlay;
+
+  /* 文字四级:主标题 / 正文次级 / 表单标签 / 占位与图标 */
+  --login-ink: #fff;
+  --login-ink-body: #eef3fa;
+  --login-ink-dim: rgba(232, 240, 252, 0.72);
+  --login-ink-label: rgba(232, 240, 252, 0.86);
+  --login-ink-faint: rgba(232, 240, 252, 0.62);
+
+  --login-line: rgba(255, 255, 255, 0.16);
+  --login-surface: rgba(255, 255, 255, 0.05);
+  --login-accent: var(--brand-gold);
+  --login-accent-line: rgba(249, 199, 79, 0.45);
+  --login-accent-ring: rgba(249, 199, 79, 0.16);
+
+  --login-card: rgba(12, 24, 43, 0.62);
+  --login-card-glow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --login-card-shadow: 0 34px 74px -34px rgba(0, 0, 0, 0.85);
+  --login-card-line: rgba(255, 255, 255, 0.2);
+
+  --login-field: rgba(255, 255, 255, 0.07);
+  --login-field-focus: rgba(255, 255, 255, 0.12);
+  --login-field-line: rgba(255, 255, 255, 0.18);
+  --login-field-line-focus: rgba(249, 199, 79, 0.75);
+
+  --login-primary-1: #4178b0;
+  --login-primary-2: #234c77;
+  --login-primary-1-hover: #4d87c1;
+  --login-primary-2-hover: #2a5a8c;
+  --login-primary-shadow: 0 16px 34px -18px rgba(0, 0, 0, 0.9);
+  --login-plain: rgba(255, 255, 255, 0.06);
+  --login-plain-hover: rgba(255, 255, 255, 0.12);
+  --login-plain-line: rgba(255, 255, 255, 0.22);
+  --login-plain-line-hover: rgba(255, 255, 255, 0.36);
+
+  --login-chip-ink: var(--login-ink-dim);
+  --login-chip-active: var(--brand-blue);
+  --login-chip-active-ink: #fff;
+
+  --login-cell-off: rgba(255, 255, 255, 0.06);
+  --login-cell-on-1: rgba(158, 196, 234, 0.95);
+  --login-cell-on-2: rgba(94, 132, 180, 0.8);
+  --login-cell-lead-1: #ffd873;
+  --login-cell-lead-2: var(--brand-gold);
+  --login-cell-lead-glow: rgba(249, 199, 79, 0.55);
+
+  --login-warn-bg: rgba(249, 199, 79, 0.14);
+  --login-warn-line: rgba(249, 199, 79, 0.45);
+  --login-warn-ink: #ffe7a8;
+  --login-error-bg: rgba(220, 96, 96, 0.16);
+  --login-error-line: rgba(240, 130, 130, 0.45);
+  --login-error-ink: #ffc4c4;
+  --login-success-bg: rgba(96, 178, 122, 0.16);
+  --login-success-line: rgba(126, 200, 152, 0.45);
+  --login-success-ink: #c9e7bf;
+  --login-info-bg: rgba(120, 168, 214, 0.16);
+  --login-info-line: rgba(146, 186, 226, 0.45);
+  --login-info-ink: #d5e6f6;
+
+  position: relative;
   display: grid;
-  grid-template-columns: 1.2fr 0.9fr;
-  min-height: 100vh;
+  grid-template-columns: 1.08fr 0.92fr;
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
+  color: var(--login-ink-body);
+  background: var(--login-page);
+}
+
+/* 明亮档:底色提亮到接近白,光斑换成淡蓝与暖米,文字整体翻成深藏青;
+   夜晚档就是 .login-shell 上那份基础令牌 */
+.login-shell.is-light {
+  --login-page: #eef2f7;
+  --login-blob-1: #cfe2f6;
+  --login-blob-2: #dce9f7;
+  --login-blob-3: #e8eef8;
+  --login-blob-4: rgba(249, 199, 79, 0.55);
+  --login-blob-4-alpha: 0.35;
+  --login-grid-line: rgba(20, 33, 61, 0.05);
+  --login-noise-alpha: 0.02;
+  --login-noise-blend: multiply;
+
+  --login-ink: var(--brand-navy);
+  --login-ink-body: var(--brand-navy);
+  --login-ink-dim: #41556f;
+  --login-ink-label: #2b3a52;
+  --login-ink-faint: #5f6c7e;
+
+  --login-line: rgba(20, 33, 61, 0.12);
+  --login-surface: rgba(255, 255, 255, 0.62);
+  --login-accent: var(--brand-blue);
+  --login-accent-line: rgba(35, 76, 119, 0.4);
+  --login-accent-ring: rgba(35, 76, 119, 0.16);
+
+  --login-card: rgba(255, 255, 255, 0.78);
+  --login-card-glow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --login-card-shadow: 0 28px 62px -32px rgba(20, 33, 61, 0.38);
+  --login-card-line: rgba(255, 255, 255, 0.85);
+
+  --login-field: #ffffff;
+  --login-field-focus: #ffffff;
+  --login-field-line: rgba(20, 33, 61, 0.18);
+  --login-field-line-focus: var(--brand-blue);
+
+  --login-primary-1: #33608f;
+  --login-primary-2: #234c77;
+  --login-primary-1-hover: #3d6fa3;
+  --login-primary-2-hover: #2a5a8c;
+  --login-primary-shadow: 0 14px 30px -16px rgba(20, 33, 61, 0.45);
+  --login-plain: #ffffff;
+  --login-plain-hover: #f3f6fa;
+  --login-plain-line: rgba(20, 33, 61, 0.16);
+  --login-plain-line-hover: rgba(20, 33, 61, 0.3);
+
+  --login-chip-ink: #41556f;
+  --login-chip-active: var(--brand-navy);
+  --login-chip-active-ink: #fff;
+
+  --login-cell-off: rgba(20, 33, 61, 0.07);
+  --login-cell-on-1: rgba(90, 140, 186, 0.9);
+  --login-cell-on-2: rgba(35, 76, 119, 0.8);
+  --login-cell-lead-1: #f7cf62;
+  --login-cell-lead-2: #e0a92e;
+  --login-cell-lead-glow: rgba(224, 169, 46, 0.45);
+
+  --login-warn-bg: #fdf3e0;
+  --login-warn-line: rgba(196, 143, 32, 0.35);
+  --login-warn-ink: #7a5204;
+  --login-error-bg: #fdecec;
+  --login-error-line: rgba(190, 74, 68, 0.3);
+  --login-error-ink: #992b25;
+  --login-success-bg: #e9f5ec;
+  --login-success-line: rgba(58, 138, 84, 0.3);
+  --login-success-ink: #1f6236;
+  --login-info-bg: #eaf1f8;
+  --login-info-line: rgba(52, 96, 138, 0.3);
+  --login-info-ink: #274d74;
+}
+
+.login-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.login-bg-blob {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(84px);
+  opacity: 0.8;
+  animation: login-orbit 30s ease-in-out infinite alternate;
+}
+
+.login-bg-blob.blob-1 {
+  width: 60vw;
+  height: 60vw;
+  left: -14%;
+  top: -18%;
+  background: radial-gradient(circle, var(--login-blob-1) 0%, transparent 66%);
+}
+
+.login-bg-blob.blob-2 {
+  width: 52vw;
+  height: 52vw;
+  right: -12%;
+  top: 6%;
+  animation-delay: -9s;
+  background: radial-gradient(circle, var(--login-blob-2) 0%, transparent 64%);
+}
+
+.login-bg-blob.blob-3 {
+  width: 46vw;
+  height: 46vw;
+  left: 30%;
+  bottom: -24%;
+  animation-delay: -17s;
+  background: radial-gradient(circle, var(--login-blob-3) 0%, transparent 66%);
+}
+
+/* 唯一的高光点:小面积金,固定在表单列之外,扫过时也不会把卡底点亮 */
+.login-bg-blob.blob-4 {
+  width: 24vw;
+  height: 24vw;
+  left: 46%;
+  top: 52%;
+  animation-delay: -4s;
+  opacity: var(--login-blob-4-alpha);
+  background: radial-gradient(circle, var(--login-blob-4) 0%, transparent 64%);
+}
+
+@keyframes login-orbit {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(7%, -6%, 0) scale(1.12);
+  }
+}
+
+.login-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(to right, var(--login-grid-line) 0 1px, transparent 1px 66px),
+    repeating-linear-gradient(to bottom, var(--login-grid-line) 0 1px, transparent 1px 58px);
+  -webkit-mask-image: radial-gradient(80% 70% at 30% 40%, #000 10%, transparent 76%);
+  mask-image: radial-gradient(80% 70% at 30% 40%, #000 10%, transparent 76%);
+}
+
+.login-bg-noise {
+  position: absolute;
+  inset: 0;
+  opacity: var(--login-noise-alpha);
+  mix-blend-mode: var(--login-noise-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .login-panel {
-  padding: 42px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  padding: 48px;
 }
 
 .login-panel-brand {
-  display: flex;
   flex-direction: column;
   justify-content: center;
-  color: #f8fafc;
-  background: linear-gradient(160deg, #14213d 0%, #234c77 55%, #f9c74f 180%);
+  gap: 26px;
 }
 
+/* 表单列自己滚:注册页五个字段叠三条状态提示时卡片比视口还高,
+   不许把整个 shell 顶出滚动条(那样左区会跟着一起变矮、两列底边不齐)。
+   垂直居中用 margin:auto 而不是 align-items:center——后者在内容超高时会把卡片
+   上半截顶到滚动区外面,滚上去也够不着。
+   顶部多让出 72px:外观切换压在右上角,卡片不许钻到它底下。 */
 .login-panel-form {
-  display: flex;
-  align-items: center;
   justify-content: center;
+  padding-top: 72px;
+  overflow-y: auto;
+}
+
+.login-panel-brand > *,
+.login-panel-form .form-card {
+  animation: login-rise 0.72s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.login-panel-form .form-card {
+  margin: auto;
+}
+
+.login-panel-brand > *:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.login-panel-brand > *:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes login-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .login-kicker {
   font-size: 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--login-ink-dim);
 }
 
 .login-title {
   margin: 14px 0 18px;
-  font-size: 46px;
-  line-height: 1.1;
+  font-size: 40px;
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--login-ink);
 }
 
 .login-copy {
-  max-width: 520px;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.82);
+  max-width: 42ch;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--login-ink-dim);
+}
+
+/* 品牌区主视觉:一周七天的网格,填充位是固定图案、纯装饰,不表示任何真实数据 */
+.login-motif {
+  max-width: 452px;
+  padding: 16px 18px;
+  border: 1px solid var(--login-line);
+  border-radius: 16px;
+  background: var(--login-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.login-motif-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 9px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--login-ink-dim);
+  text-align: center;
+}
+
+.login-motif-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.login-motif-grid i {
+  height: 24px;
+  border-radius: 6px;
+  background: var(--login-cell-off);
+}
+
+.login-motif-grid i.on {
+  background: linear-gradient(180deg, var(--login-cell-on-1), var(--login-cell-on-2));
+  animation: login-cell-wave 7s ease-in-out infinite;
+  animation-delay: var(--w, 0s);
+}
+
+.login-motif-grid i.lead {
+  background: linear-gradient(180deg, var(--login-cell-lead-1), var(--login-cell-lead-2));
+  animation: login-lead-glow 7s ease-in-out infinite;
+  animation-delay: var(--w, 0s);
+}
+
+@keyframes login-cell-wave {
+  0%,
+  66%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes login-lead-glow {
+  0%,
+  66%,
+  100% {
+    opacity: 0.45;
+    box-shadow: none;
+  }
+  30% {
+    opacity: 1;
+    box-shadow: 0 0 18px var(--login-cell-lead-glow);
+  }
 }
 
 .login-feature-list {
   display: grid;
-  gap: 18px;
-  max-width: 520px;
-  margin-top: 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 460px;
 }
 
 .login-feature-card {
-  color: #14213d;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 14px 16px;
+  border: 1px solid var(--login-line);
+  border-radius: 14px;
+  background: var(--login-surface);
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.7, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.login-feature-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--login-accent-line);
 }
 
 .login-feature-title {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
+  color: var(--login-ink);
 }
 
 .login-feature-text {
-  margin-top: 8px;
-  color: #56657d;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--login-ink-dim);
 }
 
+/* 玻璃卡:夜晚档在模糊层下面压一层深色实底,明亮档则提亮成磨砂白,
+   两档都保证白字/深字有稳定底,背景光斑只改变"通透感"不改变读数 */
 .form-card {
+  --el-text-color-regular: var(--login-ink-label);
+  --el-text-color-primary: var(--login-ink);
+  --el-text-color-placeholder: var(--login-ink-faint);
+  --el-border-color: var(--login-field-line);
+  --el-border-color-hover: var(--login-field-line-focus);
+  --el-fill-color-blank: var(--login-field);
   width: min(460px, 100%);
+  padding: 32px 32px 28px;
+  border: 1px solid var(--login-card-line);
+  border-radius: 20px;
+  background: var(--login-card);
+  box-shadow:
+    var(--login-card-glow),
+    var(--login-card-shadow);
+  backdrop-filter: blur(26px) saturate(1.35);
+  -webkit-backdrop-filter: blur(26px) saturate(1.35);
+}
+
+.form-card .page-kicker,
+.form-card .login-form-tip {
+  color: var(--login-ink-dim);
+}
+
+.form-card .form-title {
+  color: var(--login-ink);
+}
+
+.form-card .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--login-field-line) inset;
+  transition:
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+/* 聚焦态统一用 :focus-within 判定：EP 的 is-focus 由包装层上的捕获期 focus 监听驱动，
+   只要外层换版本或输入框被包进别的容器就可能不出现，而 :focus-within 是浏览器保证 */
+.form-card .el-input__wrapper:focus-within {
+  background-color: var(--login-field-focus);
+  box-shadow:
+    0 0 0 1px var(--login-field-line-focus) inset,
+    0 0 0 4px var(--login-accent-ring);
+}
+
+.form-card .el-input__inner {
+  color: var(--login-ink);
+}
+
+/* 聚焦时把 label 和输入框内的图标一起点亮，视线跟着当前字段走 */
+.form-card .el-form-item:focus-within .el-form-item__label,
+.form-card .el-input__wrapper:focus-within .el-input__prefix,
+.form-card .el-input__wrapper:focus-within .el-input__suffix {
+  color: var(--login-accent);
+}
+
+.form-card .el-button--primary {
+  background: linear-gradient(180deg, var(--login-primary-1) 0%, var(--login-primary-2) 100%);
+  border-color: var(--login-plain-line);
+  box-shadow: var(--login-primary-shadow);
+}
+
+.form-card .el-button--primary:hover {
+  background: linear-gradient(180deg, var(--login-primary-1-hover) 0%, var(--login-primary-2-hover) 100%);
+  border-color: var(--login-plain-line-hover);
+}
+
+.form-card .el-button:not(.el-button--primary) {
+  background: var(--login-plain);
+  border-color: var(--login-plain-line);
+  color: var(--login-ink-label);
+}
+
+.form-card .el-button:not(.el-button--primary):hover {
+  background: var(--login-plain-hover);
+  border-color: var(--login-plain-line-hover);
+  color: var(--login-ink);
+}
+
+/* 状态提示：按语义各给一组，两档配色各有一套底色与文字色 */
+.form-card .el-alert--warning {
+  background: var(--login-warn-bg);
+  border-color: var(--login-warn-line);
+}
+
+.form-card .el-alert--info {
+  background: var(--login-info-bg);
+  border-color: var(--login-info-line);
+}
+
+.form-card .el-alert--error {
+  background: var(--login-error-bg);
+  border-color: var(--login-error-line);
+}
+
+.form-card .el-alert--success {
+  background: var(--login-success-bg);
+  border-color: var(--login-success-line);
+}
+
+.form-card .el-alert--warning .el-alert__title {
+  color: var(--login-warn-ink);
+}
+
+.form-card .el-alert--info .el-alert__title {
+  color: var(--login-info-ink);
+}
+
+.form-card .el-alert--error .el-alert__title {
+  color: var(--login-error-ink);
+}
+
+.form-card .el-alert--success .el-alert__title {
+  color: var(--login-success-ink);
+}
+
+/* 右上角外观切换:明亮 / 夜晚 / 跟随系统,选中的记在本机 cornerstone-login-theme */
+.login-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 48px;
+  z-index: 2;
+}
+
+.login-theme {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--login-line);
+  border-radius: 999px;
+  background: var(--login-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.login-theme-option {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--login-chip-ink);
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.login-theme-option:hover {
+  color: var(--login-ink);
+}
+
+/* 选中的那一段填实色,靠底色而不是只靠颜色区分,色弱用户也能读 */
+.login-theme-option[aria-pressed='true'] {
+  background: var(--login-chip-active);
+  color: var(--login-chip-active-ink);
+}
+
+.login-theme-option:focus-visible {
+  outline: 2px solid var(--login-accent);
+  outline-offset: 2px;
 }
 
 .login-submit {
@@ -1046,14 +1558,41 @@ body {
 
 .change-password-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 12px;
+  margin-top: 4px;
+}
+
+/* 操作行内两个按钮等宽，与上方输入框左右边缘对齐；按钮自带的相邻 margin-left 会和 gap 叠成双倍间距 */
+.change-password-actions > .el-button {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+  margin-left: 0;
 }
 
 .login-form-tip {
   margin: 0 0 18px;
   color: #5c6b82;
   font-size: 14px;
+}
+
+/* 系统要求减少动效时只留静态版面：光斑停在中位、网格常亮、入场不做位移 */
+@media (prefers-reduced-motion: reduce) {
+  .login-bg-blob,
+  .login-motif-grid i.on,
+  .login-motif-grid i.lead,
+  .login-panel-brand > *,
+  .login-panel-form .form-card {
+    animation: none;
+  }
+
+  .login-motif-grid i.on {
+    opacity: 0.85;
+  }
+
+  .login-motif-grid i.lead {
+    opacity: 1;
+  }
 }
 
 .system-tabs .el-tabs__header {
@@ -1482,8 +2021,30 @@ body {
   .panel-card-wide {
     grid-column: span 2;
   }
+}
 
-  .login-shell {
-    grid-template-columns: 1fr;
+/* 认证页的窄屏档：阈值取 1279，1280 是本项目支持的最短桌面宽度、必须拿到满档版式
+   （写进上面那条 1280 的公共块里，等于 1280 分辨率天天用缩减版字号和边距）。
+   分栏不折成单列：shell 是 100vh + overflow:hidden，单列会把卡片顶出去裁掉；
+   body 的 min-width 已经保证两列放得下，窄屏只收边距和标题 */
+@media (max-width: 1279px) {
+  .login-panel {
+    padding: 32px;
+  }
+
+  .login-title {
+    font-size: 32px;
+  }
+
+  .form-card {
+    padding: 26px 24px 22px;
+  }
+
+  .login-toolbar {
+    right: 32px;
+  }
+
+  .login-panel-form {
+    padding-top: 64px;
   }
 }

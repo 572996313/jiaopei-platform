@@ -1,58 +1,36 @@
 <template>
-  <div class="login-shell">
-    <section class="login-panel login-panel-brand">
-      <div class="login-kicker">{{ brand.loginKicker }}</div>
-      <h1 class="login-title">{{ brand.loginTitle }}</h1>
-      <p class="login-copy">{{ brand.loginCopy }}</p>
+  <LoginShell>
+    <div class="page-kicker">系统登录</div>
+    <h2 class="form-title">{{ brand.loginFormTitle }}</h2>
+    <p v-if="loginPageTip" class="login-form-tip">{{ loginPageTip }}</p>
 
-      <div class="login-feature-list">
-        <div v-for="feature in brand.loginFeatures" :key="feature.title" class="login-feature-card">
-          <div class="login-feature-title">{{ feature.title }}</div>
-          <div class="login-feature-text">{{ feature.text }}</div>
-        </div>
-      </div>
-    </section>
+    <el-alert
+      v-if="formError"
+      :title="formError"
+      type="error"
+      show-icon
+      :closable="false"
+      class="education-alert"
+    />
 
-    <section class="login-panel login-panel-form">
-      <div class="form-card">
-        <div class="page-kicker">系统登录</div>
-        <h2 class="form-title">{{ brand.loginFormTitle }}</h2>
-        <p v-if="loginPageTip" class="login-form-tip">{{ loginPageTip }}</p>
+    <el-form label-position="top" @submit.prevent="submitLogin">
+      <el-form-item label="账号">
+        <el-input v-model="form.username" placeholder="请输入账号" />
+      </el-form-item>
+      <el-form-item label="密码">
+        <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" />
+      </el-form-item>
+      <el-button class="login-submit" type="primary" :loading="submitting" @click="submitLogin">
+        登录系统
+      </el-button>
+    </el-form>
 
-        <el-alert
-          v-if="formError"
-          :title="formError"
-          type="error"
-          show-icon
-          :closable="false"
-          class="education-alert"
-        />
-
-        <el-form label-position="top" @submit.prevent="submitLogin">
-          <el-form-item label="账号">
-            <el-input v-model="form.username" placeholder="请输入账号" />
-          </el-form-item>
-          <el-form-item label="密码">
-            <el-input
-              v-model="form.password"
-              type="password"
-              show-password
-              placeholder="请输入密码"
-            />
-          </el-form-item>
-          <el-button class="login-submit" type="primary" :loading="submitting" @click="submitLogin">
-            登录系统
-          </el-button>
-        </el-form>
-
-        <div class="login-alt-entries">
-          <router-link to="/register">有邀请码？注册账号</router-link>
-          <span class="login-alt-divider">|</span>
-          <router-link to="/activate">账号待激活？设置密码</router-link>
-        </div>
-      </div>
-    </section>
-  </div>
+    <div class="login-alt-entries">
+      <router-link to="/register">有邀请码？注册账号</router-link>
+      <span class="login-alt-divider">|</span>
+      <router-link to="/activate">账号待激活？设置密码</router-link>
+    </div>
+  </LoginShell>
 </template>
 
 <script setup lang="ts">
@@ -60,6 +38,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchLoginPage } from '@cornerstone/core/api/auth'
+import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { currentBrand } from '@cornerstone/core/extension/module-extensions'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 
@@ -137,16 +116,29 @@ async function submitLogin() {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--login-line);
   font-size: 13px;
+  color: var(--login-ink-dim);
 }
 
+/* 交替入口跟在表单卡里,颜色一律取外壳令牌,明亮/夜晚两档不用各写一套 */
 .login-alt-entries a {
-  color: var(--el-color-primary);
+  color: var(--login-ink-label);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.login-alt-entries a:hover {
+  color: var(--login-accent);
+  border-bottom-color: var(--login-accent-line);
 }
 
 .login-alt-divider {
-  color: var(--el-text-color-placeholder);
+  color: var(--login-line);
 }
 </style>
