@@ -542,6 +542,10 @@ export interface PermissionRoleRef {
   roleId: string
   roleCode: string
   roleName: string
+  /** 该角色在「预设权限」里直接勾了这个码(sys_role.permission_codes CSV) */
+  fromPreset: boolean
+  /** 该角色通过勾选携带此码的菜单节点获得授权 */
+  fromMenuNode: boolean
 }
 
 export interface PermissionMenuNodeRef {
@@ -564,7 +568,6 @@ export interface PermissionUsage {
   roles: PermissionRoleRef[]
   menuNodes: PermissionMenuNodeRef[]
   configButtons: PermissionConfigButtonRef[]
-  dangling: boolean
 }
 
 export interface UnregisteredPermission {

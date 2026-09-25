@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>功能权限总览 · 改版静态稿（对齐用，非生产代码）</title>
+<style>
+  :root{
+    --primary:#409eff;--success:#67c23a;--warning:#e6a23c;--danger:#f56c6c;--info:#909399;
+    --text:#303133;--text-regular:#606266;--text-muted:#909399;
+    --border:#dcdfe6;--border-light:#ebeef5;--bg-page:#f5f7fa;--bg-soft:#fafbfc;
+    --radius:6px;--shadow:0 1px 4px rgba(0,21,41,.06);
+    --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:14px;color:var(--text);background:var(--bg-page);
+  }
+  /* ===== 外壳：现状占位，本次不重设计 ===== */
+  .shell-note{
+    display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;
+    background:#fdf6ec;color:#b88230;border-bottom:1px solid #faecd8;
+  }
+  .app-header{
+    height:48px;display:flex;align-items:center;justify-content:flex-end;gap:16px;
+    padding:0 16px;background:#fff;border-bottom:1px solid var(--border-light);
+    color:var(--text-regular);font-size:13px;
+  }
+  .app-header .pill{padding:3px 10px;border:1px solid var(--border);border-radius:14px;font-size:12px;color:var(--text-muted)}
+  .app-tabbar{display:flex;align-items:flex-end;height:38px;padding:0 12px;background:#fff;border-bottom:1px solid var(--border-light)}
+  .tab{
+    position:relative;padding:0 12px 0 10px;height:30px;line-height:30px;font-size:13px;color:var(--text-regular);
+    cursor:default;background:var(--bg-page);border:1px solid var(--border-light);border-radius:4px 4px 0 0;margin-right:4px;
+  }
+  .tab.active{background:#fff;color:var(--primary);border-bottom-color:#fff}
+  .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:#fff}
+  .work{padding:12px}
+  /* ===== 统计卡 ===== */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+  .stat-card{background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+  .stat-card .num{font-size:26px;font-weight:600;line-height:1.2;letter-spacing:.5px}
+  .stat-card .num.zero{color:var(--success)}
+  .stat-card .lbl{margin-top:2px;font-size:13px;color:var(--text-regular)}
+  .stat-card .hint{margin-top:6px;font-size:12px;color:var(--text-muted);line-height:1.5}
+  .stat-card.alert{border-color:#fde2e2;background:#fef6f6}
+  .stat-card.alert .num{color:var(--danger)}
+  /* ===== 主体两栏 ===== */
+  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:12px;align-items:start}
+  .panel{background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .rail{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden}
+  .rail-head{padding:12px 12px 10px;border-bottom:1px solid var(--border-light)}
+  .search{position:relative}
+  .search input{
+    width:100%;height:32px;padding:0 28px 0 10px;border:1px solid var(--border);border-radius:4px;
+    font-size:13px;color:var(--text);outline:none;
+  }
+  .search input:focus{border-color:var(--primary)}
+  .search .clear{position:absolute;right:8px;top:8px;color:var(--text-muted);cursor:pointer;font-size:12px;display:none}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{
+    font-size:12px;line-height:20px;padding:0 8px;border:1px solid var(--border);border-radius:11px;
+    color:var(--text-regular);background:#fff;cursor:pointer;user-select:none;
+  }
+  .chip.on{border-color:var(--primary);color:var(--primary);background:#ecf5ff}
+  .chip.disabled{color:#c0c4cc;cursor:not-allowed;background:var(--bg-soft)}
+  .tree{overflow:auto;padding:6px 4px 10px;flex:1}
+  .tw{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;cursor:pointer;line-height:20px}
+  .tw:hover{background:var(--bg-page)}
+  .tw.nocode{cursor:default;color:var(--text-muted)}
+  .tw.nocode:hover{background:transparent}
+  .tw.group:hover{background:var(--bg-soft)}
+  .tw.sel{background:#ecf5ff;color:var(--primary)}
+  .tw .caret{width:12px;flex:none;color:var(--text-muted);font-size:10px;cursor:pointer}
+  .tw .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tw .cnt{flex:none;font-size:11px;color:var(--text-muted);font-family:var(--mono)}
+  .tw.group{font-weight:600;color:var(--text-regular);background:var(--bg-soft)}
+  .tw.virtual{color:#b88230;background:#fdf6ec;font-weight:600}
+  .tw.virtual.sel{background:#faecd8}
+  .code-tag{
+    flex:none;max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-family:var(--mono);font-size:11px;color:var(--text-muted);background:var(--bg-page);
+    border:1px solid var(--border-light);border-radius:3px;padding:0 4px;
+  }
+  .tw.sel .code-tag{color:var(--primary);border-color:#d9ecff;background:#fff}
+  .tw.button .name{color:var(--text-muted)}
+  .kind-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--info)}
+  .kind-dot.read{background:var(--success)}
+  .kind-dot.write{background:var(--warning)}
+  .kind-dot.action{background:var(--danger)}
+  .kind-dot.portal{background:var(--primary)}
+  /* ===== 详情 ===== */
+  .detail{padding:0;overflow:hidden}
+  .d-head{padding:16px 20px 14px;border-bottom:1px solid var(--border-light)}
+  .d-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .d-title h2{margin:0;font-size:18px;font-weight:600}
+  .d-code{
+    display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;
+    color:var(--text-regular);background:var(--bg-page);border:1px solid var(--border-light);
+    padding:2px 6px;border-radius:4px;
+  }
+  .copy{cursor:pointer;color:var(--text-muted);font-size:12px}
+  .copy:hover{color:var(--primary)}
+  .tag{font-size:12px;line-height:20px;padding:0 8px;border-radius:3px;border:1px solid transparent}
+  .tag.read{color:#529b2e;background:#f0f9eb;border-color:#e1f3d8}
+  .tag.write{color:#b88230;background:#fdf6ec;border-color:#faecd8}
+  .tag.action{color:#c45656;background:#fef0f0;border-color:#fde2e2}
+  .tag.portal{color:#337ecc;background:#ecf5ff;border-color:#d9ecff}
+  .tag.plain{color:var(--text-muted);background:var(--bg-page);border-color:var(--border-light)}
+  .d-meta{margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap}
+  .d-meta b{color:var(--text-regular);font-weight:600}
+  .section{border-bottom:1px solid var(--border-light)}
+  .section:last-child{border-bottom:none}
+  .s-head{
+    display:flex;align-items:center;gap:8px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--text-regular);
+    background:var(--bg-soft);
+  }
+  .s-head .sub{font-weight:400;color:var(--text-muted);font-size:12px}
+  .s-head .count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--text-muted);font-weight:400}
+  .s-body{padding:12px 20px 16px}
+  .roles{display:flex;flex-wrap:wrap;gap:8px}
+  .role{border:1px solid var(--border-light);border-radius:4px;padding:8px 10px;min-width:200px;background:#fff}
+  .role .rn{font-size:13px;font-weight:600}
+  .role .rc{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:2px}
+  .role .src{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+  .src-tag{font-size:11px;line-height:18px;padding:0 6px;border-radius:3px;background:var(--bg-page);color:var(--text-muted);border:1px solid var(--border-light)}
+  .src-tag.csv{background:#ecf5ff;color:#337ecc;border-color:#d9ecff}
+  .src-tag.node{background:#f0f9eb;color:#529b2e;border-color:#e1f3d8}
+  .crumb{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border-light);border-radius:4px;background:#fff}
+  .crumb + .crumb{margin-top:8px}
+  .crumb .path{color:var(--text-muted);font-size:12px}
+  .crumb .node{font-size:13px}
+  .crumb .route{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-muted)}
+  .tip{margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.7}
+  .btn-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .btn-item{border:1px dashed var(--border);border-radius:4px;padding:6px 10px;font-size:12px;color:var(--text-regular);background:var(--bg-soft)}
+  .btn-item code{font-family:var(--mono);color:var(--text-muted)}
+  .seg{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .api{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border-light)}
+  .api:last-child{border-bottom:none}
+  .api .m{flex:none;width:54px;text-align:center;font-size:11px;font-weight:600;line-height:18px;border-radius:3px;font-family:var(--mono)}
+  .m.GET{color:#529b2e;background:#f0f9eb}
+  .m.POST{color:#b88230;background:#fdf6ec}
+  .m.PUT{color:#337ecc;background:#ecf5ff}
+  .m.DELETE{color:#c45656;background:#fef0f0}
+  .m.PATCH{color:var(--text-muted);background:var(--bg-page)}
+  .api .p{flex:none;font-family:var(--mono);font-size:12px;color:var(--text);word-break:break-all}
+  .api .p em{font-style:normal;color:#c7254e}
+  .api .s{margin-left:auto;text-align:right;font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38%}
+  .more{margin-top:10px;font-size:12px;color:var(--primary);cursor:pointer;user-select:none}
+  .more:hover{text-decoration:underline}
+  .empty{padding:48px 20px;text-align:center;color:var(--text-muted);font-size:13px;line-height:2}
+  /* 设计说明 */
+  .notes{margin-top:12px;border:1px dashed #c8d0d8;border-radius:var(--radius);background:#fff}
+  .notes summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--text-regular)}
+  .notes .body{padding:0 16px 16px;font-size:12px;color:var(--text-regular);line-height:1.9}
+  .notes h4{margin:14px 0 4px;font-size:12px;color:var(--text)}
+  .notes ul{margin:0;padding-left:18px}
+  .notes .kv{font-family:var(--mono);color:#c7254e}
+  @media (max-width:1280px){.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:280px minmax(0,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="shell-note">
+  静态对齐稿 · 数据取自本库真实接口（<span style="font-family:var(--mono)">/api/system/permission-overview</span>、<span style="font-family:var(--mono)">/api/system/menus/tree</span>），外壳（顶栏 / 页签栏）为现状占位，本次不重设计。
+</div>
+<div class="app-header">
+  <span class="pill">当前机构：演示机构</span>
+  <span>平台管理员</span>
+</div>
+<div class="app-tabbar">
+  <div class="tab">工作台</div>
+  <div class="tab">用户管理</div>
+  <div class="tab active">功能权限</div>
+</div>
+
+<div class="work">
+  <!-- 统计卡：四张全部来自现有接口可算出的数 -->
+  <div class="stat-grid" id="stats"></div>
+
+  <div class="layout">
+    <!-- 左：菜单树驱动的权限码导航 -->
+    <div class="panel rail">
+      <div class="rail-head">
+        <div class="search">
+          <input id="kw" placeholder="搜索权限码 / 中文名 / 接口路径" />
+          <span class="clear" id="kwClear">✕</span>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="tree" id="tree"></div>
+    </div>
+
+    <!-- 右：单个权限码的完整链路 -->
+    <div class="panel detail" id="detail"></div>
+  </div>
+
+  <details class="notes">
+    <summary>设计说明（给设计的口径，不进界面）</summary>
+    <div class="body">
+      <h4>这一页要回答的三个问题</h4>
+      <ul>
+        <li>这个权限码<b>是什么</b>（中文名、读取还是写入）；</li>
+        <li><b>谁能用</b>——两条来源要分开画：角色预设权限（<span class="kv">sys_role.permission_codes</span> CSV）与勾选菜单节点带出的码，撤销时两边都要撤；</li>
+        <li><b>用了管什么</b>——挂载节点（页面节点=进得来且读得到；按钮节点=一个写动作）+ 后端 <span class="kv">@RequiresPermission</span> 扫出的受控接口清单。</li>
+      </ul>
+      <h4>数据边界（不许出现在设计里的字段）</h4>
+      <ul>
+        <li>接口只返回 <b>17 个生效权限码</b>及其接口清单、持有角色、挂载菜单节点、列表按钮配置，<b>没有</b>：调用量、覆盖率、健康分、最近调用时间、引擎/集群/CI/Git SHA 一类运行时信息，也没有权限申请流与审批人。</li>
+        <li>页内<b>不提供编辑</b>：授权改动去「角色管理-分配菜单」「菜单管理」，此页只读，避免和那两个页面漂移。</li>
+        <li>页面标题只在顶栏页签出现一次，<b>不加页内大标题</b>（全站口径）。</li>
+        <li>按钮节点在菜单树里 <span class="kv">visible=0</span>，不占导航，只作权限码载体。</li>
+      </ul>
+      <h4>布局约束</h4>
+      <ul>
+        <li>左栏宽 <b>340px</b>、右栏自适应、栅格间距 12px（与现有页面一致）；左栏 <span class="kv">position:sticky</span> 自量高，右栏接口列表<b>内部滚动</b>，不让整页拉长。</li>
+        <li>统计卡四张按"有问题就变红"的规则：后两张正常应为 <b>0</b>（绿色），非 0 时是配置缺口，需要能一眼看出。</li>
+        <li>窄栏（侧边栏收成图标）时本页不受影响，内容区从 12px 起算。</li>
+      </ul>
+      <h4>色彩语义（沿用 Element Plus）</h4>
+      <ul>
+        <li><span class="tag read">读取</span> 绿 —— 页面节点上的读码，勾选即授予；<span class="tag write">写入</span> 橙 —— 按钮节点上的写动作；<span class="tag action">单码读写</span> 红 —— 读写共用一个 <span class="kv">:manage</span> 码的页（代价：无法配只读岗）；<span class="tag portal">端访问</span> 蓝 —— 小程序端入口码。</li>
+        <li>接口行方法色：GET 绿 / POST 橙 / PUT 蓝 / DELETE 红，与全站表格一致。</li>
+      </ul>
+    </div>
+  </details>
+</div>
+
+<script>
+const DATA = {"tree":[{"id":210,"menuCode":"parent_home","menuName":"家长端","menuType":"catalog","path":"/parent","icon":"House","sortNo":10,"visible":true,"status":"active","remark":"家长端根目录","children":[{"id":211,"parentId":210,"menuCode":"parent_children","menuName":"我的孩子","menuType":"menu","path":"/parent/children","component":"children","icon":"UserFilled","sortNo":10,"visible":true,"status":"active","remark":"家长查看孩子列表","children":[]},{"id":212,"parentId":210,"menuCode":"parent_timetable","menuName":"课程表","menuType":"menu","path":"/parent/timetable","component":"timetable","icon":"Calendar","sortNo":20,"visible":true,"status":"active","remark":"家长查看孩子课表","children":[]},{"id":213,"parentId":210,"menuCode":"parent_attendance","menuName":"考勤记录","menuType":"menu","path":"/parent/attendance","component":"attendance","icon":"Select","sortNo":30,"visible":true,"status":"active","remark":"家长查看孩子考勤","children":[]},{"id":214,"parentId":210,"menuCode":"parent_lessons_left","menuName":"课耗明细","menuType":"menu","path":"/parent/lessons","component":"lessons-left","icon":"Money","sortNo":40,"visible":true,"status":"active","remark":"家长查看课时消费","children":[]},{"id":215,"parentId":210,"menuCode":"parent_notices","menuName":"消息通知","menuType":"menu","path":"/parent/notices","component":"notices","icon":"Bell","sortNo":50,"visible":true,"status":"active","remark":"调课/停课通知","children":[]},{"id":118,"parentId":210,"menuCode":"parent_portal_access","menuName":"小程序端访问","menuType":"button","permissionCode":"miniapp:access","sortNo":90,"visible":false,"status":"active","remark":"家长端七个 /api/miniapp 接口共用此码","children":[]}]},{"id":200,"menuCode":"student_home","menuName":"学生端","menuType":"catalog","path":"/student","icon":"House","sortNo":10,"visible":true,"status":"active","remark":"学生端根目录","children":[{"id":201,"parentId":200,"menuCode":"student_timetable","menuName":"我的课表","menuType":"menu","path":"/student/timetable","component":"timetable","icon":"Calendar","sortNo":10,"visible":true,"status":"active","remark":"学生查看本人课表","children":[]},{"id":202,"parentId":200,"menuCode":"student_attendance","menuName":"我的考勤","menuType":"menu","path":"/student/attendance","component":"attendance","icon":"Select","sortNo":20,"visible":true,"status":"active","remark":"学生查看出勤记录","children":[]},{"id":203,"parentId":200,"menuCode":"student_lessons_left","menuName":"课时剩余","menuType":"menu","path":"/student/lessons","component":"lessons-left","icon":"Money","sortNo":30,"visible":true,"status":"active","remark":"学生查看剩余课时","children":[]},{"id":117,"parentId":200,"menuCode":"student_portal_access","menuName":"小程序端访问","menuType":"button","permissionCode":"miniapp:access","sortNo":90,"visible":false,"status":"active","remark":"学生端七个 /api/miniapp 接口共用此码","children":[]}]},{"id":15,"menuCode":"education_schedule_center","menuName":"排课中心","menuType":"catalog","icon":"Calendar","sortNo":40,"visible":true,"status":"active","remark":"排课与执行相关功能的顶层目录","children":[{"id":16,"parentId":15,"menuCode":"education_scheduling","menuName":"排课管理","menuType":"menu","path":"/scheduling","component":"education/ScheduleManageView","permissionCode":"education:read","icon":"Calendar","sortNo":10,"visible":true,"status":"active","remark":"排课计划页；勾选即授教务查看码","children":[{"id":112,"parentId":16,"menuCode":"education_scheduling_write","menuName":"排课维护","menuType":"button","permissionCode":"education:write","sortNo":10,"visible":false,"status":"active","remark":"排课管理页新增/编辑/删除排课权限","children":[]}]},{"id":17,"parentId":15,"menuCode":"education_execution","menuName":"执行与课表","menuType":"menu","path":"/schedule","component":"education/ScheduleAttendanceView","permissionCode":"education:read","icon":"AlarmClock","sortNo":20,"visible":true,"status":"active","remark":"课次执行与考勤页；勾选即授教务查看码","children":[{"id":113,"parentId":17,"menuCode":"education_execution_write","menuName":"执行变更","menuType":"button","permissionCode":"education:write","sortNo":10,"visible":false,"status":"active","remark":"执行与课表页点名/结课/调课/停课/补课权限","children":[]}]},{"id":19,"parentId":15,"menuCode":"education_completeness","menuName":"排课完成度","menuType":"menu","path":"/schedule-completeness","component":"education/ScheduleCompletenessView","permissionCode":"education:read","icon":"DataAnalysis","sortNo":30,"visible":true,"status":"active","remark":"排课完成度报表页；勾选即授教务查看码","children":[]}]},{"id":22,"menuCode":"education_enrollments","menuName":"报名与入班","menuType":"menu","path":"/students","component":"education/StudentManagementView","permissionCode":"education:read","icon":"User","sortNo":50,"visible":true,"status":"active","remark":"报名与入班页；勾选即授教务查看码","children":[]},{"id":23,"menuCode":"education_classes","menuName":"班级学员","menuType":"menu","path":"/classes","component":"education/ClassManagementView","permissionCode":"education:read","icon":"Reading","sortNo":60,"visible":true,"status":"active","remark":"班级与学员页；勾选即授教务查看码","children":[]},{"id":20,"menuCode":"organization_campus","menuName":"机构与教学资源","menuType":"menu","path":"/campus","component":"organization/CampusManagementView","permissionCode":"organization:read","icon":"OfficeBuilding","sortNo":70,"visible":true,"status":"active","remark":"校区/教室/学期页；勾选即授组织查看码","children":[{"id":116,"parentId":20,"menuCode":"organization_master_data_write","menuName":"组织档案维护","menuType":"button","permissionCode":"organization:write","sortNo":10,"visible":false,"status":"active","remark":"校区/教室/学期/时间段的写操作共用这一个码，勾了即可写全部组织页面","children":[]}]},{"id":21,"menuCode":"organization_time_slots","menuName":"时间段设置","menuType":"menu","path":"/time-slots","component":"organization/TimeSlotTemplateView","permissionCode":"organization:read","icon":"Timer","sortNo":80,"visible":true,"status":"active","remark":"节次模板与网格编辑页；勾选即授组织查看码","children":[]},{"id":24,"menuCode":"education_teachers","menuName":"教师档案","menuType":"menu","path":"/teachers","component":"education/TeacherManagementView","permissionCode":"education:read","icon":"Avatar","sortNo":90,"visible":true,"status":"active","remark":"教师档案页；勾选即授教务查看码","children":[]},{"id":1,"menuCode":"system","menuName":"系统设置","menuType":"catalog","path":"/system","icon":"Setting","sortNo":100,"visible":true,"status":"active","remark":"系统管理根菜单","children":[{"id":12,"parentId":1,"menuCode":"system_org_permission","menuName":"机构与权限","menuType":"catalog","icon":"Lock","sortNo":110,"visible":true,"status":"active","remark":"机构资料与用户角色菜单权限配置","children":[{"id":8,"parentId":12,"menuCode":"system_institution","menuName":"机构资料","menuType":"menu","path":"/system/institution","component":"system/institution","permissionCode":"tenant:read","icon":"OfficeBuilding","sortNo":10,"visible":true,"status":"active","remark":"机构资料页；勾选即授机构查看码，编辑仍由「机构资料维护」按钮授予","children":[{"id":114,"parentId":8,"menuCode":"system_institution_edit","menuName":"机构资料维护","menuType":"button","permissionCode":"tenant:write","sortNo":20,"visible":false,"status":"active","remark":"编辑机构资料所需权限","children":[]}]},{"id":2,"parentId":12,"menuCode":"system_users","menuName":"用户管理","menuType":"menu","path":"/system/users","component":"system/users","permissionCode":"system:user:manage","icon":"User","sortNo":20,"visible":true,"status":"active","remark":"用户管理页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":18,"parentId":12,"menuCode":"system_invitations","menuName":"注册凭证","menuType":"menu","path":"/system/invitations","component":"system/invitations","permissionCode":"system:invitation:manage","icon":"Key","sortNo":30,"visible":true,"status":"active","remark":"注册凭证页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":3,"parentId":12,"menuCode":"system_roles","menuName":"角色管理","menuType":"menu","path":"/system/roles","component":"system/roles","permissionCode":"system:role:manage","icon":"UserFilled","sortNo":30,"visible":true,"status":"active","remark":"角色管理页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":4,"parentId":12,"menuCode":"system_menus","menuName":"菜单管理","menuType":"menu","path":"/system/menus","component":"system/menus","permissionCode":"system:menu:manage","icon":"Menu","sortNo":40,"visible":true,"status":"active","remark":"菜单管理页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":9,"parentId":12,"menuCode":"system_permission_overview","menuName":"功能权限","menuType":"menu","path":"/system/permission-overview","component":"system/permission-overview","icon":"Lock","sortNo":50,"visible":true,"status":"active","remark":"权限码与受控接口总览","children":[]}]},{"id":13,"parentId":1,"menuCode":"system_lowcode_config","menuName":"低代码配置","menuType":"catalog","icon":"DataLine","sortNo":120,"visible":true,"status":"active","remark":"字典/数据源/列表配置等元数据配置","children":[{"id":5,"parentId":13,"menuCode":"system_dicts","menuName":"字典管理","menuType":"menu","path":"/system/dicts","component":"system/dicts","permissionCode":"system:dict:manage","icon":"Reading","sortNo":10,"visible":true,"status":"active","remark":"字典管理页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":11,"parentId":13,"menuCode":"system_data_sources","menuName":"数据源配置","menuType":"menu","path":"/system/data-sources","component":"system/data-sources","permissionCode":"system:data-source:manage","icon":"Connection","sortNo":20,"visible":true,"status":"active","remark":"数据源配置页；勾选即授该码(该页读与写共用一个码)","children":[]},{"id":7,"parentId":13,"menuCode":"system_list_configs","menuName":"列表配置","menuType":"menu","path":"/system/list-configs","component":"system/list-configs","permissionCode":"system:list-config:manage","icon":"Tools","sortNo":30,"visible":true,"status":"active","remark":"列表配置页；勾选即授该码(该页读与写共用一个码)","children":[]}]},{"id":14,"parentId":1,"menuCode":"system_ops","menuName":"系统运维","menuType":"catalog","icon":"Monitor","sortNo":130,"visible":true,"status":"active","remark":"系统参数与操作留痕","children":[{"id":6,"parentId":14,"menuCode":"system_config","menuName":"系统参数","menuType":"menu","path":"/system/config","component":"system/config","permissionCode":"system:config:read","icon":"Setting","sortNo":10,"visible":true,"status":"active","remark":"系统参数页；勾选即授参数查看码，改值仍由「参数维护」按钮授予","children":[{"id":106,"parentId":6,"menuCode":"system_config_write","menuName":"参数维护","menuType":"button","permissionCode":"system:config:write","sortNo":20,"visible":false,"status":"active","remark":"系统参数维护权限","children":[]}]},{"id":10,"parentId":14,"menuCode":"system_oper_log","menuName":"操作日志","menuType":"menu","path":"/system/operlogs","component":"system/operlogs","permissionCode":"system:operlog:read","icon":"List","sortNo":20,"visible":true,"status":"active","remark":"操作日志页；勾选即授日志查看码(该页只读，无写码)","children":[]}]}]}],"nodePath":{"parent_home":["家长端"],"parent_children":["家长端","我的孩子"],"parent_timetable":["家长端","课程表"],"parent_attendance":["家长端","考勤记录"],"parent_lessons_left":["家长端","课耗明细"],"parent_notices":["家长端","消息通知"],"parent_portal_access":["家长端","小程序端访问"],"student_home":["学生端"],"student_timetable":["学生端","我的课表"],"student_attendance":["学生端","我的考勤"],"student_lessons_left":["学生端","课时剩余"],"student_portal_access":["学生端","小程序端访问"],"education_schedule_center":["排课中心"],"education_scheduling":["排课中心","排课管理"],"education_scheduling_write":["排课中心","排课管理","排课维护"],"education_execution":["排课中心","执行与课表"],"education_execution_write":["排课中心","执行与课表","执行变更"],"education_completeness":["排课中心","排课完成度"],"education_enrollments":["报名与入班"],"education_classes":["班级学员"],"organization_campus":["机构与教学资源"],"organization_master_data_write":["机构与教学资源","组织档案维护"],"organization_time_slots":["时间段设置"],"education_teachers":["教师档案"],"system":["系统设置"],"system_org_permission":["系统设置","机构与权限"],"system_institution":["系统设置","机构与权限","机构资料"],"system_institution_edit":["系统设置","机构与权限","机构资料","机构资料维护"],"system_users":["系统设置","机构与权限","用户管理"],"system_invitations":["系统设置","机构与权限","注册凭证"],"system_roles":["系统设置","机构与权限","角色管理"],"system_menus":["系统设置","机构与权限","菜单管理"],"system_permission_overview":["系统设置","机构与权限","功能权限"],"system_lowcode_config":["系统设置","低代码配置"],"system_dicts":["系统设置","低代码配置","字典管理"],"system_data_sources":["系统设置","低代码配置","数据源配置"],"system_list_configs":["系统设置","低代码配置","列表配置"],"system_ops":["系统设置","系统运维"],"system_config":["系统设置","系统运维","系统参数"],"system_config_write":["系统设置","系统运维","系统参数","参数维护"],"system_oper_log":["系统设置","系统运维","操作日志"]},"codes":[{"code":"education:read","label":"教务查看","group":"教务管理","endpoints":[{"method":"GET","path":"/api/education/teachers/page","summary":"教师分页列表"},{"method":"GET","path":"/api/education/courses","summary":"获取课程列表"},{"method":"GET","path":"/api/education/courses/page","summary":"课程分页列表"},{"method":"GET","path":"/api/education/schedules/lessons","summary":"获取排课列表"},{"method":"GET","path":"/api/education/attendance","summary":"获取考勤列表"},{"method":"GET","path":"/api/education/schedules/lessons/page","summary":"排课课次分页列表"},{"method":"GET","path":"/api/education/schedules/lessons/pending-makeup-page","summary":"待补课课次分页列表"},{"method":"GET","path":"/api/education/schedule-plans/page","summary":"排课计划分页列表"},{"method":"GET","path":"/api/education/course-categories","summary":"获取课程分类列表"},{"method":"GET","path":"/api/education/class-types","summary":"获取班型列表"},{"method":"GET","path":"/api/education/schedule-rules/page","summary":"排课规则分页列表"},{"method":"GET","path":"/api/education/students","summary":"获取学员列表"},{"method":"GET","path":"/api/education/class-change-notices,/api/education/class_change_notice","summary":"获取班级变动通知列表"},{"method":"GET","path":"/api/education/class-teachers,/api/education/class_teacher","summary":"获取班级教师列表"},{"method":"GET","path":"/api/education/student-parents,/api/education/student_parent","summary":"获取家长联系人列表"},{"method":"GET","path":"/api/education/attendance/lesson-progress","summary":"批量获取课次点名进度"},{"method":"GET","path":"/api/education/teachers/export","summary":"导出教师档案"},{"method":"GET","path":"/api/education/schedules/timetable/day","summary":"获取日课表"},{"method":"GET","path":"/api/education/class-students,/api/education/class_student","summary":"获取班级学员列表"},{"method":"GET","path":"/api/education/classes","summary":"获取班级列表"},{"method":"GET","path":"/api/education/students/page","summary":"学员分页列表"},{"method":"GET","path":"/api/education/schedules/timetable/week","summary":"获取周课表"},{"method":"GET","path":"/api/education/student-parents/page,/api/education/student_parent/page","summary":"家长联系人分页列表"},{"method":"GET","path":"/api/education/schedules/lessons/{id}","summary":"获取排课详情"},{"method":"GET","path":"/api/education/attendance/lesson-page","summary":"获取课次点名页"},{"method":"GET","path":"/api/education/schedule-completeness","summary":"排课完成度报表"},{"method":"GET","path":"/api/education/schedule-plans/{id}","summary":"获取排课计划详情"},{"method":"GET","path":"/api/education/enrollments","summary":"获取报名列表"},{"method":"GET","path":"/api/education/schedule-rules/{id}","summary":"获取排课规则详情"},{"method":"GET","path":"/api/education/enrollments/page","summary":"报名记录分页列表"},{"method":"GET","path":"/api/education/teachers","summary":"获取教师列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"education_classes","menuName":"班级学员","menuType":"menu","path":"/classes"},{"menuCode":"education_completeness","menuName":"排课完成度","menuType":"menu","path":"/schedule-completeness"},{"menuCode":"education_enrollments","menuName":"报名与入班","menuType":"menu","path":"/students"},{"menuCode":"education_execution","menuName":"执行与课表","menuType":"menu","path":"/schedule"},{"menuCode":"education_scheduling","menuName":"排课管理","menuType":"menu","path":"/scheduling"},{"menuCode":"education_teachers","menuName":"教师档案","menuType":"menu","path":"/teachers"}],"configButtons":[],"nodesFrom":"node"},{"code":"education:write","label":"教务维护","group":"教务管理","endpoints":[{"method":"PUT","path":"/api/education/teachers/{id}","summary":"更新教师"},{"method":"GET","path":"/api/education/teacher-import/template","summary":"下载教师档案导入模板"},{"method":"PUT","path":"/api/education/courses/{id}","summary":"更新课程"},{"method":"PUT","path":"/api/education/classes/{id}","summary":"更新班级"},{"method":"POST","path":"/api/education/schedules/conflicts/check","summary":"排课冲突检查"},{"method":"POST","path":"/api/education/classes","summary":"创建班级"},{"method":"POST","path":"/api/education/enrollments","summary":"创建报名"},{"method":"PUT","path":"/api/education/schedules/lessons/{id}","summary":"更新排课"},{"method":"PUT","path":"/api/education/course-categories/{id}","summary":"更新课程分类"},{"method":"DELETE","path":"/api/education/teachers/{id}","summary":"删除教师"},{"method":"POST","path":"/api/education/teachers","summary":"创建教师"},{"method":"DELETE","path":"/api/education/class-types/{id}","summary":"删除班型"},{"method":"PUT","path":"/api/education/schedule-plans/{id}","summary":"更新排课计划"},{"method":"DELETE","path":"/api/education/courses/{id}","summary":"删除课程"},{"method":"DELETE","path":"/api/education/classes/{id}","summary":"删除班级"},{"method":"POST","path":"/api/education/courses","summary":"创建课程"},{"method":"PUT","path":"/api/education/class-types/{id}","summary":"更新班型"},{"method":"PUT","path":"/api/education/schedule-rules/{id}","summary":"更新排课规则"},{"method":"POST","path":"/api/education/schedule-plans/preview","summary":"排课计划展开预览"},{"method":"DELETE","path":"/api/education/schedules/lessons/{id}","summary":"删除排课"},{"method":"DELETE","path":"/api/education/course-categories/{id}","summary":"删除课程分类"},{"method":"DELETE","path":"/api/education/schedule-plans/{id}","summary":"删除排课计划"},{"method":"PUT","path":"/api/education/student-parents/{id},/api/education/student_parent/{id}","summary":"更新家长联系人"},{"method":"GET","path":"/api/education/wechat/invitations/{code}/wxacode","summary":"生成邀请码小程序码"},{"method":"POST","path":"/api/education/course-categories","summary":"创建课程分类"},{"method":"DELETE","path":"/api/education/schedule-rules/{id}","summary":"删除排课规则"},{"method":"POST","path":"/api/education/class-types","summary":"创建班型"},{"method":"POST","path":"/api/education/students","summary":"创建学员"},{"method":"POST","path":"/api/education/schedules/lessons","summary":"创建排课"},{"method":"POST","path":"/api/education/attendance","summary":"创建考勤"},{"method":"POST","path":"/api/education/class-teachers,/api/education/class_teacher","summary":"创建班级教师"},{"method":"DELETE","path":"/api/education/student-parents/{id},/api/education/student_parent/{id}","summary":"删除家长联系人"},{"method":"POST","path":"/api/education/schedule-rules","summary":"新增排课规则"},{"method":"DELETE","path":"/api/education/schedule-plans/{id}/lessons","summary":"撤销计划未上课次"},{"method":"POST","path":"/api/education/teacher-import/preview","summary":"预览校验教师档案导入文件"},{"method":"PUT","path":"/api/education/students/{id}","summary":"更新学员"},{"method":"POST","path":"/api/education/attendance/lesson-batch","summary":"保存课次点名"},{"method":"DELETE","path":"/api/education/class-students/{id},/api/education/class_student/{id}","summary":"删除班级学员"},{"method":"PUT","path":"/api/education/class-teachers/{id},/api/education/class_teacher/{id}","summary":"更新班级教师"},{"method":"POST","path":"/api/education/class-students,/api/education/class_student","summary":"创建班级学员"},{"method":"POST","path":"/api/education/teacher-import/commit","summary":"确认导入教师档案"},{"method":"POST","path":"/api/education/student-parents,/api/education/student_parent","summary":"创建家长联系人"},{"method":"POST","path":"/api/education/schedule-plans/commit","summary":"提交排课计划生成课次"},{"method":"DELETE","path":"/api/education/students/{id}","summary":"删除学员"},{"method":"POST","path":"/api/education/teachers/link-accounts","summary":"确认绑定教师登录账号"},{"method":"GET","path":"/api/education/teachers/link-candidates","summary":"预览教师账号匹配候选"},{"method":"DELETE","path":"/api/education/class-teachers/{id},/api/education/class_teacher/{id}","summary":"删除班级教师"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"education_execution_write","menuName":"执行变更","menuType":"button","path":null},{"menuCode":"education_scheduling_write","menuName":"排课维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"miniapp:access","label":"小程序端访问","group":"小程序端","endpoints":[{"method":"GET","path":"/api/miniapp/students","summary":"当前用户已关联的学员列表"},{"method":"DELETE","path":"/api/miniapp/students/{studentId}","summary":"解绑学员档案"},{"method":"GET","path":"/api/miniapp/student/profile","summary":"学生端-我的档案"},{"method":"POST","path":"/api/miniapp/student/bind-self","summary":"学生端-绑定自己的档案"},{"method":"POST","path":"/api/miniapp/student/profile","summary":"学生端-新建/编辑本人档案"},{"method":"GET","path":"/api/miniapp/students/{studentId}/lessons","summary":"学员课表"},{"method":"POST","path":"/api/miniapp/students/bind","summary":"绑定学员档案"}],"roles":[{"roleName":"学生端用户","roleCode":"MINIAPP_STUDENT","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]},{"roleName":"家长端用户","roleCode":"MINIAPP_PARENT","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"parent_portal_access","menuName":"小程序端访问","menuType":"button","path":null},{"menuCode":"student_portal_access","menuName":"小程序端访问","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"organization:read","label":"组织查看","group":"组织档案","endpoints":[{"method":"GET","path":"/api/organizations/schema","summary":"获取组织模块表结构元数据"},{"method":"GET","path":"/api/organizations/time-slot-templates","summary":"获取时段模板列表"},{"method":"GET","path":"/api/organizations/time-slots","summary":"获取时间段列表"},{"method":"GET","path":"/api/organizations/classrooms","summary":"获取教室列表"},{"method":"GET","path":"/api/organizations/campus-preferences","summary":"获取默认校区偏好列表"},{"method":"GET","path":"/api/organizations/campuses","summary":"获取校区列表"},{"method":"GET","path":"/api/organizations/terms","summary":"获取学期列表"},{"method":"GET","path":"/api/organizations/bootstrap","summary":"获取组织模块启动信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"organization_campus","menuName":"机构与教学资源","menuType":"menu","path":"/campus"},{"menuCode":"organization_time_slots","menuName":"时间段设置","menuType":"menu","path":"/time-slots"}],"configButtons":[],"nodesFrom":"node"},{"code":"organization:write","label":"组织维护","group":"组织档案","endpoints":[{"method":"DELETE","path":"/api/organizations/time-slot-templates/{id}","summary":"删除时段模板"},{"method":"DELETE","path":"/api/organizations/terms/{id}","summary":"删除学期"},{"method":"PUT","path":"/api/organizations/classrooms/{id}","summary":"更新教室"},{"method":"DELETE","path":"/api/organizations/campuses/{id}","summary":"删除校区"},{"method":"DELETE","path":"/api/organizations/classrooms/{id}","summary":"删除教室"},{"method":"POST","path":"/api/organizations/time-slot-templates","summary":"创建时段模板"},{"method":"POST","path":"/api/organizations/time-slots","summary":"创建时间段"},{"method":"POST","path":"/api/organizations/classrooms","summary":"创建教室"},{"method":"PUT","path":"/api/organizations/time-slots/{id}","summary":"更新时间段"},{"method":"POST","path":"/api/organizations/time-slot-templates/{id}/apply","summary":"套用时段模板"},{"method":"PUT","path":"/api/organizations/campus-preferences/{userId}","summary":"设置用户默认校区"},{"method":"POST","path":"/api/organizations/campuses","summary":"创建校区"},{"method":"DELETE","path":"/api/organizations/time-slots/{id}","summary":"删除时间段"},{"method":"PUT","path":"/api/organizations/time-slot-templates/{id}","summary":"更新时段模板"},{"method":"POST","path":"/api/organizations/terms","summary":"创建学期"},{"method":"PUT","path":"/api/organizations/terms/{id}","summary":"更新学期"},{"method":"PUT","path":"/api/organizations/campuses/{id}","summary":"更新校区"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"organization_master_data_write","menuName":"组织档案维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"system:config:read","label":"参数查看","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/config/{id}","summary":"获取系统参数详情"},{"method":"GET","path":"/api/system/config","summary":"获取系统参数列表"},{"method":"GET","path":"/api/system/config/page","summary":"系统参数分页列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_config","menuName":"系统参数","menuType":"menu","path":"/system/config"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:config:write","label":"参数维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/config","summary":"创建系统参数"},{"method":"DELETE","path":"/api/system/config/{id}","summary":"删除系统参数"},{"method":"PUT","path":"/api/system/config/{id}","summary":"更新系统参数"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_config_write","menuName":"参数维护","menuType":"button","path":null}],"configButtons":[{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-create","label":"新增参数","position":"toolbar"},{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-edit","label":"编辑","position":"row"},{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-delete","label":"删除","position":"row"}],"nodesFrom":"node"},{"code":"system:data-source:manage","label":"数据源配置维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/data-sources/{id}","summary":"更新数据源"},{"method":"DELETE","path":"/api/system/data-sources/{id}","summary":"删除数据源"},{"method":"GET","path":"/api/system/data-sources","summary":"获取全部数据源配置"},{"method":"POST","path":"/api/system/data-sources","summary":"创建数据源"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_data_sources","menuName":"数据源配置","menuType":"menu","path":"/system/data-sources"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:dict:manage","label":"字典维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/dicts/items/{id}","summary":"更新字典条目"},{"method":"DELETE","path":"/api/system/dicts/items/{id}","summary":"删除字典条目"},{"method":"GET","path":"/api/system/dicts/types/{typeCode}/items","summary":"获取字典类型下的条目"},{"method":"GET","path":"/api/system/dicts/types","summary":"获取字典类型列表"},{"method":"PUT","path":"/api/system/dicts/types/{id}","summary":"更新字典类型"},{"method":"POST","path":"/api/system/dicts/items","summary":"创建字典条目"},{"method":"POST","path":"/api/system/dicts/types","summary":"创建字典类型"},{"method":"DELETE","path":"/api/system/dicts/types/{id}","summary":"删除字典类型"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_dicts","menuName":"字典管理","menuType":"menu","path":"/system/dicts"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:invitation:manage","label":"注册凭证维护","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/invitations/page","summary":"注册凭证分页列表"},{"method":"POST","path":"/api/system/invitations/activation","summary":"生成激活码"},{"method":"PUT","path":"/api/system/invitations/{id}/disable","summary":"停用注册凭证"},{"method":"POST","path":"/api/system/invitations/invite","summary":"创建邀请码"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_invitations","menuName":"注册凭证","menuType":"menu","path":"/system/invitations"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:list-config:manage","label":"列表配置维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/list-configs/{id}","summary":"更新列表配置"},{"method":"GET","path":"/api/system/list-configs","summary":"获取全部列表配置"},{"method":"DELETE","path":"/api/system/list-configs/{id}","summary":"删除列表配置"},{"method":"POST","path":"/api/system/list-configs","summary":"创建列表配置"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_list_configs","menuName":"列表配置","menuType":"menu","path":"/system/list-configs"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:menu:manage","label":"菜单维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/menus","summary":"创建菜单"},{"method":"PUT","path":"/api/system/roles/{roleId}/menus","summary":"更新角色菜单分配"},{"method":"PUT","path":"/api/system/menus/{id}","summary":"更新菜单"},{"method":"GET","path":"/api/system/menus/tree","summary":"获取菜单树"},{"method":"DELETE","path":"/api/system/menus/{id}","summary":"删除菜单"},{"method":"GET","path":"/api/system/roles/{roleId}/menus","summary":"获取角色已勾选菜单 ID"},{"method":"GET","path":"/api/system/menus","summary":"获取菜单列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_menus","menuName":"菜单管理","menuType":"menu","path":"/system/menus"}],"configButtons":[{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-assign-menus","label":"分配菜单","position":"row"}],"nodesFrom":"node"},{"code":"system:operlog:read","label":"操作日志查看","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/operlogs","summary":"操作日志分页查询"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_oper_log","menuName":"操作日志","menuType":"menu","path":"/system/operlogs"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:role:manage","label":"角色维护","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/roles","summary":"获取角色列表"},{"method":"PUT","path":"/api/system/roles/{id}","summary":"更新角色"},{"method":"GET","path":"/api/system/roles/page","summary":"角色分页列表"},{"method":"POST","path":"/api/system/roles","summary":"创建角色"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_roles","menuName":"角色管理","menuType":"menu","path":"/system/roles"}],"configButtons":[{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-create","label":"新增角色","position":"toolbar"},{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-edit","label":"编辑","position":"row"},{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-toggle-status","label":"停用","position":"row"}],"nodesFrom":"node"},{"code":"system:user:manage","label":"用户维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/users/{id}/roles","summary":"更新用户角色"},{"method":"GET","path":"/api/system/users","summary":"获取用户列表"},{"method":"POST","path":"/api/system/user-import/commit","summary":"确认导入账号"},{"method":"POST","path":"/api/system/users","summary":"创建用户"},{"method":"PUT","path":"/api/system/users/{id}","summary":"更新用户"},{"method":"GET","path":"/api/system/users/page","summary":"用户分页列表"},{"method":"GET","path":"/api/system/user-import/template","summary":"下载账号导入模板"},{"method":"POST","path":"/api/system/user-import/preview","summary":"预览校验账号导入文件"},{"method":"POST","path":"/api/system/users/{id}/reset-password","summary":"重置用户密码"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_users","menuName":"用户管理","menuType":"menu","path":"/system/users"}],"configButtons":[{"resourceCode":"system-users","resourceName":"用户管理","action":"user-create","label":"新增用户","position":"toolbar"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-import","label":"批量导入账号","position":"toolbar"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-edit","label":"编辑","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-toggle-status","label":"停用","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-reset-password","label":"重置密码","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-assign-roles","label":"分配角色","position":"row"}],"nodesFrom":"node"},{"code":"tenant:read","label":"机构资料查看","group":"机构(租户)","endpoints":[{"method":"GET","path":"/api/organizations/institutions","summary":"获取机构列表"},{"method":"GET","path":"/api/system/institution/current","summary":"获取当前机构信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_institution","menuName":"机构资料","menuType":"menu","path":"/system/institution"}],"configButtons":[],"nodesFrom":"node"},{"code":"tenant:write","label":"机构资料维护","group":"机构(租户)","endpoints":[{"method":"POST","path":"/api/organizations/institutions","summary":"创建机构"},{"method":"PUT","path":"/api/system/institution/current","summary":"更新当前机构信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_institution_edit","menuName":"机构资料维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"}],"codesOnlyFromCsv":[],"unregistered":[],"codesFlat":[{"code":"education:read","label":"教务查看","group":"教务管理","endpoints":[{"method":"GET","path":"/api/education/teachers/page","summary":"教师分页列表"},{"method":"GET","path":"/api/education/courses","summary":"获取课程列表"},{"method":"GET","path":"/api/education/courses/page","summary":"课程分页列表"},{"method":"GET","path":"/api/education/schedules/lessons","summary":"获取排课列表"},{"method":"GET","path":"/api/education/attendance","summary":"获取考勤列表"},{"method":"GET","path":"/api/education/schedules/lessons/page","summary":"排课课次分页列表"},{"method":"GET","path":"/api/education/schedules/lessons/pending-makeup-page","summary":"待补课课次分页列表"},{"method":"GET","path":"/api/education/schedule-plans/page","summary":"排课计划分页列表"},{"method":"GET","path":"/api/education/course-categories","summary":"获取课程分类列表"},{"method":"GET","path":"/api/education/class-types","summary":"获取班型列表"},{"method":"GET","path":"/api/education/schedule-rules/page","summary":"排课规则分页列表"},{"method":"GET","path":"/api/education/students","summary":"获取学员列表"},{"method":"GET","path":"/api/education/class-change-notices,/api/education/class_change_notice","summary":"获取班级变动通知列表"},{"method":"GET","path":"/api/education/class-teachers,/api/education/class_teacher","summary":"获取班级教师列表"},{"method":"GET","path":"/api/education/student-parents,/api/education/student_parent","summary":"获取家长联系人列表"},{"method":"GET","path":"/api/education/attendance/lesson-progress","summary":"批量获取课次点名进度"},{"method":"GET","path":"/api/education/teachers/export","summary":"导出教师档案"},{"method":"GET","path":"/api/education/schedules/timetable/day","summary":"获取日课表"},{"method":"GET","path":"/api/education/class-students,/api/education/class_student","summary":"获取班级学员列表"},{"method":"GET","path":"/api/education/classes","summary":"获取班级列表"},{"method":"GET","path":"/api/education/students/page","summary":"学员分页列表"},{"method":"GET","path":"/api/education/schedules/timetable/week","summary":"获取周课表"},{"method":"GET","path":"/api/education/student-parents/page,/api/education/student_parent/page","summary":"家长联系人分页列表"},{"method":"GET","path":"/api/education/schedules/lessons/{id}","summary":"获取排课详情"},{"method":"GET","path":"/api/education/attendance/lesson-page","summary":"获取课次点名页"},{"method":"GET","path":"/api/education/schedule-completeness","summary":"排课完成度报表"},{"method":"GET","path":"/api/education/schedule-plans/{id}","summary":"获取排课计划详情"},{"method":"GET","path":"/api/education/enrollments","summary":"获取报名列表"},{"method":"GET","path":"/api/education/schedule-rules/{id}","summary":"获取排课规则详情"},{"method":"GET","path":"/api/education/enrollments/page","summary":"报名记录分页列表"},{"method":"GET","path":"/api/education/teachers","summary":"获取教师列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"education_classes","menuName":"班级学员","menuType":"menu","path":"/classes"},{"menuCode":"education_completeness","menuName":"排课完成度","menuType":"menu","path":"/schedule-completeness"},{"menuCode":"education_enrollments","menuName":"报名与入班","menuType":"menu","path":"/students"},{"menuCode":"education_execution","menuName":"执行与课表","menuType":"menu","path":"/schedule"},{"menuCode":"education_scheduling","menuName":"排课管理","menuType":"menu","path":"/scheduling"},{"menuCode":"education_teachers","menuName":"教师档案","menuType":"menu","path":"/teachers"}],"configButtons":[],"nodesFrom":"node"},{"code":"education:write","label":"教务维护","group":"教务管理","endpoints":[{"method":"PUT","path":"/api/education/teachers/{id}","summary":"更新教师"},{"method":"GET","path":"/api/education/teacher-import/template","summary":"下载教师档案导入模板"},{"method":"PUT","path":"/api/education/courses/{id}","summary":"更新课程"},{"method":"PUT","path":"/api/education/classes/{id}","summary":"更新班级"},{"method":"POST","path":"/api/education/schedules/conflicts/check","summary":"排课冲突检查"},{"method":"POST","path":"/api/education/classes","summary":"创建班级"},{"method":"POST","path":"/api/education/enrollments","summary":"创建报名"},{"method":"PUT","path":"/api/education/schedules/lessons/{id}","summary":"更新排课"},{"method":"PUT","path":"/api/education/course-categories/{id}","summary":"更新课程分类"},{"method":"DELETE","path":"/api/education/teachers/{id}","summary":"删除教师"},{"method":"POST","path":"/api/education/teachers","summary":"创建教师"},{"method":"DELETE","path":"/api/education/class-types/{id}","summary":"删除班型"},{"method":"PUT","path":"/api/education/schedule-plans/{id}","summary":"更新排课计划"},{"method":"DELETE","path":"/api/education/courses/{id}","summary":"删除课程"},{"method":"DELETE","path":"/api/education/classes/{id}","summary":"删除班级"},{"method":"POST","path":"/api/education/courses","summary":"创建课程"},{"method":"PUT","path":"/api/education/class-types/{id}","summary":"更新班型"},{"method":"PUT","path":"/api/education/schedule-rules/{id}","summary":"更新排课规则"},{"method":"POST","path":"/api/education/schedule-plans/preview","summary":"排课计划展开预览"},{"method":"DELETE","path":"/api/education/schedules/lessons/{id}","summary":"删除排课"},{"method":"DELETE","path":"/api/education/course-categories/{id}","summary":"删除课程分类"},{"method":"DELETE","path":"/api/education/schedule-plans/{id}","summary":"删除排课计划"},{"method":"PUT","path":"/api/education/student-parents/{id},/api/education/student_parent/{id}","summary":"更新家长联系人"},{"method":"GET","path":"/api/education/wechat/invitations/{code}/wxacode","summary":"生成邀请码小程序码"},{"method":"POST","path":"/api/education/course-categories","summary":"创建课程分类"},{"method":"DELETE","path":"/api/education/schedule-rules/{id}","summary":"删除排课规则"},{"method":"POST","path":"/api/education/class-types","summary":"创建班型"},{"method":"POST","path":"/api/education/students","summary":"创建学员"},{"method":"POST","path":"/api/education/schedules/lessons","summary":"创建排课"},{"method":"POST","path":"/api/education/attendance","summary":"创建考勤"},{"method":"POST","path":"/api/education/class-teachers,/api/education/class_teacher","summary":"创建班级教师"},{"method":"DELETE","path":"/api/education/student-parents/{id},/api/education/student_parent/{id}","summary":"删除家长联系人"},{"method":"POST","path":"/api/education/schedule-rules","summary":"新增排课规则"},{"method":"DELETE","path":"/api/education/schedule-plans/{id}/lessons","summary":"撤销计划未上课次"},{"method":"POST","path":"/api/education/teacher-import/preview","summary":"预览校验教师档案导入文件"},{"method":"PUT","path":"/api/education/students/{id}","summary":"更新学员"},{"method":"POST","path":"/api/education/attendance/lesson-batch","summary":"保存课次点名"},{"method":"DELETE","path":"/api/education/class-students/{id},/api/education/class_student/{id}","summary":"删除班级学员"},{"method":"PUT","path":"/api/education/class-teachers/{id},/api/education/class_teacher/{id}","summary":"更新班级教师"},{"method":"POST","path":"/api/education/class-students,/api/education/class_student","summary":"创建班级学员"},{"method":"POST","path":"/api/education/teacher-import/commit","summary":"确认导入教师档案"},{"method":"POST","path":"/api/education/student-parents,/api/education/student_parent","summary":"创建家长联系人"},{"method":"POST","path":"/api/education/schedule-plans/commit","summary":"提交排课计划生成课次"},{"method":"DELETE","path":"/api/education/students/{id}","summary":"删除学员"},{"method":"POST","path":"/api/education/teachers/link-accounts","summary":"确认绑定教师登录账号"},{"method":"GET","path":"/api/education/teachers/link-candidates","summary":"预览教师账号匹配候选"},{"method":"DELETE","path":"/api/education/class-teachers/{id},/api/education/class_teacher/{id}","summary":"删除班级教师"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"education_execution_write","menuName":"执行变更","menuType":"button","path":null},{"menuCode":"education_scheduling_write","menuName":"排课维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"miniapp:access","label":"小程序端访问","group":"小程序端","endpoints":[{"method":"GET","path":"/api/miniapp/students","summary":"当前用户已关联的学员列表"},{"method":"DELETE","path":"/api/miniapp/students/{studentId}","summary":"解绑学员档案"},{"method":"GET","path":"/api/miniapp/student/profile","summary":"学生端-我的档案"},{"method":"POST","path":"/api/miniapp/student/bind-self","summary":"学生端-绑定自己的档案"},{"method":"POST","path":"/api/miniapp/student/profile","summary":"学生端-新建/编辑本人档案"},{"method":"GET","path":"/api/miniapp/students/{studentId}/lessons","summary":"学员课表"},{"method":"POST","path":"/api/miniapp/students/bind","summary":"绑定学员档案"}],"roles":[{"roleName":"学生端用户","roleCode":"MINIAPP_STUDENT","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]},{"roleName":"家长端用户","roleCode":"MINIAPP_PARENT","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"parent_portal_access","menuName":"小程序端访问","menuType":"button","path":null},{"menuCode":"student_portal_access","menuName":"小程序端访问","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"organization:read","label":"组织查看","group":"组织档案","endpoints":[{"method":"GET","path":"/api/organizations/schema","summary":"获取组织模块表结构元数据"},{"method":"GET","path":"/api/organizations/time-slot-templates","summary":"获取时段模板列表"},{"method":"GET","path":"/api/organizations/time-slots","summary":"获取时间段列表"},{"method":"GET","path":"/api/organizations/classrooms","summary":"获取教室列表"},{"method":"GET","path":"/api/organizations/campus-preferences","summary":"获取默认校区偏好列表"},{"method":"GET","path":"/api/organizations/campuses","summary":"获取校区列表"},{"method":"GET","path":"/api/organizations/terms","summary":"获取学期列表"},{"method":"GET","path":"/api/organizations/bootstrap","summary":"获取组织模块启动信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"organization_campus","menuName":"机构与教学资源","menuType":"menu","path":"/campus"},{"menuCode":"organization_time_slots","menuName":"时间段设置","menuType":"menu","path":"/time-slots"}],"configButtons":[],"nodesFrom":"node"},{"code":"organization:write","label":"组织维护","group":"组织档案","endpoints":[{"method":"DELETE","path":"/api/organizations/time-slot-templates/{id}","summary":"删除时段模板"},{"method":"DELETE","path":"/api/organizations/terms/{id}","summary":"删除学期"},{"method":"PUT","path":"/api/organizations/classrooms/{id}","summary":"更新教室"},{"method":"DELETE","path":"/api/organizations/campuses/{id}","summary":"删除校区"},{"method":"DELETE","path":"/api/organizations/classrooms/{id}","summary":"删除教室"},{"method":"POST","path":"/api/organizations/time-slot-templates","summary":"创建时段模板"},{"method":"POST","path":"/api/organizations/time-slots","summary":"创建时间段"},{"method":"POST","path":"/api/organizations/classrooms","summary":"创建教室"},{"method":"PUT","path":"/api/organizations/time-slots/{id}","summary":"更新时间段"},{"method":"POST","path":"/api/organizations/time-slot-templates/{id}/apply","summary":"套用时段模板"},{"method":"PUT","path":"/api/organizations/campus-preferences/{userId}","summary":"设置用户默认校区"},{"method":"POST","path":"/api/organizations/campuses","summary":"创建校区"},{"method":"DELETE","path":"/api/organizations/time-slots/{id}","summary":"删除时间段"},{"method":"PUT","path":"/api/organizations/time-slot-templates/{id}","summary":"更新时段模板"},{"method":"POST","path":"/api/organizations/terms","summary":"创建学期"},{"method":"PUT","path":"/api/organizations/terms/{id}","summary":"更新学期"},{"method":"PUT","path":"/api/organizations/campuses/{id}","summary":"更新校区"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"organization_master_data_write","menuName":"组织档案维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"},{"code":"system:config:read","label":"参数查看","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/config/{id}","summary":"获取系统参数详情"},{"method":"GET","path":"/api/system/config","summary":"获取系统参数列表"},{"method":"GET","path":"/api/system/config/page","summary":"系统参数分页列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_config","menuName":"系统参数","menuType":"menu","path":"/system/config"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:config:write","label":"参数维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/config","summary":"创建系统参数"},{"method":"DELETE","path":"/api/system/config/{id}","summary":"删除系统参数"},{"method":"PUT","path":"/api/system/config/{id}","summary":"更新系统参数"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_config_write","menuName":"参数维护","menuType":"button","path":null}],"configButtons":[{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-create","label":"新增参数","position":"toolbar"},{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-edit","label":"编辑","position":"row"},{"resourceCode":"system-configs","resourceName":"系统参数","action":"config-delete","label":"删除","position":"row"}],"nodesFrom":"node"},{"code":"system:data-source:manage","label":"数据源配置维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/data-sources/{id}","summary":"更新数据源"},{"method":"DELETE","path":"/api/system/data-sources/{id}","summary":"删除数据源"},{"method":"GET","path":"/api/system/data-sources","summary":"获取全部数据源配置"},{"method":"POST","path":"/api/system/data-sources","summary":"创建数据源"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_data_sources","menuName":"数据源配置","menuType":"menu","path":"/system/data-sources"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:dict:manage","label":"字典维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/dicts/items/{id}","summary":"更新字典条目"},{"method":"DELETE","path":"/api/system/dicts/items/{id}","summary":"删除字典条目"},{"method":"GET","path":"/api/system/dicts/types/{typeCode}/items","summary":"获取字典类型下的条目"},{"method":"GET","path":"/api/system/dicts/types","summary":"获取字典类型列表"},{"method":"PUT","path":"/api/system/dicts/types/{id}","summary":"更新字典类型"},{"method":"POST","path":"/api/system/dicts/items","summary":"创建字典条目"},{"method":"POST","path":"/api/system/dicts/types","summary":"创建字典类型"},{"method":"DELETE","path":"/api/system/dicts/types/{id}","summary":"删除字典类型"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_dicts","menuName":"字典管理","menuType":"menu","path":"/system/dicts"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:invitation:manage","label":"注册凭证维护","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/invitations/page","summary":"注册凭证分页列表"},{"method":"POST","path":"/api/system/invitations/activation","summary":"生成激活码"},{"method":"PUT","path":"/api/system/invitations/{id}/disable","summary":"停用注册凭证"},{"method":"POST","path":"/api/system/invitations/invite","summary":"创建邀请码"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_invitations","menuName":"注册凭证","menuType":"menu","path":"/system/invitations"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:list-config:manage","label":"列表配置维护","group":"系统管理","endpoints":[{"method":"PUT","path":"/api/system/list-configs/{id}","summary":"更新列表配置"},{"method":"GET","path":"/api/system/list-configs","summary":"获取全部列表配置"},{"method":"DELETE","path":"/api/system/list-configs/{id}","summary":"删除列表配置"},{"method":"POST","path":"/api/system/list-configs","summary":"创建列表配置"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_list_configs","menuName":"列表配置","menuType":"menu","path":"/system/list-configs"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:menu:manage","label":"菜单维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/menus","summary":"创建菜单"},{"method":"PUT","path":"/api/system/roles/{roleId}/menus","summary":"更新角色菜单分配"},{"method":"PUT","path":"/api/system/menus/{id}","summary":"更新菜单"},{"method":"GET","path":"/api/system/menus/tree","summary":"获取菜单树"},{"method":"DELETE","path":"/api/system/menus/{id}","summary":"删除菜单"},{"method":"GET","path":"/api/system/roles/{roleId}/menus","summary":"获取角色已勾选菜单 ID"},{"method":"GET","path":"/api/system/menus","summary":"获取菜单列表"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_menus","menuName":"菜单管理","menuType":"menu","path":"/system/menus"}],"configButtons":[{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-assign-menus","label":"分配菜单","position":"row"}],"nodesFrom":"node"},{"code":"system:operlog:read","label":"操作日志查看","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/operlogs","summary":"操作日志分页查询"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_oper_log","menuName":"操作日志","menuType":"menu","path":"/system/operlogs"}],"configButtons":[],"nodesFrom":"node"},{"code":"system:role:manage","label":"角色维护","group":"系统管理","endpoints":[{"method":"GET","path":"/api/system/roles","summary":"获取角色列表"},{"method":"PUT","path":"/api/system/roles/{id}","summary":"更新角色"},{"method":"GET","path":"/api/system/roles/page","summary":"角色分页列表"},{"method":"POST","path":"/api/system/roles","summary":"创建角色"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_roles","menuName":"角色管理","menuType":"menu","path":"/system/roles"}],"configButtons":[{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-create","label":"新增角色","position":"toolbar"},{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-edit","label":"编辑","position":"row"},{"resourceCode":"system-roles","resourceName":"角色管理","action":"role-toggle-status","label":"停用","position":"row"}],"nodesFrom":"node"},{"code":"system:user:manage","label":"用户维护","group":"系统管理","endpoints":[{"method":"POST","path":"/api/system/users/{id}/roles","summary":"更新用户角色"},{"method":"GET","path":"/api/system/users","summary":"获取用户列表"},{"method":"POST","path":"/api/system/user-import/commit","summary":"确认导入账号"},{"method":"POST","path":"/api/system/users","summary":"创建用户"},{"method":"PUT","path":"/api/system/users/{id}","summary":"更新用户"},{"method":"GET","path":"/api/system/users/page","summary":"用户分页列表"},{"method":"GET","path":"/api/system/user-import/template","summary":"下载账号导入模板"},{"method":"POST","path":"/api/system/user-import/preview","summary":"预览校验账号导入文件"},{"method":"POST","path":"/api/system/users/{id}/reset-password","summary":"重置用户密码"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_users","menuName":"用户管理","menuType":"menu","path":"/system/users"}],"configButtons":[{"resourceCode":"system-users","resourceName":"用户管理","action":"user-create","label":"新增用户","position":"toolbar"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-import","label":"批量导入账号","position":"toolbar"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-edit","label":"编辑","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-toggle-status","label":"停用","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-reset-password","label":"重置密码","position":"row"},{"resourceCode":"system-users","resourceName":"用户管理","action":"user-assign-roles","label":"分配角色","position":"row"}],"nodesFrom":"node"},{"code":"tenant:read","label":"机构资料查看","group":"机构(租户)","endpoints":[{"method":"GET","path":"/api/organizations/institutions","summary":"获取机构列表"},{"method":"GET","path":"/api/system/institution/current","summary":"获取当前机构信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_institution","menuName":"机构资料","menuType":"menu","path":"/system/institution"}],"configButtons":[],"nodesFrom":"node"},{"code":"tenant:write","label":"机构资料维护","group":"机构(租户)","endpoints":[{"method":"POST","path":"/api/organizations/institutions","summary":"创建机构"},{"method":"PUT","path":"/api/system/institution/current","summary":"更新当前机构信息"}],"roles":[{"roleName":"平台管理员","roleCode":"PLATFORM_ADMIN","sources":[{"cls":"csv","txt":"角色预设权限"},{"cls":"node","txt":"已授权菜单节点"}]}],"menuNodes":[{"menuCode":"system_institution_edit","menuName":"机构资料维护","menuType":"button","path":null}],"configButtons":[],"nodesFrom":"node"}]};
+</script>
+<script>
+const state = { selected: null, kw: '', filter: 'all', method: 'ALL', expanded: false, collapsed: {} };
+
+const kindOf = (code) => {
+  if (code === 'miniapp:access') return 'portal';
+  if (code.endsWith(':read')) return 'read';
+  if (code.endsWith(':write')) return 'write';
+  return 'action';
+};
+const KIND_TEXT = { read: '读取', write: '写入', action: '单码读写', portal: '端访问' };
+const codeLabel = (c) => DATA.codes.find((x) => x.code === c)?.label || c;
+const $ = (id) => document.getElementById(id);
+
+function statsHtml() {
+  const unattached = DATA.codes.filter((c) => c.menuNodes.length === 0).length;
+  const orphans = DATA.unregistered.length;
+  const eps = DATA.codes.reduce((n, c) => n + c.endpoints.length, 0);
+  const cards = [
+    { num: DATA.codes.length, lbl: '生效权限码', hint: '后端 @RequiresPermission 扫出的受控权限码总数' },
+    { num: eps, lbl: '受控接口', hint: '这些码覆盖的 Controller 接口条数' },
+    { num: unattached, lbl: '未挂菜单节点的码', hint: '有接口受控但菜单树里无承载节点，只能靠角色预设权限授予', alertWhenPos: true },
+    { num: orphans, lbl: '未登记权限码', hint: '节点/角色/按钮配置引用了、后端却没有接口使用，属于要清的死码', alertWhenPos: true },
+  ];
+  return cards.map((c) => `<div class="stat-card${c.alertWhenPos && c.num > 0 ? ' alert' : ''}">
+      <div class="num${c.alertWhenPos && c.num === 0 ? ' zero' : ''}">${c.num}</div>
+      <div class="lbl">${c.lbl}</div><div class="hint">${c.hint}</div></div>`).join('');
+}
+
+function chipsHtml() {
+  const unattached = DATA.codes.filter((c) => c.menuNodes.length === 0).length;
+  const items = [
+    { key: 'all', txt: `全部(${DATA.codes.length})` },
+    { key: 'unattached', txt: `未挂节点(${unattached})` },
+    { key: 'orphan', txt: `未登记(${DATA.unregistered.length})` },
+  ];
+  return items.map((i) => `<span class="chip${state.filter === i.key ? ' on' : ''}${i.txt.endsWith('(0)') && i.key !== 'all' ? ' disabled' : ''}" data-f="${i.key}">${i.txt}</span>`).join('');
+}
+
+/** 节点是否命中搜索（含子节点） */
+function nodeHit(node) {
+  const k = state.kw.trim().toLowerCase();
+  if (!k) return true;
+  if ((node.menuName || '').toLowerCase().includes(k)) return true;
+  const codes = nodeCodes(node);
+  if (codes.some((c) => c.toLowerCase().includes(k) || codeLabel(c).toLowerCase().includes(k))) return true;
+  if (codes.some((c) => (DATA.codes.find((x) => x.code === c)?.endpoints || []).some((e) => e.path.toLowerCase().includes(k)))) return true;
+  return (node.children || []).some(nodeHit);
+}
+function nodeCodes(node) { return node.permissionCode ? [node.permissionCode] : [] }
+
+function treeHtml(nodes, level) {
+  const out = [];
+  for (const n of nodes) {
+    if (!nodeHit(n)) continue;
+    const kids = n.children || [];
+    const isCatalog = n.menuType === 'catalog';
+    const closed = state.collapsed[n.menuCode] && !state.kw;
+    const codes = nodeCodes(n);
+    const cnt = codes.length ? (DATA.codes.find((x) => x.code === codes[0])?.endpoints.length || 0) : null;
+    const sel = codes.length && state.selected === codes[0] && n.menuType !== 'catalog';
+    out.push(`<div class="tw ${isCatalog ? 'group' : ''}${n.menuType === 'button' ? ' button' : ''}${!codes.length && !isCatalog ? ' nocode' : ''}${sel ? ' sel' : ''}"
+        style="padding-left:${6 + level * 14}px" data-code="${codes[0] || ''}" data-key="${n.menuCode}" ${isCatalog ? `data-toggle="${n.menuCode}"` : ''}>
+      <span class="caret" ${kids.length && !isCatalog ? `data-toggle="${n.menuCode}"` : ''}>${kids.length ? (closed ? '▶' : '▼') : ''}</span>
+      <span class="name">${codes.length && n.menuType !== 'button' ? `<span class="kind-dot ${kindOf(codes[0])}"></span>` : ''}${n.menuName}</span>
+      ${codes.length ? `<span class="code-tag">${codes[0]}</span>` : ''}
+      ${cnt !== null ? `<span class="cnt">${cnt}</span>` : ''}
+    </div>`);
+    if (!closed && kids.length) out.push(treeHtml(kids, level + 1));
+  }
+  return out.join('');
+}
+
+/** 虚拟分组：登记但未挂节点 / 未登记 */
+function tailGroupsHtml() {
+  const unattached = DATA.codes.filter((c) => c.menuNodes.length === 0);
+  const out = [];
+  const render = (title, list, prefix) => {
+    if (!state.kw && state.collapsed[prefix]) {
+      out.push(row(title, list.length)); return
+    }
+    out.push(row(title, list.length));
+    for (const c of list) {
+      out.push(`<div class="tw${state.selected === c.code ? ' sel' : ''}" style="padding-left:20px" data-code="${c.code}">
+        <span class="caret"></span><span class="name">${c.label}</span>
+        <span class="code-tag">${c.code}</span><span class="cnt">${c.endpoints.length}</span></div>`);
+    }
+  };
+  const row = (title, n) => `<div class="tw virtual" data-toggle="${title.includes('未挂') ? 'unattached-group' : 'unreg-group'}">
+      <span class="caret">${n ? (!state.kw && state.collapsed[title.includes('未挂') ? 'unattached-group' : 'unreg-group'] ? '▶' : '▼') : ''}</span>
+      <span class="name">${title}(${n})</span></div>`;
+  render('已登记 · 未挂菜单节点', unattached, 'unattached-group');
+  render('未登记权限码', DATA.unregistered, 'unreg-group');
+  return out.join('');
+}
+
+function filterCodes() {
+  if (state.filter === 'unattached') return DATA.codes.filter((c) => c.menuNodes.length === 0).map((c) => c.code);
+  if (state.filter === 'orphan') return DATA.unregistered.map((c) => c.code);
+  return null;
+}
+
+function detailHtml() {
+  const card = DATA.codes.find((c) => c.code === state.selected);
+  if (!card) {
+    return `<div class="empty">在左侧选择一个权限码查看详情<br/>
+      <span style="font-size:12px">口径：读码挂在页面节点上，勾选页面节点即授予读取；写动作挂在按钮节点上。<br/>
+      本页面节点（功能权限总览）只要求登录、不挂权限码，所以它出现在「仅 CSV 授予」之外也不计数。</span></div>`;
+  }
+  const kind = kindOf(card.code);
+  const pageCount = card.menuNodes.filter((n) => n.menuType === 'menu').length;
+  const coverTip = pageCount > 1 ? `<div class="tip">该读取码覆盖 <b>${pageCount}</b> 个页面节点：勾选任意一个即授予，回收时要逐个取消。</div>` : '';
+  const nodesTip = card.menuNodes.length === 0
+    ? '该码在菜单树里没有承载节点：授权只能走角色的「预设权限」，撤销也要在那里撤。'
+    : '授权有两条路：角色「预设权限」勾选、角色「分配菜单」勾选节点。撤销要两边都撤干净，只撤一边仍会保留。';
+  const eps = card.endpoints.filter((e) => state.method === 'ALL' || e.method === state.method);
+  const shown = state.expanded ? eps : eps.slice(0, 8);
+  const methods = ['ALL', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH'].filter((m) =>
+    m === 'ALL' || card.endpoints.some((e) => e.method === m));
+  const breadcrumb = (n) => {
+    const chain = DATA.nodePath[n.menuCode] || [n.menuName];
+    return chain.map((x) => `<span class="path">${x}</span>`).join('<span class="path">/</span>');
+  };
+  return `
+  <div class="d-head">
+    <div class="d-title">
+      <h2>${card.label}</h2>
+      <span class="d-code">${card.code}<span class="copy" data-copy="${card.code}" title="复制权限码">复制</span></span>
+      <span class="tag ${kind}">${KIND_TEXT[kind]}</span>
+      <span class="tag plain">${card.group}</span>
+    </div>
+    <div class="d-meta">
+      <span>受控接口 <b>${card.endpoints.length}</b></span>
+      <span>持有角色 <b>${card.roles.length}</b></span>
+      <span>挂载节点 <b>${card.menuNodes.length}</b></span>
+      ${card.configButtons.length ? `<span>列表按钮 <b>${card.configButtons.length}</b></span>` : ''}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="s-head">谁能用 <span class="sub">角色预设权限 ∪ 已授权菜单节点</span><span class="count">${card.roles.length} 个角色</span></div>
+    <div class="s-body">${card.roles.length ? `<div class="roles">${card.roles.map((r) => `
+        <div class="role"><div class="rn">${r.roleName}</div><div class="rc">${r.roleCode}</div>
+          <div class="src">${r.sources.map((s) => `<span class="src-tag ${s.cls}">${s.txt}</span>`).join('')}</div></div>`).join('')}</div>`
+        : '<div class="tip" style="margin:0">当前没有任何角色持有该码，接口对所有非超管账号返回 403。</div>'}
+      <div class="tip">${nodesTip}</div></div>
+  </div>
+
+  <div class="section">
+    <div class="s-head">挂在哪 <span class="sub">菜单节点 · 页面=进得来且读得到，按钮=一个写动作</span><span class="count">${card.menuNodes.length} 个节点</span></div>
+    <div class="s-body">${card.menuNodes.length ? card.menuNodes.map((n) => `
+        <div class="crumb">${breadcrumb(n)}
+          <span class="tag ${n.menuType === 'menu' ? 'read' : 'write'}">${n.menuType === 'menu' ? '页面' : '按钮'}</span>
+          ${n.path ? `<span class="route">${n.path}</span>` : ''}</div>`).join('')
+        : '<div class="tip" style="margin:0">无挂载节点。</div>'}${coverTip}</div>
+  </div>
+
+  ${card.configButtons.length ? `<div class="section">
+    <div class="s-head">触发的列表按钮 <span class="sub">sys_list_config.actions_json 中声明该码的按钮</span><span class="count">${card.configButtons.length}</span></div>
+    <div class="s-body"><div class="btn-grid">${card.configButtons.map((b) => `
+        <div class="btn-item">${b.resourceName} · ${b.label} <code>${b.action}</code> <span style="color:var(--text-muted)">${b.position === 'row' ? '行内' : '工具栏'}</span></div>`).join('')}</div></div>
+  </div>` : ''}
+
+  <div class="section">
+    <div class="s-head">管哪些接口 <span class="sub">后端 @RequiresPermission + @Operation 扫描结果</span><span class="count">${eps.length} 条</span></div>
+    <div class="s-body">
+      <div class="seg">${methods.map((m) => `<span class="chip${state.method === m ? ' on' : ''}" data-m="${m}">${m === 'ALL' ? `全部(${card.endpoints.length})` : `${m}(${card.endpoints.filter((e) => e.method === m).length})`}</span>`).join('')}</div>
+      ${shown.map((e) => `<div class="api"><span class="m ${e.method}">${e.method}</span><span class="p">${e.path}</span><span class="s">${e.summary || ''}</span></div>`).join('') || '<div class="tip" style="margin:0">该筛选下没有接口。</div>'}
+      ${eps.length > shown.length ? `<div class="more" data-more="1">展开其余 ${eps.length - shown.length} 条</div>`
+        : (state.expanded && eps.length > 8 ? `<div class="more" data-more="0">收起</div>` : '')}
+    </div>
+  </div>`;
+}
+
+function render() {
+  $('stats').innerHTML = statsHtml();
+  $('chips').innerHTML = chipsHtml();
+  const allow = filterCodes();
+  const filtered = allow ? DATA.codesFlat.filter((c) => allow.includes(c.code)) : null;
+  $('tree').innerHTML = filtered
+    ? filtered.map((c) => {
+        const n = c.menuNodes[0];
+        return `<div class="tw${state.selected === c.code ? ' sel' : ''}" data-code="${c.code}">
+          <span class="caret"></span><span class="name"><span class="kind-dot ${kindOf(c.code)}"></span>${c.label}</span>
+          <span class="code-tag">${c.code}</span><span class="cnt">${c.endpoints.length}</span></div>`;
+      }).join('') + tailGroupsHtml()
+    : treeHtml(DATA.tree, 0) + tailGroupsHtml();
+  $('detail').innerHTML = detailHtml();
+  $('kwClear').style.display = state.kw ? 'block' : 'none';
+}
+
+document.addEventListener('click', (ev) => {
+  const t = ev.target;
+  const toggle = t.dataset.toggle;
+  if (toggle) { state.collapsed[toggle] = !state.collapsed[toggle]; render(); return }
+  const chip = t.dataset.f;
+  if (chip) { if (!t.classList.contains('disabled')) { state.filter = chip; render() } return }
+  const m = t.dataset.m;
+  if (m) { state.method = m; state.expanded = false; render(); return }
+  if (t.dataset.more) { state.expanded = t.dataset.more === '1'; render(); return }
+  if (t.dataset.copy) {
+    navigator.clipboard?.writeText(t.dataset.copy);
+    t.textContent = '已复制'; setTimeout(() => (t.textContent = '复制'), 1200); return
+  }
+  const row = t.closest('.tw');
+  if (row && row.dataset.code) { state.selected = row.dataset.code; state.expanded = false; state.method = 'ALL'; render() }
+});
+$('kw').addEventListener('input', (e) => { state.kw = e.target.value; render() });
+$('kwClear').addEventListener('click', () => { state.kw = ''; $('kw').value = ''; render() });
+
+state.selected = DATA.codes[0].code;
+render();
+</script>
+</body>
+</html>

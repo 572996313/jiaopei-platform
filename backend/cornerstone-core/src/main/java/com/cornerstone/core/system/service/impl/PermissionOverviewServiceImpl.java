@@ -98,8 +98,7 @@ public class PermissionOverviewServiceImpl implements PermissionOverviewService 
                 endpoints,
                 rolesByCode.getOrDefault(code, List.of()),
                 menuNodesByCode.getOrDefault(code, List.of()),
-                buttonsByCode.getOrDefault(code, List.of()),
-                endpoints.isEmpty()
+                buttonsByCode.getOrDefault(code, List.of())
             ));
         }
         permissions.sort(Comparator.comparing(PermissionUsageView::code));
@@ -154,28 +153,32 @@ public class PermissionOverviewServiceImpl implements PermissionOverviewService 
     }
 
     /**
-     * 角色对权限码的持有关系 = 角色 permission_codes CSV ∪ 角色勾选的按钮节点码。
+     * 角色对权限码的持有关系 = 角色 permission_codes CSV ∪ 角色勾选的携带该码的菜单节点。
+     * 两条来源分别标出:总览页要据此提示"撤销时两边都得撤"。
      */
     private Map<String, List<PermissionRoleRefView>> buildRoleOwnership(List<RoleEntity> roles,
                                                                         List<SystemMenuEntity> permissionMenus) {
         Map<Long, String> codeByMenuId = permissionMenus.stream()
             .collect(Collectors.toMap(SystemMenuEntity::getId, SystemMenuEntity::getPermissionCode, (left, right) -> left));
 
-        Map<Long, Set<String>> codesByRole = new HashMap<>();
+        Map<Long, Set<String>> nodeCodesByRole = new HashMap<>();
         for (SystemRoleMenuEntity grant : systemRoleMenuMapper.selectList(null)) {
             String code = codeByMenuId.get(grant.getMenuId());
             if (code != null) {
-                codesByRole.computeIfAbsent(grant.getRoleId(), key -> new HashSet<>()).add(code);
+                nodeCodesByRole.computeIfAbsent(grant.getRoleId(), key -> new HashSet<>()).add(code);
             }
         }
 
         Map<String, List<PermissionRoleRefView>> result = new HashMap<>();
         for (RoleEntity role : roles) {
-            Set<String> codes = new HashSet<>(splitPermissionCodes(role.getPermissionCodes()));
-            codes.addAll(codesByRole.getOrDefault(role.getId(), Set.of()));
-            for (String code : codes) {
+            Set<String> presetCodes = new HashSet<>(splitPermissionCodes(role.getPermissionCodes()));
+            Set<String> menuCodes = nodeCodesByRole.getOrDefault(role.getId(), Set.of());
+            Set<String> heldCodes = new TreeSet<>(presetCodes);
+            heldCodes.addAll(menuCodes);
+            for (String code : heldCodes) {
                 result.computeIfAbsent(code, key -> new ArrayList<>())
-                    .add(new PermissionRoleRefView(role.getId(), role.getRoleCode(), role.getRoleName()));
+                    .add(new PermissionRoleRefView(role.getId(), role.getRoleCode(), role.getRoleName(),
+                        presetCodes.contains(code), menuCodes.contains(code)));
             }
         }
         return result;
