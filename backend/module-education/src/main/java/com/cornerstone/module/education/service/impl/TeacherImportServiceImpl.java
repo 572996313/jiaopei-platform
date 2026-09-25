@@ -68,7 +68,11 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     /** 入职日期容忍 2026-03-05 / 2026/3/5 / 2026.3.5：先把 . 和 / 归一成 -，再单次解析（可选段只匹配整串 "./-"，兜不住） */
     private static final DateTimeFormatter HIRED_AT = DateTimeFormatter.ofPattern("yyyy-M-d");
 
+    /** 字典条目的启用值，与教师状态无关 */
     private static final String ACTIVE = "active";
+    /** 教师状态留空时的回落值，与 jp_teacher.status 的列默认值一致 */
+    private static final String DEFAULT_TEACHER_STATUS = "active";
+    /** 用工类型留空时的回落值，与 jp_teacher.employment_type 的列默认值一致 */
     private static final String DEFAULT_EMPLOYMENT_TYPE = "full_time";
 
     private final TeacherMapper teacherMapper;
@@ -316,7 +320,7 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     /** 状态留空按"在职"回落，与 jp_teacher.status 的列默认值一致；填了就必须命中字典启用条目 */
     private void checkStatus(Plan plan) {
         if (plan.status == null) {
-            plan.status = ACTIVE;
+            plan.status = DEFAULT_TEACHER_STATUS;
             return;
         }
         checkDict(plan, "teacher_status", "教师状态", plan.status);
@@ -449,7 +453,7 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         TeacherImportRowView toView() {
             return new TeacherImportRowView(rowNum, teacherCode, teacherName, phone, campusCode, gender,
                 employmentType == null ? DEFAULT_EMPLOYMENT_TYPE : employmentType, hiredAt,
-                status == null ? ACTIVE : status, errors.isEmpty(),
+                status == null ? DEFAULT_TEACHER_STATUS : status, errors.isEmpty(),
                 errors.isEmpty() ? null : String.join("；", errors),
                 notices.isEmpty() ? null : String.join("；", notices), existingTeacherId);
         }

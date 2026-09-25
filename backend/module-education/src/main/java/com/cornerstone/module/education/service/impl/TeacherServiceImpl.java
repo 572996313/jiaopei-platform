@@ -41,6 +41,9 @@ public class TeacherServiceImpl implements TeacherService {
     /** 教师状态未选时的回落值，与 jp_teacher.status 的列默认值一致 */
     private static final String DEFAULT_TEACHER_STATUS = "active";
 
+    /** 用工类型未选时的回落值，与 jp_teacher.employment_type 的列默认值一致 */
+    private static final String DEFAULT_EMPLOYMENT_TYPE = "full_time";
+
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
@@ -205,7 +208,7 @@ public class TeacherServiceImpl implements TeacherService {
         entity.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         entity.setTitle(normalizeToNull(request.title()));
         String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
-        entity.setEmploymentType(employmentType == null ? "full_time" : employmentType);
+        entity.setEmploymentType(employmentType == null ? DEFAULT_EMPLOYMENT_TYPE : employmentType);
         String teacherStatus = dictValueValidator.validate("teacher_status", "教师状态", request.status());
         entity.setStatus(teacherStatus == null ? DEFAULT_TEACHER_STATUS : teacherStatus);
         entity.setHiredAt(request.hiredAt());

@@ -22,6 +22,7 @@ import com.cornerstone.module.education.dto.CourseCreateRequest;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentParentCreateRequest;
 import com.cornerstone.module.education.dto.TeacherCreateRequest;
+import com.cornerstone.module.education.dto.TeacherUpdateRequest;
 import com.cornerstone.module.education.dto.TeachingClassCreateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ClassTeacherMapper;
@@ -148,6 +149,56 @@ class EducationThirdMainlineValidationTest {
         assertThrows(BusinessException.class, () -> service.createTeacher(teacherRequest("T001")));
 
         verify(teacherMapper, never()).insert(any(TeacherEntity.class));
+    }
+
+    /** 字典外的状态进不了库：批量导入那条路有用例盯着，PC 表单这条单写路径同样要有 */
+    @Test
+    void createTeacherRejectsTeacherStatusOutsideDict() {
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
+            userAccountMapper, dictValueValidator);
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(teacherMapper.selectCount(any())).thenReturn(0L);
+        when(systemDictService.listItems("teacher_status")).thenReturn(dictItems("active", "suspended", "left"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.createTeacher(teacherRequest("T001", "resigned")));
+
+        assertTrue(exception.getMessage().contains("教师状态取值无效"), exception.getMessage());
+        verify(teacherMapper, never()).insert(any(TeacherEntity.class));
+    }
+
+    /** 状态留空由后端落列默认值，而不是前端预置 item_value（AGENTS「枚举值/字典规范」第 2 条） */
+    @Test
+    void createTeacherFallsBackToColumnDefaultWhenStatusBlank() {
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
+            userAccountMapper, dictValueValidator);
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(teacherMapper.selectCount(any())).thenReturn(0L);
+
+        service.createTeacher(teacherRequest("T001"));
+
+        ArgumentCaptor<TeacherEntity> inserted = ArgumentCaptor.forClass(TeacherEntity.class);
+        verify(teacherMapper).insert(inserted.capture());
+        assertEquals("active", inserted.getValue().getStatus());
+    }
+
+    /** 编辑时状态留空是"这一列不改"，不能被默认值悄悄重置成在职 */
+    @Test
+    void updateTeacherKeepsExistingStatusWhenStatusBlank() {
+        TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
+            userAccountMapper, dictValueValidator);
+        TeacherEntity existing = new TeacherEntity();
+        existing.setId(300L);
+        existing.setInstitutionId(1L);
+        existing.setTeacherCode("T001");
+        existing.setStatus("suspended");
+        when(teacherMapper.selectById(300L)).thenReturn(existing);
+
+        service.updateTeacher(300L, teacherUpdateRequest(null));
+
+        ArgumentCaptor<TeacherEntity> updated = ArgumentCaptor.forClass(TeacherEntity.class);
+        verify(teacherMapper).updateById(updated.capture());
+        assertEquals("suspended", updated.getValue().getStatus());
     }
 
     @Test
@@ -769,6 +820,10 @@ class EducationThirdMainlineValidationTest {
     }
 
     private TeacherCreateRequest teacherRequest(String teacherCode) {
+        return teacherRequest(teacherCode, null);
+    }
+
+    private TeacherCreateRequest teacherRequest(String teacherCode, String status) {
         return new TeacherCreateRequest(
             1L,
             null,
@@ -778,10 +833,15 @@ class EducationThirdMainlineValidationTest {
             null,
             null,
             null,
-            null,
+            status,
             LocalDate.now(),
             null
         );
+    }
+
+    /** TeacherUpdateRequest 里 status 是第 8 个参数，前面的空位表示"这一列不动" */
+    private TeacherUpdateRequest teacherUpdateRequest(String status) {
+        return new TeacherUpdateRequest(null, null, null, null, null, null, null, status, null, null);
     }
 
     private StudentCreateRequest studentRequest(String studentNo, LocalDate birthday) {
