@@ -52,8 +52,7 @@ public class TeacherExportRow {
     @ExcelProperty(value = "入职日期", index = 7)
     private String hiredAt;
 
-    @Schema(description = "状态(active=在职,suspended=暂停,left=离职)",
-            allowableValues = {"active", "suspended", "left"})
+    @Schema(description = "教师状态中文名(字典teacher_status的item_name；字典里没有该值时回显原始item_value)")
     @ExcelProperty(value = "状态", index = 8)
     private String status;
 

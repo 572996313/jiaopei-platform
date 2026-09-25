@@ -193,11 +193,7 @@
           />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="form.status" placeholder="选择状态">
-            <el-option label="在职" value="active" />
-            <el-option label="暂停" value="suspended" />
-            <el-option label="离职" value="left" />
-          </el-select>
+          <DictSelect v-model="form.status" type-code="teacher_status" placeholder="选择教师状态" />
         </el-form-item>
         <el-form-item label="入职日期">
           <el-date-picker
@@ -290,7 +286,7 @@ const form = reactive({
   campusId: '' as string | null,
   phone: '',
   employmentType: '',
-  status: 'active',
+  status: '',
   hiredAt: '',
   remark: '',
 })
@@ -322,15 +318,7 @@ function employmentTypeLabel(value?: string | null) {
 }
 
 function teacherStatusLabel(value?: string | null) {
-  switch (value) {
-    case 'suspended':
-      return '暂停'
-    case 'left':
-      return '离职'
-    case 'active':
-    default:
-      return '在职'
-  }
+  return dictStore.displayLabel('teacher_status', value)
 }
 
 function teacherStatusTagType(value?: string | null) {
@@ -351,7 +339,7 @@ function resetForm() {
   form.campusId = campusId.value
   form.phone = ''
   form.employmentType = ''
-  form.status = 'active'
+  form.status = ''
   form.hiredAt = ''
   form.remark = ''
   formError.value = ''
@@ -447,7 +435,7 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
     form.campusId = row.campusId ?? null
     form.phone = row.phone ?? ''
     form.employmentType = row.employmentType ?? ''
-    form.status = row.status ?? 'active'
+    form.status = row.status ?? ''
     form.hiredAt = row.hiredAt ?? ''
     form.remark = row.remark ?? ''
   } else {
@@ -570,7 +558,7 @@ watch(
 
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
-  void dictStore.ensureLoaded(['employment_type']).catch(() => undefined)
+  void dictStore.ensureLoaded(['employment_type', 'teacher_status']).catch(() => undefined)
   initializePage()
 })
 </script>

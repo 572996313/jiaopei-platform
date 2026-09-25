@@ -28,7 +28,7 @@ public record TeacherUpdateRequest(
     @Schema(description = "用工类型字典(employment_type:full_time=全职,part_time=兼职,contract=外聘)", allowableValues = {"full_time", "part_time", "contract"})
     @JsonAlias("employment_type")
     String employmentType,
-    @Schema(description = "状态(active=在职,suspended=暂停,left=离职)", allowableValues = {"active", "suspended", "left"})
+    @Schema(description = "教师状态字典(teacher_status:active=在职,suspended=暂停,left=离职)", allowableValues = {"active", "suspended", "left"})
     String status,
     @Schema(description = "入职日期")
     @JsonAlias("hired_at")

@@ -92,10 +92,16 @@
         <el-table-column prop="teacherName" label="教师姓名" width="120" />
         <el-table-column prop="phone" label="手机号" width="130" />
         <el-table-column prop="campusCode" label="校区编码" width="120" />
-        <el-table-column prop="gender" label="性别" width="90" />
-        <el-table-column prop="employmentType" label="用工类型" width="110" />
+        <el-table-column label="性别" width="90">
+          <template #default="{ row }">{{ dictLabel('gender', row.gender) }}</template>
+        </el-table-column>
+        <el-table-column label="用工类型" width="110">
+          <template #default="{ row }">{{ dictLabel('employment_type', row.employmentType) }}</template>
+        </el-table-column>
         <el-table-column prop="hiredAt" label="入职日期" width="120" />
-        <el-table-column prop="status" label="状态" width="100" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">{{ dictLabel('teacher_status', row.status) }}</template>
+        </el-table-column>
         <el-table-column label="说明" min-width="280">
           <template #default="{ row }">
             <span v-if="row.error" class="import-error-text">{{ row.error }}</span>
@@ -168,11 +174,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadFile, UploadInstance, UploadRawFile } from 'element-plus'
 import { Download, UploadFilled } from '@element-plus/icons-vue'
 import { isApiError } from '@cornerstone/core/api/request'
+import { useDictStore } from '@cornerstone/core/stores/dict'
 import {
   commitTeacherImport,
   downloadTeacherTemplate,
@@ -190,6 +197,20 @@ const emit = defineEmits<{
 defineProps<{
   modelValue: boolean
 }>()
+
+const dictStore = useDictStore()
+
+/** 预览表里的字典列给人看的是中文名，字典没命中就回显原始值（与教师页列表同一口径） */
+function dictLabel(typeCode: string, value?: string | null) {
+  return dictStore.displayLabel(typeCode, value)
+}
+
+onMounted(() => {
+  // 表格列不会自己拉字典，进弹窗时一次取全
+  void dictStore
+    .ensureLoaded(['gender', 'employment_type', 'teacher_status'])
+    .catch(() => undefined)
+})
 
 const step = ref(0)
 const file = ref<File | null>(null)

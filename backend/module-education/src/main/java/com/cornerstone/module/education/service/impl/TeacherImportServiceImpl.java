@@ -69,8 +69,6 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     private static final DateTimeFormatter HIRED_AT = DateTimeFormatter.ofPattern("yyyy-M-d");
 
     private static final String ACTIVE = "active";
-    private static final String SUSPENDED = "suspended";
-    private static final String LEFT = "left";
     private static final String DEFAULT_EMPLOYMENT_TYPE = "full_time";
 
     private final TeacherMapper teacherMapper;
@@ -91,7 +89,8 @@ public class TeacherImportServiceImpl implements TeacherImportService {
 
     @Override
     public byte[] buildTemplate() {
-        return TeacherImportTemplate.build(activeDictNames("gender"), activeDictNames("employment_type"));
+        return TeacherImportTemplate.build(activeDictNames("gender"), activeDictNames("employment_type"),
+            activeDictNames("teacher_status"));
     }
 
     @Override
@@ -157,15 +156,17 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     }
 
     /**
-     * 字典列容忍中文条目名：导出的 xlsx 里性别/用工类型就是中文，改完直接回灌是最省事的用法，
+     * 字典列容忍中文条目名：导出的 xlsx 里性别/用工类型/状态就是中文，改完直接回灌是最省事的用法，
      * 只认 item_value 等于逼操作员先把整列翻译回去。命不中的原样留给 {@code checkDict} 报错并列出可选值。
      */
     private void normalizeDictColumns(List<Plan> plans) {
         Map<String, String> genderValues = dictValueValidator.valueByLabel("gender");
         Map<String, String> employmentValues = dictValueValidator.valueByLabel("employment_type");
+        Map<String, String> statusValues = dictValueValidator.valueByLabel("teacher_status");
         for (Plan plan : plans) {
             plan.gender = labelToValue(genderValues, plan.gender);
             plan.employmentType = labelToValue(employmentValues, plan.employmentType);
+            plan.status = labelToValue(statusValues, plan.status);
         }
     }
 
@@ -312,15 +313,13 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         }
     }
 
+    /** 状态留空按"在职"回落，与 jp_teacher.status 的列默认值一致；填了就必须命中字典启用条目 */
     private void checkStatus(Plan plan) {
         if (plan.status == null) {
             plan.status = ACTIVE;
             return;
         }
-        if (!ACTIVE.equals(plan.status) && !SUSPENDED.equals(plan.status) && !LEFT.equals(plan.status)) {
-            plan.errors.add("状态只能填 " + ACTIVE + "（在职）、" + SUSPENDED + "（暂停）或 "
-                + LEFT + "（离职），留空按在职");
-        }
+        checkDict(plan, "teacher_status", "教师状态", plan.status);
     }
 
     private void checkTitle(Plan plan) {

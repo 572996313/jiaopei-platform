@@ -18,7 +18,7 @@ public class TeacherPageQuery extends PageQuery {
     @Schema(description = "关键字,模糊匹配姓名/工号/手机号")
     private String keyword;
 
-    @Schema(description = "状态(active=在职,suspended=暂停,left=离职)",
+    @Schema(description = "教师状态字典(teacher_status:active=在职,suspended=暂停,left=离职)",
             allowableValues = {"active", "suspended", "left"})
     private String status;
 

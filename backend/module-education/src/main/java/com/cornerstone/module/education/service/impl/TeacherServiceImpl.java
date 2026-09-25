@@ -38,6 +38,9 @@ public class TeacherServiceImpl implements TeacherService {
     /** 导出是不分页的全量查询，超过这个量级说明筛选条件没收紧，宁可直接拒绝也不要把内存和浏览器一起拖死 */
     private static final int MAX_EXPORT_ROWS = 5000;
 
+    /** 教师状态未选时的回落值，与 jp_teacher.status 的列默认值一致 */
+    private static final String DEFAULT_TEACHER_STATUS = "active";
+
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
@@ -92,6 +95,7 @@ public class TeacherServiceImpl implements TeacherService {
         // 字典列一次取全表建映射：逐行翻译会把字典接口打爆
         Map<String, String> genderLabels = dictValueValidator.labels("gender");
         Map<String, String> employmentLabels = dictValueValidator.labels("employment_type");
+        Map<String, String> statusLabels = dictValueValidator.labels("teacher_status");
 
         List<TeacherExportRow> rows = teachers.stream()
             .map(teacher -> new TeacherExportRow(teacher.getTeacherCode(), teacher.getTeacherName(),
@@ -99,7 +103,7 @@ public class TeacherServiceImpl implements TeacherService {
                 labelOf(genderLabels, teacher.getGender()), teacher.getTitle(),
                 labelOf(employmentLabels, teacher.getEmploymentType()),
                 teacher.getHiredAt() == null ? null : teacher.getHiredAt().toString(),
-                teacher.getStatus(), teacher.getRemark(), valueOf(usernames, teacher.getUserId())))
+                labelOf(statusLabels, teacher.getStatus()), teacher.getRemark(), valueOf(usernames, teacher.getUserId())))
             .toList();
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             EasyExcel.write(out, TeacherExportRow.class).sheet("教师档案").doWrite(rows);
@@ -202,7 +206,8 @@ public class TeacherServiceImpl implements TeacherService {
         entity.setTitle(normalizeToNull(request.title()));
         String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
         entity.setEmploymentType(employmentType == null ? "full_time" : employmentType);
-        entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
+        String teacherStatus = dictValueValidator.validate("teacher_status", "教师状态", request.status());
+        entity.setStatus(teacherStatus == null ? DEFAULT_TEACHER_STATUS : teacherStatus);
         entity.setHiredAt(request.hiredAt());
         entity.setRemark(request.remark());
         entity.setDeleted(Boolean.FALSE);
@@ -246,7 +251,8 @@ public class TeacherServiceImpl implements TeacherService {
         existing.setTitle(normalizeToNull(request.title()));
         String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
         existing.setEmploymentType(employmentType == null ? existing.getEmploymentType() : employmentType);
-        existing.setStatus(request.status() == null || request.status().isBlank() ? existing.getStatus() : request.status());
+        String status = dictValueValidator.validate("teacher_status", "教师状态", request.status());
+        existing.setStatus(status == null ? existing.getStatus() : status);
         existing.setHiredAt(request.hiredAt());
         existing.setRemark(request.remark());
         try {

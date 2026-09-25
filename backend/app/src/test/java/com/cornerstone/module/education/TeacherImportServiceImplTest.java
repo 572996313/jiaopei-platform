@@ -67,7 +67,8 @@ class TeacherImportServiceImplTest {
     };
     private static final Map<String, List<String>> DICT = Map.of(
         "gender", List.of("male", "female", "unknown"),
-        "employment_type", List.of("full_time", "part_time", "contract"));
+        "employment_type", List.of("full_time", "part_time", "contract"),
+        "teacher_status", List.of("active", "suspended", "left"));
 
     private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final CampusMapper campusMapper = mock(CampusMapper.class);
@@ -91,6 +92,8 @@ class TeacherImportServiceImplTest {
             .thenReturn(Map.of("男", "male", "女", "female", "未知", "unknown"));
         when(dictValueValidator.valueByLabel("employment_type"))
             .thenReturn(Map.of("全职", "full_time", "兼职", "part_time", "外聘", "contract"));
+        when(dictValueValidator.valueByLabel("teacher_status"))
+            .thenReturn(Map.of("在职", "active", "暂停", "suspended", "离职", "left"));
         // 字典校验按固定允许值模拟真实行为，避免测试跟着字典条目漂移
         when(dictValueValidator.validate(any(), any(), any())).thenAnswer(invocation -> {
             String type = invocation.getArgument(0);
@@ -243,11 +246,12 @@ class TeacherImportServiceImplTest {
         ArgumentCaptor<TeacherCreateRequest> created = ArgumentCaptor.forClass(TeacherCreateRequest.class);
 
         service.commit(workbook(List.of(
-            row("T001", "张老师", "13800000001", "", "女", "中级", "兼职", "", "", ""))));
+            row("T001", "张老师", "13800000001", "", "女", "中级", "兼职", "", "离职", ""))));
 
         verify(teacherService).createTeacher(created.capture());
         assertEquals("female", created.getValue().gender());
         assertEquals("part_time", created.getValue().employmentType());
+        assertEquals("left", created.getValue().status());
     }
 
     @Test
@@ -284,7 +288,9 @@ class TeacherImportServiceImplTest {
         TeacherImportRowView view = service.preview(workbook(List.of(
             row("T001", "张老师", "", "", "", "", "", "", "resigned", "")))).rows().get(0);
 
-        assertTrue(view.error().contains("状态只能填"), view.error());
+        // 报错来自字典校验器，允许值写成「中文(代码)」，与模板下拉给的中文对得上
+        assertTrue(view.error().contains("教师状态取值无效"), view.error());
+        assertTrue(view.error().contains("left"), view.error());
     }
 
     @Test
@@ -374,6 +380,7 @@ class TeacherImportServiceImplTest {
 
         assertTrue(guide.contains("male/female/unknown"), guide);
         assertTrue(guide.contains("full_time/part_time/contract"), guide);
+        assertTrue(guide.contains("active/suspended/left"), guide);
     }
 
     @Test

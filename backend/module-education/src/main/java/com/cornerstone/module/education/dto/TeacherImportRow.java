@@ -45,8 +45,7 @@ public class TeacherImportRow {
     @ExcelProperty(index = 7)
     private String hiredAt;
 
-    @Schema(description = "状态(active=在职,suspended=暂停,left=离职),留空按 active",
-            allowableValues = {"active", "suspended", "left"})
+    @Schema(description = "教师状态,填字典(teacher_status)启用条目的中文名或item_value,留空按 active")
     @ExcelProperty(index = 8)
     private String status;
 

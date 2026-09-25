@@ -67,6 +67,8 @@ class TeacherServiceImplExportTest {
             .thenReturn(Map.of("male", "男", "female", "女", "unknown", "未知"));
         when(dictValueValidator.labels("employment_type"))
             .thenReturn(Map.of("full_time", "全职", "part_time", "兼职", "contract", "外聘"));
+        when(dictValueValidator.labels("teacher_status"))
+            .thenReturn(Map.of("active", "在职", "suspended", "暂停", "left", "离职"));
     }
 
     @Test
@@ -80,7 +82,7 @@ class TeacherServiceImplExportTest {
         assertEquals(2, rows.size(), "一行表头 + 一行数据");
         assertEquals(List.of(HEADERS), rows.get(0));
         assertEquals(List.of("T001", "张老师", "13800000001", "C001", "男", "中级",
-            "全职", "2026-03-05", "active", "备注一", "teacher01"), rows.get(1));
+            "全职", "2026-03-05", "在职", "备注一", "teacher01"), rows.get(1));
     }
 
     /** 字典里查不到的历史脏值照原样导出：宁可难看，也不硬映射成某个合法值（与前端回显同一口径） */
@@ -89,6 +91,7 @@ class TeacherServiceImplExportTest {
         TeacherEntity legacy = teacher(102L, "T003", "历史值", null, null);
         legacy.setGender("other");
         legacy.setEmploymentType("seasonal");
+        legacy.setStatus("retired");
         when(teacherMapper.selectCount(any())).thenReturn(1L);
         when(teacherMapper.selectList(any())).thenReturn(List.of(legacy));
 
@@ -96,6 +99,7 @@ class TeacherServiceImplExportTest {
 
         assertEquals("other", rows.get(1).get(4));
         assertEquals("seasonal", rows.get(1).get(6));
+        assertEquals("retired", rows.get(1).get(8));
     }
 
     /** 全批都没绑账号时取账号名的 Map 是空的，而档案的 campusId/userId 也可以为空——这里曾经直接 NPE */
