@@ -1,0 +1,258 @@
+<template>
+  <el-dialog
+    :model-value="modelValue"
+    title="排课规则"
+    width="1080px"
+    top="6vh"
+    destroy-on-close
+    @update:model-value="emit('update:modelValue', $event)"
+    @open="handleOpen"
+  >
+    <div class="rule-toolbar">
+      <el-button type="primary" @click="emit('create')">新增规则</el-button>
+      <el-select v-model="filterRuleType" placeholder="筛选类型" clearable @change="reload">
+        <el-option label="禁排" value="forbidden" />
+        <el-option label="必排" value="required" />
+      </el-select>
+      <el-select v-model="filterTargetType" placeholder="筛选对象" clearable @change="reload">
+        <el-option label="班级" value="class" />
+        <el-option label="教师" value="teacher" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="筛选状态" clearable @change="reload">
+        <el-option label="启用" value="active" />
+        <el-option label="停用" value="inactive" />
+      </el-select>
+    </div>
+
+    <el-table
+      :data="rules"
+      border
+      stripe
+      row-key="id"
+      highlight-current-row
+      v-loading="loading"
+      max-height="440"
+    >
+      <el-table-column label="类型" width="80" fixed="left">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.ruleType === 'forbidden' ? 'danger' : 'warning'">
+            {{ row.ruleType === 'forbidden' ? '禁排' : '必排' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="对象" min-width="170">
+        <template #default="{ row }">{{ formatTarget(row) }}</template>
+      </el-table-column>
+      <el-table-column label="节次格子" min-width="240">
+        <template #default="{ row }">{{ formatSlots(row.slots) }}</template>
+      </el-table-column>
+      <el-table-column label="生效区间" width="200">
+        <template #default="{ row }">{{ formatRange(row) }}</template>
+      </el-table-column>
+      <el-table-column label="状态" width="80">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
+            {{ row.status === 'active' ? '启用' : '停用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="批注" min-width="160">
+        <template #default="{ row }">{{ row.remark || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="130" fixed="right">
+        <template #default="{ row }">
+          <div class="system-operation-group">
+            <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
+            <el-button link type="danger" :loading="deletingId === row.id" @click="handleDelete(row)">
+              删除
+            </el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      class="panel-pagination"
+      :total="total"
+      :page-sizes="[10, 20, 50]"
+      layout="total, sizes, prev, pager, next"
+      @current-change="reload"
+      @size-change="handleSizeChange"
+    />
+
+    <template #footer>
+      <div class="rule-list-footer">
+        <span class="rule-list-hint">
+          禁排格子会在排课时直接拦下；必排只在周期计划预览里提示覆盖缺口，不拦提交。改规则不会回改已生成的课次。
+        </span>
+        <el-button @click="emit('update:modelValue', false)">关闭</el-button>
+      </div>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup lang="ts">
+// 排课规则列表：按类型/对象/状态筛选，编辑走同一个编辑器，删除只影响后续校验。
+import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  deleteScheduleRule,
+  fetchScheduleRulePage,
+  type SchedulePlanSlotItem,
+  type ScheduleRuleRecord,
+  type TeacherSummary,
+  type TeachingClassSummary,
+} from '@cornerstone/module-education/api/education'
+import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import { toMessage, weekdayLabel } from './schedule-utils'
+
+const props = defineProps<{
+  modelValue: boolean
+  institutionId: string | null
+  classes: TeachingClassSummary[]
+  teachers: TeacherSummary[]
+  timeSlots: TimeSlotSummary[]
+  scopeCampusId?: string | null
+}>()
+
+const emit = defineEmits<{
+  (event: 'update:modelValue', value: boolean): void
+  (event: 'create'): void
+  (event: 'edit', rule: ScheduleRuleRecord): void
+  (event: 'changed'): void
+}>()
+
+const rules = ref<ScheduleRuleRecord[]>([])
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const loading = ref(false)
+const deletingId = ref<string | null>(null)
+const filterRuleType = ref<string | null>(null)
+const filterTargetType = ref<string | null>(null)
+const filterStatus = ref<string | null>(null)
+
+function formatTarget(rule: ScheduleRuleRecord) {
+  const id = rule.targetId
+  if (!id) {
+    return '—'
+  }
+  if (rule.targetType === 'class') {
+    const clazz = props.classes.find((item) => item.id === id)
+    return `班级 ${clazz?.className || clazz?.classCode || id}`
+  }
+  const teacher = props.teachers.find((item) => item.id === id)
+  return `教师 ${teacher?.teacherName || teacher?.teacherCode || id}`
+}
+
+function formatSlots(slots?: SchedulePlanSlotItem[] | null) {
+  if (!slots || slots.length === 0) {
+    return '—'
+  }
+  return slots
+    .map((slot) => {
+      const timeSlot = props.timeSlots.find((item) => item.id === slot.timeSlotId)
+      return `${weekdayLabel(slot.weekday)}${timeSlot?.slotName || `时段#${slot.timeSlotId}`}`
+    })
+    .join('、')
+}
+
+function formatRange(rule: ScheduleRuleRecord) {
+  if (!rule.startDate && !rule.endDate) {
+    return '不限日期'
+  }
+  return `${rule.startDate || '不限'} ~ ${rule.endDate || '不限'}`
+}
+
+function handleOpen() {
+  page.value = 1
+  filterRuleType.value = null
+  filterTargetType.value = null
+  filterStatus.value = null
+  void reload()
+}
+
+function handleSizeChange() {
+  page.value = 1
+  void reload()
+}
+
+async function reload() {
+  if (!props.institutionId) {
+    rules.value = []
+    total.value = 0
+    return
+  }
+  loading.value = true
+  try {
+    const result = await fetchScheduleRulePage({
+      institutionId: props.institutionId,
+      ruleType: filterRuleType.value,
+      targetType: filterTargetType.value,
+      status: filterStatus.value,
+      page: page.value,
+      pageSize: pageSize.value,
+    })
+    rules.value = result.records
+    total.value = result.total
+  } catch (error) {
+    rules.value = []
+    total.value = 0
+    ElMessage.error(toMessage(error, '排课规则加载失败'))
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleDelete(rule: ScheduleRuleRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除${formatTarget(rule)}的这条${rule.ruleType === 'forbidden' ? '禁排' : '必排'}规则吗？`,
+      '删除排课规则',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  deletingId.value = rule.id
+  try {
+    await deleteScheduleRule(rule.id)
+    ElMessage.success('排课规则已删除')
+    await reload()
+    emit('changed')
+  } catch (error) {
+    ElMessage.error(toMessage(error, '删除排课规则失败'))
+  } finally {
+    deletingId.value = null
+  }
+}
+
+defineExpose({ reload })
+</script>
+
+<style scoped>
+.rule-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.rule-toolbar .el-select {
+  width: 150px;
+}
+
+.rule-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rule-list-hint {
+  color: #64748b;
+  font-size: 12px;
+}
+</style>

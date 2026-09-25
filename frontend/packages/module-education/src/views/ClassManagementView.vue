@@ -589,7 +589,7 @@
       <div class="education-dialog-context">
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
         <div>
-          <strong>主讲：</strong>{{ primaryTeacherLabel }}（主讲切换仍在班级教师关系中维护）
+          <strong>主讲：</strong>{{ primaryTeacherLabel }}（改主讲会同步班级教师关系，原主讲降级为普通教师）
         </div>
       </div>
 
@@ -635,6 +635,16 @@
               v-for="item in classTypes"
               :key="item.id"
               :label="item.typeName || item.typeCode || `班型 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="主讲教师">
+          <el-select v-model="classProfileForm.teacherId" clearable filterable placeholder="选择主讲教师">
+            <el-option
+              v-for="item in teachers"
+              :key="item.id"
+              :label="item.teacherName || item.teacherCode || `教师 #${item.id}`"
               :value="item.id"
             />
           </el-select>
@@ -1004,6 +1014,7 @@ const classProfileForm = reactive({
   termId: '',
   courseId: '',
   classTypeId: '',
+  teacherId: '' as string | null,
   capacityLimit: 0,
   status: 'planning',
   remark: '',
@@ -1095,11 +1106,17 @@ const primaryTeacher = computed(() => {
   return classTeachers.value.find((item) => item.isPrimary) || null
 })
 
+// 与后端 ClassChangeNoticeServiceImpl#hasPrimaryTeacher 同口径：主档列与班级教师关系任一处有主讲即视为已设置
+const hasPrimaryTeacher = computed(
+  () => Boolean(primaryTeacher.value) || Boolean(currentClass.value?.teacherId)
+)
+
 const primaryTeacherLabel = computed(() => {
-  if (!primaryTeacher.value) {
+  const teacherId = primaryTeacher.value?.teacherId || currentClass.value?.teacherId
+  if (!teacherId) {
     return '未设置主讲教师'
   }
-  return formatTeacher(primaryTeacher.value.teacherId)
+  return formatTeacher(teacherId)
 })
 
 const localRiskItems = computed<ReminderItem[]>(() => {
@@ -1122,7 +1139,7 @@ const localRiskItems = computed<ReminderItem[]>(() => {
         noticeType: 'missing_class_type',
       })
     }
-    if (!primaryTeacher.value) {
+    if (!hasPrimaryTeacher.value) {
       items.push({
         key: 'missing-primary-teacher',
         title: '班级未设置主讲教师',
@@ -1363,7 +1380,8 @@ function resetTeacherForm() {
   teacherForm.classId = classId.value || ''
   teacherForm.teacherId = ''
   teacherForm.teacherRole = ''
-  teacherForm.isPrimary = true
+  // 已有主讲时默认不再勾主讲：新加的教师通常是助教，勾上会把原主讲降级
+  teacherForm.isPrimary = !hasPrimaryTeacher.value
   teacherForm.joinedAt = todayValue()
   teacherForm.leftAt = ''
   teacherForm.status = 'active'
@@ -1378,6 +1396,7 @@ function resetClassProfileForm(target?: TeachingClassSummary | null) {
   classProfileForm.termId = target?.termId ?? ''
   classProfileForm.courseId = target?.courseId ?? ''
   classProfileForm.classTypeId = target?.classTypeId ?? ''
+  classProfileForm.teacherId = target?.teacherId ?? ''
   classProfileForm.capacityLimit = target?.capacityLimit ?? 0
   classProfileForm.status = target?.status ?? 'planning'
   classProfileForm.remark = target?.remark ?? ''
@@ -1524,7 +1543,7 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
     classTypeId: classProfileForm.classTypeId || null,
     classCode: classProfileForm.classCode.trim(),
     className: classProfileForm.className.trim(),
-    teacherId: target.teacherId || null,
+    teacherId: classProfileForm.teacherId || null,
     capacityLimit: Number.isFinite(classProfileForm.capacityLimit)
       ? classProfileForm.capacityLimit
       : 0,

@@ -21,6 +21,9 @@ public class ScheduleLessonPageQuery extends PageQuery {
     @Schema(description = "班级 ID,精确匹配")
     private Long classId;
 
+    @Schema(description = "来源排课计划 ID,精确匹配")
+    private Long planId;
+
     @Schema(description = "上课日期,精确匹配")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate lessonDate;
@@ -47,6 +50,14 @@ public class ScheduleLessonPageQuery extends PageQuery {
 
     public void setClassId(Long classId) {
         this.classId = classId;
+    }
+
+    public Long getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(Long planId) {
+        this.planId = planId;
     }
 
     public LocalDate getLessonDate() {

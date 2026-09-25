@@ -15,6 +15,7 @@ import com.cornerstone.module.education.mapper.CourseMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
+import com.cornerstone.module.education.service.ClassTeacherService;
 import com.cornerstone.module.education.service.TeachingClassService;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
@@ -39,12 +40,14 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     private final ClassTypeMapper classTypeMapper;
     private final ClassStudentMapper classStudentMapper;
     private final ClassChangeNoticeService classChangeNoticeService;
+    private final ClassTeacherService classTeacherService;
 
     public TeachingClassServiceImpl(TeachingClassMapper teachingClassMapper, InstitutionMapper institutionMapper,
                                     CampusMapper campusMapper, TermMapper termMapper, TeacherMapper teacherMapper,
                                     CourseMapper courseMapper, ClassTypeMapper classTypeMapper,
                                     ClassStudentMapper classStudentMapper,
-                                    ClassChangeNoticeService classChangeNoticeService) {
+                                    ClassChangeNoticeService classChangeNoticeService,
+                                    ClassTeacherService classTeacherService) {
         this.teachingClassMapper = teachingClassMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
@@ -54,6 +57,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         this.classTypeMapper = classTypeMapper;
         this.classStudentMapper = classStudentMapper;
         this.classChangeNoticeService = classChangeNoticeService;
+        this.classTeacherService = classTeacherService;
     }
 
     @Override
@@ -75,6 +79,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     }
 
     @Override
+    @Transactional
     public TeachingClassEntity createClass(TeachingClassCreateRequest request) {
         validateRequest(request);
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
@@ -103,22 +108,19 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
         }
+        // 主讲教师以班级教师关系为准：只写 jp_class.teacher_id 不建关系，班级详情页会提示"班级未设置主讲教师"
+        classTeacherService.assignPrimaryTeacher(entity.getInstitutionId(), entity.getId(), request.teacherId());
         classChangeNoticeService.syncClassNotices(entity.getInstitutionId(), entity.getId());
         return entity;
     }
 
     @Override
+    @Transactional
     public TeachingClassEntity updateClass(Long id, TeachingClassCreateRequest request) {
         TeachingClassEntity existing = requireClass(id);
         validateRequest(request);
         if (!Objects.equals(existing.getInstitutionId(), request.institutionId())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + request.institutionId());
-        }
-        if (!Objects.equals(existing.getTeacherId(), request.teacherId())) {
-            throw new BusinessException(
-                ResultCode.BAD_REQUEST,
-                "主讲教师只能在班级教师关系中变更，请先在班级教师关系里切换主讲教师"
-            );
         }
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
         int activeStudents = countActiveStudents(id);
@@ -138,7 +140,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         existing.setClassTypeId(request.classTypeId());
         existing.setClassCode(classCode);
         existing.setClassName(className);
-        existing.setTeacherId(request.teacherId());
+        // 主讲教师不在这里直接改列，统一交给班级教师关系回写，避免两张表口径不一致
         existing.setCapacityLimit(capacityLimit);
         existing.setCurrentStudents(activeStudents);
         existing.setStatus(normalizeStatus(request.status()));
@@ -149,6 +151,8 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
         }
+        classTeacherService.assignPrimaryTeacher(existing.getInstitutionId(), existing.getId(), request.teacherId());
+        existing.setTeacherId(request.teacherId());
         classChangeNoticeService.syncClassNotices(existing.getInstitutionId(), existing.getId());
         return existing;
     }

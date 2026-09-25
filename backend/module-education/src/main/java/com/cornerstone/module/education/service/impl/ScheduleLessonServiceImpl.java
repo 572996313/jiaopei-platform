@@ -19,6 +19,7 @@ import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ScheduleLessonService;
+import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -50,16 +51,19 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private final TeacherMapper teacherMapper;
     private final ClassroomMapper classroomMapper;
     private final TimeSlotMapper timeSlotMapper;
+    private final ScheduleRuleSupport ruleSupport;
 
     public ScheduleLessonServiceImpl(ScheduleLessonMapper lessonMapper, ScheduleTeacherRelMapper teacherRelMapper,
                                      TeachingClassMapper classMapper, TeacherMapper teacherMapper,
-                                     ClassroomMapper classroomMapper, TimeSlotMapper timeSlotMapper) {
+                                     ClassroomMapper classroomMapper, TimeSlotMapper timeSlotMapper,
+                                     ScheduleRuleSupport ruleSupport) {
         this.lessonMapper = lessonMapper;
         this.teacherRelMapper = teacherRelMapper;
         this.classMapper = classMapper;
         this.teacherMapper = teacherMapper;
         this.classroomMapper = classroomMapper;
         this.timeSlotMapper = timeSlotMapper;
+        this.ruleSupport = ruleSupport;
     }
 
     @Override
@@ -117,6 +121,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         }
         if (query.getClassId() != null) {
             wrapper.eq(ScheduleLessonEntity::getClassId, query.getClassId());
+        }
+        if (query.getPlanId() != null) {
+            wrapper.eq(ScheduleLessonEntity::getPlanId, query.getPlanId());
         }
         if (query.getLessonDate() != null) {
             wrapper.eq(ScheduleLessonEntity::getLessonDate, query.getLessonDate());
@@ -339,6 +346,14 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
                 messages.add("该教师在此时段已被占用：" + teacherId);
             }
         }
+        // 禁排规则与占用同层判定：撞上了既不让单独排课，也不让在冲突检查里被忽略
+        List<String> ruleMessages = ruleSupport.loadRuleSet(request.institutionId(), request.classId(),
+                List.copyOf(distinctTeacherIds(request.teacherIds())))
+            .forbiddenMessages(request.lessonDate(), request.lessonDate().getDayOfWeek().getValue(), request.timeSlotId());
+        if (!ruleMessages.isEmpty()) {
+            types.add("rule");
+            messages.addAll(ruleMessages);
+        }
         return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
     }
 
@@ -417,6 +432,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             entity.getClassId(),
             entity.getClassroomId(),
             entity.getTimeSlotId(),
+            entity.getPlanId(),
             entity.getLessonDate(),
             entity.getLessonWeekday(),
             entity.getStartTime(),

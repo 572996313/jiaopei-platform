@@ -257,6 +257,14 @@ pnpm dev:h5            # H5 调试
 
 前端范围栏的学期选择器是**筛选条件**，不应作为报名/入班前置校验；只有 `ScheduleAttendanceView.vue` 的排课弹窗校验学期是对的。
 
+## 班级主讲教师口径（必填，死循环回归事故固化）
+
+`jp_class_teacher`（`is_primary=1` 且 `teacher_role=lead`）是主讲的**唯一事实源**，`jp_class.teacher_id` 只是它回写出来的展示/责任列（`ClassChangeNoticeServiceImpl#hasPrimaryTeacher` 与班级页都先看关系、再兜主档列）。因此：
+
+- 写主讲只有一条路：`ClassTeacherService#assignPrimaryTeacher(institutionId, classId, teacherId)`——创建/更新班级主档（`TeachingClassServiceImpl`）与「设为主讲」按钮都走它。**不要在班级主档的写入路径上直接 `setTeacherId` 落库**，那会造出"主档有人、关系表没人"的班级，详情页立刻报"班级未设置主讲教师"，而编辑弹窗又被拒改主讲，形成死循环（2026-09-25 修掉的回归；`docs/archive/班级正式维护与课次执行变更首批范围.md` 第 107/161 行早就要求"同一页面完成主讲调整"）。
+- `teacherId` 传 `null` = **撤销主讲**：降级该班全部主讲关系并把主档列置 NULL。`updateById` 会忽略 null，清空必须走 `LambdaUpdateWrapper.set(...)`。撤销是用户明示意图，**不自动补位**（只重新出 `missing_primary_teacher` 通知）；删除主讲关系才走自动补位。
+- 自动新建的主讲关系**不写 `joined_at`**（留 NULL）：`uk_jp_class_teacher_period(class_id, teacher_id, teacher_role, joined_at)` 含该列，填当天日期会在"同班同人同日同角色"上撞键。
+
 ## 枚举值 / 字典规范（必填，性别跨端不一致事故固化）
 
 判断标准：**取值可枚举、给用户选择、运维可能扩充**的字段（如性别），唯一事实源是系统字典 `sys_dict_type`/`sys_dict_item`，禁止各端各自硬编码取值或中文标签。**边界**：由代码逻辑判定的状态值（`status=active/disabled`、课次状态、`deleted` 等）**不入字典**——它们在代码里分支比对，进了字典就等于允许运维在页面上改掉判定逻辑依赖的值。

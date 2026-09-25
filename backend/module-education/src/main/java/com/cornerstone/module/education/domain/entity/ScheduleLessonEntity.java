@@ -32,6 +32,9 @@ public class ScheduleLessonEntity extends BaseEntity {
     @Schema(description = "时段ID")
     private Long timeSlotId;
 
+    @Schema(description = "来源排课计划ID(手工排课为空)")
+    private Long planId;
+
     @Schema(description = "上课日期")
     private LocalDate lessonDate;
 

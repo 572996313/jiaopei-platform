@@ -729,6 +729,249 @@ export function checkScheduleConflicts(payload: ScheduleConflictCheckPayload) {
   return requestPost<ScheduleConflictCheckResult>('/education/schedules/conflicts/check', payload)
 }
 
+/** 周期排课计划的节次模式条目(星期几+时段) */
+export interface SchedulePlanSlotItem {
+  weekday: number
+  timeSlotId: string
+}
+
+export interface SchedulePlanRecord {
+  id: string
+  institutionId?: string | null
+  campusId?: string | null
+  termId?: string | null
+  classId?: string | null
+  classroomId?: string | null
+  teacherIds?: Array<string | number> | null
+  slots?: SchedulePlanSlotItem[] | null
+  weekFrequency?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  skipDates?: string[] | null
+  status?: string | null
+  remark?: string | null
+  createdAt?: string | null
+}
+
+export interface SchedulePlanPayload {
+  institutionId: string
+  campusId: string
+  termId: string
+  classId: string
+  classroomId: string
+  teacherIds: string[]
+  slots: SchedulePlanSlotItem[]
+  weekFrequency?: string
+  startDate: string
+  endDate: string
+  skipDates?: string[]
+  status?: string
+  remark?: string
+}
+
+export interface SchedulePlanPreviewItem {
+  weekNo: number
+  lessonDate: string
+  weekday?: number | null
+  timeSlotId: string
+  slotName?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  conflict: boolean
+  conflictMessages?: string[] | null
+  skipped: boolean
+  suggestedChecked: boolean
+}
+
+export interface SchedulePlanPreviewResult {
+  items: SchedulePlanPreviewItem[]
+  totalCount: number
+  conflictCount: number
+  skippedCount: number
+  /** 必排规则未被本计划每周模式覆盖的提示，仅提示不拦提交 */
+  ruleNotices?: string[] | null
+}
+
+export interface SchedulePlanCommitPayload {
+  planId?: string | null
+  plan: SchedulePlanPayload
+  lessons: Array<{ lessonDate: string; timeSlotId: string }>
+}
+
+export interface SchedulePlanCommitResult {
+  planId?: string | null
+  createdCount: number
+  skippedCount: number
+  skipMessages?: string[] | null
+}
+
+export interface SchedulePlanPageParams extends PageParams {
+  institutionId?: string | null
+  campusId?: string | null
+  classId?: string | null
+  status?: string | null
+  activeFrom?: string | null
+  activeTo?: string | null
+}
+
+export function fetchSchedulePlanPage(params: SchedulePlanPageParams) {
+  return requestGet<PageResult<SchedulePlanRecord>>('/education/schedule-plans/page', {
+    ...params,
+  })
+}
+
+export function fetchSchedulePlan(id: string) {
+  return requestGet<SchedulePlanRecord>(`/education/schedule-plans/${id}`)
+}
+
+export function previewSchedulePlan(payload: SchedulePlanPayload) {
+  return requestPost<SchedulePlanPreviewResult>('/education/schedule-plans/preview', payload)
+}
+
+export function commitSchedulePlan(payload: SchedulePlanCommitPayload) {
+  return requestPost<SchedulePlanCommitResult>('/education/schedule-plans/commit', payload)
+}
+
+export function updateSchedulePlan(id: string, payload: SchedulePlanPayload) {
+  return requestPut<SchedulePlanRecord>(`/education/schedule-plans/${id}`, payload)
+}
+
+export function deleteSchedulePlan(id: string) {
+  return requestDelete<null>(`/education/schedule-plans/${id}`)
+}
+
+export function cancelSchedulePlanLessons(id: string) {
+  return requestDelete<number>(`/education/schedule-plans/${id}/lessons`)
+}
+
+/** 排课规则：班级/教师在"星期×节次"网格上的禁排或必排约束，格子结构与周期排课计划的 slots 同构 */
+export interface ScheduleRuleRecord {
+  id: string
+  institutionId?: string | null
+  ruleType?: string | null
+  targetType?: string | null
+  targetId?: string | null
+  slots?: SchedulePlanSlotItem[] | null
+  startDate?: string | null
+  endDate?: string | null
+  status?: string | null
+  remark?: string | null
+  createdAt?: string | null
+}
+
+export interface ScheduleRulePayload {
+  institutionId: string
+  ruleType: string
+  targetType: string
+  targetId: string
+  slots: SchedulePlanSlotItem[]
+  startDate?: string
+  endDate?: string
+  status?: string
+  remark?: string
+}
+
+export interface ScheduleRulePageParams extends PageParams {
+  institutionId?: string | null
+  ruleType?: string | null
+  targetType?: string | null
+  targetId?: string | null
+  status?: string | null
+}
+
+export function fetchScheduleRulePage(params: ScheduleRulePageParams) {
+  return requestGet<PageResult<ScheduleRuleRecord>>('/education/schedule-rules/page', {
+    ...params,
+  })
+}
+
+export function createScheduleRule(payload: ScheduleRulePayload) {
+  return requestPost<ScheduleRuleRecord>('/education/schedule-rules', payload)
+}
+
+export function updateScheduleRule(id: string, payload: ScheduleRulePayload) {
+  return requestPut<ScheduleRuleRecord>(`/education/schedule-rules/${id}`, payload)
+}
+
+export function deleteScheduleRule(id: string) {
+  return requestDelete<null>(`/education/schedule-rules/${id}`)
+}
+
+/** 排课完成度：行=班级、列=自然周，应排取自该班启用中的周期排课计划展开 */
+export interface ScheduleCompletenessWeekColumn {
+  index: number
+  weekStart: string
+  weekEnd: string
+}
+
+export interface ScheduleCompletenessGap {
+  lessonDate: string
+  weekday?: number | null
+  timeSlotId: string
+  slotName?: string | null
+}
+
+export interface ScheduleCompletenessCell {
+  /** false 表示计划没排到这一周，格内数字无意义 */
+  covered: boolean
+  expected: number
+  generated: number
+  completed: number
+  cancelled: number
+  extra: number
+  gaps: ScheduleCompletenessGap[]
+}
+
+export interface ScheduleCompletenessRowSummary {
+  expected: number
+  generated: number
+  completed: number
+  missing: number
+  extra: number
+}
+
+export interface ScheduleCompletenessClassRow {
+  classId: string
+  className?: string | null
+  campusId?: string | null
+  termId?: string | null
+  planCount: number
+  cells: ScheduleCompletenessCell[]
+  summary: ScheduleCompletenessRowSummary
+}
+
+export interface ScheduleCompletenessSummary {
+  classCount: number
+  expected: number
+  generated: number
+  completed: number
+  missing: number
+  extra: number
+  generatedPercent: number
+  completedPercent: number
+}
+
+export interface ScheduleCompletenessResult {
+  weekFrom: string
+  weekTo: string
+  weeks: ScheduleCompletenessWeekColumn[]
+  classes: ScheduleCompletenessClassRow[]
+  summary: ScheduleCompletenessSummary
+}
+
+export interface ScheduleCompletenessParams {
+  institutionId?: string | null
+  campusId?: string | null
+  termId?: string | null
+  classId?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+}
+
+export function fetchScheduleCompleteness(params: ScheduleCompletenessParams) {
+  return requestGet<ScheduleCompletenessResult>('/education/schedule-completeness', { ...params })
+}
+
 /** 报名记录分页视图,后端已回带学员与班级名称,无需再用全量学员/班级做名称回显 */
 export interface EnrollmentViewRecord {
   id: string

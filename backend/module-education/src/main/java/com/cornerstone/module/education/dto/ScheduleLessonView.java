@@ -21,6 +21,8 @@ public record ScheduleLessonView(
     Long classroomId,
     @Schema(description = "时段ID")
     Long timeSlotId,
+    @Schema(description = "来源排课计划ID(手工排课为空)")
+    Long planId,
     @Schema(description = "上课日期")
     LocalDate lessonDate,
     @Schema(description = "星期(1=周一,7=周日)")

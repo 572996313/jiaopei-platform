@@ -79,6 +79,8 @@
           @click="refreshLessons"
         />
         <el-button @click="goTimetable">查看课表</el-button>
+        <el-button @click="planListVisible = true">周期计划</el-button>
+        <el-button @click="ruleListVisible = true">排课规则</el-button>
         <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
       </div>
 
@@ -204,6 +206,64 @@
       :format-class="formatClass"
       @saved="handleLessonSaved"
     />
+
+    <SchedulePlanWizardDialog
+      v-model="planWizardVisible"
+      :institution-id="String(institutionId || '')"
+      :edit-plan="planEditing"
+      :terms="terms"
+      :classes="classes"
+      :teachers="teachers"
+      :classrooms="classrooms"
+      :time-slots="timeSlots"
+      :scope-campus-id="campusId"
+      :scope-class-id="classId"
+      :lookup-loading="lookupLoading"
+      :format-campus="formatCampus"
+      @saved="handlePlanSaved"
+    />
+
+    <SchedulePlanListDialog
+      ref="planListRef"
+      v-model="planListVisible"
+      :institution-id="String(institutionId || '')"
+      :classes="classes"
+      :teachers="teachers"
+      :classrooms="classrooms"
+      :time-slots="timeSlots"
+      :scope-campus-id="campusId"
+      :scope-class-id="classId"
+      :format-class="formatClass"
+      @create="openPlanWizard(null)"
+      @edit="openPlanWizard"
+      @changed="refreshLessons"
+    />
+
+    <ScheduleRuleListDialog
+      ref="ruleListRef"
+      v-model="ruleListVisible"
+      :institution-id="String(institutionId || '')"
+      :classes="classes"
+      :teachers="teachers"
+      :time-slots="timeSlots"
+      :scope-campus-id="campusId"
+      @create="openRuleEditor(null)"
+      @edit="openRuleEditor"
+      @changed="refreshLessons"
+    />
+
+    <ScheduleRuleEditorDialog
+      v-model="ruleEditorVisible"
+      :institution-id="String(institutionId || '')"
+      :edit-rule="ruleEditing"
+      :classes="classes"
+      :teachers="teachers"
+      :time-slots="timeSlots"
+      :scope-campus-id="campusId"
+      :lookup-loading="lookupLoading"
+      :format-campus="formatCampus"
+      @saved="handleRuleSaved"
+    />
   </section>
 </template>
 
@@ -219,6 +279,8 @@ import {
   fetchScheduleLessonPage,
   fetchTeachers,
   type ScheduleLessonRecord,
+  type SchedulePlanRecord,
+  type ScheduleRuleRecord,
   type TeacherSummary,
 } from '@cornerstone/module-education/api/education'
 import {
@@ -232,6 +294,10 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
+import SchedulePlanWizardDialog from './components/SchedulePlanWizardDialog.vue'
+import SchedulePlanListDialog from './components/SchedulePlanListDialog.vue'
+import ScheduleRuleListDialog from './components/ScheduleRuleListDialog.vue'
+import ScheduleRuleEditorDialog from './components/ScheduleRuleEditorDialog.vue'
 import {
   compactTimeRange,
   formatTeacherIdsAs,
@@ -271,6 +337,16 @@ const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const dialogLesson = ref<ScheduleLessonRecord | null>(null)
 const dialogPrefill = ref<Record<string, string> | null>(null)
+
+const planWizardVisible = ref(false)
+const planListVisible = ref(false)
+const planEditing = ref<SchedulePlanRecord | null>(null)
+const planListRef = ref<InstanceType<typeof SchedulePlanListDialog> | null>(null)
+
+const ruleListVisible = ref(false)
+const ruleEditorVisible = ref(false)
+const ruleEditing = ref<ScheduleRuleRecord | null>(null)
+const ruleListRef = ref<InstanceType<typeof ScheduleRuleListDialog> | null>(null)
 
 // 补课课次的停课原课详情缓存，用于「停补关联」列展示与跳转
 const relatedLessonCache = ref<Record<string, ScheduleLessonRecord>>({})
@@ -543,6 +619,27 @@ function openEditDialog(lesson: ScheduleLessonRecord) {
 function handleLessonSaved(message: string) {
   ElMessage.success(message)
   void refreshLessons()
+}
+
+function openPlanWizard(plan: SchedulePlanRecord | null) {
+  planEditing.value = plan
+  planWizardVisible.value = true
+}
+
+function handlePlanSaved(message: string) {
+  ElMessage.success(message)
+  planListRef.value?.reload()
+  void refreshLessons()
+}
+
+function openRuleEditor(rule: ScheduleRuleRecord | null) {
+  ruleEditing.value = rule
+  ruleEditorVisible.value = true
+}
+
+function handleRuleSaved(message: string) {
+  ElMessage.success(message)
+  ruleListRef.value?.reload()
 }
 
 function goTimetable() {

@@ -42,6 +42,11 @@ export const educationRoutes: RouteRecordRaw[] = [
     name: 'schedule',
     component: () => import('@cornerstone/module-education/views/ScheduleAttendanceView.vue'),
   },
+  {
+    path: 'schedule-completeness',
+    name: 'schedule-completeness',
+    component: () => import('@cornerstone/module-education/views/ScheduleCompletenessView.vue'),
+  },
 ]
 
 /**
@@ -69,8 +74,8 @@ registerNavItems([
     group: 'daily',
     groupLabel: '日常教务',
     groupOrder: 20,
-    prefixes: ['/scheduling', '/schedule'],
-    // 目录与子项来自 sys_menu(V37),名称/顺序/图标可后台配置
+    prefixes: ['/scheduling', '/schedule', '/schedule-completeness'],
+    // 目录与子项来自 sys_menu(V37 排课管理/执行与课表、V59 排课完成度),名称/顺序/图标可后台配置
     menuCatalogCode: 'education_schedule_center',
   },
   {

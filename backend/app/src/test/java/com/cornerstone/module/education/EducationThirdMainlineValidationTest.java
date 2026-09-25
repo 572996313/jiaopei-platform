@@ -1,5 +1,7 @@
 package com.cornerstone.module.education;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
@@ -32,6 +34,7 @@ import com.cornerstone.module.education.mapper.StudentParentMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
+import com.cornerstone.module.education.service.ClassTeacherService;
 import com.cornerstone.module.education.service.impl.ClassChangeNoticeServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassTeacherServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassTypeServiceImpl;
@@ -50,6 +53,9 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import java.time.LocalDate;
+import java.util.List;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -60,15 +66,25 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class EducationThirdMainlineValidationTest {
+
+    @BeforeAll
+    static void initEntityTableInfo() {
+        // 单测环境没有 MyBatis 启动流程，手动注册实体元数据，LambdaUpdateWrapper.set 才能解析出列名
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, TeachingClassEntity.class);
+        TableInfoHelper.initTableInfo(assistant, ClassTeacherEntity.class);
+    }
 
     @Mock
     private TeacherMapper teacherMapper;
@@ -119,6 +135,9 @@ class EducationThirdMainlineValidationTest {
     @Mock
     private ClassChangeNoticeService classChangeNoticeService;
 
+    @Mock
+    private ClassTeacherService classTeacherService;
+
     @Test
     void createTeacherRejectsDuplicateTeacherCode() {
         TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
@@ -163,7 +182,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -186,7 +206,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -243,7 +264,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -258,7 +280,7 @@ class EducationThirdMainlineValidationTest {
     }
 
     @Test
-    void updateClassRejectsTeacherChangeFromClassProfile() {
+    void createClassAssignsPrimaryTeacherIntoClassTeacherRelation() {
         TeachingClassServiceImpl service = new TeachingClassServiceImpl(
             teachingClassMapper,
             institutionMapper,
@@ -268,7 +290,40 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
+        );
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(campusMapper.selectById(1L)).thenReturn(campus());
+        TeacherEntity teacher = new TeacherEntity();
+        teacher.setId(9L);
+        teacher.setInstitutionId(1L);
+        when(teacherMapper.selectById(9L)).thenReturn(teacher);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, TeachingClassEntity.class).setId(20L);
+            return 1;
+        }).when(teachingClassMapper).insert(any(TeachingClassEntity.class));
+
+        service.createClass(new TeachingClassCreateRequest(
+            1L, 1L, null, null, null, "C022", "主讲班", 9L, 30, 0, null, LocalDate.now(), null
+        ));
+
+        verify(classTeacherService).assignPrimaryTeacher(1L, 20L, 9L);
+    }
+
+    @Test
+    void updateClassSwitchesPrimaryTeacherThroughClassTeacherRelation() {
+        TeachingClassServiceImpl service = new TeachingClassServiceImpl(
+            teachingClassMapper,
+            institutionMapper,
+            campusMapper,
+            termMapper,
+            teacherMapper,
+            courseMapper,
+            classTypeMapper,
+            classStudentMapper,
+            classChangeNoticeService,
+            classTeacherService
         );
         TeachingClassEntity existing = teachingClass(30, 10);
         existing.setTeacherId(8L);
@@ -279,31 +334,18 @@ class EducationThirdMainlineValidationTest {
         teacher.setId(9L);
         teacher.setInstitutionId(1L);
         when(teacherMapper.selectById(9L)).thenReturn(teacher);
+        when(teachingClassMapper.selectCount(any())).thenReturn(0L, 0L);
+        when(classStudentMapper.selectCount(any())).thenReturn(0L);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.updateClass(
+        TeachingClassEntity updated = service.updateClass(
             20L,
             new TeachingClassCreateRequest(
-                1L,
-                1L,
-                null,
-                null,
-                null,
-                "C020",
-                "正式班",
-                9L,
-                30,
-                10,
-                "active",
-                LocalDate.now(),
-                null
+                1L, 1L, null, null, null, "C020", "正式班", 9L, 30, 10, "active", LocalDate.now(), null
             )
-        ));
-
-        verify(teachingClassMapper, never()).updateById(any(TeachingClassEntity.class));
-        assertEquals(
-            "主讲教师只能在班级教师关系中变更，请先在班级教师关系里切换主讲教师",
-            exception.getMessage()
         );
+
+        verify(classTeacherService).assignPrimaryTeacher(1L, 20L, 9L);
+        assertEquals(9L, updated.getTeacherId());
     }
 
     @Test
@@ -326,6 +368,80 @@ class EducationThirdMainlineValidationTest {
         assertThrows(BusinessException.class, () -> service.createClassTeacher(classTeacherRequest()));
 
         verify(classTeacherMapper, never()).insert(any(ClassTeacherEntity.class));
+    }
+
+    @Test
+    void assignPrimaryTeacherCreatesLeadRelationAndSyncsClassProfile() {
+        ClassTeacherServiceImpl service = new ClassTeacherServiceImpl(
+            classTeacherMapper,
+            teachingClassMapper,
+            teacherMapper,
+            institutionMapper,
+            classChangeNoticeService,
+            dictValueValidator
+        );
+        TeachingClassEntity teachingClass = teachingClass(30, 0);
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass);
+        TeacherEntity teacher = new TeacherEntity();
+        teacher.setId(9L);
+        teacher.setInstitutionId(1L);
+        when(teacherMapper.selectById(9L)).thenReturn(teacher);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, ClassTeacherEntity.class).setId(801L);
+            return 1;
+        }).when(classTeacherMapper).insert(any(ClassTeacherEntity.class));
+
+        service.assignPrimaryTeacher(1L, 20L, 9L);
+
+        ArgumentCaptor<ClassTeacherEntity> captor = ArgumentCaptor.forClass(ClassTeacherEntity.class);
+        verify(classTeacherMapper).insert(captor.capture());
+        assertEquals("lead", captor.getValue().getTeacherRole());
+        assertEquals(Boolean.TRUE, captor.getValue().getIsPrimary());
+        assertEquals(9L, teachingClass.getTeacherId());
+        verify(teachingClassMapper).updateById(teachingClass);
+    }
+
+    @Test
+    void revokePrimaryTeacherDemotesRelationsAndClearsClassProfileTeacherId() {
+        ClassTeacherServiceImpl service = new ClassTeacherServiceImpl(
+            classTeacherMapper,
+            teachingClassMapper,
+            teacherMapper,
+            institutionMapper,
+            classChangeNoticeService,
+            dictValueValidator
+        );
+        TeachingClassEntity teachingClass = teachingClass(30, 0);
+        teachingClass.setTeacherId(8L);
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass);
+        ClassTeacherEntity primaryRelation = classTeacherEntity(8L, Boolean.TRUE);
+        when(classTeacherMapper.selectList(any())).thenReturn(List.of(primaryRelation));
+
+        service.assignPrimaryTeacher(1L, 20L, null);
+
+        assertEquals(Boolean.FALSE, primaryRelation.getIsPrimary());
+        verify(classTeacherMapper).updateById(primaryRelation);
+        // 主档列要设成 NULL 只能走 UpdateWrapper，updateById 会忽略 null 字段
+        verify(teachingClassMapper).update(isNull(), any());
+        verify(teachingClassMapper, never()).updateById(teachingClass);
+    }
+
+    @Test
+    void revokePrimaryTeacherWithoutExistingTeacherWritesNothing() {
+        ClassTeacherServiceImpl service = new ClassTeacherServiceImpl(
+            classTeacherMapper,
+            teachingClassMapper,
+            teacherMapper,
+            institutionMapper,
+            classChangeNoticeService,
+            dictValueValidator
+        );
+        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
+
+        service.assignPrimaryTeacher(1L, 20L, null);
+
+        verifyNoInteractions(classTeacherMapper);
+        verify(teachingClassMapper, never()).update(any(), any());
     }
 
     @Test
@@ -452,7 +568,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -479,7 +596,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         TeachingClassEntity existing = teachingClass(30, 18);
         existing.setTeacherId(10L);
@@ -528,6 +646,8 @@ class EducationThirdMainlineValidationTest {
         assertEquals(24, updated.getCapacityLimit());
         assertEquals(19, updated.getCurrentStudents());
         verify(teachingClassMapper).updateById(existing);
+        // 教师未变也要交给关系表判定：历史班级只有 jp_class.teacher_id 没有关系记录时，编辑一次即补齐
+        verify(classTeacherService).assignPrimaryTeacher(1L, 20L, 10L);
         verify(classChangeNoticeService).syncClassNotices(1L, 20L);
     }
 
@@ -542,7 +662,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 12));
         when(classStudentMapper.selectCount(any())).thenReturn(3L);
@@ -564,7 +685,8 @@ class EducationThirdMainlineValidationTest {
             courseMapper,
             classTypeMapper,
             classStudentMapper,
-            classChangeNoticeService
+            classChangeNoticeService,
+            classTeacherService
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
         when(classStudentMapper.selectCount(any())).thenReturn(0L);

@@ -129,7 +129,9 @@ async function loadCandidates() {
     const result = await fetchSystemUserPage({
       institutionId: institutionStore.currentInstitutionId || undefined,
       page: 1,
-      pageSize: 200,
+      // 全站分页上限 100（core PageQuery 的 @Max），传 200 会被直接拒成"每页条数不能超过 100"，
+      // 候选人列表永远加载不出来。超过 100 个账号时靠搜索缩小范围，不要靠调大 pageSize。
+      pageSize: 100,
     })
     const assigned = new Set(preferences.value.map((item) => item.userId))
     candidateUsers.value = result.records.filter((item) => !assigned.has(item.id))

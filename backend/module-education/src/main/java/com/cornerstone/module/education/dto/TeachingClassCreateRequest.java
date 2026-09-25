@@ -41,7 +41,7 @@ public record TeachingClassCreateRequest(
     @JsonAlias({"name", "class_name"})
     @NotBlank(message = "班级名称不能为空")
     String className,
-    @Schema(description = "主教师ID")
+    @Schema(description = "主讲教师ID(写入时同步生成/升级班级教师主讲关系;编辑时留空表示撤销主讲)")
     @JsonAlias({"primary_teacher_id", "teacher_id"})
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long teacherId,

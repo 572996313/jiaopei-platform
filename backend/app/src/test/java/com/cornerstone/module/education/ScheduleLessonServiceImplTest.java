@@ -5,19 +5,23 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
+import com.cornerstone.module.education.domain.entity.ScheduleRuleEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
 import com.cornerstone.module.education.dto.ScheduleLessonRequest;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
+import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.impl.ScheduleLessonServiceImpl;
+import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -43,6 +47,11 @@ class ScheduleLessonServiceImplTest {
     static void initEntityTableInfo() {
         // 单测环境没有 MyBatis 启动流程，手动注册实体元数据，wrapper 的 lambda 才能解析出列名
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ScheduleLessonEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ScheduleRuleEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TimeSlotEntity.class);
+        // 规则提示语要带出班级/教师名称，ScheduleRuleSupport 里也会按这两张表建 wrapper
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TeachingClassEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TeacherEntity.class);
     }
 
     private final ScheduleLessonMapper lessonMapper = mock(ScheduleLessonMapper.class);
@@ -51,13 +60,17 @@ class ScheduleLessonServiceImplTest {
     private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final ClassroomMapper classroomMapper = mock(ClassroomMapper.class);
     private final TimeSlotMapper timeSlotMapper = mock(TimeSlotMapper.class);
+    private final ScheduleRuleMapper ruleMapper = mock(ScheduleRuleMapper.class);
+    private final ScheduleRuleSupport ruleSupport =
+        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, new ObjectMapper());
     private final ScheduleLessonServiceImpl service = new ScheduleLessonServiceImpl(
         lessonMapper,
         teacherRelMapper,
         classMapper,
         teacherMapper,
         classroomMapper,
-        timeSlotMapper
+        timeSlotMapper,
+        ruleSupport
     );
 
     @Test
@@ -86,6 +99,34 @@ class ScheduleLessonServiceImplTest {
         stubValidMaterial();
         when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
         assertThrows(BusinessException.class, () -> service.createLesson(request()));
+    }
+
+    @Test
+    void createLessonRejectsForbiddenRuleCell() {
+        stubValidMaterial();
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), eq(LocalDate.of(2026, 6, 15)), eq(500L), any())).thenReturn(0L);
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(forbiddenRule("教师没空")));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.createLesson(request()));
+
+        assertTrue(error.getMessage().contains("禁排"));
+        assertTrue(error.getMessage().contains("班级「测试班级」"), error.getMessage());
+        assertTrue(error.getMessage().contains("教师没空"));
+        verify(lessonMapper, never()).insert(any(ScheduleLessonEntity.class));
+    }
+
+    private ScheduleRuleEntity forbiddenRule(String remark) {
+        ScheduleRuleEntity rule = new ScheduleRuleEntity();
+        rule.setInstitutionId(1L);
+        rule.setRuleType("forbidden");
+        rule.setTargetType("class");
+        rule.setTargetId(100L);
+        rule.setSlotsJson("[{\"weekday\":1,\"timeSlotId\":500}]");
+        rule.setStatus("active");
+        rule.setRemark(remark);
+        return rule;
     }
 
     @Test
@@ -203,7 +244,10 @@ class ScheduleLessonServiceImplTest {
         teachingClass.setInstitutionId(1L);
         teachingClass.setCampusId(2L);
         teachingClass.setTermId(3L);
+        teachingClass.setClassName("测试班级");
         when(classMapper.selectById(100L)).thenReturn(teachingClass);
+        // 禁排提示语要带出班级名称，名称是按 selectList 批量取的（ScheduleRuleSupport#targetNames）
+        when(classMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(teachingClass));
 
         ClassroomEntity classroom = new ClassroomEntity();
         classroom.setId(200L);

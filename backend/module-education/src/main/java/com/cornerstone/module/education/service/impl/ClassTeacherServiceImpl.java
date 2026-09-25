@@ -1,6 +1,7 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.ClassTeacherEntity;
@@ -19,9 +20,13 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ClassTeacherServiceImpl implements ClassTeacherService {
+
+    /** 教师角色字典(teacher_role)里代表主讲的取值，班级主档指定主讲教师时按它写入关系表 */
+    private static final String PRIMARY_TEACHER_ROLE = "lead";
 
     private final ClassTeacherMapper classTeacherMapper;
     private final TeachingClassMapper teachingClassMapper;
@@ -87,6 +92,50 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         }
     }
 
+    @Override
+    @Transactional
+    public void assignPrimaryTeacher(Long institutionId, Long classId, Long teacherId) {
+        TeachingClassEntity teachingClass = requireClassInInstitution(classId, institutionId);
+        Long previousPrimaryTeacherId = teachingClass.getTeacherId();
+        if (teacherId == null) {
+            if (previousPrimaryTeacherId == null) {
+                return;
+            }
+            demoteOtherPrimaryTeachers(classId, null);
+            // updateById 会忽略 null，把主讲教师清空必须走 UpdateWrapper 显式 set
+            teachingClassMapper.update(null, new LambdaUpdateWrapper<TeachingClassEntity>()
+                .eq(TeachingClassEntity::getId, classId)
+                .set(TeachingClassEntity::getTeacherId, null));
+            return;
+        }
+        if (Objects.equals(previousPrimaryTeacherId, teacherId) && hasPrimaryRelation(classId, teacherId)) {
+            return;
+        }
+        requireTeacherInInstitution(teacherId, institutionId);
+        ClassTeacherEntity relation = firstClassTeacher(classId, teacherId);
+        if (relation == null) {
+            relation = new ClassTeacherEntity();
+            relation.setInstitutionId(institutionId);
+            relation.setClassId(classId);
+            relation.setTeacherId(teacherId);
+            relation.setTeacherRole(PRIMARY_TEACHER_ROLE);
+            relation.setIsPrimary(Boolean.TRUE);
+            relation.setStatus("active");
+            relation.setDeleted(Boolean.FALSE);
+            classTeacherMapper.insert(relation);
+        } else {
+            relation.setTeacherRole(PRIMARY_TEACHER_ROLE);
+            relation.setIsPrimary(Boolean.TRUE);
+            classTeacherMapper.updateById(relation);
+        }
+        demoteOtherPrimaryTeachers(classId, relation.getId());
+        syncTeachingClassPrimaryTeacher(teachingClass, relation);
+        if (previousPrimaryTeacherId != null && !Objects.equals(previousPrimaryTeacherId, teacherId)) {
+            classChangeNoticeService.recordPrimaryTeacherChanged(teachingClass, relation.getId(),
+                "班级主讲教师已切换。", "请检查后续排课、课次执行和代课安排是否需要同步调整。");
+        }
+    }
+
     private ClassTeacherEntity saveClassTeacher(Long id, ClassTeacherCreateRequest request) {
         requireInstitution(request.institutionId());
         TeachingClassEntity teachingClass = requireClassInInstitution(request.classId(), request.institutionId());
@@ -97,7 +146,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         }
 
         String validatedRole = dictValueValidator.validate("teacher_role", "教师角色", request.teacherRole());
-        String teacherRole = validatedRole == null ? "lead" : validatedRole;
+        String teacherRole = validatedRole == null ? PRIMARY_TEACHER_ROLE : validatedRole;
         if (Boolean.TRUE.equals(request.isPrimary())) {
             demoteOtherPrimaryTeachers(request.classId(), id);
         }
@@ -197,6 +246,24 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             existingPrimaryTeacher.setIsPrimary(Boolean.FALSE);
             classTeacherMapper.updateById(existingPrimaryTeacher);
         }
+    }
+
+    private boolean hasPrimaryRelation(Long classId, Long teacherId) {
+        Long count = classTeacherMapper.selectCount(new LambdaQueryWrapper<ClassTeacherEntity>()
+            .eq(ClassTeacherEntity::getClassId, classId)
+            .eq(ClassTeacherEntity::getTeacherId, teacherId)
+            .eq(ClassTeacherEntity::getIsPrimary, Boolean.TRUE));
+        return count != null && count > 0;
+    }
+
+    /** 同一教师在同一班级下可能有多条不同角色/任期的关系，取最早的那条设为主讲 */
+    private ClassTeacherEntity firstClassTeacher(Long classId, Long teacherId) {
+        List<ClassTeacherEntity> relations = classTeacherMapper.selectList(new LambdaQueryWrapper<ClassTeacherEntity>()
+            .eq(ClassTeacherEntity::getClassId, classId)
+            .eq(ClassTeacherEntity::getTeacherId, teacherId)
+            .orderByAsc(ClassTeacherEntity::getJoinedAt)
+            .orderByAsc(ClassTeacherEntity::getId));
+        return relations.isEmpty() ? null : relations.get(0);
     }
 
     private ClassTeacherEntity syncPrimaryTeacher(TeachingClassEntity teachingClass) {
