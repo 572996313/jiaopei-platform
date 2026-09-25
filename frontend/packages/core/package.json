@@ -1,6 +1,6 @@
 {
   "name": "@cornerstone/core",
-  "version": "0.1.1-SNAPSHOT.7",
+  "version": "0.1.1-SNAPSHOT.8",
   "description": "底座前端包：登录鉴权、系统管理、通用列表/表单脚手架与布局骨架，不依赖任何业务模块。",
   "type": "module",
   "exports": {
