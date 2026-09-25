@@ -15,7 +15,7 @@ public record TimeSlotApplySlot(
     LocalTime startTime,
     @Schema(description = "结束时间", requiredMode = Schema.RequiredMode.REQUIRED)
     LocalTime endTime,
-    @Schema(description = "时段类型(morning_study=早自习,teaching=授课,break=课间休息,self_study=晚自习)")
+    @Schema(description = "时段类型字典(slot_type:morning_study=早自习,teaching=授课,break=课间休息,self_study=晚自习)")
     String slotType,
     @Schema(description = "排序号")
     Integer sortNo

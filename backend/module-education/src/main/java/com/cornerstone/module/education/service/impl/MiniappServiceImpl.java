@@ -47,8 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MiniappServiceImpl implements MiniappService {
 
     private static final String ACTIVE = "active";
-    /** jp_class_student 中"在读"状态值(见 ClassStudentEntity 注释) */
-    private static final String CLASS_STUDENT_ACTIVE = "ACTIVE";
+    /** jp_class_student 的在班状态值(见 ClassStudentEntity 注释)，与其余按 status='active' 过滤任课/在班的查询同口径 */
+    private static final String CLASS_STUDENT_ACTIVE = ACTIVE;
 
     private final UserStudentRelMapper userStudentRelMapper;
     private final StudentMapper studentMapper;

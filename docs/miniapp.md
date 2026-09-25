@@ -108,7 +108,7 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 - **学生端「我的」**:按是否绑定档案展示——未绑定引导「按学号绑定已有档案」或「自助创建档案」;已绑定展示本人档案(姓名/性别/生日/班级)+「我的课表」「编辑档案」入口。学生档案**绑定后不可换绑**,注销账号时自动清除档案归属(user_id 置空,档案本身保留可由后续绑定)。
 - **性别取值统一走 `gender` 字典**(male=男 / female=女 / unknown=未知,系统字典管理页可维护):小程序选项与 PC 学员/教师表单同源,后端写入前由 `DictValueValidator` 校验,非法值报「性别取值无效」;V51 已把存量大小写混用(`MALE`/`FEMALE`/`UNKNOWN`)归一为小写。
 - **数据隔离**:所有 `/api/miniapp` 接口都经 `@RequiresPermission("miniapp:access")` 且按**当前登录用户**过滤——只能查到自己绑定的学员,不能越权看别人。
-- **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` ACTIVE)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师姓名电话。停课(cancelled)课次在页面置灰标识。
+- **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` status=`active`,小写规范值)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师姓名电话。停课(cancelled)课次在页面置灰标识。
 
 ## 登录与注册流程
 

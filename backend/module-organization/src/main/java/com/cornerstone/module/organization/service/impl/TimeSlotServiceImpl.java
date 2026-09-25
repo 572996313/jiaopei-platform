@@ -8,6 +8,7 @@ import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.dto.TimeSlotCreateRequest;
 import com.cornerstone.module.organization.dto.TimeSlotUpdateRequest;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
@@ -22,15 +23,20 @@ import org.springframework.stereotype.Service;
 @Service
 public class TimeSlotServiceImpl implements TimeSlotService {
 
+    /** 时段类型未选时的回落值，与 jp_time_slot.slot_type 的列默认值一致 */
+    private static final String DEFAULT_SLOT_TYPE = "teaching";
+
     private final TimeSlotMapper timeSlotMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
+    private final DictValueValidator dictValueValidator;
 
     public TimeSlotServiceImpl(TimeSlotMapper timeSlotMapper, InstitutionMapper institutionMapper,
-                               CampusMapper campusMapper) {
+                               CampusMapper campusMapper, DictValueValidator dictValueValidator) {
         this.timeSlotMapper = timeSlotMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -81,7 +87,8 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         entity.setStartTime(request.startTime());
         entity.setEndTime(request.endTime());
         entity.setDurationMinutes(request.durationMinutes());
-        entity.setSlotType(request.slotType() == null || request.slotType().isBlank() ? "teaching" : request.slotType());
+        String slotType = dictValueValidator.validate("slot_type", "时段类型", request.slotType());
+        entity.setSlotType(slotType == null ? DEFAULT_SLOT_TYPE : slotType);
         entity.setApplicableScene(request.applicableScene());
         entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
         entity.setSortNo(request.sortNo());
@@ -151,7 +158,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             existing.setDurationMinutes(request.durationMinutes());
         }
         if (request.slotType() != null && !request.slotType().isBlank()) {
-            existing.setSlotType(request.slotType().trim());
+            existing.setSlotType(dictValueValidator.validate("slot_type", "时段类型", request.slotType()));
         }
         if (request.applicableScene() != null) {
             existing.setApplicableScene(normalizeToNull(request.applicableScene()));

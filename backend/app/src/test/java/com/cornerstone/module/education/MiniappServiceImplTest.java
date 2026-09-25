@@ -196,7 +196,7 @@ class MiniappServiceImplTest {
         ClassStudentEntity cls = new ClassStudentEntity();
         cls.setStudentId(10L);
         cls.setClassId(20L);
-        cls.setStatus("ACTIVE");
+        cls.setStatus("active");
         when(classStudentMapper.selectList(any())).thenReturn(List.of(cls));
 
         TeachingClassEntity clazz = new TeachingClassEntity();

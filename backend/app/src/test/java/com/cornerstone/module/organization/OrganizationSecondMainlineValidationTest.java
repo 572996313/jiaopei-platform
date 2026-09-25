@@ -111,7 +111,8 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createTimeSlotRejectsDurationMismatch() {
-        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper);
+        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
+            new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         TimeSlotCreateRequest request = timeSlotRequest(45);
@@ -122,7 +123,8 @@ class OrganizationSecondMainlineValidationTest {
 
     @Test
     void createTimeSlotRejectsDuplicateSlotCodeInInstitution() {
-        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper);
+        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
+            new DictValueValidator(mock(SystemDictService.class)));
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(timeSlotMapper.selectCount(any())).thenReturn(1L);
 

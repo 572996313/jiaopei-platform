@@ -19,6 +19,7 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotTemplateMapper;
 import com.cornerstone.module.organization.service.TimeSlotTemplateService;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -42,13 +43,16 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
     private final TimeSlotMapper timeSlotMapper;
     private final CampusMapper campusMapper;
     private final ObjectMapper objectMapper;
+    private final DictValueValidator dictValueValidator;
 
     public TimeSlotTemplateServiceImpl(TimeSlotTemplateMapper templateMapper, TimeSlotMapper timeSlotMapper,
-                                       CampusMapper campusMapper, ObjectMapper objectMapper) {
+                                       CampusMapper campusMapper, ObjectMapper objectMapper,
+                                       DictValueValidator dictValueValidator) {
         this.templateMapper = templateMapper;
         this.timeSlotMapper = timeSlotMapper;
         this.campusMapper = campusMapper;
         this.objectMapper = objectMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -250,6 +254,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
             if (!startTime.isBefore(endTime)) {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "时段「" + slotName + "」开始时间必须早于结束时间");
             }
+            String slotType = dictValueValidator.validate("slot_type", "时段类型", slot.slotType());
             NormalizedSlot normalized = new NormalizedSlot(
                 slot.weekday(),
                 slotCode,
@@ -257,7 +262,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
                 startTime,
                 endTime,
                 (int) ChronoUnit.MINUTES.between(startTime, endTime),
-                slot.slotType() == null || slot.slotType().isBlank() ? DEFAULT_SLOT_TYPE : slot.slotType().trim(),
+                slotType == null ? DEFAULT_SLOT_TYPE : slotType,
                 slot.sortNo());
             slots.add(normalized);
             byWeekday.computeIfAbsent(normalized.weekday(), key -> new ArrayList<>()).add(normalized);

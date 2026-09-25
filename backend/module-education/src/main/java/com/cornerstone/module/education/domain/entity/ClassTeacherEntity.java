@@ -34,7 +34,8 @@ public class ClassTeacherEntity extends BaseEntity {
     @Schema(description = "离开日期")
     private LocalDate leftAt;
 
-    @Schema(description = "状态(ACTIVE=在岗,LEAVE=离岗)")
+    @Schema(description = "状态(active=启用,inactive=停用;停用后不计入班级任课教师)",
+            allowableValues = {"active", "inactive"})
     private String status;
 
     @Schema(description = "备注")

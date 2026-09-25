@@ -37,7 +37,7 @@ public class TimeSlotEntity extends BaseEntity {
     @Schema(description = "时长(分钟),必须等于起止时间差")
     private Integer durationMinutes;
 
-    @Schema(description = "时段类型(morning_study=早自习,teaching=授课,break=课间休息,self_study=晚自习)",
+    @Schema(description = "时段类型字典(slot_type:morning_study=早自习,teaching=授课,break=课间休息,self_study=晚自习)",
             allowableValues = {"morning_study", "teaching", "break", "self_study"})
     private String slotType;
 

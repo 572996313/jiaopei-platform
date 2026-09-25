@@ -28,7 +28,7 @@ public record StudentUpdateRequest(
     @Schema(description = "监护人联系电话")
     @JsonAlias({"parentPhone", "guardian_phone"})
     String guardianPhone,
-    @Schema(description = "状态(studying=在读,suspended=停课,graduated=已结业,withdrawn=已退学)", allowableValues = {"studying", "suspended", "graduated", "withdrawn"})
+    @Schema(description = "学员状态字典(student_status:studying=在读,suspended=停课,graduated=已结业,withdrawn=已退学)", allowableValues = {"studying", "suspended", "graduated", "withdrawn"})
     String status,
     @Schema(description = "入学日期")
     @JsonAlias("enrolled_at")

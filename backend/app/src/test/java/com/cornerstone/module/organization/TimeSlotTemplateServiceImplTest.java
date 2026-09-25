@@ -3,6 +3,8 @@ package com.cornerstone.module.organization;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.dto.DictItemView;
+import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotTemplateEntity;
 import com.cornerstone.module.organization.dto.TimeSlotApplyRequest;
@@ -12,8 +14,10 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotTemplateMapper;
 import com.cornerstone.module.organization.service.impl.TimeSlotTemplateServiceImpl;
+import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.time.LocalTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -23,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,8 +44,22 @@ class TimeSlotTemplateServiceImplTest {
     @Mock
     private CampusMapper campusMapper;
 
+    @Mock
+    private SystemDictService systemDictService;
+
+    /** 时段类型走字典校验，apply 用例需要命中启用条目；不参与校验的用例不读它，故 lenient */
+    @BeforeEach
+    void stubSlotTypeDict() {
+        lenient().when(systemDictService.listItems("slot_type")).thenReturn(List.of(
+            new DictItemView(61L, 11L, "morning_study", "早自习", "morning_study", 10, "active", null),
+            new DictItemView(62L, 11L, "teaching", "授课", "teaching", 20, "active", null),
+            new DictItemView(63L, 11L, "break", "课间休息", "break", 30, "active", null),
+            new DictItemView(64L, 11L, "self_study", "晚自习", "self_study", 40, "active", null)));
+    }
+
     private TimeSlotTemplateServiceImpl service() {
-        return new TimeSlotTemplateServiceImpl(templateMapper, timeSlotMapper, campusMapper, new ObjectMapper());
+        return new TimeSlotTemplateServiceImpl(templateMapper, timeSlotMapper, campusMapper,
+            new ObjectMapper(), new DictValueValidator(systemDictService));
     }
 
     private TimeSlotTemplateEntity template(Long id, Long institutionId) {

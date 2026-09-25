@@ -36,7 +36,8 @@ public record ClassTeacherCreateRequest(
     @Schema(description = "离开日期")
     @JsonAlias("left_at")
     LocalDate leftAt,
-    @Schema(description = "状态(ACTIVE=在岗,LEAVE=离岗)", allowableValues = {"ACTIVE", "LEAVE"})
+    @Schema(description = "状态(active=启用,inactive=停用;停用后不计入班级任课教师)",
+            allowableValues = {"active", "inactive"})
     String status,
     @Schema(description = "备注")
     String remark

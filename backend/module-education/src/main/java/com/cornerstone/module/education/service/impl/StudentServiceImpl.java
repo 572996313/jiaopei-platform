@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class StudentServiceImpl implements StudentService {
 
+    /** 学员未选状态时的回落值，与 jp_student.status 的列默认值一致 */
+    private static final String DEFAULT_STUDENT_STATUS = "studying";
+
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
@@ -111,7 +114,8 @@ public class StudentServiceImpl implements StudentService {
         entity.setBirthday(request.birthday());
         entity.setGuardianName(normalizeToNull(request.guardianName()));
         entity.setGuardianPhone(normalizeToNull(request.guardianPhone()));
-        entity.setStatus(request.status() == null || request.status().isBlank() ? "studying" : request.status());
+        String status = dictValueValidator.validate("student_status", "学员状态", request.status());
+        entity.setStatus(status == null ? DEFAULT_STUDENT_STATUS : status);
         entity.setEnrolledAt(request.enrolledAt());
         entity.setRemark(request.remark());
         entity.setDeleted(Boolean.FALSE);
@@ -151,7 +155,8 @@ public class StudentServiceImpl implements StudentService {
         existing.setBirthday(request.birthday());
         existing.setGuardianName(normalizeToNull(request.guardianName()));
         existing.setGuardianPhone(normalizeToNull(request.guardianPhone()));
-        existing.setStatus(request.status() == null || request.status().isBlank() ? existing.getStatus() : request.status());
+        String status = dictValueValidator.validate("student_status", "学员状态", request.status());
+        existing.setStatus(status == null ? existing.getStatus() : status);
         existing.setEnrolledAt(request.enrolledAt());
         existing.setRemark(request.remark());
         try {

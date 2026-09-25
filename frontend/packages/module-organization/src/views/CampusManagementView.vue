@@ -751,14 +751,7 @@ function seasonLabel(value?: string | null) {
 }
 
 function slotTypeLabel(value?: string | null) {
-  switch (value) {
-    case 'teaching':
-      return '授课'
-    case 'break':
-      return '休息'
-    default:
-      return value || '-'
-  }
+  return dictStore.displayLabel('slot_type', value)
 }
 
 function resetCampusForm() {
@@ -1290,7 +1283,7 @@ watch(
 
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
-  void dictStore.ensureLoaded(['room_type', 'term_season', 'campus_type']).catch(() => undefined)
+  void dictStore.ensureLoaded(['room_type', 'term_season', 'campus_type', 'slot_type']).catch(() => undefined)
   initializePage()
 })
 </script>

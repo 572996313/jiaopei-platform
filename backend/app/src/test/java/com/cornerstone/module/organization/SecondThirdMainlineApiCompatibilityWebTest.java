@@ -855,7 +855,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
                       "institution_id": "INST-001",
                       "class_id": "CLS-001",
                       "teacher_id": "TCH-002",
-                      "teacher_role": "main",
+                      "teacher_role": "lead",
                       "is_primary": true
                     }
                     """))

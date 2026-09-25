@@ -28,6 +28,10 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     /** 教师角色字典(teacher_role)里代表主讲的取值，班级主档指定主讲教师时按它写入关系表 */
     private static final String PRIMARY_TEACHER_ROLE = "lead";
 
+    /** 任课关系启停取值，与 jp_class_teacher.status 的列默认值一致 */
+    private static final String STATUS_ACTIVE = "active";
+    private static final String STATUS_INACTIVE = "inactive";
+
     private final ClassTeacherMapper classTeacherMapper;
     private final TeachingClassMapper teachingClassMapper;
     private final TeacherMapper teacherMapper;
@@ -120,7 +124,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             relation.setTeacherId(teacherId);
             relation.setTeacherRole(PRIMARY_TEACHER_ROLE);
             relation.setIsPrimary(Boolean.TRUE);
-            relation.setStatus("active");
+            relation.setStatus(STATUS_ACTIVE);
             relation.setDeleted(Boolean.FALSE);
             classTeacherMapper.insert(relation);
         } else {
@@ -161,7 +165,14 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         entity.setIsPrimary(Boolean.TRUE.equals(request.isPrimary()));
         entity.setJoinedAt(request.joinedAt());
         entity.setLeftAt(request.leftAt());
-        entity.setStatus(isBlank(request.status()) ? "active" : request.status().trim());
+        // 任课关系启停是代码分支判定的状态（listPrimaryTeachers 按 status='active' 过滤），不入字典；
+        // 历史上 @Schema 把它写成大写 ACTIVE/LEAVE，这里按小写规范值收口
+        String status = request.status() == null || request.status().isBlank()
+            ? STATUS_ACTIVE : request.status().trim().toLowerCase();
+        if (!List.of(STATUS_ACTIVE, STATUS_INACTIVE).contains(status)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "任课关系状态只能是启用或停用");
+        }
+        entity.setStatus(status);
         entity.setRemark(request.remark());
         if (id == null) {
             entity.setDeleted(Boolean.FALSE);
@@ -294,7 +305,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     private ClassTeacherEntity findFallbackTeacher(Long classId) {
         List<ClassTeacherEntity> candidates = classTeacherMapper.selectList(new LambdaQueryWrapper<ClassTeacherEntity>()
             .eq(ClassTeacherEntity::getClassId, classId)
-            .eq(ClassTeacherEntity::getStatus, "active")
+            .eq(ClassTeacherEntity::getStatus, STATUS_ACTIVE)
             .orderByAsc(ClassTeacherEntity::getJoinedAt)
             .orderByAsc(ClassTeacherEntity::getId));
         LocalDate today = LocalDate.now();
@@ -312,9 +323,5 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级教师关系不存在：" + id);
         }
         return entity;
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 }

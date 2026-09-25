@@ -18,7 +18,7 @@ public class StudentPageQuery extends PageQuery {
     @Schema(description = "关键字,模糊匹配学号/姓名")
     private String keyword;
 
-    @Schema(description = "状态(studying=在读,suspended=停课,graduated=毕业,withdrawn=退学)",
+    @Schema(description = "学员状态字典(student_status:studying=在读,suspended=停课,graduated=已结业,withdrawn=已退学)",
             allowableValues = {"studying", "suspended", "graduated", "withdrawn"})
     private String status;
 

@@ -78,21 +78,6 @@ export const SECTION_GROUPS: SectionGroupMeta[] = [
   },
 ]
 
-export function slotTypeLabel(value?: string | null) {
-  switch (value) {
-    case 'morning_study':
-      return '早自习'
-    case 'teaching':
-      return '授课'
-    case 'break':
-      return '课间休息'
-    case 'self_study':
-      return '晚自习'
-    default:
-      return value || '-'
-  }
-}
-
 export function defaultTimeSlotConfig(): TimeSlotConfig {
   return {
     morningStudy: { count: 1, durationMinutes: 20, breakMinutes: 10, startTime: '07:50' },

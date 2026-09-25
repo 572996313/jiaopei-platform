@@ -373,12 +373,7 @@
           <el-input v-model="studentForm.guardianPhone" placeholder="家长手机号" />
         </el-form-item>
         <el-form-item label="学员状态">
-          <el-select v-model="studentForm.status">
-            <el-option label="在读" value="studying" />
-            <el-option label="停课" value="suspended" />
-            <el-option label="毕业" value="graduated" />
-            <el-option label="退学" value="withdrawn" />
-          </el-select>
+          <DictSelect v-model="studentForm.status" type-code="student_status" placeholder="选择学员状态" />
         </el-form-item>
         <el-form-item label="入学日期">
           <el-date-picker
@@ -621,7 +616,7 @@ const studentForm = reactive({
   birthday: '',
   guardianName: '',
   guardianPhone: '',
-  status: 'studying',
+  status: '',
   enrolledAt: '',
   remark: '',
 })
@@ -697,17 +692,7 @@ function genderLabel(gender?: string | null) {
 }
 
 function studentStatusLabel(status?: string | null) {
-  switch (status) {
-    case 'suspended':
-      return '停课'
-    case 'graduated':
-      return '毕业'
-    case 'withdrawn':
-      return '退学'
-    case 'studying':
-    default:
-      return '在读'
-  }
+  return dictStore.displayLabel('student_status', status)
 }
 
 function studentStatusTagType(status?: string | null) {
@@ -809,7 +794,7 @@ function resetStudentForm() {
   studentForm.birthday = ''
   studentForm.guardianName = ''
   studentForm.guardianPhone = ''
-  studentForm.status = 'studying'
+  studentForm.status = ''
   studentForm.enrolledAt = todayValue()
   studentForm.remark = ''
   studentFormError.value = ''
@@ -826,7 +811,7 @@ function openStudentDialog(mode: 'create' | 'edit', row?: StudentSummary) {
     studentForm.birthday = row.birthday ?? ''
     studentForm.guardianName = row.guardianName ?? ''
     studentForm.guardianPhone = row.guardianPhone ?? ''
-    studentForm.status = row.status ?? 'studying'
+    studentForm.status = row.status ?? ''
     studentForm.enrolledAt = row.enrolledAt ?? ''
     studentForm.remark = row.remark ?? ''
   } else {
@@ -864,7 +849,7 @@ async function submitStudent() {
         birthday: studentForm.birthday || null,
         guardianName: trimToUndefined(studentForm.guardianName),
         guardianPhone: trimToUndefined(studentForm.guardianPhone),
-        status: trimToUndefined(studentForm.status) || 'studying',
+        status: trimToUndefined(studentForm.status),
         enrolledAt: studentForm.enrolledAt || null,
         remark: trimToUndefined(studentForm.remark),
       })
@@ -878,7 +863,7 @@ async function submitStudent() {
         birthday: studentForm.birthday || null,
         guardianName: trimToUndefined(studentForm.guardianName),
         guardianPhone: trimToUndefined(studentForm.guardianPhone),
-        status: trimToUndefined(studentForm.status) || 'studying',
+        status: trimToUndefined(studentForm.status),
         enrolledAt: studentForm.enrolledAt || null,
         remark: trimToUndefined(studentForm.remark),
       })
@@ -1211,7 +1196,7 @@ watch(
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
   void dictStore
-    .ensureLoaded(['gender', 'enrollment_channel', 'parent_relation'])
+    .ensureLoaded(['gender', 'student_status', 'enrollment_channel', 'parent_relation'])
     .catch(() => undefined)
   initializePage()
 })
