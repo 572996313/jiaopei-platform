@@ -630,8 +630,8 @@ async function submit() {
   margin-bottom: 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: rgba(248, 250, 252, 0.92);
-  color: #234c77;
+  background: var(--subtle-bg);
+  color: var(--tint-ink);
 }
 
 .schedule-dialog-alert {
@@ -648,8 +648,8 @@ async function submit() {
   margin-bottom: 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: rgba(250, 173, 20, 0.12);
-  color: #8f5f00;
+  background: var(--soft-warn-bg);
+  color: var(--soft-warn-ink);
 }
 
 .schedule-conflict-item + .schedule-conflict-item {

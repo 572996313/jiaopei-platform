@@ -232,7 +232,7 @@ pnpm dev:h5            # H5 调试
 - **底座自带的通用能力接口**（换行业照样要用的一律进 `core`，不再放业务模块）：`/api/system/user-import` 三条——`GET /template` 下载 xlsx 模板、`POST /preview` 逐行校验不落库、`POST /commit` 整批新建登录账号，实现 `com.cornerstone.core.auth.service.impl.UserAccountImportServiceImpl` + `SystemUserImportController`，权限串 `system:user:manage`（与 `SystemUserController` 全部方法同码）。三条约定别改回去：模板列是 `@ExcelProperty(index=n)` 按位置解析（客户改表头不影响），数据必须在第一个工作表，单次上限 500 行；**归属机构只取 `AuthContext.requireUser().orgId()`，模板没有机构列、接口也不收 `institutionId`**——批量入口一旦允许指定机构，等于允许往别人机构里整批写账号；**初始口令必填**，不许复用 `SystemUserServiceImpl#initialPassword` 那个公共兜底口令（单个建号是便利，批量等于给一整批人发同一个号且全程无提示）。登录账号是全系统唯一键，所以同号分两种结论要分开报：本机构已有→跳过新建（`notice`）、他机构占用→报错换号，合成一句"已存在"会让操作员以为账号在自己名下。
 - **列表按钮走配置不走硬编码**：按钮定义在 `sys_list_config.actions_json`（`action`/`label`/`position`/`buttonType`/`permission`），前端 `ConfigurableList` 按 `auth.hasPermission(permission)` 显隐，动作实现注册在页面的 `CrudPageOptions.extraActions`。**`actions_json` 里的 `action` 串必须与 `extraActions` 的键一字不差**，对不上就是点了没反应（配置里 `action` 写错没有任何校验能发现）。改按钮要两边一起改：新增迁移整值覆盖 `actions_json`（`NULL`=未配置→回退 `#actions` 插槽模式，`[]`=明确无按钮）+ 前端补 handler，参照用户管理页的 `user-import`。
 - **命名边界（阶段四定稿，改名字时照这张表判断，别顺手连数据库名一起改）**：
-  - 属于底座身份 → 用 `cornerstone`：Java 包根 `com.cornerstone.*`、Maven groupId、Spring 配置前缀 `cornerstone.*`、Redis key 前缀 `cornerstone:`、前端 npm scope `@cornerstone/*`、浏览器 storage key `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences` / `cornerstone-login-theme`（认证页外观档：明亮 / 夜晚 / 跟随系统，只在 `LoginShell.vue` 读写）、小程序 `cornerstone.mini.auth.session`、Hikari 池名 `cornerstone-*-pool`。
+  - 属于底座身份 → 用 `cornerstone`：Java 包根 `com.cornerstone.*`、Maven groupId、Spring 配置前缀 `cornerstone.*`、Redis key 前缀 `cornerstone:`、前端 npm scope `@cornerstone/*`、浏览器 storage key `cornerstone.auth.session` / `cornerstone-nav-mode` / `cornerstone-menu-preferences` / `cornerstone-theme`（全站外观档：明亮 / 夜晚 / 跟随系统，状态源是 core 的 `composables/use-theme.ts` 模块级单例，登录页与外壳共用一份、切档内外联动；旧键 `cornerstone-login-theme` 只读一次做迁移，不再写入）、小程序 `cornerstone.mini.auth.session`、Hikari 池名 `cornerstone-*-pool`。
   - 属于本项目部署/业务标识 → **保持 `jiaopei` / `jp_`**：库名 `jiaopei_platform` 与日志库 `jiaopei_log`、MySQL 账号、业务表前缀 `jp_`（**底座表已在阶段五-0b 统一改 `sys_`**，见「模块划分与持久化」的 Flyway 条目；索引/外键/检查约束名 `uk_jp_*`/`fk_jp_*`/`chk_jp_*` 保持原样，不随表改名）、artifactId 与 jar 名 `jiaopei-platform-backend`、`spring.application.name`、容器名 `jiaopei-prod-*`、镜像名、宿主机目录 `/mnt/software/jiaopei`。改这些要生产数据迁移，不属于改名范围。
   - 环境变量名一律中性、不带前缀：`AUTH_JWT_SECRET`、`DATA_ENCRYPT_KEY`、`DB_*`、`REDIS_*`、`MODULE_*_ENABLED`（yml 里显式占位符，改配置前缀不影响它们，生产 prod.env 不用跟着改）。
   - **切 `cornerstone:` Redis 前缀需要 FLUSHDB**：旧 `jiaopei:*` 会话键不再被读取，留着只会让人误判会话仍有效。该次发布等同全员重新登录，安排停机窗口（前端 storage key 同批切换，表现也是"掉线一次"）。
@@ -319,7 +319,7 @@ pnpm dev:h5            # H5 调试
 - **扩展点**（`packages/core/src/extension/module-extensions.ts`，对应后端的事件/SPI）：`registerListRenderer`/`getListRenderer`/`listRendererChoices`（列表单元格渲染器）、`registerPermissionLabels`（业务权限码中文名与分组）、`registerNavItems`（业务模块登记自己的侧边栏入口）、`registerBranding`（壳工程登记本项目品牌与登录页文案）、`onInstitutionReset`/`notifyInstitutionReset`（机构切换/登出广播，业务 store 自行清理）、`registerPageSlot`/`getPageSlots` + `onPageRefresh`/`notifyPageRefresh`（页面插槽注入 + 宿主刷新广播）。阶段五-0d 删掉了"数据目录 provider"（`registerDirectory`/`loadDirectory` 与 `RenderContext.directories`）：0a 之后没有任何宿主再注入目录，业务下拉的正确通道是「数据源配置」（`sys_data_source`），列表编辑器里直接输入编码即可。
   - **侧边栏导航（阶段五-0d-2）**：`AppLayout` 只内置「系统设置」这一段（底座概念），业务入口一律由模块 `registerNavItems` 登记；分组不单独注册，由导航项自带的 `group`/`groupLabel`/`groupOrder` 推导（组间按 `groupOrder`，组内按登记顺序，同键首个登记方的组名生效——所以跨模块共用的组要在各自条目里写同一个组名）。工作台这类跨模块页面由壳 `modules.ts` 自己登记。新增业务页面要出现在导航里，改的是模块 `index.ts` 而不是 core。
     **入口显隐一律走菜单节点，不许再写 `alwaysVisible`**：单页入口在 `NavItemDefinition.menuCode` 里填自己的 `sys_menu` 页面节点 code，`AppLayout` 按"当前用户已授权菜单树里有没有这个节点"决定显隐，侧边栏名与页签名同时取节点 `menuName`（后台改名即生效，见 V61 的五个业务页 + 排课三页）。`alwaysVisible: true` 现在只剩壳的工作台在用（工作台是落地页，没有对应权限）。写 `alwaysVisible` 的业务入口等于绕过授权：没读权限的人照样看得见入口，点进去整页 403。页面节点自带本模块读取码（如 `organization_campus` 挂 `organization:read`），勾页面即给读码，与"角色预设权限 ∪ 已授菜单节点码"的快照口径一致（`UserAccessTokenService`），不存在"看得见却读不了"的中间态；写权限仍是隐藏按钮节点。注意预设权限与菜单两条路取并集，撤销要两边都撤。
-  - **品牌文案（阶段五-0d-2）**：侧边栏标题/窄栏角标与登录页标题、介绍、能力卡全部走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，且**底座不写死任何项目的口令**：值取壳工程自己 `.env.development` 里的 `VITE_DEV_LOGIN_USERNAME` / `VITE_DEV_LOGIN_PASSWORD`（该文件已 gitignore，本仓库那份写着 dev admin），没配就是空框，生产构建更不含。
+  - **品牌文案（阶段五-0d-2）**：品牌三件套（`mark`/`product`/`sidebarKicker`）现在渲染在横幅左上的 `.banner-brand`（外壳改版后侧边栏不再有品牌块），登录页标题、介绍、能力卡同样走壳 `registerBranding` 的部分覆盖，core 只留中性默认值（`管理平台` / `通用管理平台` / 空能力卡）。登录页表单下方那句提示语**不走品牌扩展点**，它是运行期可改的文案，走系统参数 `auth.login.page_tip`（见「系统参数优先入库」）；账号密码预填也只在 `import.meta.env.DEV` 下生效，且**底座不写死任何项目的口令**：值取壳工程自己 `.env.development` 里的 `VITE_DEV_LOGIN_USERNAME` / `VITE_DEV_LOGIN_PASSWORD`（该文件已 gitignore，本仓库那份写着 dev admin），没配就是空框，生产构建更不含。
   - **列表渲染器**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表。业务渲染器**自己取名称数据**（读模块自己的 store/接口，或改用 `type: 'map'`、字典列），core 不再透传业务目录；模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步两处：模块入口 `registerListRenderer` 登记、`sys_list_config` 种子里的 `renderer` 名保持一致。
   - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。**这张登记表是权限码中文名的权威源**，不是节点名：一个码可以挂在多个页面节点上（`education:read` 覆盖六页），节点名说的是"挂在哪"、不是"码叫什么"，所以展示时先查表、查不到才用后端给的节点名、最后回退裸码。**新增权限码必须同步补一条登记**，否则界面显示 `education:read(education:read)` 这种裸码。读取处一律**现算**，不要在模块加载时取快照——注册晚于快照就会漏。
   - **数据源候选**：`OPTIONS_LOADER_OPTIONS` 只列 `institutions`/`roles`/`status`；业务编码（如 `campuses`）在数据源配置页维护，编辑器下拉用 `allow-create` 直接输入。新增编码不改 core 代码，运行期命中不了宿主注入就自动走 `sys_data_source` 定义。
@@ -336,18 +336,45 @@ pnpm dev:h5            # H5 调试
 - 路径别名 `@` → `frontend/src`（vite + tsconfig 均配置）。
 - 页面写操作按钮要按权限码显隐（与后端 `@RequiresPermission` 同一套码）；列表页优先使用 `ConfigurableCrudPage`/`ConfigurableList`（自带请求序列号守卫，切机构不竞态）。
 
+### 应用外壳：横幅 + 导航栏（方案 B，2026-09-25 落地）
+
+结构在 `AppLayout.vue`，样式在 `packages/core/src/styles/index.css` 的「外壳」段，令牌是 `--shell-bg` / `--banner-*` / `--nav-*`。三层，从上到下：
+
+1. `.shell-banner`（**64px，全站唯一一条深色带**，`linear-gradient(105deg, brand-navy, brand-navy-2 46%, #2a5182)` + 44px 网格底纹）：左=品牌（`mark`/`product`/`sidebarKicker`），中=当前页上下文（`.banner-crumb` 来路 + `.banner-title` 页名），右=`.banner-actions`（全局搜索、外观三档 `.banner-theme`、机构胶囊、账号下拉）。下面紧跟 1px `.banner-seam` 金色接缝。**深色只到接缝为止**，导航栏与内容区一律浅色，别再往横幅下面塞深色块。
+2. `.shell-body` 是 `grid: var(--nav-col) minmax(0,1fr)`，`--nav-col` 由 `.app-shell.is-rail`（**68px，默认**）/ `.is-full`（232px）决定。**默认图标导航**：判据是横幅已经给出当前页与来路，那 232px 更该留给宽表。档位存 `cornerstone-nav-mode`，在账号下拉里切；`readStoredNavMode()` 只在值恰为 `full` 时才走宽栏，其余（含脏值）回落 rail。
+3. `.app-main` 是浮在 `--shell-bg` 上的浅色内容卡（`margin:14px; padding:14px 24px 20px`），第一行是页签栏。
+
+要守的口径：
+
+- **`TableFillBox` 量到的是内容卡里页签行以下那一段**（纵向占位从上到下：横幅 64 + 接缝 1 + 内容卡上外边距 14 + 页签行 28 + 页签行下间距 14 + 内容卡上内边距 14）。1440×900 实测内容区 **1294 × 729**，对比改版前的 1138 × 726：**收益全在宽度（+156px，约 5 列）**，高度基本没动——别拿"新版更高"当卖点，选这版的理由是表格能铺开。往横幅或页签行里加东西可以，**在它们下面再加一行不行**。
+- **窄栏的二级页靠悬停浮层**（`.rail-popover`）。它必须用 `position: fixed` 且锚在 `.app-nav` 上——`.app-nav` 的 `backdrop-filter` 会创建 containing block，`fixed` 因此相对导航列定位；写成 `absolute` 会被 `overflow` 裁掉、写在全局 `fixed` 又会跟着页签跑。**新增 rail 分组时不要动这条定位**。
+- **悬停不是可达路径**：图标导航必须同时提供 `Ctrl/⌘+K` 全局搜索兜底（`layouts/NavSearchPalette.vue`，数据来自 `registerNavItems` 的授权项，含分组与父级来路，空格分词全命中即匹配）。砍掉这个兜底就等于把二级页藏进只有老手知道的悬停里。
+- 机构与账号在深色横幅上做成**浅色胶囊**（`.banner-chip`，`rgba(255,255,255,.94)`），Element Plus 的 `el-select` 塞进芯片里并把 `.el-select__wrapper` 打成透明无边框——直接在深色背景上铺 EP 输入框永远调不清对比度，别改回去。
+- 面包屑只装"来路"（分组 / 父目录），末级名已经在 `.banner-title` 上，**不重复第三遍**；顶层项自己就是组名时用 `Set` 去重（`crumbText`、`trailOf` 两处都要去重，`.rail-pop-group` 靠 `v-if` 隐藏同名组头）。
+- 横幅上的浅色文字统一走 `--banner-ink-dim`（alpha 0.8）。改浅之前先算对比度：底色取渐变里最浅的那一档 `rgb(42,81,130)` 叠加，正文要 ≥4.5。
+
+### 外观档与配色令牌（明亮 / 夜晚 / 跟随系统）
+
+状态源只有一份：`packages/core/src/composables/use-theme.ts`（模块级单例，`import` 即按本机存档把 `html.dark` + `color-scheme` 刷上，不等组件 `onMounted`，所以首帧不闪）。登录页与外壳读的是同一个 `isDark`，切档内外联动。要守的：
+
+- **取色一律走令牌，业务页不许写死浅色字面量**。`:root` 里那组语义令牌在夜档整组翻：`--page-bg` / `--shell-bg` / `--card-bg` / `--subtle-bg` / `--hover-bg` / `--tint-bg` / `--surface` / `--nav-*` / `--text-primary|-secondary|-muted|-faint|-strong` / `--tint-ink` / `--accent` / `--border` / `--line` / `--shadow-*` / `--table-*` / `--soft-{warn,danger,success,info}-{bg,ink}`。写死 `#fff`、`#fdf3cf`、`#64748b` 这类值，夜档要么是白块要么是深字压深底，**软色状态块尤其要走 `--soft-*-bg` + `--soft-*-ink` 成对取值**。
+- **两组常量故意不随主题翻**：横幅的 `--banner-*` / `--chip-*`（深色带上的浅色胶囊，翻了就成"深底深字"），认证页的 `--login-*`（自己有明暗两套，靠根上的 `is-light` 覆盖）。新增样式别挪用这两组，也不要给它们加 `html.dark` 分支。
+- **`html.dark` 覆写 EP 的引入顺序是硬约束**：`frontend/src/main.ts` 里 `element-plus/theme-chalk/dark/css-vars.css` 必须**早于** `@cornerstone/core/styles/index.css`。同为 `html.dark` 选择器时靠后者取胜，调个顺序暗色就整片回落成 EP 的纯灰皮。
+- **夜档的实心主按钮是"亮蓝底 + 近黑字"，而且必须限定在 `.app-shell` 内**：单个主色不可能同时满足"白字压在实心主色上 ≥4.5"和"主色当文字压在深卡上 ≥4.5"（要 L≤0.183 与要 L≥0.232 互斥），夜档里主色当文字的地方更多，所以主色提亮、实心按钮反过来压深字。认证卡的主按钮自带 `--login-*` 深蓝渐变（两档都是深底白字），漏掉 `.app-shell` 限定会把它的字也压成近黑。
+- **新增 `html.dark` 下的语义令牌时，同时检查 `:root` 有没有对应项**；只在一处写等于另一档拿到 `unset`。改配色后自查：内置浏览器无可视表面，用 `evaluate_script` 遍历文本节点、按 `getComputedStyle` 沿父链叠出有效背景算 WCAG 相对亮度比，`14px` 以下要 ≥4.5（`.is-disabled` / 占位符 / 灰字这类非活动组件按 1.4.3 豁免）。
+
 ### 列表页与表格视图统一规范
 
 - **表体高度用 `TableFillBox`**（`packages/core/src/components/TableFillBox.vue`）：它自量容器高度、以**真实像素**传给默认插槽的 `:height`。手写页面的表格包一层 `<TableFillBox v-slot="{ height }">`，配置化列表已内置。**不要再给主列表传 `height="100%"`**：Element Plus 会把 `.el-table__inner-wrapper` 锁成 `bodyScrollHeight`，而父链只有 `min-height`（百分比按 auto 解析），结果是一两行数据时表体缩到内容高度、横向滚动条贴在最后一行下面而不是列表底部。弹窗内/Tab 叠放的次要表格继续用 `utils/table-view.ts` 的 `TABLE_VIEWPORT_MAX_HEIGHT`（6 行）/`TABLE_STACK_MAX_HEIGHT`（10 行）封顶。
 - **宽表的读行定位三件套**：主列表一律 `border stripe row-key="id" highlight-current-row`，并把身份列（通常是第一列）`fixed="left"` 固定，滚动看后面列时行身份与当前行不丢。配置化列表走 `ListColumnConfig.fixed`（`'left'|'right'`，对应 `sys_list_config.columns_json` 的 `fixed` 键），列表配置编辑器有「固定列」下拉，后端 `ListConfigServiceImpl.validateColumn` 只放行 `left`/`right`/不填。
 - **默认不加勾选列**：本仓库后端**没有任何批量写接口**，行内操作（删除/启停）都是单行且可逆，加 checkbox 属于伪需求。出现真批量端点时再全系统统一加 `type="selection"`，不要个别页面先加。选中态现在的用途是"钉住正在看的行"，不是批量入口。
 - **按钮与条件的落点顺序**：表格上方固定为「主操作按钮行 `.table-toolbar` → 查询条件行 `.table-filters` → 表格」，两行都左对齐，理由是查询条件要贴着表格（改条件马上看结果），按钮不许夹在中间。整页级的开关（统计条展开、整页刷新、整页主档新增）放页面级 `.table-toolbar`，也在 `.page-toolbar` 筛选栏上方；`.page-toolbar` 只装跨卡片的筛选条件。卡片内的搜索框不再挂标题右侧（`.panel-head-actions` 已删）。行内操作仍在操作列用 `.table-actions` 包 link 按钮，不参与上面的规则。
-- **标题与条数都不重复展示**：顶栏页签上显示的就是当前菜单节点名（`AppLayout.vue`，原来的 `h1.page-title` 已随多页签删除），所以**以页面为单位**判断——一屏只有一张主表的页面不渲染 `.panel-title`（连同空掉的 `.education-table-head` 一起删，配置化列表页由 `ConfigurableCrudPage` 统一不渲染）；一屏并排/叠放多张表的页面每张表必须保留标题作区分（校区页四张卡、学员页三张表、时间段编辑器的两个面板都是）。条数全站不显示：分页表看分页器的总数，不分页的表都是刻意选定的小体量表（判据见「前端 / 小程序约定」分页条目）。`.panel-count` 类已删，唯一例外是编辑器里的规模回显（如时间段"N 个节次 × M 天"），那种要并进 `.education-context-text` 而不是复活计数类。`page_json` 的 `title`/`showCount`/`countFormat` 三键随之前端渲染一起删除（V49 清存量），**界面不渲染的配置键一律不留**。
+- **标题与条数都不重复展示**：横幅左侧的大标题显示的就是当前菜单节点名（`AppLayout.vue` 的 `.banner-title`，原来的 `h1.page-title` 已随多页签删除），所以**以页面为单位**判断——一屏只有一张主表的页面不渲染 `.panel-title`（连同空掉的 `.education-table-head` 一起删，配置化列表页由 `ConfigurableCrudPage` 统一不渲染）；一屏并排/叠放多张表的页面每张表必须保留标题作区分（校区页四张卡、学员页三张表、时间段编辑器的两个面板都是）。条数全站不显示：分页表看分页器的总数，不分页的表都是刻意选定的小体量表（判据见「前端 / 小程序约定」分页条目）。`.panel-count` 类已删，唯一例外是编辑器里的规模回显（如时间段"N 个节次 × M 天"），那种要并进 `.education-context-text` 而不是复活计数类。`page_json` 的 `title`/`showCount`/`countFormat` 三键随之前端渲染一起删除（V49 清存量），**界面不渲染的配置键一律不留**。
 - **说明文案落点与口径**：`.education-table-head` 右侧不塞文案，卡片标题右侧也不挂按钮（按钮进 `.table-toolbar`）。确有说明就单独一行 `.education-context-text`（作卡片首行时自带下边距，见 `styles/index.css`）。口径：**只写"不看就会用错"或"改完怎么生效"**，例如"在角色管理的「分配菜单」里勾选按钮即授权""保存后需重新登录生效""敏感信息已脱敏展示"。删掉的是两类：把按钮名字复述一遍的（"支持创建、编辑、启停"）、以及功能说明伪装成指引的（"邀请码供新账号自助注册；激活码供预建账号自设密码启用""维护全局字典类型与条目"）。**动态回显不是文案**——"当前机构：X""当前模板：Y"是数据，一律保留。`page_json.description` 同理（V48 清掉 users/roles 两条，V49 收掉壳配置三键）。
 
 ### 多页签与页面缓存（keep-alive）
 
-顶栏第二行是页签栏（`packages/core/src/stores/tabs.ts` + `AppLayout.vue`）：打开过的页面各占一个页签，来回切换不丢现场（表单草稿、已加载数据、滚动位置），刷新只在页签右键菜单里，**不做进入页签自动重拉**。
+内容区第一行是页签栏（`packages/core/src/stores/tabs.ts` + `AppLayout.vue`）：打开过的页面各占一个页签，来回切换不丢现场（表单草稿、已加载数据、滚动位置），刷新只在页签右键菜单里，**不做进入页签自动重拉**。
 
 - **页签按 `route.path` 唯一**，同一路径换查询参数（工作台跳课表带 `?date=`、列表带 `?editId=`）不另开页签，只更新该页签记的 `fullPath`。所以**新页面的路由必须有 `name`**，没有 name 的记录（纯 redirect）不登记页签。
 - **缓存 key 是 `path#seq`**：`seq` 在刷新、关闭后重开时自增，换号即让 keep-alive 认不出旧实例、重挂干净页面。**不用 `include`**，因为 include 认组件 name 而路由组件全是懒加载的，页签只拿得到路径；代价是关掉/刷新过的页签会留一个失活实例在缓存里，由 `:max`（`MAX_CACHED_PAGES = MAX_OPEN_TABS + 2`）按 LRU 挤出，这是可接受的。
@@ -358,7 +385,7 @@ pnpm dev:h5            # H5 调试
 - 拖拽排序只改列表顺序，**不改缓存 key**（key 是 `path#seq`），所以挪页签不会把页面重挂一遍。
 - 页签列表存本机 `localStorage` key `cornerstone-open-tabs`（与菜单偏好、导航模式同类，只影响当前浏览器，不随账号同步），上限 `MAX_OPEN_TABS = 10`，淘汰最早打开且非当前页的页签；只剩一个页签时不提供关闭（底座不知道首页路径）。
 - **「最近查看」入口固定在页签行尾**（`tabs.history` + `.app-tab-history`）：页签会被上限静默淘汰、也会被自己关掉，这条列表是"回得去刚才那几页"的唯一线索。口径：按路径去重、每次访问提到最前（**是 LRU 不是访问堆栈**），上限 `MAX_VISITED_PAGES = 20`，存本机 `cornerstone-visited-pages`，`clear()` 时和页签一起清（同属上一个账号的浏览现场），`onMounted` 与页签一样用 `router.resolve(...).matched` 剪掉进不去的条目。条目标题同样走 `titleOfPath`（菜单树晚到时 `renameVisits` 补）。**已经开着的条目前面点圆点**——点它是切回原现场，不是新开一页。**它不参与横向滚动**：`.app-tabbar` 是行容器，`.app-tab-strip` 才是滚的那一段，入口在滚动区外面（否则页签一多它就被滚走，失去意义）。下拉用自绘的 `.tab-context-menu` 复用样式，理由同右键菜单。加/减这类"访问现场"记录只动 `stores/tabs.ts`，不要在页面里另起一份。
-- **顶栏分两行，不许合并**：第一行 `.app-header` 只放账号区（机构 + 用户下拉，以后消息中心之类的入口也归这一行，右对齐）；第二行 `.app-tabbar` 是页签栏（下划线式选中态，`::after` 压住底边和内容区连成一块；内部只有 `.app-tab-strip` 横向滚，行尾的「最近查看」入口固定在滚动区外面）。原 `h1.page-title` 已删，页面标题只在页签上出现一次，**页面内不要再渲染与菜单同名的大标题**（见上一节）。注意这两行的高度合计是列表页 `TableFillBox` 量高的基准，再加行会压缩内容区（往这两行里加东西可以，加行不行）。
+- **页签行是内容卡的第一行，不是顶栏**：`.app-tabbar` 是行容器（不滚），`.app-tab-strip` 才是横向滚的那一段，行尾的「最近查看」入口在滚动区外面。页签是胶囊样式（高 28，选中态深底白字），**不再压下划线**——选中信息由深色胶囊给出，行本身无底边，压边只会和内容卡多一条缝。往这一行里加东西可以，另起一行不行（纵向 chrome 见「应用外壳」）。
 
 ## 实体 / DTO 字段说明规范（软规范）
 

@@ -143,13 +143,13 @@ function toggleCell(row: PatternRow, day: number) {
 }
 
 .pattern-grid-tip {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .pattern-grid-count {
   margin-left: auto;
-  color: #334155;
+  color: var(--text-strong);
   font-size: 12px;
   font-weight: 600;
 }
@@ -172,42 +172,42 @@ function toggleCell(row: PatternRow, day: number) {
   gap: 2px;
   min-height: 52px;
   padding: 6px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 12px;
 }
 
 .pattern-grid-cell.is-corner,
 .pattern-grid-cell.is-head,
 .pattern-grid-cell.is-row-label {
-  background: rgba(248, 250, 252, 0.95);
-  color: #334155;
+  background: var(--subtle-bg);
+  color: var(--text-strong);
   font-weight: 600;
 }
 
 .pattern-grid-cell.is-slot {
   cursor: pointer;
-  color: #5c6b82;
+  color: var(--text-secondary);
   transition:
     border-color 0.15s,
     background 0.15s;
 }
 
 .pattern-grid-cell.is-slot:hover {
-  border-color: rgba(64, 158, 255, 0.45);
+  border-color: var(--hover-line);
 }
 
 .pattern-grid-cell.is-slot.is-empty {
   cursor: not-allowed;
-  background: rgba(248, 250, 252, 0.6);
+  background: var(--subtle-bg);
   border-style: dashed;
 }
 
 .pattern-grid-cell.is-slot.is-selected {
-  border-color: #409eff;
-  background: rgba(236, 245, 255, 0.95);
-  color: #1d4ed8;
+  border-color: var(--accent);
+  background: var(--hover-bg);
+  color: var(--tint-ink);
   font-weight: 700;
 }
 
@@ -216,11 +216,11 @@ function toggleCell(row: PatternRow, day: number) {
 }
 
 .pattern-grid-slot-time {
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 11px;
 }
 
 .pattern-grid-cell.is-selected .pattern-grid-slot-time {
-  color: #3b82f6;
+  color: var(--tint-ink);
 }
 </style>

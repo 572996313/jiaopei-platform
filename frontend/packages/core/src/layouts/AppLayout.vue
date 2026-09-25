@@ -1,280 +1,308 @@
 <template>
   <div class="app-shell" :class="shellClass">
-    <!-- ============ 完整导航(宽模式) ============ -->
-    <aside v-if="navMode === 'full'" class="app-sidebar">
-      <div class="brand-block">
-        <div class="brand-kicker">{{ brand.sidebarKicker }}</div>
-        <div class="brand-title">{{ brand.product }}</div>
+    <!-- ============ 横幅:全站唯一一条深色带,品牌 / 当前页 / 搜索 / 机构 / 账号 ============ -->
+    <header class="shell-banner">
+      <div class="banner-brand">
+        <span class="banner-mark">{{ brand.mark }}</span>
+        <div class="banner-brand-text">
+          <b>{{ brand.product }}</b>
+          <span>{{ brand.sidebarKicker }}</span>
+        </div>
       </div>
 
-      <nav class="nav-groups">
-        <section v-for="group in navGroups" :key="group.key" class="nav-group">
-          <div class="nav-group-title">{{ group.label }}</div>
-          <div class="nav-list">
-            <template v-for="item in group.items" :key="item.key">
-              <div v-if="visibleChildren(item).length" class="nav-parent">
-                <button
-                  type="button"
-                  class="nav-item nav-toggle"
-                  :class="{ 'is-active': isNavItemActive(item), 'is-open': isGroupOpen(item) }"
-                  @click="toggleGroup(item.key)"
+      <div class="banner-ctx">
+        <div class="banner-crumb">{{ crumbText }}</div>
+        <h1 class="banner-title">{{ pageTitle }}</h1>
+      </div>
+
+      <div class="banner-actions">
+        <!-- 窄栏把二级页收进悬停浮层了,搜索是它的兜底入口,所以不做成可关掉的装饰 -->
+        <button type="button" class="banner-search" @click="searchOpen = true">
+          <el-icon><Search /></el-icon>
+          <span>搜页面</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+
+        <!-- 外观三档,和登录页同一套(状态挂在 use-theme 上,这里只是第二个入口) -->
+        <div class="banner-theme" role="group" aria-label="页面外观">
+          <button
+            v-for="option in THEME_OPTIONS"
+            :key="option.mode"
+            type="button"
+            class="banner-theme-btn"
+            :class="{ 'is-active': themeMode === option.mode }"
+            :title="option.label"
+            :aria-label="option.label"
+            :aria-pressed="themeMode === option.mode"
+            @click="setTheme(option.mode)"
+          >
+            <el-icon><component :is="THEME_ICONS[option.mode]" /></el-icon>
+          </button>
+        </div>
+
+        <div v-if="institutionStore.isSingleInstitution" class="banner-chip banner-chip-static">
+          {{ institutionStore.currentInstitutionName }}
+        </div>
+        <div v-else-if="institutionStore.hasInstitutions" class="banner-chip">
+          <el-select
+            :model-value="institutionStore.currentInstitutionId"
+            placeholder="选择机构"
+            filterable
+            @change="institutionStore.setInstitution($event as string)"
+          >
+            <el-option
+              v-for="org in institutionStore.institutions"
+              :key="org.id"
+              :label="org.orgName || org.shortName || org.orgCode || `机构 #${org.id}`"
+              :value="org.id"
+            />
+          </el-select>
+        </div>
+        <div v-else class="banner-chip banner-chip-static is-warn">未选择机构</div>
+
+        <el-dropdown trigger="click" @command="handleUserCommand">
+          <div class="banner-chip banner-user">
+            <span class="banner-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
+            <div class="banner-user-info">
+              <div class="banner-user-name">{{ auth.displayName }}</div>
+              <div class="banner-user-meta">
+                {{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}
+              </div>
+            </div>
+            <el-icon class="banner-user-caret"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item disabled>
+                <span class="nav-mode-label">导航模式</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="nav-mode:full">
+                <el-icon v-if="navMode === 'full'" class="nav-mode-check"><Check /></el-icon>
+                <span>完整导航</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="nav-mode:rail">
+                <el-icon v-if="navMode === 'rail'" class="nav-mode-check"><Check /></el-icon>
+                <span>图标导航</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="menu-preferences" divided>菜单偏好</el-dropdown-item>
+              <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </header>
+    <div class="banner-seam" />
+
+    <div class="shell-body">
+      <!-- ============ 完整导航(宽模式) ============ -->
+      <aside v-if="navMode === 'full'" class="app-nav is-full">
+        <nav class="nav-groups">
+          <section v-for="group in navGroups" :key="group.key" class="nav-group">
+            <div class="nav-group-title">{{ group.label }}</div>
+            <div class="nav-list">
+              <template v-for="item in group.items" :key="item.key">
+                <div v-if="visibleChildren(item).length" class="nav-parent">
+                  <button
+                    type="button"
+                    class="nav-item nav-toggle"
+                    :class="{ 'is-active': isNavItemActive(item), 'is-open': isGroupOpen(item) }"
+                    @click="toggleGroup(item.key)"
+                  >
+                    <el-icon v-if="item.icon" class="nav-item-icon"
+                      ><component :is="item.icon"
+                    /></el-icon>
+                    <span class="nav-item-label">{{ displayLabel(item) }}</span>
+                    <el-icon class="nav-caret"><ArrowDown /></el-icon>
+                  </button>
+                  <div v-show="isGroupOpen(item)" class="nav-children">
+                    <template v-for="(child, idx) in visibleChildren(item)" :key="child.key">
+                      <div
+                        v-if="child.groupLabel && child.groupLabel !== prevGroupLabel(item, idx)"
+                        class="nav-child-group-title"
+                      >
+                        {{ child.groupLabel }}
+                      </div>
+                      <RouterLink
+                        :to="child.to"
+                        class="nav-item nav-child-item"
+                        :class="{ 'is-active': isChildActive(child) }"
+                      >
+                        <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"
+                          ><component :is="child.icon"
+                        /></el-icon>
+                        <span class="nav-item-label">{{ child.label }}</span>
+                      </RouterLink>
+                    </template>
+                  </div>
+                </div>
+                <RouterLink
+                  v-else
+                  :to="item.to"
+                  class="nav-item"
+                  :class="{ 'is-active': isNavItemActive(item) }"
                 >
                   <el-icon v-if="item.icon" class="nav-item-icon"
                     ><component :is="item.icon"
                   /></el-icon>
                   <span class="nav-item-label">{{ displayLabel(item) }}</span>
-                  <el-icon class="nav-caret"><ArrowDown /></el-icon>
+                </RouterLink>
+              </template>
+            </div>
+          </section>
+        </nav>
+      </aside>
+
+      <!-- ============ 图标导航(窄模式 / rail) ============ -->
+      <aside v-else class="app-nav is-rail">
+        <nav class="rail-nav">
+          <template v-for="(group, groupIndex) in navRailGroups" :key="group.key">
+            <div v-if="groupIndex > 0" class="rail-group-gap" />
+            <div class="rail-group-items">
+              <div
+                v-for="item in group.items"
+                :key="item.key"
+                class="rail-cell"
+                @mouseenter="openRail(item)"
+                @mouseleave="scheduleCloseRail()"
+              >
+                <RouterLink
+                  v-if="!item.children.length"
+                  :to="item.to"
+                  class="rail-trigger"
+                  :class="{ 'is-active': isNavItemActive(item) }"
+                  :title="item.label"
+                >
+                  <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
+                </RouterLink>
+                <button
+                  v-else
+                  type="button"
+                  class="rail-trigger"
+                  :class="{
+                    'is-active': isNavItemActive(item),
+                    'is-pinned': activeRailPopoverKey === item.key,
+                  }"
+                  :title="item.label"
+                  @click="toggleRailPin(item)"
+                >
+                  <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
                 </button>
-                <div v-show="isGroupOpen(item)" class="nav-children">
-                  <template v-for="(child, idx) in visibleChildren(item)" :key="child.key">
+
+                <div
+                  v-if="item.children.length && activeRailPopoverKey === item.key"
+                  class="rail-popover"
+                  @mouseenter="cancelCloseRail()"
+                  @mouseleave="scheduleCloseRail()"
+                >
+                  <div class="rail-pop-head">
+                    <span v-if="group.label !== item.label" class="rail-pop-group">
+                      {{ group.label }}
+                    </span>
+                    <span class="rail-pop-title">{{ item.label }}</span>
+                  </div>
+                  <template v-for="(child, idx) in item.children" :key="child.key">
                     <div
-                      v-if="child.groupLabel && child.groupLabel !== prevGroupLabel(item, idx)"
-                      class="nav-child-group-title"
+                      v-if="child.groupLabel && child.groupLabel !== prevRailGroupLabel(item, idx)"
+                      class="rail-pop-subgroup-title"
                     >
                       {{ child.groupLabel }}
                     </div>
                     <RouterLink
                       :to="child.to"
-                      class="nav-item nav-child-item"
+                      class="rail-pop-item"
                       :class="{ 'is-active': isChildActive(child) }"
+                      @click="handleRailChildClick(item)"
                     >
-                      <el-icon v-if="child.icon" class="nav-item-icon nav-item-icon-sub"
+                      <el-icon v-if="child.icon" class="rail-pop-icon"
                         ><component :is="child.icon"
                       /></el-icon>
-                      <span class="nav-item-label">{{ child.label }}</span>
+                      <span>{{ child.label }}</span>
                     </RouterLink>
                   </template>
                 </div>
               </div>
-              <RouterLink
-                v-else
-                :to="item.to"
-                class="nav-item"
-                :class="{ 'is-active': isNavItemActive(item) }"
-              >
-                <el-icon v-if="item.icon" class="nav-item-icon"
-                  ><component :is="item.icon"
-                /></el-icon>
-                <span class="nav-item-label">{{ displayLabel(item) }}</span>
-              </RouterLink>
-            </template>
-          </div>
-        </section>
-      </nav>
-    </aside>
-
-    <!-- ============ 图标导航(窄模式 / rail) ============ -->
-    <aside v-else class="app-sidebar app-sidebar-rail">
-      <div class="brand-block rail-brand">
-        <span class="rail-brand-mark">{{ brand.mark }}</span>
-      </div>
-
-      <nav class="rail-nav">
-        <template v-for="(group, groupIndex) in navRailGroups" :key="group.key">
-          <div v-if="groupIndex > 0" class="rail-group-gap" />
-          <div class="rail-group-items">
-            <div
-              v-for="item in group.items"
-              :key="item.key"
-              class="rail-cell"
-              @mouseenter="openRail(item)"
-              @mouseleave="scheduleCloseRail()"
-            >
-              <RouterLink
-                v-if="!item.children.length"
-                :to="item.to"
-                class="rail-trigger"
-                :class="{ 'is-active': isNavItemActive(item) }"
-                :title="item.label"
-              >
-                <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
-              </RouterLink>
-              <button
-                v-else
-                type="button"
-                class="rail-trigger"
-                :class="{
-                  'is-active': isNavItemActive(item),
-                  'is-pinned': activeRailPopoverKey === item.key,
-                }"
-                :title="item.label"
-                @click="toggleRailPin(item)"
-              >
-                <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
-              </button>
-
-              <div
-                v-if="item.children.length && activeRailPopoverKey === item.key"
-                class="rail-popover"
-                @mouseenter="cancelCloseRail()"
-                @mouseleave="scheduleCloseRail()"
-              >
-                <div class="rail-pop-head">
-                  <span class="rail-pop-group">{{ group.label }}</span>
-                  <span class="rail-pop-title">{{ item.label }}</span>
-                </div>
-                <template v-for="(child, idx) in item.children" :key="child.key">
-                  <div
-                    v-if="child.groupLabel && child.groupLabel !== prevRailGroupLabel(item, idx)"
-                    class="rail-pop-subgroup-title"
-                  >
-                    {{ child.groupLabel }}
-                  </div>
-                  <RouterLink
-                    :to="child.to"
-                    class="rail-pop-item"
-                    :class="{ 'is-active': isChildActive(child) }"
-                    @click="handleRailChildClick(item)"
-                  >
-                    <el-icon v-if="child.icon" class="rail-pop-icon"
-                      ><component :is="child.icon"
-                    /></el-icon>
-                    <span>{{ child.label }}</span>
-                  </RouterLink>
-                </template>
-              </div>
             </div>
-          </div>
-        </template>
-      </nav>
-    </aside>
-
-    <div class="app-main">
-      <el-alert
-        v-if="auth.currentUser?.passwordResetRequired || auth.mustChangePassword"
-        class="app-alert"
-        :type="auth.mustChangePassword ? 'error' : 'warning'"
-        show-icon
-        :closable="false"
-        :title="
-          auth.mustChangePassword
-            ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。'
-            : '当前账号仍处于初始化密码状态,请尽快完成改密。'
-        "
-      />
-
-      <header class="app-header">
-        <div class="header-actions">
-          <div class="header-institution-block">
-            <el-tag
-              v-if="institutionStore.isSingleInstitution"
-              type="info"
-              effect="plain"
-              size="large"
-            >
-              {{ institutionStore.currentInstitutionName }}
-            </el-tag>
-            <el-select
-              v-else-if="institutionStore.hasInstitutions"
-              :model-value="institutionStore.currentInstitutionId"
-              placeholder="选择机构"
-              filterable
-              class="header-institution-select"
-              @change="institutionStore.setInstitution($event as string)"
-            >
-              <el-option
-                v-for="item in institutionStore.institutions"
-                :key="item.id"
-                :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-                :value="item.id"
-              />
-            </el-select>
-            <el-tag v-else type="warning" effect="plain" size="large">未选择机构</el-tag>
-          </div>
-          <el-dropdown class="header-user-dropdown" trigger="click" @command="handleUserCommand">
-            <div class="header-user-block">
-              <span class="header-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
-              <div class="header-user-info">
-                <div class="header-user-name">{{ auth.displayName }}</div>
-                <div class="header-user-meta">
-                  {{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}
-                </div>
-              </div>
-              <el-icon class="header-user-caret"><ArrowDown /></el-icon>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item disabled>
-                  <span class="nav-mode-label">导航模式</span>
-                </el-dropdown-item>
-                <el-dropdown-item command="nav-mode:full">
-                  <el-icon v-if="navMode === 'full'" class="nav-mode-check"><Check /></el-icon>
-                  <span>完整导航</span>
-                </el-dropdown-item>
-                <el-dropdown-item command="nav-mode:rail">
-                  <el-icon v-if="navMode === 'rail'" class="nav-mode-check"><Check /></el-icon>
-                  <span>图标导航</span>
-                </el-dropdown-item>
-                <el-dropdown-item command="menu-preferences" divided>菜单偏好</el-dropdown-item>
-                <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </header>
-
-      <!--
-        页签单独一行,不和右上角的机构/账号挤在同一行:那一行留给账号区,
-        以后消息中心之类的入口也放那里。页面标题只在页签上出现一次。
-      -->
-      <div class="app-tabbar">
-        <nav ref="tabStripRef" class="app-tab-strip" @scroll="tabMenu = null">
-          <div
-            v-for="(tab, index) in tabs.tabs"
-            :key="tab.path"
-            class="app-tab"
-            :class="{
-              'is-active': tab.path === tabs.activePath,
-              'is-dragging': draggingIndex === index,
-            }"
-            draggable="true"
-            @click="activateTab(tab.path)"
-            @auxclick="onTabAuxClick(tab.path, $event)"
-            @contextmenu.prevent="openTabMenu(tab, $event)"
-            @dragstart="onTabDragStart(index, $event)"
-            @dragover.prevent
-            @drop.prevent="onTabDrop(index)"
-            @dragend="draggingIndex = null"
-          >
-            <span class="app-tab-label">{{ tab.label || tab.path }}</span>
-            <el-icon
-              v-if="tabs.closable"
-              class="app-tab-action"
-              title="关闭页签"
-              @click.stop="closeTab(tab.path)"
-            >
-              <Close />
-            </el-icon>
-          </div>
+          </template>
         </nav>
+      </aside>
 
-        <!-- 最近查看固定在行尾,不跟页签一起滚:页签被上限挤掉时靠它找回去,滚走了就本末倒置 -->
-        <button
-          ref="historyButtonRef"
-          type="button"
-          class="app-tab-history"
-          :class="{ 'is-open': !!historyMenu }"
-          title="最近查看的页面"
-          @click="toggleHistoryMenu"
-        >
-          最近查看
-        </button>
-      </div>
+      <div class="app-main">
+        <el-alert
+          v-if="auth.currentUser?.passwordResetRequired || auth.mustChangePassword"
+          class="app-alert"
+          :type="auth.mustChangePassword ? 'error' : 'warning'"
+          show-icon
+          :closable="false"
+          :title="
+            auth.mustChangePassword
+              ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。'
+              : '当前账号仍处于初始化密码状态,请尽快完成改密。'
+          "
+        />
 
-      <main class="app-content">
-        <RouterView v-slot="{ Component }">
-          <!--
+        <!-- 内容卡里第一行是页签:标题在横幅上,页签只负责"开着哪几页"和切换 -->
+        <div class="app-tabbar">
+          <nav ref="tabStripRef" class="app-tab-strip" @scroll="tabMenu = null">
+            <div
+              v-for="(tab, index) in tabs.tabs"
+              :key="tab.path"
+              class="app-tab"
+              :class="{
+                'is-active': tab.path === tabs.activePath,
+                'is-dragging': draggingIndex === index,
+              }"
+              draggable="true"
+              @click="activateTab(tab.path)"
+              @auxclick="onTabAuxClick(tab.path, $event)"
+              @contextmenu.prevent="openTabMenu(tab, $event)"
+              @dragstart="onTabDragStart(index, $event)"
+              @dragover.prevent
+              @drop.prevent="onTabDrop(index)"
+              @dragend="draggingIndex = null"
+            >
+              <span class="app-tab-label">{{ tab.label || tab.path }}</span>
+              <el-icon
+                v-if="tabs.closable"
+                class="app-tab-action"
+                title="关闭页签"
+                @click.stop="closeTab(tab.path)"
+              >
+                <Close />
+              </el-icon>
+            </div>
+          </nav>
+
+          <!-- 最近查看固定在行尾,不跟页签一起滚:页签被上限挤掉时靠它找回去,滚走了就本末倒置 -->
+          <button
+            ref="historyButtonRef"
+            type="button"
+            class="app-tab-history"
+            :class="{ 'is-open': !!historyMenu }"
+            title="最近查看的页面"
+            @click="toggleHistoryMenu"
+          >
+            最近查看
+          </button>
+        </div>
+
+        <main class="app-content">
+          <RouterView v-slot="{ Component }">
+            <!--
             按页签换 key:同一页面切回来命中缓存(现场不丢),刷新或关掉重开时 key 变了,
             重新挂一个干净实例。没走 include 是因为 include 认组件 name,而路由组件是懒加载的,
             页签只拿得到路径;遗留的失活实例交给 max 按 LRU 挤出。
           -->
-          <KeepAlive :max="MAX_CACHED_PAGES">
-            <component :is="Component" v-if="Component" :key="tabs.cacheKey(route.path)" />
-          </KeepAlive>
-        </RouterView>
-      </main>
+            <KeepAlive :max="MAX_CACHED_PAGES">
+              <component :is="Component" v-if="Component" :key="tabs.cacheKey(route.path)" />
+            </KeepAlive>
+          </RouterView>
+        </main>
+      </div>
     </div>
+
+    <!-- ============ 横幅全局搜索 ============ -->
+    <NavSearchPalette v-model="searchOpen" :items="searchablePages" />
 
     <!-- ============ 页签右键菜单 ============ -->
     <div
@@ -346,12 +374,23 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Check, Close, Setting } from '@element-plus/icons-vue'
+import {
+  ArrowDown,
+  Check,
+  Close,
+  Monitor,
+  Moon,
+  Search,
+  Setting,
+  Sunny,
+} from '@element-plus/icons-vue'
+import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
 import {
   contributedNavItems,
   currentBrand,
   type NavItemDefinition,
 } from '@cornerstone/core/extension/module-extensions'
+import { useTheme, type ThemeMode } from '@cornerstone/core/composables/use-theme'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import {
@@ -375,6 +414,15 @@ onMounted(() => {
 
 /** 品牌文案由壳工程 registerBranding 登记；壳在 import 阶段就跑完了，这里取到的是最终值 */
 const brand = currentBrand()
+
+/** ================= 外观档位（明亮/夜晚/跟随系统） ================= */
+const { themeMode, setTheme, THEME_OPTIONS } = useTheme()
+
+const THEME_ICONS: Record<ThemeMode, Component> = {
+  light: Sunny,
+  dark: Moon,
+  system: Monitor,
+}
 
 /** ================= 菜单偏好(本机 localStorage,不同操作习惯可自选) ================= */
 
@@ -422,6 +470,7 @@ function readStoredMenuPreferences(): MenuPreferences {
 
 const menuPreferences = ref<MenuPreferences>(readStoredMenuPreferences())
 const menuPreferencesVisible = ref(false)
+const searchOpen = ref(false)
 
 watch(
   menuPreferences,
@@ -583,6 +632,77 @@ const navGroups = computed(() => {
   return buckets.sort((a, b) => a.order - b.order)
 })
 
+/** ================= 横幅上下文(当前页在导航里的位置) ================= */
+
+/** 当前路由命中的导航位置:子页优先,其次顶层直达项;都没命中就是空,由 pageTitle 兜底 */
+const currentPageTrail = computed(() => {
+  for (const group of navGroups.value) {
+    for (const item of group.items) {
+      const child = resolveVisibleChildren(item).find((entry) => isNavItemActive(entry))
+      if (child) {
+        return { groupLabel: group.label, parentLabel: displayLabel(item), label: child.label }
+      }
+      if (isNavItemActive(item)) {
+        return { groupLabel: group.label, parentLabel: '', label: displayLabel(item) }
+      }
+    }
+  }
+  return { groupLabel: '', parentLabel: '', label: '' }
+})
+
+/** 面包屑只装"来路",末级名已经在横幅大标题上,不重复第三遍;组名与目录名同名时只留一处 */
+const crumbText = computed(() => {
+  const trail = currentPageTrail.value
+  return [...new Set([trail.groupLabel, trail.parentLabel].filter(Boolean))].join(' / ')
+})
+
+const pageTitle = computed(
+  () =>
+    currentPageTrail.value.label ||
+    tabs.tabs.find((tab) => tab.path === route.path)?.label ||
+    titleOfPath(route.path) ||
+    brand.product
+)
+
+/** 窄栏把二级页收进悬停浮层,搜索面板就是它的平铺目录:直达项与目录子页都在内 */
+const searchablePages = computed<SearchablePage[]>(() => {
+  const list: SearchablePage[] = []
+  const seen = new Set<string>()
+  for (const group of navGroups.value) {
+    for (const item of group.items) {
+      const parent = displayLabel(item)
+      const children = resolveVisibleChildren(item)
+      if (!children.length) {
+        if (!seen.has(item.to)) {
+          seen.add(item.to)
+          list.push({
+            label: parent,
+            groupLabel: group.label,
+            parentLabel: '',
+            to: item.to,
+            icon: item.icon,
+          })
+        }
+        continue
+      }
+      for (const child of children) {
+        if (seen.has(child.to)) {
+          continue
+        }
+        seen.add(child.to)
+        list.push({
+          label: child.label,
+          groupLabel: group.label,
+          parentLabel: parent,
+          to: child.to,
+          icon: child.icon,
+        })
+      }
+    }
+  }
+  return list
+})
+
 /** ================= 当前页匹配(页签标题 / 高亮) ================= */
 
 /**
@@ -604,7 +724,9 @@ function titleOfPath(path: string): string | null {
     return null
   }
   // 带 menuCode 的顶层项与目录子项同口径:标题跟着菜单节点走,后台改名页签同步
-  const nodeName = matched.menuCode ? findMenuNode(auth.currentMenus, matched.menuCode)?.menuName : null
+  const nodeName = matched.menuCode
+    ? findMenuNode(auth.currentMenus, matched.menuCode)?.menuName
+    : null
   return nodeName || matched.title
 }
 
@@ -899,11 +1021,12 @@ function prevRailGroupLabel(item: RailItem, idx: number) {
 const NAV_MODE_STORAGE_KEY = 'cornerstone-nav-mode'
 type NavMode = 'full' | 'rail'
 
+/** 默认走图标导航:横幅已经给出当前页与来路,宽栏那 232px 留给内容表 */
 function readStoredNavMode(): NavMode {
   if (typeof window === 'undefined') {
-    return 'full'
+    return 'rail'
   }
-  return window.localStorage.getItem(NAV_MODE_STORAGE_KEY) === 'rail' ? 'rail' : 'full'
+  return window.localStorage.getItem(NAV_MODE_STORAGE_KEY) === 'full' ? 'full' : 'rail'
 }
 
 const navMode = ref<NavMode>(readStoredNavMode())
@@ -1011,25 +1134,33 @@ function handleDocumentClick(event: MouseEvent) {
   if (historyMenu.value && !target?.closest('.app-history-menu, .app-tab-history')) {
     historyMenu.value = null
   }
-  const insideSidebar = !!target?.closest('.app-sidebar')
+  const insideNav = !!target?.closest('.app-nav')
   if (
     pinnedRailKey.value &&
     menuPreferences.value.railPopover === 'pin-outside' &&
-    !insideSidebar
+    !insideNav
   ) {
     pinnedRailKey.value = null
   }
-  if (menuPreferences.value.groupExpand === 'smart' && !insideSidebar && openGroups.value.size) {
+  if (menuPreferences.value.groupExpand === 'smart' && !insideNav && openGroups.value.size) {
     openGroups.value = new Set()
   }
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape') {
+  if (event.key === 'Escape') {
+    tabMenu.value = null
+    historyMenu.value = null
+    searchOpen.value = false
     return
   }
-  tabMenu.value = null
-  historyMenu.value = null
+  // Ctrl/⌘+K:窄栏的二级页藏在悬停浮层里,键盘直达是它的兜底入口
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    tabMenu.value = null
+    historyMenu.value = null
+    searchOpen.value = !searchOpen.value
+  }
 }
 
 onMounted(() => {

@@ -1116,12 +1116,12 @@ onMounted(async () => {
   margin-bottom: 16px;
   padding: 10px 12px;
   border-radius: var(--radius-block);
-  background: rgba(35, 76, 119, 0.06);
+  background: var(--tint-bg);
 }
 
 .copy-source-label {
   font-size: 13px;
-  color: #234c77;
+  color: var(--tint-ink);
   flex: none;
 }
 
@@ -1160,7 +1160,7 @@ onMounted(async () => {
   padding-bottom: 2px;
   font-size: 12px;
   line-height: 1.4;
-  color: #64748b;
+  color: var(--text-secondary);
   height: auto;
 }
 
@@ -1200,7 +1200,7 @@ onMounted(async () => {
 .editor-block-desc {
   font-size: 12px;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--text-faint);
 }
 
 /* 教程弹窗 */
@@ -1211,7 +1211,7 @@ onMounted(async () => {
 .guide-title {
   margin: 0 0 6px;
   font-size: 14px;
-  color: #234c77;
+  color: var(--tint-ink);
 }
 
 .guide-text {
@@ -1230,7 +1230,7 @@ onMounted(async () => {
 }
 
 .guide-list a {
-  color: #234c77;
+  color: var(--tint-ink);
 }
 
 .guide-table {
@@ -1249,13 +1249,13 @@ onMounted(async () => {
 }
 
 .guide-table th {
-  background: rgba(35, 76, 119, 0.06);
+  background: var(--tint-bg);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .guide-table code {
-  background: rgba(35, 76, 119, 0.08);
+  background: var(--tint-bg);
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 12px;

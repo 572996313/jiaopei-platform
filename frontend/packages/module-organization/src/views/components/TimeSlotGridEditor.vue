@@ -242,15 +242,15 @@ function clearCell(row: SectionRow, day: number) {
 
 /* 按节次类型着色,贴近校历课表观感 */
 .ts-grid tr.ts-type-morning_study td {
-  background: #d9f2f7;
+  background: var(--soft-info-bg);
 }
 
 .ts-grid tr.ts-type-teaching td {
-  background: #fdf3cf;
+  background: var(--soft-warn-bg);
 }
 
 .ts-grid tr.ts-type-self_study td {
-  background: #dfe2ef;
+  background: var(--line);
 }
 
 .ts-grid tr.ts-type-break td {

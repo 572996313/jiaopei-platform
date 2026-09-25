@@ -336,7 +336,7 @@ onMounted(async () => {
 <style scoped>
 .datebar-label {
   font-weight: 600;
-  color: #14213d;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
@@ -345,7 +345,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 18px;
   padding: 8px 0 12px;
-  color: #334155;
+  color: var(--text-strong);
   font-size: 13px;
 }
 
@@ -355,7 +355,7 @@ onMounted(async () => {
 }
 
 .class-cell-meta {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -373,7 +373,7 @@ onMounted(async () => {
 }
 
 .week-head-date {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 400;
 }
@@ -386,7 +386,7 @@ onMounted(async () => {
   border: none;
   background: transparent;
   font: inherit;
-  color: #334155;
+  color: var(--text-strong);
   cursor: pointer;
   text-align: center;
 }
@@ -397,24 +397,24 @@ onMounted(async () => {
 
 .week-cell-extra {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
   min-height: 16px;
 }
 
 .week-cell--done .week-cell-ratio {
-  color: #15803d;
+  color: var(--soft-success-ink);
 }
 
 .week-cell--extra .week-cell-ratio {
-  color: #b45309;
+  color: var(--soft-warn-ink);
 }
 
 .week-cell--missing .week-cell-ratio,
 .week-cell--missing .week-cell-extra {
-  color: #b91c1c;
+  color: var(--soft-danger-ink);
 }
 
 .week-cell-empty {
-  color: #cbd5e1;
+  color: var(--text-faint);
 }
 </style>

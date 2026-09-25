@@ -473,8 +473,8 @@ onMounted(async () => {
 .invitation-code {
   font-family: var(--el-font-family-mono, monospace);
   font-size: 13px;
-  color: #234c77;
-  background: rgba(35, 76, 119, 0.08);
+  color: var(--tint-ink);
+  background: var(--tint-bg);
   border-radius: 4px;
   padding: 1px 6px;
 }

@@ -477,7 +477,7 @@ async function handleCommit() {
 }
 
 .plan-context-text {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -487,7 +487,7 @@ async function handleCommit() {
 
 .plan-date-sep {
   margin: 0 8px;
-  color: #5c6b82;
+  color: var(--text-secondary);
 }
 
 .plan-preview {
@@ -496,7 +496,7 @@ async function handleCommit() {
 }
 
 .plan-ok-text {
-  color: #67c23a;
+  color: var(--el-color-success);
   font-size: 12px;
 }
 

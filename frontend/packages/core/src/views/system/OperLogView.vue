@@ -342,7 +342,7 @@ onMounted(() => {
   word-break: break-all;
   font-size: 12px;
   line-height: 1.6;
-  background: #f7f8fa;
+  background: var(--subtle-bg);
   padding: 8px;
   border-radius: 4px;
 }

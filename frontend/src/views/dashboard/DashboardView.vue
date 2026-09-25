@@ -721,26 +721,26 @@ watch(
   gap: 6px;
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid rgba(20, 33, 61, 0.08);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  color: #234c77;
-  background: rgba(248, 250, 252, 0.92);
+  color: var(--tint-ink);
+  background: var(--subtle-bg);
   text-align: left;
   cursor: pointer;
 }
 
 .mini-list-item strong {
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .mini-list-item span {
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .mini-list-item.is-warning {
   border-color: rgba(249, 199, 79, 0.46);
-  background: rgba(255, 248, 221, 0.9);
+  background: var(--soft-warn-bg);
 }
 
 .lesson-rhythm-item {
@@ -749,13 +749,13 @@ watch(
   gap: 16px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(248, 250, 252, 0.92);
+  background: var(--subtle-bg);
 }
 
 .lesson-rhythm-time {
   font-size: 18px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .lesson-rhythm-main {
@@ -769,12 +769,12 @@ watch(
   flex-wrap: wrap;
   gap: 8px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .lesson-rhythm-text,
 .lesson-rhythm-progress {
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -782,7 +782,7 @@ watch(
   align-self: center;
   justify-self: end;
   font-weight: 700;
-  color: #234c77;
+  color: var(--tint-ink);
 }
 
 @media (max-width: 900px) {

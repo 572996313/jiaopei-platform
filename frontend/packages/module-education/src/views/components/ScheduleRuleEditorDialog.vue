@@ -284,12 +284,12 @@ async function handleSave() {
 
 .rule-context-text {
   margin-left: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .rule-date-sep {
   margin: 0 8px;
-  color: #5c6b82;
+  color: var(--text-secondary);
 }
 </style>

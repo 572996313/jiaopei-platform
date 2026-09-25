@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed } from 'vue'
 import { currentBrand } from '@cornerstone/core/extension/module-extensions'
+import { useTheme } from '@cornerstone/core/composables/use-theme'
 
 /**
  * 认证页共用的外壳：流动底色 + 品牌区（含周历网格主视觉）+ 右侧表单卡插槽。
@@ -32,42 +33,11 @@ const motifCells = FILLED_ROWS.flatMap((row, r) =>
 )
 
 /**
- * 外观模式：明亮 / 夜晚 / 跟随系统，只作用于认证页外壳，业务页仍是浅色。
- * 没选过的人默认明亮——夜晚是这一版新加的一档，不该让没表过态的人一进登录页就被压深。
+ * 外观档:明亮 / 夜晚 / 跟随系统。状态来自全站共享的 useTheme,
+ * 登录页切档会带进后台、后台切档也影响下次登录页,不再各存各的。
+ * 认证页有自己一套 --login-* 令牌,靠根上的 is-light 覆盖,与 html.dark 并行。
  */
-type ThemeMode = 'light' | 'dark' | 'system'
-
-const THEME_STORAGE_KEY = 'cornerstone-login-theme'
-const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
-  { mode: 'light', label: '明亮' },
-  { mode: 'dark', label: '夜晚' },
-  { mode: 'system', label: '跟随系统' },
-]
-
-function readStoredMode(): ThemeMode {
-  const stored = localStorage.getItem(THEME_STORAGE_KEY)
-  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'light'
-}
-
-// 建立时同步读一次系统偏好，等 onMounted 再读会让「跟随系统」在首帧闪一下亮色
-const darkMedia = window.matchMedia('(prefers-color-scheme: dark)')
-const themeMode = ref<ThemeMode>(readStoredMode())
-const systemDark = ref(darkMedia.matches)
-const isLight = computed(
-  () => themeMode.value !== 'dark' && (themeMode.value !== 'system' || !systemDark.value),
-)
-
-function syncSystemDark(event: MediaQueryListEvent) {
-  systemDark.value = event.matches
-}
-
-darkMedia.addEventListener('change', syncSystemDark)
-onBeforeUnmount(() => darkMedia.removeEventListener('change', syncSystemDark))
-
-function setTheme(mode: ThemeMode) {
-  themeMode.value = mode
-  localStorage.setItem(THEME_STORAGE_KEY, mode)
-}
+const { themeMode, isLight, setTheme, THEME_OPTIONS } = useTheme()
 </script>
 
 <template>

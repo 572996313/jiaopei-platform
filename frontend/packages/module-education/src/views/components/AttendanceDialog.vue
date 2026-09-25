@@ -313,8 +313,8 @@ async function saveAndComplete() {
   margin-bottom: 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: rgba(248, 250, 252, 0.92);
-  color: #234c77;
+  background: var(--subtle-bg);
+  color: var(--tint-ink);
 }
 
 .attendance-dialog-alert {
@@ -353,7 +353,7 @@ async function saveAndComplete() {
 }
 
 .attendance-empty-text {
-  color: #94a3b8;
+  color: var(--text-faint);
 }
 
 @media (max-width: 900px) {

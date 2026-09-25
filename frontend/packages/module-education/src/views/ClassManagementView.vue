@@ -2141,15 +2141,15 @@ onUnmounted(() => {
   gap: 6px;
   padding: 14px 16px;
   border-radius: 10px;
-  color: #234c77;
-  background: rgba(35, 76, 119, 0.08);
+  color: var(--tint-ink);
+  background: var(--tint-bg);
 }
 
 .class-profile-item strong {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5c6b82;
+  color: var(--text-secondary);
 }
 
 .class-profile-item span {
@@ -2159,7 +2159,7 @@ onUnmounted(() => {
 .class-inline-meta {
   display: grid;
   gap: 4px;
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -2176,7 +2176,7 @@ onUnmounted(() => {
 .notice-section + .notice-section {
   margin-top: 18px;
   padding-top: 18px;
-  border-top: 1px solid rgba(20, 33, 61, 0.08);
+  border-top: 1px solid var(--border);
 }
 
 .notice-section-head {
@@ -2185,11 +2185,11 @@ onUnmounted(() => {
 }
 
 .notice-section-head strong {
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .notice-section-head span {
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -2198,21 +2198,21 @@ onUnmounted(() => {
   gap: 6px;
   padding: 12px 14px;
   border-radius: 10px;
-  color: #8f5f00;
+  color: var(--soft-warn-ink);
   background: rgba(249, 199, 79, 0.18);
 }
 
 .reminder-item strong {
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .reminder-item.is-notice {
-  color: #245c45;
-  background: rgba(45, 156, 108, 0.14);
+  color: var(--soft-success-ink);
+  background: var(--soft-success-bg);
 }
 
 .reminder-meta {
-  color: #3a4b61;
+  color: var(--text-strong);
   font-size: 13px;
 }
 

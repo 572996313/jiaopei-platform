@@ -299,7 +299,7 @@ defineExpose({ reload })
 }
 
 .plan-list-hint {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 </style>

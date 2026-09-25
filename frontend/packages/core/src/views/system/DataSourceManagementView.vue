@@ -473,8 +473,8 @@ onMounted(async () => {
 .source-endpoint {
   font-family: var(--el-font-family-mono, monospace);
   font-size: 12px;
-  color: #234c77;
-  background: rgba(35, 76, 119, 0.08);
+  color: var(--tint-ink);
+  background: var(--tint-bg);
   border-radius: 4px;
   padding: 1px 6px;
 }
@@ -491,7 +491,7 @@ onMounted(async () => {
 .guide-title {
   margin: 0 0 6px;
   font-size: 14px;
-  color: #234c77;
+  color: var(--tint-ink);
 }
 
 .guide-text {
@@ -502,7 +502,7 @@ onMounted(async () => {
 }
 
 .guide-text code {
-  background: rgba(35, 76, 119, 0.08);
+  background: var(--tint-bg);
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 12px;

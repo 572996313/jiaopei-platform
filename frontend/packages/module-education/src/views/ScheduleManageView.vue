@@ -779,12 +779,12 @@ onMounted(() => {
 
 .datebar-label {
   font-weight: 600;
-  color: #14213d;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .datebar-hint {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
 }

@@ -1407,9 +1407,9 @@ onMounted(() => {
   display: grid;
   gap: 14px;
   padding: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(248, 250, 252, 0.92);
+  background: var(--subtle-bg);
 }
 
 .daily-center-block.is-wide {
@@ -1431,7 +1431,7 @@ onMounted(() => {
 .daily-center-title {
   font-size: 18px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .daily-center-inline-tip {
@@ -1441,7 +1441,7 @@ onMounted(() => {
   gap: 12px;
   padding: 12px 14px;
   border-radius: 10px;
-  color: #8f5f00;
+  color: var(--soft-warn-ink);
   background: rgba(249, 199, 79, 0.16);
 }
 
@@ -1465,8 +1465,8 @@ onMounted(() => {
   gap: 16px;
   padding: 14px 16px;
   border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
 }
 
 .daily-lesson-item-main,
@@ -1481,12 +1481,12 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .daily-lesson-item-text,
 .daily-mini-item span {
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -1494,18 +1494,18 @@ onMounted(() => {
   align-self: center;
   white-space: nowrap;
   font-weight: 700;
-  color: #234c77;
+  color: var(--tint-ink);
 }
 
 .daily-mini-item {
   padding: 12px 14px;
   border-radius: 10px;
-  color: #234c77;
-  background: #ffffff;
+  color: var(--tint-ink);
+  background: var(--card-bg);
 }
 
 .daily-mini-item strong {
-  color: #14213d;
+  color: var(--text-primary);
 }
 
 .daily-mini-item-actions {
@@ -1534,12 +1534,12 @@ onMounted(() => {
 
 .datebar-label {
   font-weight: 600;
-  color: #14213d;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .datebar-hint {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
 }

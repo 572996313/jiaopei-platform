@@ -539,13 +539,13 @@ function emitCellClick(date: string, row: GridRow) {
 }
 
 .week-grid-focus-hint {
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 12px;
 }
 
 .week-grid-tip {
   margin-left: auto;
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 12px;
 }
 
@@ -561,9 +561,9 @@ function emitCellClick(date: string, row: GridRow) {
 
 .week-grid-cell {
   min-height: 68px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 12px;
 }
 
@@ -582,8 +582,8 @@ function emitCellClick(date: string, row: GridRow) {
   align-items: center;
   justify-content: center;
   padding: 6px 8px;
-  background: rgba(248, 250, 252, 0.95);
-  color: #334155;
+  background: var(--subtle-bg);
+  color: var(--text-strong);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -600,15 +600,15 @@ function emitCellClick(date: string, row: GridRow) {
   justify-content: center;
   gap: 6px;
   padding: 8px;
-  background: rgba(248, 250, 252, 0.95);
-  color: #0f172a;
+  background: var(--subtle-bg);
+  color: var(--text-primary);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .week-grid-cell.is-day-head.is-today {
-  border-color: rgba(64, 158, 255, 0.55);
-  background: rgba(236, 245, 255, 0.95);
+  border-color: var(--hover-line);
+  background: var(--hover-bg);
 }
 
 .week-grid-cell.is-slot-cell {
@@ -623,23 +623,23 @@ function emitCellClick(date: string, row: GridRow) {
 }
 
 .week-grid-cell.is-slot-cell:hover {
-  border-color: rgba(64, 158, 255, 0.45);
-  background: rgba(236, 245, 255, 0.5);
+  border-color: var(--hover-line);
+  background: var(--tint-bg);
 }
 
 .week-grid-cell.is-slot-cell.is-dimmed {
-  background: rgba(248, 250, 252, 0.6);
+  background: var(--subtle-bg);
 }
 
 .week-grid-date {
   text-align: right;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
 }
 
 .week-grid-date.is-dimmed {
-  color: #cbd5e1;
+  color: var(--text-faint);
 }
 
 .week-grid-empty {
@@ -647,7 +647,7 @@ function emitCellClick(date: string, row: GridRow) {
   align-items: center;
   justify-content: center;
   min-height: 52px;
-  color: #cbd5e1;
+  color: var(--text-faint);
   font-size: 16px;
 }
 
@@ -674,11 +674,11 @@ function emitCellClick(date: string, row: GridRow) {
   gap: 2px;
   width: 100%;
   padding: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-left: 3px solid #409eff;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 8px;
-  background: #fff;
-  color: #334155;
+  background: var(--card-bg);
+  color: var(--text-strong);
   cursor: pointer;
   font-size: 12px;
   text-align: left;
@@ -686,24 +686,24 @@ function emitCellClick(date: string, row: GridRow) {
 
 /* 左边框色跟随课次状态：已排课蓝 / 已结课绿 / 已调课灰 / 已停课黄 / 已补课红 */
 .week-grid-card.is-scheduled {
-  border-left-color: #409eff;
+  border-left-color: var(--accent);
 }
 
 .week-grid-card.is-completed {
-  border-left-color: #67c23a;
+  border-left-color: var(--el-color-success);
 }
 
 .week-grid-card.is-rescheduled {
-  border-left-color: #909399;
+  border-left-color: var(--el-color-info);
 }
 
 .week-grid-card.is-cancelled {
-  border-left-color: #f0a300;
+  border-left-color: var(--el-color-warning);
   background: rgba(250, 219, 20, 0.08);
 }
 
 .week-grid-card.is-makeup {
-  border-left-color: #f56c6c;
+  border-left-color: var(--el-color-danger);
 }
 
 .week-grid-card.is-compact {
@@ -717,13 +717,13 @@ function emitCellClick(date: string, row: GridRow) {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  color: #14213d;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .week-grid-card-time {
   flex-shrink: 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -734,15 +734,15 @@ function emitCellClick(date: string, row: GridRow) {
 }
 
 .week-grid-card-meta {
-  color: #5c6b82;
+  color: var(--text-secondary);
 }
 
 .week-grid-card-conflict {
   flex-shrink: 0;
   padding: 0 5px;
   border-radius: 6px;
-  background: rgba(245, 108, 108, 0.15);
-  color: #c45656;
+  background: var(--soft-danger-bg);
+  color: var(--soft-danger-ink);
   font-size: 11px;
   font-weight: 600;
 }
@@ -757,7 +757,7 @@ function emitCellClick(date: string, row: GridRow) {
 
 .week-grid-pop-line {
   margin-bottom: 4px;
-  color: #5c6b82;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -765,8 +765,8 @@ function emitCellClick(date: string, row: GridRow) {
   margin: 6px 0;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(245, 108, 108, 0.1);
-  color: #c45656;
+  background: var(--soft-danger-bg);
+  color: var(--soft-danger-ink);
   font-size: 12px;
 }
 
