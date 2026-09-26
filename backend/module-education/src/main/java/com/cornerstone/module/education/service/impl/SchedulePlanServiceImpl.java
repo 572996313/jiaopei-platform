@@ -133,7 +133,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         ResolvedPlan resolved = resolve(request);
         List<SchedulePlanExpander.Occurrence> occurrences = expand(resolved, request);
         ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
-            request.institutionId(), request.classId(), resolved.teacherIds());
+            request.institutionId(), List.of(request.classId()), resolved.teacherIds());
         Occupancy occupancy = loadOccupancy(request.classId(), request.classroomId(), resolved.teacherIds(),
             request.startDate(), request.endDate(), null);
 
@@ -195,7 +195,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         Long planId = savePlan(request.planId(), planRequest, resolved);
         Set<String> existingKeys = loadPlanLessonKeys(planId);
         ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
-            planRequest.institutionId(), planRequest.classId(), resolved.teacherIds());
+            planRequest.institutionId(), List.of(planRequest.classId()), resolved.teacherIds());
         Occupancy occupancy = loadOccupancy(planRequest.classId(), planRequest.classroomId(), resolved.teacherIds(),
             planRequest.startDate(), planRequest.endDate(), planId);
 

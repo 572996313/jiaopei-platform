@@ -373,6 +373,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     private ScheduleConflictCheckResponse detectConflicts(ScheduleLessonRequest request, Long excludeLessonId) {
+        boolean checkRules = ruleRelevantFieldsChanged(excludeLessonId, request);
         List<String> types = new ArrayList<>();
         List<String> messages = new ArrayList<>();
         Long classCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId, request.institutionId())
@@ -404,14 +405,40 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             }
         }
         // 禁排规则与占用同层判定：撞上了既不让单独排课，也不让在冲突检查里被忽略
-        List<String> ruleMessages = ruleSupport.loadRuleSet(request.institutionId(), request.classId(),
-                List.copyOf(distinctTeacherIds(request.teacherIds())))
-            .forbiddenMessages(request.lessonDate(), request.lessonDate().getDayOfWeek().getValue(), request.timeSlotId());
-        if (!ruleMessages.isEmpty()) {
-            types.add("rule");
-            messages.addAll(ruleMessages);
+        // 例外：改一节课时班级/日期/时段/教师都没动，就不拿规则回头拦它——课次可以早于规则建立，
+        // 那种冲突是历史事实，操作员要能改个备注、换个教室把它挪出窗口，而不是整节保存不了
+        if (checkRules) {
+            List<String> ruleMessages = ruleSupport.loadRuleSet(request.institutionId(),
+                    List.of(request.classId()), List.copyOf(distinctTeacherIds(request.teacherIds())))
+                .forbiddenMessages(request.lessonDate(), request.lessonDate().getDayOfWeek().getValue(),
+                    request.timeSlotId());
+            if (!ruleMessages.isEmpty()) {
+                types.add("rule");
+                messages.addAll(ruleMessages);
+            }
         }
         return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
+    }
+
+    /** 编辑现有课次时，禁排判定涉及的四个字段是否被改动过；未改动或课次不存在时按"要判规则"处理。 */
+    private boolean ruleRelevantFieldsChanged(Long excludeLessonId, ScheduleLessonRequest request) {
+        if (excludeLessonId == null) {
+            return true;
+        }
+        ScheduleLessonEntity existing = lessonMapper.selectById(excludeLessonId);
+        if (existing == null || !Objects.equals(existing.getInstitutionId(), request.institutionId())) {
+            return true;
+        }
+        boolean sameSlot = Objects.equals(existing.getClassId(), request.classId())
+            && Objects.equals(existing.getLessonDate(), request.lessonDate())
+            && Objects.equals(existing.getTimeSlotId(), request.timeSlotId());
+        if (!sameSlot) {
+            return true;
+        }
+        // 教师比的是集合：关系表按插入顺序返回，弹窗里的顺序变化不该被当成"换了人"
+        Set<Long> storedTeachers = new HashSet<>(loadTeacherIds(List.of(existing))
+            .getOrDefault(excludeLessonId, List.of()));
+        return !storedTeachers.equals(distinctTeacherIds(request.teacherIds()));
     }
 
     private LambdaQueryWrapper<ScheduleLessonEntity> conflictWrapper(Long excludeLessonId, Long institutionId) {
@@ -468,18 +495,65 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             ? Set.of()
             : new HashSet<>(linkedLessonIds);
 
+        // 教师与禁排规则都按批取一次：整周课表逐条查库是 N+1，而规则要落到课次自己的班级与教师身上才算得准
+        Map<Long, List<Long>> teacherIdsByLesson = loadTeacherIds(entities);
+        Map<Long, List<String>> ruleMessagesByLesson = loadRuleConflicts(entities, teacherIdsByLesson);
+
         return entities.stream()
-            .map(entity -> toView(entity, linkedCancelledLessonIds))
+            .map(entity -> toView(entity, linkedCancelledLessonIds,
+                teacherIdsByLesson.getOrDefault(entity.getId(), List.of()),
+                ruleMessagesByLesson.getOrDefault(entity.getId(), List.of())))
             .filter(view -> !Boolean.TRUE.equals(pendingMakeupOnly) || Boolean.TRUE.equals(view.pendingMakeup()))
             .toList();
     }
 
-    private ScheduleLessonView toView(ScheduleLessonEntity entity, Set<Long> linkedCancelledLessonIds) {
-        List<Long> teacherIds = teacherRelMapper.selectList(new LambdaQueryWrapper<ScheduleTeacherRelEntity>()
-                .eq(ScheduleTeacherRelEntity::getLessonId, entity.getId()))
-            .stream()
-            .map(ScheduleTeacherRelEntity::getTeacherId)
+    /** 一次取回这批课次的授课教师，键为课次ID */
+    private Map<Long, List<Long>> loadTeacherIds(List<ScheduleLessonEntity> entities) {
+        List<Long> lessonIds = entities.stream()
+            .map(ScheduleLessonEntity::getId)
+            .filter(Objects::nonNull)
             .toList();
+        if (lessonIds.isEmpty()) {
+            return Map.of();
+        }
+        return teacherRelMapper.selectList(new LambdaQueryWrapper<ScheduleTeacherRelEntity>()
+                .in(ScheduleTeacherRelEntity::getLessonId, lessonIds))
+            .stream()
+            .collect(java.util.stream.Collectors.groupingBy(ScheduleTeacherRelEntity::getLessonId,
+                java.util.stream.Collectors.mapping(ScheduleTeacherRelEntity::getTeacherId,
+                    java.util.stream.Collectors.toList())));
+    }
+
+    /**
+     * 标出踩在禁排格子上的课次：禁排规则可以晚于课次建立，"规则不回改已生成课次"之后这些课次就成了隐形冲突，
+     * 只有读侧带上说明，操作员才看得见为什么这一节保存不了。
+     */
+    private Map<Long, List<String>> loadRuleConflicts(List<ScheduleLessonEntity> entities,
+                                                      Map<Long, List<Long>> teacherIdsByLesson) {
+        if (entities.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> teacherIds = teacherIdsByLesson.values().stream().flatMap(List::stream).distinct().toList();
+        ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
+            entities.getFirst().getInstitutionId(),
+            entities.stream().map(ScheduleLessonEntity::getClassId).filter(Objects::nonNull).distinct().toList(),
+            teacherIds);
+        if (ruleSet.rules().isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<String>> messages = new java.util.LinkedHashMap<>();
+        for (ScheduleLessonEntity entity : entities) {
+            List<String> hits = ruleSet.scopedTo(entity.getClassId(), teacherIdsByLesson.get(entity.getId()))
+                .forbiddenMessages(entity.getLessonDate(), entity.getLessonWeekday(), entity.getTimeSlotId());
+            if (!hits.isEmpty()) {
+                messages.put(entity.getId(), hits);
+            }
+        }
+        return messages;
+    }
+
+    private ScheduleLessonView toView(ScheduleLessonEntity entity, Set<Long> linkedCancelledLessonIds,
+                                      List<Long> teacherIds, List<String> ruleConflictMessages) {
         boolean pendingMakeup = CANCELLED.equalsIgnoreCase(entity.getLessonStatus())
             && !linkedCancelledLessonIds.contains(entity.getId());
         return new ScheduleLessonView(
@@ -501,7 +575,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             entity.getRelatedLessonId(),
             pendingMakeup,
             teacherIds,
-            entity.getRemark()
+            entity.getRemark(),
+            ruleConflictMessages
         );
     }
 

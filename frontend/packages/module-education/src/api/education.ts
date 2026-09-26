@@ -224,6 +224,8 @@ export interface ScheduleLessonRecord {
   pendingMakeup?: boolean | null
   teacherIds?: Array<string | number> | null
   remark?: string | null
+  /** 命中的禁排规则说明；课次早于规则建立时也在这里显形 */
+  ruleConflictMessages?: string[] | null
 }
 
 export interface ScheduleLessonPayload {

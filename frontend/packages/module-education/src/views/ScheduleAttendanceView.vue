@@ -1236,6 +1236,7 @@ function handleWeekCellClick(payload: {
   classroomId?: string | null
 }) {
   // 排课是计划动作，跳转排课管理页并预填空格上下文
+  // 校区/学期一起带上：直达页刷新后共享范围是空的，只靠对方内存范围会重新撞上「缺少校区信息」
   router.push({
     path: '/scheduling',
     query: {
@@ -1244,6 +1245,8 @@ function handleWeekCellClick(payload: {
       timeSlotId: payload.timeSlotId || undefined,
       classroomId: payload.classroomId || undefined,
       classId: classId.value || undefined,
+      campusId: campusId.value || undefined,
+      termId: termId.value || undefined,
     },
   })
 }

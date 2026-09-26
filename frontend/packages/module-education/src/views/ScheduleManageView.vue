@@ -739,6 +739,11 @@ async function applyRouteQuery() {
       ...(queryClassId ? { classId: queryClassId } : {}),
     }
     dialogVisible.value = true
+    // create=1 是一次性动作标记：留在地址里会让页签「刷新页面」把弹窗重新弹出来，消费掉即抹掉
+    void router.replace({
+      path: route.path,
+      query: { ...route.query, create: undefined },
+    })
     return
   }
   if (typeof query.editId === 'string' && query.editId) {

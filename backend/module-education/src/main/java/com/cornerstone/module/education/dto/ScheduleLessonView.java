@@ -44,6 +44,8 @@ public record ScheduleLessonView(
     @Schema(description = "授课教师ID列表")
     List<Long> teacherIds,
     @Schema(description = "备注")
-    String remark
+    String remark,
+    @Schema(description = "命中的禁排规则说明；课次早于规则建立时也会在这里显形，为空表示无冲突")
+    List<String> ruleConflictMessages
 ) {
 }

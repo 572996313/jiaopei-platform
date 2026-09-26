@@ -397,6 +397,13 @@ const conflictReasons = computed(() => {
     map.set(lesson.id, list)
   }
 
+  // 禁排冲突只有服务端判得准（规则可以晚于课次建立，且按课次自己的班级与教师归属收窄），这里只转述
+  for (const lesson of visibleLessons.value) {
+    for (const message of lesson.ruleConflictMessages || []) {
+      push(lesson, message)
+    }
+  }
+
   const byDate = new Map<string, ScheduleLessonRecord[]>()
   for (const lesson of visibleLessons.value) {
     if (!lesson.lessonDate || !lesson.startTime) {

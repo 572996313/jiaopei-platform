@@ -278,7 +278,8 @@ class EducationFourthMainlineApiCompatibilityWebTest {
             680L,
             false,
             List.of(400L),
-            "周末补课"
+            "周末补课",
+            List.of("教师「李老师」 周一·上1 为禁排时段")
         );
         given(scheduleLessonService.createLesson(any())).willReturn(lessonView);
         given(scheduleLessonService.updateLesson(any(), any())).willReturn(new ScheduleLessonView(
@@ -300,7 +301,8 @@ class EducationFourthMainlineApiCompatibilityWebTest {
             null,
             false,
             List.of(400L),
-            "调到周末"
+            "调到周末",
+            List.of()
         ));
         given(scheduleLessonService.checkConflicts(any())).willReturn(
             new ScheduleConflictCheckResponse(false, List.of(), List.of())
@@ -399,7 +401,8 @@ class EducationFourthMainlineApiCompatibilityWebTest {
                 null,
                 true,
                 List.of(400L),
-                "待安排补课"
+                "待安排补课",
+                List.of()
             )
         ));
 

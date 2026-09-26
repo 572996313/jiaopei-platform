@@ -175,6 +175,85 @@ class ScheduleLessonServiceImplTest {
         return rule;
     }
 
+    private ScheduleLessonEntity scheduledLesson(Long id, LocalDate lessonDate) {
+        ScheduleLessonEntity lesson = new ScheduleLessonEntity();
+        lesson.setId(id);
+        lesson.setInstitutionId(1L);
+        lesson.setCampusId(2L);
+        lesson.setTermId(3L);
+        lesson.setClassId(100L);
+        lesson.setClassroomId(200L);
+        lesson.setTimeSlotId(500L);
+        lesson.setLessonDate(lessonDate);
+        lesson.setLessonWeekday(lessonDate.getDayOfWeek().getValue());
+        lesson.setStartTime(LocalTime.of(9, 0));
+        lesson.setEndTime(LocalTime.of(10, 0));
+        lesson.setLessonTitle("已排课");
+        lesson.setLessonStatus("scheduled");
+        return lesson;
+    }
+
+    private ScheduleTeacherRelEntity teacherRel(Long lessonId, Long teacherId) {
+        ScheduleTeacherRelEntity relation = new ScheduleTeacherRelEntity();
+        relation.setLessonId(lessonId);
+        relation.setTeacherId(teacherId);
+        return relation;
+    }
+
+    @Test
+    void lessonViewsCarryForbiddenRuleMessages() {
+        // 规则可以晚于课次建立，"不回改已生成课次"之后这一节就永久落在禁排窗口里。
+        // 读侧必须把它标出来，否则课表上毫无痕迹，操作员只在保存被拒的那一刻才知道有问题。
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(scheduledLesson(910L, LocalDate.of(2026, 6, 15))));
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(forbiddenRule("后立的规则")));
+
+        var lessons = service.listLessons(1L, 2L, 100L, LocalDate.of(2026, 6, 15), false);
+
+        assertEquals(1, lessons.size());
+        assertTrue(lessons.getFirst().ruleConflictMessages().stream().anyMatch(item -> item.contains("禁排")),
+            String.valueOf(lessons.getFirst().ruleConflictMessages()));
+    }
+
+    @Test
+    void updateLessonKeepsLessonWhenRuleRelevantFieldsUnchanged() {
+        stubValidMaterial();
+        when(lessonMapper.selectById(900L)).thenReturn(scheduledLesson(900L, LocalDate.of(2026, 6, 15)));
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), eq(LocalDate.of(2026, 6, 15)), eq(500L), eq(900L)))
+            .thenReturn(0L);
+        // 班级/日期/时段/教师四个字段原样不动，本次只改标题与备注：这种保存不该被历史禁排规则拦下
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(teacherRel(900L, 400L)));
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(forbiddenRule("后立的规则")));
+
+        service.updateLesson(900L, new ScheduleLessonRequest(1L, 2L, 3L, 100L, 200L, 500L,
+            LocalDate.of(2026, 6, 15), "改个标题", "scheduled", null, null, List.of(400L), "临时调课备注"));
+
+        verify(lessonMapper).updateById(any(ScheduleLessonEntity.class));
+    }
+
+    @Test
+    void updateLessonRejectsForbiddenRuleWhenDateMoved() {
+        stubValidMaterial();
+        when(lessonMapper.selectById(900L)).thenReturn(scheduledLesson(900L, LocalDate.of(2026, 6, 15)));
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), eq(LocalDate.of(2026, 6, 22)), eq(500L), eq(900L)))
+            .thenReturn(0L);
+        when(teacherRelMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(teacherRel(900L, 400L)));
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(forbiddenRule("后立的规则")));
+
+        // 换个日期就是把这节课重新排进窗口，规则要重新判——"未改动才放行"不是整体绕过
+        BusinessException error = assertThrows(BusinessException.class, () -> service.updateLesson(
+            900L, new ScheduleLessonRequest(1L, 2L, 3L, 100L, 200L, 500L, LocalDate.of(2026, 6, 22),
+                "挪到下周", "scheduled", null, null, List.of(400L), null)));
+
+        assertTrue(error.getMessage().contains("禁排"), error.getMessage());
+        verify(lessonMapper, never()).updateById(any(ScheduleLessonEntity.class));
+    }
+
     @Test
     void createCancelledLessonSkipsConflictChecks() {
         stubValidMaterial();

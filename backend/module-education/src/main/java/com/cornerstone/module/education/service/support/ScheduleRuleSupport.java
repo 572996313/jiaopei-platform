@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,16 +63,20 @@ public class ScheduleRuleSupport {
 
     /**
      * 一次取齐班级及其教师身上启用中的规则，供整批课次在内存里反复比对（批量展开逐条查库是 N+1）。
+     * 班级可以是一批（整张课表跨多个班），比对到具体课次时再用 {@link RuleSet#scopedTo} 收窄归属。
      */
-    public RuleSet loadRuleSet(Long institutionId, Long classId, List<Long> teacherIds) {
-        List<ScheduleRuleEntity> entities = new ArrayList<>(ruleMapper.selectList(activeScope(institutionId)
-            .eq(ScheduleRuleEntity::getTargetType, TARGET_CLASS)
-            .eq(ScheduleRuleEntity::getTargetId, classId)));
-        List<Long> ids = teacherIds == null ? List.of() : teacherIds.stream().filter(Objects::nonNull).distinct().toList();
-        if (!ids.isEmpty()) {
+    public RuleSet loadRuleSet(Long institutionId, Collection<Long> classIds, List<Long> teacherIds) {
+        List<Long> ids = classIds == null ? List.of() : classIds.stream().filter(Objects::nonNull).distinct().toList();
+        List<ScheduleRuleEntity> entities = ids.isEmpty()
+            ? new ArrayList<>()
+            : new ArrayList<>(ruleMapper.selectList(activeScope(institutionId)
+                .eq(ScheduleRuleEntity::getTargetType, TARGET_CLASS)
+                .in(ScheduleRuleEntity::getTargetId, ids)));
+        List<Long> teacherIdList = teacherIds == null ? List.of() : teacherIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (!teacherIdList.isEmpty()) {
             entities.addAll(ruleMapper.selectList(activeScope(institutionId)
                 .eq(ScheduleRuleEntity::getTargetType, TARGET_TEACHER)
-                .in(ScheduleRuleEntity::getTargetId, ids)));
+                .in(ScheduleRuleEntity::getTargetId, teacherIdList)));
         }
         List<Rule> rules = entities.stream()
             .map(entity -> new Rule(entity.getRuleType(), entity.getTargetType(), entity.getTargetId(),
@@ -170,6 +175,22 @@ public class ScheduleRuleSupport {
      * 规则集合与其涉及到的时段名称。空集合时各方法直接返回空说明，调用方无需判空。
      */
     public record RuleSet(List<Rule> rules, Map<Long, String> slotNames, Map<String, String> targetNames) {
+
+        /**
+         * 收窄到"管得着这一节课"的规则：班级规则要匹配本课次的班级，教师规则要命中本课次的某一位授课教师。
+         * 整张课表一次取规则落到具体课次时才分得清是谁被禁排，不然会把同事的禁排算到这节课头上。
+         */
+        public RuleSet scopedTo(Long classId, Collection<Long> teacherIds) {
+            List<Long> ids = teacherIds == null
+                ? List.of()
+                : teacherIds.stream().filter(Objects::nonNull).distinct().toList();
+            List<Rule> scoped = rules.stream()
+                .filter(rule -> TARGET_CLASS.equals(rule.targetType())
+                    ? Objects.equals(rule.targetId(), classId)
+                    : ids.contains(rule.targetId()))
+                .toList();
+            return scoped.size() == rules.size() ? this : new RuleSet(scoped, slotNames, targetNames);
+        }
 
         /** 该课次是否踩在禁排格子上，返回给操作员看的中文说明。 */
         public List<String> forbiddenMessages(LocalDate lessonDate, Integer weekday, Long timeSlotId) {
