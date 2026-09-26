@@ -218,6 +218,13 @@ body {
 
 /* 导航栏:浅色玻璃列,深色只留给横幅那一条 */
 .app-nav {
+  /*
+   * backdrop-filter 让本列自成层叠上下文,.rail-popover 的 z-index 只在这列内部生效。
+   * 不给本列一个高于内容区的档位,浮层伸到内容区上方时会被后面的页签(.app-tab 是
+   * position: relative)按 DOM 顺序压在下面。30 高于内容区所有元素、低于横幅(40)。
+   */
+  position: relative;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
