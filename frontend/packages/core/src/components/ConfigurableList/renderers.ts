@@ -113,7 +113,8 @@ function renderTagList(items: Array<{ key: string; label: string; tooltip?: stri
   return h('div', { class: 'system-chip-list' }, tags)
 }
 
-function formatDateTime(value: unknown): string {
+/** 时间值统一渲染成 yyyy-MM-dd HH:mm:ss;解析失败原样返回(供 datetime 列与业务页共用) */
+export function formatDateTime(value: unknown): string {
   if (value === null || value === undefined || value === '') {
     return '-'
   }

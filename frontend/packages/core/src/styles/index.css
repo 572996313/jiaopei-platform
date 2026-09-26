@@ -2184,6 +2184,26 @@ body {
 
 .el-dialog {
   border-radius: var(--radius-card);
+  /*
+   * 弹窗整体压回视口内:默认顶部 15vh 外边距 + 按内容自然长高,
+   * 高个表单(如角色预设权限、菜单分配树)的底部按钮会落到屏幕外。
+   * 改为限高 + 体部内滚,头部与底部按钮始终可见。
+   */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  margin: 24px auto;
+}
+
+.el-dialog .el-dialog__header,
+.el-dialog .el-dialog__footer {
+  flex-shrink: 0;
+}
+
+.el-dialog .el-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 状态标签降噪:常规状态(success/info)改为「圆点+文字」,异常(warning/danger)保留软色块 */

@@ -87,7 +87,9 @@
             </template>
           </el-table-column>
           <el-table-column prop="expiresAt" label="有效期至" width="170" sortable="custom">
-            <template #default="{ row }">{{ row.expiresAt || '长期' }}</template>
+            <template #default="{ row }">{{
+              row.expiresAt ? formatDateTime(row.expiresAt) : '长期'
+            }}</template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="110" sortable="custom">
             <template #default="{ row }">
@@ -178,7 +180,7 @@
             <el-input-number
               v-model="inviteForm.maxUses"
               :min="1"
-              placeholder="1"
+              placeholder="不限"
               style="width: 100%"
             />
           </el-form-item>
@@ -186,7 +188,7 @@
             <el-input-number
               v-model="inviteForm.validDays"
               :min="1"
-              placeholder="7"
+              placeholder="长期"
               style="width: 100%"
             />
           </el-form-item>
@@ -247,6 +249,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
+import { formatDateTime } from '@cornerstone/core/components/ConfigurableList/renderers'
 import {
   createActivationCode,
   createInvite,
@@ -389,8 +392,10 @@ function openInviteDialog() {
   inviteDialogModeGuard()
   inviteForm.institutionId = institutions.value.length === 1 ? institutions.value[0].id : ''
   inviteForm.roleCode = ''
-  inviteForm.maxUses = undefined
-  inviteForm.validDays = undefined
+  // 默认给"1 次/7 天"并真正进表单:之前只写 placeholder,提交的是空值,
+  // 后端按"不限/长期"落库,与界面展示的 1/7 相反。要不限/长期就清空对应输入框。
+  inviteForm.maxUses = 1
+  inviteForm.validDays = 7
   inviteForm.remark = ''
   inviteFormError.value = ''
   inviteDialogVisible.value = true
