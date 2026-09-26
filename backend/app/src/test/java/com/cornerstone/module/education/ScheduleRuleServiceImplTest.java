@@ -110,7 +110,8 @@ class ScheduleRuleServiceImplTest {
         BusinessException error = assertThrows(BusinessException.class,
             () -> service.createRule(request("forbidden", List.of(MONDAY_SLOT))));
 
-        assertTrue(error.getMessage().contains("777"));
+        // 报错只说"星期 + 类型"让操作员去规则列表里定位，不报 19 位规则 ID、也不露 required 码值
+        assertEquals("该对象周一已存在启用中的必排规则", error.getMessage());
         verify(ruleMapper, never()).insert(any(ScheduleRuleEntity.class));
     }
 

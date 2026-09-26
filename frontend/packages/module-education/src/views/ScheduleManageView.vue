@@ -134,6 +134,15 @@
                 <el-tag v-if="row.pendingMakeup === true" size="small" type="danger" effect="plain"
                   >待补课</el-tag
                 >
+                <!-- 禁排说明只有服务端判得准（规则可晚于课次建立，且按课次自己的班级与教师收窄），这里只转述 -->
+                <el-tag
+                  v-if="(row.ruleConflictMessages || []).length > 0"
+                  size="small"
+                  type="danger"
+                  effect="plain"
+                  :title="(row.ruleConflictMessages || []).join('；')"
+                  >禁排</el-tag
+                >
               </div>
             </template>
           </el-table-column>

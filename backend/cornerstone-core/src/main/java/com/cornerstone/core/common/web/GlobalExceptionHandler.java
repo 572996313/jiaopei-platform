@@ -13,9 +13,11 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -61,6 +63,20 @@ public class GlobalExceptionHandler {
         return ApiResponse.failure(ResultCode.BAD_REQUEST, "请求体缺失或格式不正确");
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMissingParameter(MissingServletRequestParameterException exception) {
+        // 不接这一条就会掉进兜底分支返回 500，操作员看到的是"服务器内部错误"，而真实原因只是少带了参数
+        return ApiResponse.failure(ResultCode.BAD_REQUEST, "缺少必填参数：" + exception.getParameterName());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        return ApiResponse.failure(ResultCode.BAD_REQUEST,
+            "参数 " + exception.getName() + " 取值格式不正确：" + exception.getValue());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleAuthentication(AuthenticationException exception) {
@@ -95,6 +111,10 @@ public class GlobalExceptionHandler {
     }
 
     private String formatFieldError(FieldError error) {
+        // 查询对象里的字段类型不符（如 pageSize=abc）走的是绑定异常，Spring 给的是英文技术消息，翻成中文口径
+        if (error.isBindingFailure()) {
+            return "参数 " + error.getField() + " 取值格式不正确：" + error.getRejectedValue();
+        }
         // 校验注解统一携带中文 message（如"班级ID不能为空"），直接透传，
         // 不再拼接英文属性名前缀，避免响应里出现中英混排
         String message = error.getDefaultMessage();

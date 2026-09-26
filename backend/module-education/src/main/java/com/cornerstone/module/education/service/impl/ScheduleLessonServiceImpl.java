@@ -401,7 +401,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             );
             if (teacherCount != null && teacherCount > 0) {
                 types.add("teacher");
-                messages.add("该教师在此时段已被占用：" + teacherId);
+                messages.add("教师「" + teacherLabel(teacherId) + "」在此时段已被占用");
             }
         }
         // 禁排规则与占用同层判定：撞上了既不让单独排课，也不让在冲突检查里被忽略
@@ -418,6 +418,20 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             }
         }
         return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
+    }
+
+    /** 冲突说明里的教师身份：19 位雪花 ID 操作员认不出来，报姓名、其次编号，都查不到才退回 ID。 */
+    private String teacherLabel(Long teacherId) {
+        TeacherEntity teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            return "#" + teacherId;
+        }
+        if (teacher.getTeacherName() != null && !teacher.getTeacherName().isBlank()) {
+            return teacher.getTeacherName();
+        }
+        return teacher.getTeacherCode() == null || teacher.getTeacherCode().isBlank()
+            ? "#" + teacherId
+            : teacher.getTeacherCode();
     }
 
     /** 编辑现有课次时，禁排判定涉及的四个字段是否被改动过；未改动或课次不存在时按"要判规则"处理。 */

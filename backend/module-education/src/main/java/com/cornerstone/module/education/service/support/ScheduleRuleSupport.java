@@ -268,4 +268,12 @@ public class ScheduleRuleSupport {
         }
         return WEEKDAY_LABELS[weekday - 1];
     }
+
+    /** 规则类型的中文名：报错文案里不出现 forbidden / required 这种码值。 */
+    public static String ruleTypeLabel(String ruleType) {
+        if (RULE_FORBIDDEN.equals(ruleType)) {
+            return "禁排";
+        }
+        return RULE_REQUIRED.equals(ruleType) ? "必排" : ruleType;
+    }
 }

@@ -231,10 +231,11 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         for (ScheduleRuleEntity existing : ruleMapper.selectList(wrapper)) {
             for (ScheduleSlotCell cell : ruleSupport.readSlots(existing.getSlotsJson())) {
                 if (newCells.contains(ScheduleRuleSupport.cellKey(cell.weekday(), cell.timeSlotId()))) {
+                    // 不报规则 ID：19 位雪花号操作员认不出来，用"星期 + 类型 + 备注"在规则列表里定位
                     throw new BusinessException(ResultCode.BAD_REQUEST,
-                        "该对象已存在覆盖同一格子的启用规则：" + existing.getId()
-                            + "（" + ScheduleRuleSupport.weekdayLabel(cell.weekday())
-                            + "，类型 " + existing.getRuleType() + "）");
+                        "该对象" + ScheduleRuleSupport.weekdayLabel(cell.weekday())
+                            + "已存在启用中的" + ScheduleRuleSupport.ruleTypeLabel(existing.getRuleType()) + "规则"
+                            + (notBlank(existing.getRemark()) ? "：" + existing.getRemark() : ""));
                 }
             }
         }

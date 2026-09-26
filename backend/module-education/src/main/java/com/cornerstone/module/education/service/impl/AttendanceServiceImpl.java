@@ -56,7 +56,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     private static final String ATTENDANCE_STATUS_ABSENT = "absent";
     private static final String ATTENDANCE_STATUS_LEAVE = "leave";
     private static final String ATTENDANCE_STATUS_LATE = "late";
-    private static final Set<String> ALLOWED_ATTENDANCE_STATUSES = Set.of(
+    // 用 List 而不是 Set：报错文案要把可选值按点名界面的顺序原样列给操作员，Set 的迭代顺序不固定
+    private static final List<String> ALLOWED_ATTENDANCE_STATUSES = List.of(
         ATTENDANCE_STATUS_PRESENT,
         ATTENDANCE_STATUS_ABSENT,
         ATTENDANCE_STATUS_LEAVE,
@@ -174,12 +175,12 @@ public class AttendanceServiceImpl implements AttendanceService {
         ScheduleLessonEntity lesson = request.lessonId() == null ? null : requireAttendanceAllowedLesson(request.lessonId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构");
         }
         if (lesson != null) {
             assertLessonMatchesAttendance(lesson, request.classId(), institutionId, request.attendanceDate());
         }
-        requireActiveClassStudent(request.classId(), request.studentId(), request.attendanceDate());
+        requireActiveClassStudent(teachingClass, student, request.attendanceDate());
         assertUniqueAttendance(request.lessonId(), request.classId(), request.studentId(), request.attendanceDate());
 
         AttendanceEntity entity = new AttendanceEntity();
@@ -222,13 +223,18 @@ public class AttendanceServiceImpl implements AttendanceService {
             .collect(Collectors.toMap(AttendanceEntity::getStudentId, item -> item, (left, right) -> right, LinkedHashMap::new));
 
         for (AttendanceBatchItemRequest item : requestItemMap.values()) {
+            ClassStudentEntity classStudent = classStudentMap.get(item.studentId());
             if (isBlank(item.attendanceStatus())) {
+                // 留空 = 撤销这次点名：原来记过就删掉，不然操作员清空再保存会"改了没反应"（旧实现是直接跳过）
+                AttendanceEntity revoked = existingAttendanceMap.remove(item.studentId());
+                if (revoked != null) {
+                    attendanceMapper.physicalDeleteById(revoked.getId());
+                }
                 continue;
             }
-            ClassStudentEntity classStudent = classStudentMap.get(item.studentId());
             if (classStudent == null) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "该学员不是课次班级的在班学员：" + item.studentId());
+                    "学员「" + studentLabel(item.studentId()) + "」不是本课次班级的在班学员");
             }
             AttendanceEntity existing = existingAttendanceMap.get(item.studentId());
             if (existing == null) {
@@ -385,10 +391,11 @@ public class AttendanceServiceImpl implements AttendanceService {
         return student;
     }
 
-    private void requireActiveClassStudent(Long classId, Long studentId, LocalDate attendanceDate) {
+    private void requireActiveClassStudent(TeachingClassEntity teachingClass, StudentEntity student,
+                                           LocalDate attendanceDate) {
         LambdaQueryWrapper<ClassStudentEntity> wrapper = new LambdaQueryWrapper<ClassStudentEntity>()
-            .eq(ClassStudentEntity::getClassId, classId)
-            .eq(ClassStudentEntity::getStudentId, studentId)
+            .eq(ClassStudentEntity::getClassId, teachingClass.getId())
+            .eq(ClassStudentEntity::getStudentId, student.getId())
             .eq(ClassStudentEntity::getStatus, "active");
         if (attendanceDate != null) {
             wrapper.and(q -> q.isNull(ClassStudentEntity::getJoinedAt).or().le(ClassStudentEntity::getJoinedAt, attendanceDate))
@@ -396,8 +403,32 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
         Long count = classStudentMapper.selectCount(wrapper);
         if (count == null || count == 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员不是此班级的在班学员：" + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "学员「" + studentDisplayName(student) + "」不是班级「" + classDisplayName(teachingClass) + "」的在班学员");
         }
+    }
+
+    /** 报错文案给操作员看，19 位雪花 ID 认不出来：先姓名，其次编号，都取不到才退回 ID。 */
+    private String studentLabel(Long studentId) {
+        StudentEntity student = studentMapper.selectById(studentId);
+        return student == null ? "#" + studentId : studentDisplayName(student);
+    }
+
+    private String studentDisplayName(StudentEntity student) {
+        return firstNotBlank(student.getStudentName(), student.getStudentNo(), "#" + student.getId());
+    }
+
+    private String classDisplayName(TeachingClassEntity teachingClass) {
+        return firstNotBlank(teachingClass.getClassName(), teachingClass.getClassCode(), "#" + teachingClass.getId());
+    }
+
+    private String firstNotBlank(String... candidates) {
+        for (String candidate : candidates) {
+            if (!isBlank(candidate)) {
+                return candidate;
+            }
+        }
+        return "";
     }
 
     private void assertUniqueAttendance(Long lessonId, Long classId, Long studentId, LocalDate attendanceDate) {
@@ -430,7 +461,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     private String normalizeAttendanceStatus(String rawStatus, String defaultValue) {
         String candidate = isBlank(rawStatus) ? defaultValue : rawStatus.trim().toLowerCase(Locale.ROOT);
         if (isBlank(candidate) || !ALLOWED_ATTENDANCE_STATUSES.contains(candidate)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "不支持的考勤状态：" + rawStatus);
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "不支持的考勤状态：" + rawStatus + "，可选值：" + String.join("、", ALLOWED_ATTENDANCE_STATUSES));
         }
         return candidate;
     }

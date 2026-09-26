@@ -375,6 +375,15 @@
                     effect="plain"
                     >待补课</el-tag
                   >
+                  <!-- 与周课表同一来源：禁排结论由服务端按课次自己的班级与教师算，列表只是转述 -->
+                  <el-tag
+                    v-if="(row.ruleConflictMessages || []).length > 0"
+                    size="small"
+                    type="danger"
+                    effect="plain"
+                    :title="row.ruleConflictMessages.join('；')"
+                    >禁排</el-tag
+                  >
                 </div>
               </template>
             </el-table-column>

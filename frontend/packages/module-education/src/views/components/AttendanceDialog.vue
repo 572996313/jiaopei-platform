@@ -69,7 +69,9 @@
         </div>
 
         <div class="attendance-toolbar">
-          <div class="education-context-text">支持再次进入回显；未设置状态的学员不会写入记录。</div>
+          <div class="education-context-text">
+            支持再次进入回显；未点过的学员留空不会写入记录，已点过的要点「撤销」再保存才会删掉该次点名。
+          </div>
           <div class="attendance-toolbar-actions">
             <el-button @click="applyStatusToAll('present')">全员到课</el-button>
             <el-button @click="clearStatuses">清空状态</el-button>
@@ -101,10 +103,12 @@
           <el-table-column label="点名状态" min-width="240">
             <template #default="{ row }">
               <el-radio-group v-model="row.draftStatus" class="attendance-status-group">
-                <el-radio-button label="present">到课</el-radio-button>
-                <el-radio-button label="absent">缺勤</el-radio-button>
-                <el-radio-button label="leave">请假</el-radio-button>
-                <el-radio-button label="late">迟到</el-radio-button>
+                <el-radio-button value="present">到课</el-radio-button>
+                <el-radio-button value="absent">缺勤</el-radio-button>
+                <el-radio-button value="leave">请假</el-radio-button>
+                <el-radio-button value="late">迟到</el-radio-button>
+                <!-- 单选组一旦选中就点不回空值，撤销得有入口；只对已经记过的人出现，避免误点成整列空白 -->
+                <el-radio-button v-if="row.attendanceStatus" value="">撤销</el-radio-button>
               </el-radio-group>
             </template>
           </el-table-column>
@@ -253,8 +257,9 @@ async function save(): Promise<boolean> {
     return false
   }
 
+  // 清空即撤销点名：原本记过、现在被清空的行要带着空状态发上去，服务端据此删掉那条考勤
   const items = rows.value
-    .filter((row) => row.draftStatus)
+    .filter((row) => row.draftStatus || row.attendanceStatus)
     .map((row) => ({
       studentId: row.studentId,
       attendanceStatus: row.draftStatus,

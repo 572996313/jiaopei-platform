@@ -118,14 +118,14 @@ class ScheduleRuleControllerWebTest {
     void duplicatedCellRendersBadRequestMessage() throws Exception {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
         given(scheduleRuleService.createRule(any())).willThrow(new BusinessException(ResultCode.BAD_REQUEST,
-            "该对象已存在覆盖同一格子的启用规则：777（周二，类型 required）"));
+            "该对象周二已存在启用中的必排规则：期末复习不排课"));
 
         mockMvc.perform(post("/api/education/schedule-rules")
                 .header("Authorization", "Bearer stub-access-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(RULE_BODY))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("同一格子")));
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("已存在启用中的必排规则")));
     }
 
     @Test
