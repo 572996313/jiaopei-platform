@@ -182,6 +182,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         requireLesson(id);
         ScheduleMaterial material = validateMaterial(request, id);
         assertNoConflicts(request, id);
+        assertMakeupSourceIntact(id, defaultStatus(request.lessonStatus()));
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setId(id);
         try {
@@ -197,6 +198,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     @Transactional
     public void deleteLesson(Long id) {
         requireLesson(id);
+        // null 表示课次将不存在：指向它的补课行会悬空
+        assertMakeupSourceIntact(id, null);
         teacherRelMapper.physicalDeleteByLessonId(id);
         lessonMapper.deleteById(id);
     }
@@ -336,6 +339,26 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (!CANCELLED.equalsIgnoreCase(relatedLesson.getLessonStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "关联的原课次必须是已停课课次，才能安排补课");
+        }
+    }
+
+    /**
+     * 原课次被补课行引用时的反向校验：补课成立的前提是"原课次已停课"，
+     * 把原课次改成结课/已排课会让补课行的 {@code cancelled_makeup} 名义与实际状态矛盾，
+     * 删除原课次则让课表上的「查看原停课」直接悬空。
+     *
+     * @param newStatus 课次要改成的状态；{@code null} 表示课次将被删除
+     */
+    private void assertMakeupSourceIntact(Long lessonId, String newStatus) {
+        if (CANCELLED.equalsIgnoreCase(newStatus)) {
+            return;
+        }
+        Long dependents = lessonMapper.selectCount(new LambdaQueryWrapper<ScheduleLessonEntity>()
+            .eq(ScheduleLessonEntity::getRelatedLessonId, lessonId)
+            .eq(ScheduleLessonEntity::getChangeType, CANCELLED_MAKEUP));
+        if (dependents != null && dependents > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "已有 " + dependents + " 节补课课次关联本课次，请先处理这些补课课次（改期或删除），再调整本课次的状态");
         }
     }
 

@@ -67,8 +67,8 @@
             v-for="day in row.days"
             :key="`${row.key}-${day.date}`"
             class="week-grid-cell is-slot-cell"
-            :class="{ 'is-dimmed': day.dimmed }"
-            :title="cellTitle(row, day)"
+            :class="{ 'is-dimmed': day.dimmed, 'is-readonly': !canManage }"
+            :title="canManage ? cellTitle(row, day) : undefined"
             @click="emitCellClick(day.date, row)"
           >
             <div v-if="!row.isTimeRow" class="week-grid-date" :class="{ 'is-dimmed': day.dimmed }">
@@ -129,7 +129,7 @@
                   <div v-if="conflictText(lesson)" class="week-grid-pop-conflict">
                     {{ conflictText(lesson) }}
                   </div>
-                  <div class="week-grid-pop-actions">
+                  <div v-if="canManage" class="week-grid-pop-actions">
                     <el-button
                       size="small"
                       link
@@ -236,6 +236,8 @@ const props = defineProps<{
   classrooms: ClassroomSummary[]
   teachers: TeacherSummary[]
   loading?: boolean
+  /** 无 education:write 时格子不再是新增入口，课次弹层也不给执行动作 */
+  canManage: boolean
   formatClass: (id?: string | null) => string
   formatClassroom: (id?: string | null) => string
   formatTeachers: (ids?: Array<string | number> | null) => string
@@ -413,6 +415,13 @@ const conflictReasons = computed(() => {
         if (!timeOverlaps(left, right)) {
           continue
         }
+        // 班级维度：服务端占用防重键只管已排课/已调课/已补课，结课或停课让位后再排一节
+        // 是合法数据，只有这里能看见「同一格两节课」
+        if (left.classId && left.classId === right.classId) {
+          const reason = `班级 ${props.formatClass(left.classId)} 此时段重复排课`
+          push(left, reason)
+          push(right, reason)
+        }
         if (left.classroomId && left.classroomId === right.classroomId) {
           const reason = `教室 ${props.formatClassroom(left.classroomId)} 时段重叠`
           push(left, reason)
@@ -515,6 +524,9 @@ function emitAction(type: WeekLessonActionType, lesson: ScheduleLessonRecord) {
 }
 
 function emitCellClick(date: string, row: GridRow) {
+  if (!props.canManage) {
+    return
+  }
   const classroomId =
     view.value === 'classroom' && focusClassroomId.value ? focusClassroomId.value : null
   emit('cell-click', { date, timeSlotId: row.isTimeRow ? row.slotId || null : null, classroomId })
@@ -625,6 +637,24 @@ function emitCellClick(date: string, row: GridRow) {
 .week-grid-cell.is-slot-cell:hover {
   border-color: var(--hover-line);
   background: var(--tint-bg);
+}
+
+/* 只读态：空格子不是新增入口，去掉手型、悬停高亮与加号 */
+.week-grid-cell.is-slot-cell.is-readonly {
+  cursor: default;
+}
+
+.week-grid-cell.is-slot-cell.is-readonly:hover {
+  border-color: var(--border);
+  background: var(--card-bg);
+}
+
+.week-grid-cell.is-slot-cell.is-readonly.is-dimmed:hover {
+  background: var(--subtle-bg);
+}
+
+.week-grid-cell.is-slot-cell.is-readonly .week-grid-empty {
+  opacity: 0;
 }
 
 .week-grid-cell.is-slot-cell.is-dimmed {

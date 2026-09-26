@@ -152,6 +152,27 @@ class ScheduleCompletenessServiceImplTest {
     }
 
     @Test
+    void duplicateLessonInOneCellNeverInflatesGenerated() {
+        stubMasterData(plan(null));
+        // 结课会让出格子（见 V72 的占用防重键），同一格再排一节课是合法数据：
+        // 完成度按格子计数，绝不能出现"已生成 > 应排"或 100% 与缺口同屏
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            lesson(WEEK_ONE, 500L, "completed"),
+            lesson(WEEK_ONE, 500L, "scheduled")
+        ));
+
+        ScheduleCompletenessResponse response = service.report(1L, query(WEEK_ONE, RANGE_END));
+        ScheduleCompletenessResponse.WeekCell first = response.classes().getFirst().cells().getFirst();
+
+        assertEquals(2, first.expected());
+        assertEquals(1, first.generated());
+        assertEquals(1, first.completed());
+        assertTrue(first.generated() <= first.expected());
+        assertTrue(response.summary().generated() <= response.summary().expected());
+        assertTrue(response.summary().generatedPercent() < 100);
+    }
+
+    @Test
     void skipDatesAreNotExpectedAndOffPlanLessonCountsAsExtra() {
         stubMasterData(plan("[\"2026-06-01\"]"));
         // 6/1 被计划跳过，6/3 是手工加排：既不算补上缺口，也要露出来

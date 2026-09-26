@@ -6,7 +6,13 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleFilterChange">
+        <el-select
+          v-model="campusId"
+          placeholder="筛选校区"
+          clearable
+          filterable
+          @change="handleFilterChange"
+        >
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -14,7 +20,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="termId" placeholder="筛选学期" clearable filterable @change="handleFilterChange">
+        <el-select
+          v-model="termId"
+          placeholder="筛选学期"
+          clearable
+          filterable
+          @change="handleFilterChange"
+        >
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -22,7 +34,13 @@
             :value="item.id"
           />
         </el-select>
-        <el-select v-model="classId" placeholder="筛选班级" clearable filterable @change="handleFilterChange">
+        <el-select
+          v-model="classId"
+          placeholder="筛选班级"
+          clearable
+          filterable
+          @change="handleFilterChange"
+        >
           <el-option
             v-for="item in classes"
             :key="item.id"
@@ -49,8 +67,11 @@
       <div class="education-context-text">
         应排取自各班级<b>启用中的周期排课计划</b>展开（跳过日期不计），没有计划的班级不出现在此表。
         计划只描述「哪个班、每周固定哪几个节次」，不是「每班每科每周应上几节」的课时目标，所以本表只回答计划有没有落地，不回答课时够不够。
-        手工加排、补课、调课后的课次落在计划之外，计入「计划外」而不抵扣缺口——缺口需在「排课管理 - 周期计划 - 新建计划」补排才算补上。
-        已停课的课次仍算已生成。区间对齐到整周，最长 26 周。
+        手工加排、补课、调课后的课次按<b>日期与节次</b>比对：正好落在计划空格子上的，就算把那个缺口补上了；
+        落在计划之外的（改期调课、额外加课、补课另排的一格）计入「计划外」，不抵扣缺口。
+        已停课、已结课的课次仍算已生成；它们会让出排课占用，所以同一格可能被再排一节课进去——
+        完成度按格子只认一格，<b>重复排课要到「执行与课表」看撞课标记</b>。区间对齐到整周，最长 26
+        周。
       </div>
 
       <div class="table-toolbar">
@@ -80,7 +101,9 @@
             <template #default="{ row }">
               <div class="class-cell">
                 <span>{{ row.className || `班级 #${row.classId}` }}</span>
-                <span class="class-cell-meta">{{ formatCampus(row.campusId) }} · {{ row.planCount }} 个计划</span>
+                <span class="class-cell-meta"
+                  >{{ formatCampus(row.campusId) }} · {{ row.planCount }} 个计划</span
+                >
               </div>
             </template>
           </el-table-column>
@@ -117,12 +140,16 @@
                 :class="weekCellClass(row.cells[index])"
                 @click="openGapDetail(row, week, row.cells[index])"
               >
-                <span class="week-cell-ratio">{{ row.cells[index].generated }}/{{ row.cells[index].expected }}</span>
+                <span class="week-cell-ratio"
+                  >{{ row.cells[index].generated }}/{{ row.cells[index].expected }}</span
+                >
                 <span class="week-cell-extra">
                   <template v-if="row.cells[index].gaps.length"
                     >缺 {{ row.cells[index].gaps.length }}</template
                   >
-                  <template v-else-if="row.cells[index].extra">外 {{ row.cells[index].extra }}</template>
+                  <template v-else-if="row.cells[index].extra"
+                    >外 {{ row.cells[index].extra }}</template
+                  >
                   <template v-else-if="row.cells[index].completed === row.cells[index].expected"
                     >已上完</template
                   >
@@ -135,7 +162,8 @@
       </TableFillBox>
 
       <div v-if="!reportLoading && (report?.classes.length ?? 0) === 0" class="education-empty">
-        当前筛选范围内没有启用中的周期排课计划，先到「排课管理 - 周期计划」新建计划，再回来看完成度。
+        当前筛选范围内没有启用中的周期排课计划，先到「排课管理 -
+        周期计划」新建计划，再回来看完成度。
       </div>
     </article>
 
@@ -146,7 +174,7 @@
           <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
         </el-table-column>
         <el-table-column prop="slotName" label="节次" min-width="140" />
-        <el-table-column label="操作" width="110">
+        <el-table-column v-if="canManage" label="操作" width="110">
           <template #default="{ row }">
             <el-button link type="primary" @click="goMakeup(row)">去补排</el-button>
           </template>
@@ -172,15 +200,20 @@ import {
 } from '@cornerstone/module-education/api/education'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { toMessage, weekdayLabel } from './components/schedule-utils'
 
 const institutionStore = useInstitutionStore()
+const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 const { campuses, terms, classes, institutionId, loadScope } = useEducationScope()
 const router = useRouter()
+
+/** 「去补排」是写流程入口，按 education:write 收口；报表本身只要 education:read */
+const canManage = computed(() => auth.hasPermission('education:write'))
 
 const classId = ref<string | null>(null)
 const dateRange = ref<[string, string] | null>(null)
@@ -194,6 +227,10 @@ const gapDetailVisible = ref(false)
 const gapDetailRows = ref<Array<ScheduleCompletenessGap & { key: string }>>([])
 const gapDetailTitle = ref('')
 const gapDetailClassId = ref('')
+// 「去补排」要把缺口所在的班级/校区/学期一起带过去：排课管理的新增弹窗按 scope 取校区与学期，
+// 跳转过来时那两个选择器是空的，不带就会串行报「缺少校区 → 缺少学期」
+const gapDetailCampusId = ref('')
+const gapDetailTermId = ref('')
 
 const campusMap = computed(
   () =>
@@ -234,6 +271,8 @@ function openGapDetail(
     return
   }
   gapDetailClassId.value = row.classId
+  gapDetailCampusId.value = row.campusId || ''
+  gapDetailTermId.value = row.termId || ''
   gapDetailTitle.value = `${row.className || `班级 #${row.classId}`} · 第${week.index}周（${week.weekStart} ~ ${week.weekEnd}）`
   gapDetailRows.value = cell.gaps.map((gap) => ({
     ...gap,
@@ -242,11 +281,18 @@ function openGapDetail(
   gapDetailVisible.value = true
 }
 
-/** 带上班级与日期跳到排课管理，由操作员在那里用周期计划新建/补排缺口 */
+/** 带上缺口所在的班级/校区/学期/日期/节次，直达排课管理的新增弹窗 */
 function goMakeup(gap: ScheduleCompletenessGap) {
   router.push({
     path: '/scheduling',
-    query: { classId: gapDetailClassId.value, date: gap.lessonDate },
+    query: {
+      create: '1',
+      classId: gapDetailClassId.value,
+      campusId: gapDetailCampusId.value,
+      termId: gapDetailTermId.value,
+      date: gap.lessonDate,
+      timeSlotId: String(gap.timeSlotId),
+    },
   })
 }
 

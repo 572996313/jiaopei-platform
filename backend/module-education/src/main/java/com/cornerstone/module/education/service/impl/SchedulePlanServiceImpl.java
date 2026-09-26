@@ -170,6 +170,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     public SchedulePlanCommitResponse commit(SchedulePlanCommitRequest request) {
         SchedulePlanRequest planRequest = request.plan();
         ResolvedPlan resolved = resolve(planRequest);
+        assertCommittable(request.planId(), resolved);
         List<SchedulePlanExpander.Occurrence> occurrences = expand(resolved, planRequest);
         Map<String, SchedulePlanExpander.Occurrence> occurrenceByKey = new LinkedHashMap<>();
         occurrences.forEach(occurrence -> occurrenceByKey.putIfAbsent(occupancyKey(occurrence.lessonDate(), occurrence.timeSlotId()), occurrence));
@@ -264,6 +265,26 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
         return entity;
+    }
+
+    /**
+     * 提交排课只允许对启用中的计划生效。
+     *
+     * <p>停用中的计划不展开在完成度报表里（分母只取 active），所以此时再生成课次，
+     * 这些课次在报表上永久隐形，操作员只会看到"计划没落地"。要补排先启用计划。
+     */
+    private void assertCommittable(Long planId, ResolvedPlan resolved) {
+        if (!STATUS_ACTIVE.equals(resolved.status())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "停用状态的计划不能提交排课，请先在「周期排课计划」里启用该计划");
+        }
+        if (planId != null) {
+            SchedulePlanEntity existing = requirePlan(planId);
+            if (!STATUS_ACTIVE.equals(existing.getStatus())) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    "该计划已停用，不能提交排课，请先启用后再补排：" + planId);
+            }
+        }
     }
 
     private Long savePlan(Long planId, SchedulePlanRequest request, ResolvedPlan resolved) {

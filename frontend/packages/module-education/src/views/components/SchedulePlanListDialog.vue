@@ -9,8 +9,14 @@
     @open="handleOpen"
   >
     <div class="plan-list-toolbar">
-      <el-button type="primary" @click="emit('create')">新建计划</el-button>
-      <el-select v-model="filterClassId" placeholder="筛选班级" clearable filterable @change="reload">
+      <el-button v-if="canManage" type="primary" @click="emit('create')">新建计划</el-button>
+      <el-select
+        v-model="filterClassId"
+        placeholder="筛选班级"
+        clearable
+        filterable
+        @change="reload"
+      >
         <el-option
           v-for="item in classes"
           :key="item.id"
@@ -59,7 +65,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="210" fixed="right">
+      <el-table-column v-if="canManage" label="操作" width="210" fixed="right">
         <template #default="{ row }">
           <div class="system-operation-group">
             <el-button link type="primary" @click="emit('edit', row)">补排/调整</el-button>
@@ -108,7 +114,7 @@
 
 <script setup lang="ts">
 // 周期排课计划列表：新建/查看/筛选计划，支持进向导补排调整、整批撤销未上课次、删除计划。
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   cancelSchedulePlanLessons,
@@ -119,8 +125,12 @@ import {
   type TeacherSummary,
   type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
-import type { ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import type {
+  ClassroomSummary,
+  TimeSlotSummary,
+} from '@cornerstone/module-organization/api/organization'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { formatTeacherIdsAs, toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -141,6 +151,10 @@ const emit = defineEmits<{
   (event: 'edit', plan: SchedulePlanRecord): void
   (event: 'changed'): void
 }>()
+
+/** 写操作按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
+const auth = useAuthStore()
+const canManage = computed(() => auth.hasPermission('education:write'))
 
 const plans = ref<SchedulePlanRecord[]>([])
 const page = ref(1)

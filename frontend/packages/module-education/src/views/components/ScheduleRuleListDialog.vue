@@ -9,7 +9,7 @@
     @open="handleOpen"
   >
     <div class="rule-toolbar">
-      <el-button type="primary" @click="emit('create')">新增规则</el-button>
+      <el-button v-if="canManage" type="primary" @click="emit('create')">新增规则</el-button>
       <el-select v-model="filterRuleType" placeholder="筛选类型" clearable @change="reload">
         <el-option label="禁排" value="forbidden" />
         <el-option label="必排" value="required" />
@@ -60,11 +60,16 @@
       <el-table-column label="批注" min-width="160" prop="remark" sortable="custom">
         <template #default="{ row }">{{ row.remark || '—' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="130" fixed="right">
+      <el-table-column v-if="canManage" label="操作" width="130" fixed="right">
         <template #default="{ row }">
           <div class="system-operation-group">
             <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
-            <el-button link type="danger" :loading="deletingId === row.id" @click="handleDelete(row)">
+            <el-button
+              link
+              type="danger"
+              :loading="deletingId === row.id"
+              @click="handleDelete(row)"
+            >
               删除
             </el-button>
           </div>
@@ -96,7 +101,7 @@
 
 <script setup lang="ts">
 // 排课规则列表：按类型/对象/状态筛选，编辑走同一个编辑器，删除只影响后续校验。
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   deleteScheduleRule,
@@ -108,6 +113,7 @@ import {
 } from '@cornerstone/module-education/api/education'
 import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -125,6 +131,10 @@ const emit = defineEmits<{
   (event: 'edit', rule: ScheduleRuleRecord): void
   (event: 'changed'): void
 }>()
+
+/** 写操作按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
+const auth = useAuthStore()
+const canManage = computed(() => auth.hasPermission('education:write'))
 
 const rules = ref<ScheduleRuleRecord[]>([])
 const page = ref(1)

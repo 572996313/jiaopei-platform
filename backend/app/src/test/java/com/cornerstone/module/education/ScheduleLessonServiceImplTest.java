@@ -235,6 +235,41 @@ class ScheduleLessonServiceImplTest {
     }
 
     @Test
+    void updateLessonRejectsStatusChangeWhenMakeupsDependOnIt() {
+        stubValidMaterial();
+        ScheduleLessonEntity existing = new ScheduleLessonEntity();
+        existing.setId(900L);
+        existing.setInstitutionId(1L);
+        when(lessonMapper.selectById(900L)).thenReturn(existing);
+        // 改成结课不占格子、不进冲突检查，唯一拦它的是"有补课行指着本课次"
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(2L);
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.updateLesson(
+            900L,
+            new ScheduleLessonRequest(1L, 2L, 3L, 100L, 200L, 500L, LocalDate.of(2026, 6, 15),
+                "已停课原课", "completed", null, null, List.of(400L), null)));
+
+        assertTrue(error.getMessage().contains("补课课次关联本课次"), error.getMessage());
+        assertTrue(error.getMessage().contains("2"), error.getMessage());
+        verify(lessonMapper, never()).updateById(any(ScheduleLessonEntity.class));
+    }
+
+    @Test
+    void deleteLessonRejectsLessonWithMakeupDependents() {
+        ScheduleLessonEntity existing = new ScheduleLessonEntity();
+        existing.setId(900L);
+        existing.setInstitutionId(1L);
+        when(lessonMapper.selectById(900L)).thenReturn(existing);
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.deleteLesson(900L));
+
+        assertTrue(error.getMessage().contains("请先处理这些补课课次"), error.getMessage());
+        verify(lessonMapper, never()).deleteById(900L);
+        verify(teacherRelMapper, never()).physicalDeleteByLessonId(900L);
+    }
+
+    @Test
     void updateLessonMarksLessonCompletedWithoutConflictChecks() {
         stubValidMaterial();
         ScheduleLessonEntity existing = new ScheduleLessonEntity();

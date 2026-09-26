@@ -322,6 +322,36 @@ class SchedulePlanServiceImplTest {
     }
 
     @Test
+    void commitRejectsStoppedPlanById() {
+        stubValidMasterData();
+        SchedulePlanEntity stopped = new SchedulePlanEntity();
+        stopped.setId(900L);
+        stopped.setInstitutionId(1L);
+        stopped.setStatus("inactive");
+        when(planMapper.selectById(900L)).thenReturn(stopped);
+
+        // 停用计划不进完成度分母，此时生成课次会让这批课次在报表里永久隐形
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.commit(commitRequest(900L, START)));
+        assertTrue(error.getMessage().contains("已停用"), error.getMessage());
+        verify(lessonMapper, never()).insert(any(ScheduleLessonEntity.class));
+        verify(planMapper, never()).updateById(any(SchedulePlanEntity.class));
+    }
+
+    @Test
+    void commitRejectsRequestThatStopsThePlan() {
+        stubValidMasterData();
+        SchedulePlanCommitRequest request = new SchedulePlanCommitRequest(null,
+            new SchedulePlanRequest(1L, 10L, 20L, 100L, 300L, List.of(400L),
+                List.of(MONDAY_SLOT), null, START, END, List.of(), "inactive", null),
+            List.of(new SchedulePlanOccurrence(START, 500L)));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.commit(request));
+        assertTrue(error.getMessage().contains("停用"), error.getMessage());
+        verify(lessonMapper, never()).insert(any(ScheduleLessonEntity.class));
+    }
+
+    @Test
     void cancelPlanLessonsDeletesFutureOccupyingLessons() {
         SchedulePlanEntity plan = new SchedulePlanEntity();
         plan.setId(900L);

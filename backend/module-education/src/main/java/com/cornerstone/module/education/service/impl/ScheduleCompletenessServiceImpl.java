@@ -41,9 +41,13 @@ import org.springframework.stereotype.Service;
  * <p>口径说明（页面上也要写清，否则数字会被读错）：
  * <ul>
  *   <li>应排只算计划展开出来的课次，跳过日期不计；没建计划的班级不出现在报表里。</li>
- *   <li>匹配按 {@code 日期#时段} 键而不是 planId：手工新增、补课、调课后的课次落在计划键之外，
- *       算「计划外」而不是补上缺口——缺口要回批量排课里补排才算补上。</li>
- *   <li>停课(cancelled)的课次仍算已生成（它确实占了那一格），单列显示。</li>
+ *   <li>匹配按 {@code 日期#时段} 键而不是 planId：落在计划空格子上的手工课次就是把那一格补上了，
+ *       会抵扣缺口；只有落在计划键之外的（改期调课、额外加课、补课另排的那一格）才算「计划外」。</li>
+ *   <li>应排/已生成/已完成/已停课都按<b>格子</b>计数，同一格有多行只算一格，
+ *       所以恒有 已完成 &le; 已生成 &le; 应排；「计划外」按<b>行数</b>计，因为多出来的是真实课时。</li>
+ *   <li>停课(cancelled)与结课(completed)的课次仍占在它那一格里，单列显示；
+ *       但两者都会让出排课占用（见 V72 的占用防重键），所以同一格可能再排进一节课，
+ *       此时完成度只认这一格已生成，重复排课要到「执行与课表」看撞课标记。</li>
  * </ul>
  */
 @Service
@@ -249,15 +253,19 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
                     occurrence.weekday(), occurrence.timeSlotId(),
                     slotNames.getOrDefault(occurrence.timeSlotId(), "")))
                 .toList();
+            // 已生成/已完成/已停课一律按「格子」计数而不是按行数：结课或停课会让出格子
+            // （见 ScheduleLessonServiceImpl 的 OCCUPYING_STATUSES 与 V72 的两枚占用防重键），
+            // 同一格于是允许再排一节课进去。按行数计会让 generated 顶过 expected
+            // （页面渲染成「4/3」），completedPercent 也会跟着虚高。
+            Set<String> matchedKeys = actualKeys.stream()
+                .filter(expectedKeys::contains)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+            int generated = matchedKeys.size();
+            int completed = matchedCellCount(weekLessons, matchedKeys, LESSON_COMPLETED);
+            int cancelled = matchedCellCount(weekLessons, matchedKeys, LESSON_CANCELLED);
+            // 计划外仍是行数：补课一节拆两节是真占了两个课时，不存在"同一格"去重的问题
             int extra = (int) weekLessons.stream()
                 .filter(lesson -> !expectedKeys.contains(lessonKey(lesson)))
-                .count();
-            int generated = (int) weekLessons.stream().filter(lesson -> expectedKeys.contains(lessonKey(lesson))).count();
-            int completed = (int) weekLessons.stream()
-                .filter(lesson -> LESSON_COMPLETED.equalsIgnoreCase(lesson.getLessonStatus()))
-                .count();
-            int cancelled = (int) weekLessons.stream()
-                .filter(lesson -> LESSON_CANCELLED.equalsIgnoreCase(lesson.getLessonStatus()))
                 .count();
             cells.add(new ScheduleCompletenessResponse.WeekCell(covered, expectedKeys.size(), generated,
                 completed, cancelled, extra, gaps));
@@ -274,6 +282,20 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
             classPlans.size(), cells,
             new ScheduleCompletenessResponse.RowSummary(totalExpected, totalGenerated, totalCompleted,
                 totalMissing, totalExtra));
+    }
+
+    /**
+     * 命中的计划格子里处于指定状态的格子数（按键去重）。
+     * 同一格子有多行时（结课/停课让位后又排进一节）只算一个格子，保证 已完成 &le; 已生成 &le; 应排。
+     */
+    private static int matchedCellCount(List<ScheduleLessonEntity> weekLessons, Set<String> matchedKeys,
+                                        String status) {
+        return (int) weekLessons.stream()
+            .filter(lesson -> status.equalsIgnoreCase(lesson.getLessonStatus()))
+            .map(ScheduleCompletenessServiceImpl::lessonKey)
+            .filter(matchedKeys::contains)
+            .distinct()
+            .count();
     }
 
     private static List<SchedulePlanEntity> plansFor(Long classId, List<SchedulePlanEntity> plans) {

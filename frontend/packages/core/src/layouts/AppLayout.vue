@@ -714,19 +714,28 @@ const searchablePages = computed<SearchablePage[]>(() => {
 /** ================= 当前页匹配(页签标题 / 高亮) ================= */
 
 /**
+ * 前缀按**路径段**匹配：`/schedule` 命中 `/schedule` 与 `/schedule/xxx`，
+ * 但不命中 `/schedule-completeness`——否则完成度页的横幅标题、导航高亮和页签
+ * 都会被排课页抢走，出现两个同名页签。
+ */
+function pathMatchesPrefix(path: string, prefix: string) {
+  return path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`)
+}
+
+/**
  * 路径 → 菜单节点标题(子项优先于父项)。菜单树还没就绪时返回 null,
  * 由调用方回退到页签登记时记下的标题。
  */
 function titleOfPath(path: string): string | null {
   for (const item of sidebarDefinitions.value) {
     for (const child of resolveVisibleChildren(item)) {
-      if (child.prefixes.some((prefix) => path.startsWith(prefix))) {
+      if (child.prefixes.some((prefix) => pathMatchesPrefix(path, prefix))) {
         return child.title
       }
     }
   }
   const matched = sidebarDefinitions.value.find((item) =>
-    item.prefixes.some((prefix) => path.startsWith(prefix))
+    item.prefixes.some((prefix) => pathMatchesPrefix(path, prefix))
   )
   if (!matched) {
     return null
@@ -954,18 +963,18 @@ watch(
 )
 
 function isNavItemActive(item: { prefixes: string[] }) {
-  return item.prefixes.some((prefix) => route.path.startsWith(prefix))
+  return item.prefixes.some((prefix) => pathMatchesPrefix(route.path, prefix))
 }
 
 function isChildActive(child: SidebarChildDefinition) {
-  return child.prefixes.some((prefix) => route.path.startsWith(prefix))
+  return child.prefixes.some((prefix) => pathMatchesPrefix(route.path, prefix))
 }
 
 /** 完整模式:可展开父菜单的展开态,策略由「菜单偏好-组展开策略」控制 */
 const openGroups = ref(new Set<string>())
 
 function routeMatchesItem(item: { prefixes: string[] }) {
-  return item.prefixes.some((prefix) => route.path.startsWith(prefix))
+  return item.prefixes.some((prefix) => pathMatchesPrefix(route.path, prefix))
 }
 
 function isGroupOpen(item: SidebarDefinition) {

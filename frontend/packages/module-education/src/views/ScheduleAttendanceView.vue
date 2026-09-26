@@ -168,6 +168,7 @@
               :key="lesson.id"
               type="button"
               class="daily-lesson-item"
+              :class="{ 'is-inert': !canManage }"
               @click="openAttendanceDialog(lesson)"
             >
               <div class="daily-lesson-item-main">
@@ -194,7 +195,10 @@
             </button>
           </div>
 
-          <div v-if="readyToCompleteLessons.length > 0" class="daily-center-inline-tip">
+          <div
+            v-if="canManage && readyToCompleteLessons.length > 0"
+            class="daily-center-inline-tip"
+          >
             <span>已有 {{ readyToCompleteLessons.length }} 节课点名已齐，可直接结课。</span>
             <el-button link type="warning" @click="completeLesson(readyToCompleteLessons[0])"
               >先结最近一节</el-button
@@ -232,7 +236,7 @@
                 {{ formatTeacherNames(lesson.teacherIds) }}</span
               >
               <span>已停课，待安排补课</span>
-              <div class="daily-mini-item-actions">
+              <div v-if="canManage" class="daily-mini-item-actions">
                 <el-button link type="danger" @click="openFormDialog('makeup', lesson)"
                   >安排补课</el-button
                 >
@@ -292,6 +296,7 @@
               :key="item.key"
               type="button"
               class="daily-mini-item is-button"
+              :class="{ 'is-inert': !canManage }"
               @click="handleReminderClick(item.lessonId)"
             >
               <strong>{{ item.title }}</strong>
@@ -388,7 +393,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="执行动作" width="280" fixed="right">
+            <el-table-column v-if="canManage" label="执行动作" width="280" fixed="right">
               <template #default="{ row }">
                 <el-button
                   link
@@ -428,7 +433,8 @@
               日期：{{ timetableRange.start }} 至 {{ timetableRange.end }}（{{
                 rangeModeText
               }}）；班级：{{ formatClass(classId) }}；范围：{{ formatInstitution(institutionId) }} /
-              {{ formatCampus(campusId) }}。点击空格可跳转排课管理新增。
+              {{ formatCampus(campusId) }}。
+              <span v-if="canManage">点击空格可跳转排课管理新增。</span>
             </div>
           </div>
 
@@ -440,6 +446,7 @@
             :classrooms="classrooms"
             :teachers="teachers"
             :loading="rangeLoading"
+            :can-manage="canManage"
             :format-class="formatClass"
             :format-classroom="formatClassroom"
             :format-teachers="formatTeacherNames"
@@ -496,6 +503,7 @@ import {
   fetchDayTimetable,
   fetchLessonAttendanceProgress,
   fetchPendingMakeupLessonPage,
+  fetchScheduleLesson,
   fetchTeachers,
   fetchWeekTimetable,
   type LessonAttendanceProgress,
@@ -510,6 +518,7 @@ import {
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import WeekTimetableGrid, { type WeekLessonAction } from './components/WeekTimetableGrid.vue'
 import AttendanceDialog from './components/AttendanceDialog.vue'
@@ -543,11 +552,15 @@ interface ScheduleReminderItem {
 }
 
 const institutionStore = useInstitutionStore()
+const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
+
+/** 点名/结课/调课/停课/补课按 education:write 收口（菜单按钮节点 113「执行变更」），后端仍按权限串硬拦 */
+const canManage = computed(() => auth.hasPermission('education:write'))
 
 /** 执行变更弹窗模式：调课 / 停课 / 补课，与共享弹窗组件的契约一致 */
 type ExecutionMode = 'reschedule' | 'cancel' | 'makeup'
@@ -634,12 +647,17 @@ const timeSlotMap = computed(() => {
   return new Map(timeSlots.value.map((item) => [item.id, item]))
 })
 
-// 关联关系（补课↔停课原课）只在已加载的日/周/待补课课次内推导
+// 关联关系（补课↔停课原课）在已加载课次之外，还要并入「查看关联课次」按需单拉的结果
+const relatedLessonCache = ref<ScheduleLessonRecord[]>([])
+
 const lessonMap = computed(() => {
   return new Map(
-    sortedLessons([...dayLessons.value, ...weekLessons.value, ...pendingMakeupLessons.value]).map(
-      (item) => [item.id, item]
-    )
+    sortedLessons([
+      ...dayLessons.value,
+      ...weekLessons.value,
+      ...pendingMakeupLessons.value,
+      ...relatedLessonCache.value,
+    ]).map((item) => [item.id, item])
   )
 })
 
@@ -915,7 +933,7 @@ function relationJumpLabel(lesson?: ScheduleLessonRecord | null) {
   return ''
 }
 
-function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
+async function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
   if (!lesson) {
     return
   }
@@ -924,6 +942,15 @@ function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
     target = relatedMakeupLessons(lesson)[0] || null
   } else if (lesson.lessonStatus === 'makeup') {
     target = relatedCancelledLesson(lesson)
+    if (!target && lesson.relatedLessonId) {
+      // 原停课课次几乎总在别的日期，当前区间没加载到，按 id 单拉一次并缓存
+      try {
+        target = await fetchScheduleLesson(lesson.relatedLessonId)
+        relatedLessonCache.value = [...relatedLessonCache.value, target]
+      } catch {
+        target = null
+      }
+    }
   }
   if (!target) {
     ElMessage.warning('未找到关联课次')
@@ -1222,6 +1249,9 @@ function handleWeekCellClick(payload: {
 }
 
 function openFormDialog(mode: ExecutionMode, lesson: ScheduleLessonRecord) {
+  if (!canManage.value) {
+    return
+  }
   formDialogMode.value = mode
   formDialogLesson.value = lesson
   formDialogVisible.value = true
@@ -1233,6 +1263,9 @@ function handleDialogSaved(message: string) {
 }
 
 function openAttendanceDialog(lesson: ScheduleLessonRecord) {
+  if (!canManage.value) {
+    return
+  }
   attendanceLessonId.value = lesson.id
   attendanceDialogVisible.value = true
 }
@@ -1459,6 +1492,12 @@ onMounted(() => {
   border: 0;
   cursor: pointer;
   text-align: left;
+}
+
+/* 只读（无 education:write）时卡片只是信息，不是执行入口 */
+.daily-lesson-item.is-inert,
+.daily-mini-item.is-inert {
+  cursor: default;
 }
 
 .daily-lesson-item {

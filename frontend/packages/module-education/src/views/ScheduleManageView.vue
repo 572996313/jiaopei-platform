@@ -73,7 +73,7 @@
         <el-button @click="goTimetable">查看课表</el-button>
         <el-button @click="planListVisible = true">周期计划</el-button>
         <el-button @click="ruleListVisible = true">排课规则</el-button>
-        <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
+        <el-button v-if="canManage" type="primary" @click="openCreateDialog">新增排课</el-button>
         <div class="education-context-text">
           校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
             lessonDate || '全部'
@@ -159,7 +159,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="170" fixed="right">
+          <el-table-column v-if="canManage" label="操作" width="170" fixed="right">
             <template #default="{ row }">
               <div class="system-operation-group">
                 <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
@@ -296,6 +296,7 @@ import {
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -316,11 +317,15 @@ import {
 } from './components/schedule-utils'
 
 const institutionStore = useInstitutionStore()
+const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
+
+/** 写操作按钮按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍用 @RequiresPermission 硬拦 */
+const canManage = computed(() => auth.hasPermission('education:write'))
 
 const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
@@ -692,12 +697,27 @@ async function removeLesson(lesson: ScheduleLessonRecord) {
 }
 
 /** 执行页跳转带参：create=1 直接打开新增弹窗（周课表空格点击），editId 直接打开编辑 */
-function applyRouteQuery() {
+async function applyRouteQuery() {
   const query = route.query
   const date = typeof query.date === 'string' && query.date ? query.date : ''
   const queryClassId = typeof query.classId === 'string' && query.classId ? query.classId : ''
+  const queryCampusId = typeof query.campusId === 'string' && query.campusId ? query.campusId : ''
+  const queryTermId = typeof query.termId === 'string' && query.termId ? query.termId : ''
   if (date) {
     lessonDate.value = date
+  }
+  // 校区/学期是共享范围，先落范围再刷候选：班级下拉、教室与教师选项都按校区过滤
+  let scopeChanged = false
+  if (queryCampusId && campusId.value !== queryCampusId) {
+    campusId.value = queryCampusId
+    scopeChanged = true
+  }
+  if (queryTermId && termId.value !== queryTermId) {
+    termId.value = queryTermId
+    scopeChanged = true
+  }
+  if (scopeChanged) {
+    await refreshScopeData()
   }
   if (queryClassId) {
     classId.value = queryClassId
@@ -705,8 +725,11 @@ function applyRouteQuery() {
   if (query.create === '1') {
     dialogMode.value = 'create'
     dialogLesson.value = null
+    // 校区/学期取刷完候选之后的值：范围不存在时 refreshScopeData 已把它清回 null
     dialogPrefill.value = {
       ...(date ? { lessonDate: date } : {}),
+      ...(campusId.value ? { campusId: campusId.value } : {}),
+      ...(termId.value ? { termId: termId.value } : {}),
       ...(typeof query.timeSlotId === 'string' && query.timeSlotId
         ? { timeSlotId: query.timeSlotId }
         : {}),
@@ -734,11 +757,11 @@ async function initializePage() {
     if (institutionId.value) {
       await refreshScopeData()
     }
-    applyRouteQuery()
+    await applyRouteQuery()
     await refreshLessons()
     // editId 依赖列表加载完成后才能定位目标行
     if (typeof route.query.editId === 'string' && route.query.editId) {
-      applyRouteQuery()
+      await applyRouteQuery()
     }
   } catch (error) {
     pageError.value = toMessage(error, '页面初始化失败')
@@ -767,10 +790,10 @@ watch(
       return
     }
     lessonPage.value = 1
-    applyRouteQuery()
+    await applyRouteQuery()
     await refreshLessons()
     if (typeof route.query.editId === 'string' && route.query.editId) {
-      applyRouteQuery()
+      await applyRouteQuery()
     }
   }
 )
