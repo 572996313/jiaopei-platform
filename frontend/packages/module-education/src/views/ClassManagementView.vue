@@ -210,7 +210,6 @@
         <el-table
           :data="visibleRecords"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
@@ -281,7 +280,6 @@
           <el-table
             :data="classTeachers"
             border
-            stripe
             row-key="id"
             highlight-current-row
             v-loading="tableLoading"
@@ -358,7 +356,6 @@
             <el-table
               :data="studentParents"
               border
-              stripe
               row-key="id"
               highlight-current-row
               v-loading="parentLoading"

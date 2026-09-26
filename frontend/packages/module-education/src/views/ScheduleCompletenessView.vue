@@ -71,7 +71,6 @@
         <el-table
           :data="report?.classes ?? []"
           border
-          stripe
           row-key="classId"
           highlight-current-row
           v-loading="reportLoading"

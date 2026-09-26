@@ -82,12 +82,11 @@
       <el-table
         :data="previewRows"
         border
-        stripe
         row-key="rowNum"
         max-height="360"
         :row-class-name="rowClassName"
       >
-        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" />
+        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" align="right" />
         <el-table-column prop="teacherCode" label="教师编码" width="150" fixed="left" />
         <el-table-column prop="teacherName" label="教师姓名" width="120" />
         <el-table-column prop="phone" label="手机号" width="130" />
@@ -132,8 +131,8 @@
         </article>
       </div>
 
-      <el-table :data="committed?.rows ?? []" border stripe row-key="rowNum" max-height="320">
-        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" />
+      <el-table :data="committed?.rows ?? []" border row-key="rowNum" max-height="320">
+        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" align="right" />
         <el-table-column prop="teacherCode" label="教师编码" width="150" fixed="left" />
         <el-table-column prop="teacherName" label="教师姓名" width="120" />
         <el-table-column prop="teacherId" label="档案ID" width="180" />

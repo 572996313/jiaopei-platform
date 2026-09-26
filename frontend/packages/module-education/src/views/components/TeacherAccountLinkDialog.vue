@@ -48,7 +48,6 @@
       v-loading="loading"
       :data="rows"
       border
-      stripe
       row-key="rowKey"
       max-height="420"
       :row-class-name="rowClassName"

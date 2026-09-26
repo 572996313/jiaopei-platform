@@ -1,0 +1,1380 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-density="comfy" data-grid="off" data-stripe="off">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>表格设计 v2 · 按你的反馈回炉 · 课栈后台</title>
+    <style>
+      :root {
+        --page-bg: #eef1f6;
+        --card-bg: #ffffff;
+        --surface: #f7f9fc;
+        --text-primary: #1b2431;
+        --text-secondary: #5c6b82;
+        --text-faint: #a9b4c6;
+        --border: #e6ebf2;
+        --line: #dfe5ee;
+        --accent: #2f6fb0;
+        --accent-soft: #e8f1fb;
+        --t-grid: #eef1f6;
+        --t-row-line: #edf1f6;
+        --t-head-bg: #f7f9fc;
+        --t-head-ink: #5c6b82;
+        --t-head-rule: #dbe3ee;
+        --t-hover: #f4f8fd;
+        --t-stripe: #fafbfd;
+        --t-selected: #eef5fc;
+        --t-sel-bar: #2f6fb0;
+        --t-skeleton: #eef2f7;
+        --ok: #2f9e52;
+        --soft-ok-bg: #eaf6ee;
+        --soft-ok-ink: #22763c;
+        --soft-warn-bg: #fdf4e3;
+        --soft-warn-ink: #93620d;
+        --soft-danger-bg: #fdeceb;
+        --soft-danger-ink: #a32821;
+      }
+      html[data-theme='dark'] {
+        --page-bg: #0f1620;
+        --card-bg: #16202e;
+        --surface: #1b2739;
+        --text-primary: #e6ecf5;
+        --text-secondary: #a4b4ca;
+        --text-faint: #64748b;
+        --border: rgba(150, 180, 215, 0.16);
+        --line: rgba(150, 180, 215, 0.22);
+        --accent: #6ea6e0;
+        --accent-soft: rgba(96, 150, 205, 0.22);
+        --t-grid: rgba(150, 180, 215, 0.12);
+        --t-row-line: rgba(150, 180, 215, 0.12);
+        --t-head-bg: #1b2739;
+        --t-head-ink: #a4b4ca;
+        --t-head-rule: rgba(150, 180, 215, 0.26);
+        --t-hover: rgba(96, 150, 205, 0.12);
+        --t-stripe: rgba(255, 255, 255, 0.02);
+        --t-selected: rgba(96, 150, 205, 0.22);
+        --t-sel-bar: #6ea6e0;
+        --t-skeleton: rgba(150, 180, 215, 0.12);
+        --ok: #4fb96c;
+        --soft-ok-bg: rgba(46, 125, 70, 0.22);
+        --soft-ok-ink: #78c795;
+        --soft-warn-bg: rgba(150, 108, 25, 0.24);
+        --soft-warn-ink: #e0b463;
+        --soft-danger-bg: rgba(150, 52, 45, 0.24);
+        --soft-danger-ink: #ef938c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text-primary);
+        font:
+          14px/1.6 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system,
+          'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: 'JetBrains Mono', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+        font-size: 0.95em;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---------- demo 外壳 ---------- */
+      .demo-top {
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+        padding: 11px 24px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+      }
+      .demo-top h1 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .demo-top .grow {
+        flex: 1;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .seg > span {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 8px 0 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .seg button {
+        padding: 4px 11px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .seg button.on {
+        color: #fff;
+        background: var(--accent);
+      }
+      html[data-theme='dark'] .seg button.on {
+        color: #101826;
+      }
+      main {
+        max-width: 1620px;
+        margin: 0 auto;
+        padding: 24px 24px 80px;
+      }
+      section {
+        margin-bottom: 32px;
+      }
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 0 0 6px;
+      }
+      .sec-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .sec-head .tag {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .sec-note {
+        max-width: 100ch;
+        margin: 0 0 14px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .sec-note b {
+        color: var(--text-primary);
+      }
+      .cols {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1fr;
+      }
+      .cols.two {
+        grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+      }
+      .frame {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .frame-label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 9px 16px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .frame-label .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-faint);
+      }
+      .frame-label.is-new .dot {
+        background: var(--accent);
+      }
+      .frame-body {
+        overflow-x: auto;
+      }
+      .callout {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+      }
+      .callout b {
+        color: var(--text-primary);
+      }
+
+      /* ---------- 页面行结构（第 1 节） ---------- */
+      .page-slab {
+        padding: 16px 18px;
+      }
+      .row-desc {
+        margin-bottom: 12px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .row-btns {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .row-btns.desc-right {
+        display: grid;
+        grid-template-columns: auto 1fr;
+      }
+      .row-btns .desc {
+        display: flex;
+        align-items: center;
+        padding-left: 16px;
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .btn {
+        padding: 5px 13px;
+        font: inherit;
+        font-size: 13px;
+        color: var(--text-primary);
+        background: var(--card-bg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .btn.primary {
+        color: #fff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      html[data-theme='dark'] .btn.primary {
+        color: #101826;
+      }
+      .btn.dark {
+        color: #fff;
+        background: #24344c;
+        border-color: #24344c;
+      }
+      .row-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding-bottom: 4px;
+      }
+      .field {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        padding: 4px 10px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+      }
+      .field input {
+        width: 150px;
+        font: inherit;
+        color: var(--text-primary);
+        background: none;
+        border: 0;
+        outline: none;
+      }
+      .lbl {
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+
+      /* ---------- 表格（第 2、3 节共用） ---------- */
+      table.t {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+      }
+      table.t thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--t-head-ink);
+        /* 你定的：表头固定居中，不跟随列内容 */
+        text-align: center;
+        white-space: nowrap;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--t-head-rule);
+      }
+      table.t thead th:first-child,
+      table.t tbody td:first-child {
+        padding-left: 18px;
+      }
+      table.t thead th:last-child,
+      table.t tbody td:last-child {
+        padding-right: 18px;
+      }
+      table.t tbody td {
+        padding: 11px 14px;
+        color: var(--text-secondary);
+        text-align: left;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--t-row-line);
+      }
+      table.t tbody td.r {
+        text-align: right;
+      }
+      table.t tbody td.ink {
+        color: var(--text-primary);
+      }
+      html[data-density='compact'] table.t tbody td {
+        padding: 6px 14px;
+      }
+      html[data-density='compact'] table.t thead th {
+        padding: 7px 14px;
+      }
+      /* 竖线开关：打开时表头同时回到浅底，模拟现状那种「格子」感 */
+      html[data-grid='on'] table.t tbody td,
+      html[data-grid='on'] table.t thead th {
+        border-right: 1px solid var(--t-grid);
+      }
+      html[data-grid='on'] table.t thead th:last-child,
+      html[data-grid='on'] table.t tbody td:last-child {
+        border-right: 0;
+      }
+      html[data-grid='on'] table.t thead th {
+        font-weight: 600;
+        background: var(--t-head-bg);
+      }
+      /* 斑马开关 */
+      html[data-stripe='on'] table.t tbody tr:nth-child(even) td {
+        background: var(--t-stripe);
+      }
+      table.t tbody tr:hover td {
+        background: var(--t-hover);
+      }
+      table.t tbody tr.is-selected td {
+        background: var(--t-selected);
+      }
+      table.t tbody tr.is-selected td:first-child {
+        box-shadow: inset 3px 0 0 var(--t-sel-bar);
+      }
+      table.t tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .truncate {
+        display: block;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sorter {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .sorter .arrows {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 9px;
+        line-height: 1;
+        color: var(--text-secondary);
+      }
+      .sorter .arrows i {
+        font-style: normal;
+      }
+      th.is-sorted {
+        color: var(--text-primary);
+      }
+      th.is-sorted .arrows {
+        color: var(--accent);
+      }
+      th.is-sorted .arrows i:nth-child(1),
+      th.sort-desc .arrows i:nth-child(2) {
+        opacity: 0.55;
+      }
+
+      /* 状态：tone 由字典条目给出 */
+      .st {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .st::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        content: '';
+        background: var(--text-faint);
+      }
+      .st.tone-success::before {
+        background: var(--ok);
+      }
+      .st.tone-warning,
+      .st.tone-danger {
+        padding: 1px 8px;
+        border-radius: 999px;
+      }
+      .st.tone-warning {
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+      }
+      .st.tone-warning::before {
+        background: currentColor;
+      }
+      .st.tone-danger {
+        color: var(--soft-danger-ink);
+        background: var(--soft-danger-bg);
+      }
+      .st.tone-danger::before {
+        background: currentColor;
+      }
+      .ops {
+        display: flex;
+        gap: 2px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      /* 降噪靠「静置灰字、悬停整行才变主色」，不靠压透明度：
+         12.5px 链接压到 55% 透明度就只有 2.7:1，读不清了。 */
+      .ops button {
+        padding: 2px 7px;
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: color 0.12s;
+      }
+      tr:hover .ops button {
+        color: var(--accent);
+      }
+      .ops button:hover {
+        background: var(--accent-soft);
+      }
+      .ops button.danger {
+        color: var(--soft-danger-ink);
+      }
+      tr:hover .ops button.danger {
+        color: var(--soft-danger-ink);
+      }
+      tfoot td {
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-top: 1px solid var(--t-head-rule);
+      }
+      .pager {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 11px 18px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border);
+      }
+      .pager .grow {
+        flex: 1;
+      }
+      .pg {
+        display: inline-grid;
+        min-width: 26px;
+        height: 26px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        place-items: center;
+        background: none;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .pg.on {
+        color: var(--accent);
+        font-weight: 600;
+        border-color: var(--accent);
+      }
+
+      /* 现状还原（截图那张） */
+      table.legacy {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.legacy th,
+      table.legacy td {
+        padding: 8px 14px;
+        text-align: center;
+        border: 1px solid var(--t-grid);
+      }
+      table.legacy th {
+        font-weight: 600;
+        color: var(--t-head-ink);
+        background: var(--t-head-bg);
+        white-space: nowrap;
+      }
+      table.legacy td {
+        color: var(--text-secondary);
+      }
+      table.legacy td.ink {
+        color: var(--text-primary);
+      }
+      table.legacy tbody tr:nth-child(even) td {
+        background: var(--t-stripe);
+      }
+      table.legacy td.l {
+        text-align: left;
+      }
+
+      /* 字典 tone 编辑片段 */
+      .dict {
+        width: 100%;
+        font-size: 12.5px;
+        border-collapse: collapse;
+      }
+      .dict th {
+        padding: 8px 10px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: left;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .dict td {
+        padding: 8px 10px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border);
+      }
+      .swatch {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--text-primary);
+      }
+      .swatch::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        content: '';
+      }
+      .swatch.n::before {
+        background: var(--text-faint);
+      }
+      .swatch.s::before {
+        background: var(--ok);
+      }
+      .swatch.w {
+        padding: 1px 8px;
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+        border-radius: 999px;
+      }
+      .swatch.w::before {
+        background: currentColor;
+      }
+      .swatch.d {
+        padding: 1px 8px;
+        color: var(--soft-danger-ink);
+        background: var(--soft-danger-bg);
+        border-radius: 999px;
+      }
+      .swatch.d::before {
+        background: currentColor;
+      }
+      select.tone {
+        padding: 2px 6px;
+        font: inherit;
+        color: var(--text-primary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+      }
+      .rules {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .rule {
+        padding: 12px 14px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .rule h3 {
+        margin: 0 0 5px;
+        font-size: 13px;
+      }
+      .rule p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .rule code {
+        padding: 0 4px;
+        font-family: Consolas, monospace;
+        font-size: 11.5px;
+        background: var(--surface);
+        border-radius: 3px;
+      }
+      .ok-mark {
+        color: var(--soft-ok-ink);
+      }
+      .no-mark {
+        color: var(--soft-danger-ink);
+      }
+      .legend {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .legend li {
+        margin-bottom: 5px;
+      }
+      .sk {
+        display: inline-block;
+        height: 10px;
+        background: var(--t-skeleton);
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-top">
+      <h1>表格设计 v2 · 按你的反馈回炉</h1>
+      <div class="grow"></div>
+      <div class="seg" id="seg-grid">
+        <span>竖线</span>
+        <button data-v="off" class="on">关</button>
+        <button data-v="on">开</button>
+      </div>
+      <div class="seg" id="seg-stripe">
+        <span>斑马纹</span>
+        <button data-v="off" class="on">关</button>
+        <button data-v="on">开</button>
+      </div>
+      <div class="seg" id="seg-density">
+        <span>行高</span>
+        <button data-v="comfy" class="on">舒适</button>
+        <button data-v="compact">紧凑</button>
+      </div>
+      <div class="seg" id="seg-theme">
+        <button data-v="light" class="on">明亮</button>
+        <button data-v="dark">夜晚</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="callout">
+        本轮按你说的定了：<b>表头固定居中</b>（撤回「跟随列对齐」）、<b>身份列不做两行式</b>（撤回合并）、
+        <b>按钮仍从左边排</b>、<b>说明并进按钮行右侧、不再占两行</b>、<b>数字右对齐保留</b>、
+        <b>状态的圆点/色块改由字典条目决定</b>。 顶部的「竖线 / 斑马纹」开关是给你现场比效果的，
+        第 2、3 节的表都跟着它变。
+      </div>
+
+      <!-- ============ 1. 页面行合并 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>1. 按钮左排 + 说明并进右侧一行</h2>
+          <span class="tag">拿你截图那张系统参数页还原</span>
+        </div>
+        <p class="sec-note">
+          现在是三行：说明 → 按钮 → 筛选。改成两行：<b>按钮行左侧照旧，说明挪到同一行右边</b>，
+          纵向省一行给表格。说明超过一行宽度时自动折行，不会把按钮挤走。
+        </p>
+        <div class="cols">
+          <div class="frame">
+            <div class="frame-label"><span class="dot"></span>现状：三行</div>
+            <div class="page-slab">
+              <p class="row-desc">维护全局键值参数(token 有效期、密码强度策略等)</p>
+              <div class="row-btns">
+                <button class="btn dark">新增参数</button>
+              </div>
+              <div class="row-filters">
+                <span class="lbl">关键字</span><span class="field"><input placeholder="配置键/显示名称/说明" /></span>
+                <span class="lbl">分组</span><span class="field">请选择 ▾</span>
+                <span class="lbl">状态</span><span class="field">请选择 ▾</span>
+                <button class="btn dark">查询</button>
+                <button class="btn">重置</button>
+              </div>
+            </div>
+          </div>
+          <div class="frame">
+            <div class="frame-label is-new"><span class="dot"></span>改后：两行</div>
+            <div class="page-slab">
+              <div class="row-btns desc-right">
+                <button class="btn dark">新增参数</button>
+                <p class="desc">维护全局键值参数（token 有效期、密码强度策略等）</p>
+              </div>
+              <div class="row-filters">
+                <span class="lbl">关键字</span><span class="field"><input placeholder="配置键/显示名称/说明" /></span>
+                <span class="lbl">分组</span><span class="field">请选择 ▾</span>
+                <span class="lbl">状态</span><span class="field">请选择 ▾</span>
+                <button class="btn dark">查询</button>
+                <button class="btn">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 2. 竖线开关 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>2. 表头居中不变，竖线开 / 关自己点</h2>
+          <span class="tag">用顶部开关切换</span>
+        </div>
+        <p class="sec-note">
+          你担心的是「表头固定居中之后，竖线还在不在会不会更怪」。这张表就是给你现场试的。
+          我的判断写在下面，但<b>以你眼睛为准</b>：开竖线时表头会同时回到浅灰底 + 600 字重（那才是现状那套组合），
+          关竖线时表头去底色、只留一条更深的底线。
+        </p>
+        <div class="frame">
+          <div class="frame-label">
+            <span class="dot"></span>教师档案 · 当前开关：
+            <b id="echo-grid" class="mono">竖线关</b>
+            <b id="echo-stripe" class="mono">· 斑马关</b>
+            <b id="echo-density" class="mono">· 舒适</b>
+          </div>
+          <div class="frame-body">
+            <table class="t">
+              <thead>
+                <tr>
+                  <th>
+                    <span class="sorter"
+                      >姓名<span class="arrows"><i>▲</i><i>▼</i></span
+                    ></span>
+                  </th>
+                  <th>手机号</th>
+                  <th>状态</th>
+                  <th>用工类型</th>
+                  <th>主授科目</th>
+                  <th>
+                    <span class="sorter"
+                      >带班数<span class="arrows"><i>▲</i><i>▼</i></span
+                    ></span>
+                  </th>
+                  <th>本月课时</th>
+                  <th>最近登录</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ink">陈嘉禾</td>
+                  <td class="mono">138****4021</td>
+                  <td><span class="st tone-success">在职</span></td>
+                  <td>专职</td>
+                  <td><span class="truncate">初中数学</span></td>
+                  <td class="r num ink">5</td>
+                  <td class="r num ink">86</td>
+                  <td class="num">09-25 19:42</td>
+                  <td>
+                    <div class="ops"><button>编辑</button><button>停用</button><button class="danger">删除</button></div>
+                  </td>
+                </tr>
+                <tr class="is-selected">
+                  <td class="ink">刘文明</td>
+                  <td class="mono">139****7788</td>
+                  <td><span class="st tone-success">在职</span></td>
+                  <td>兼职</td>
+                  <td><span class="truncate">高中物理</span></td>
+                  <td class="r num ink">3</td>
+                  <td class="r num ink">124</td>
+                  <td class="num">09-26 08:15</td>
+                  <td>
+                    <div class="ops"><button>编辑</button><button>停用</button><button class="danger">删除</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ink">周雅琴</td>
+                  <td class="mono">135****1203</td>
+                  <td><span class="st tone-warning">停课</span></td>
+                  <td>专职</td>
+                  <td>
+                    <span class="truncate" title="小学英语 · 自然拼读 · 剑桥青少 · KET/PET 冲刺班课"
+                      >小学英语 · 自然拼读 · 剑桥青少 · KET/PET 冲刺班课</span
+                    >
+                  </td>
+                  <td class="r num ink">11</td>
+                  <td class="r num ink">92</td>
+                  <td class="num">09-24 21:03</td>
+                  <td>
+                    <div class="ops"><button>编辑</button><button>停用</button><button class="danger">删除</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ink">吴知远</td>
+                  <td class="mono">186****5512</td>
+                  <td><span class="st tone-success">在职</span></td>
+                  <td>专职</td>
+                  <td><span class="truncate">初中语文</span></td>
+                  <td class="r num ink">4</td>
+                  <td class="r num ink">45</td>
+                  <td class="num">09-23 10:27</td>
+                  <td>
+                    <div class="ops"><button>编辑</button><button>停用</button><button class="danger">删除</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ink">郑清和</td>
+                  <td class="mono">137****9965</td>
+                  <td><span class="st tone-danger">已离职</span></td>
+                  <td>劳务</td>
+                  <td><span class="truncate">高中化学</span></td>
+                  <td class="r num ink">2</td>
+                  <td class="r num ink">28</td>
+                  <td class="num">09-21 16:50</td>
+                  <td>
+                    <div class="ops"><button>编辑</button><button>重新启用</button></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span>共 128 条</span>
+            <span class="field">每页 20 ▾</span>
+            <span class="grow"></span>
+            <button class="pg">‹</button>
+            <button class="pg on">1</button>
+            <button class="pg">2</button>
+            <button class="pg">3</button>
+            <button class="pg">›</button>
+          </div>
+        </div>
+        <div class="rules" style="margin-top: 14px">
+          <div class="rule">
+            <h3>我的判断：竖线关</h3>
+            <p>
+              表头居中和竖线是<b>两套互相抢活的分隔信号</b>。表头一居中，标题就不指向某一格的具体位置了，
+              这时再加竖线，人只能靠竖线找列——列一多（我们排课页 9~12 列）就变成一格格小房间。
+              关掉竖线后靠「行线 + 表头底线 + 悬停整行」定位，反而更稳。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>如果坚持要竖线</h3>
+            <p>
+              那就<b>必须同时关掉斑马纹</b>（两个开关都开就是截图那种摩尔纹），并且把竖线颜色压到
+              <code>#eef1f6</code> 以下、只画竖不画外框。这条路我可以在样式里做成一个可选档位，
+              但默认建议不开。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>表头居中的代价（如实说明）</h3>
+            <p>
+              数字列右对齐 + 表头居中 = 标题在列正中、数字贴右边，<b>视觉上错开半格</b>。
+              你确认要这个组合的话，补偿办法是「悬停某列时整列淡底」，Element Plus 需要自己加
+              <code>cell-mouse-enter</code> 事件，属可选增强、不做也不影响使用。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 3. 现状对照 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>3. 与线上现状并排（同一份数据）</h2>
+          <span class="tag">左边复刻你截图那套</span>
+        </div>
+        <div class="cols two">
+          <div class="frame">
+            <div class="frame-label"><span class="dot"></span>现状：竖线 + 斑马 + 表头居中 + 数字左对齐</div>
+            <div class="frame-body">
+              <table class="legacy">
+                <thead>
+                  <tr>
+                    <th>配置键</th>
+                    <th>显示名称</th>
+                    <th>配置值</th>
+                    <th>值类型</th>
+                    <th>分组</th>
+                    <th>系统内置</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                    <th>说明</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="l mono">auth.password.force_change_enabled</td>
+                    <td class="l ink">强制改密总开关</td>
+                    <td class="l mono">true</td>
+                    <td>boolean</td>
+                    <td>认证</td>
+                    <td>是</td>
+                    <td>10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td class="l"><span class="truncate">全局控制是否启用强制改密拦截，关闭…</span></td>
+                    <td>
+                      <div class="ops" style="justify-content: center; opacity: 1">
+                        <button>编辑</button><button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l mono">brand.name</td>
+                    <td class="l ink">系统名称</td>
+                    <td class="l">课栈</td>
+                    <td>string</td>
+                    <td>brand</td>
+                    <td>否</td>
+                    <td>10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td class="l"><span class="truncate">横幅左上主标题、窄栏角标首字、登录…</span></td>
+                    <td>
+                      <div class="ops" style="justify-content: center; opacity: 1">
+                        <button>编辑</button><button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l mono">miniapp.register.page</td>
+                    <td class="l ink">小程序注册页路径</td>
+                    <td class="l mono">pages/register/index</td>
+                    <td>string</td>
+                    <td>miniapp</td>
+                    <td>是</td>
+                    <td>10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td class="l"><span class="truncate">生成邀请码小程序码(wxacode)后扫码跳…</span></td>
+                    <td>
+                      <div class="ops" style="justify-content: center; opacity: 1">
+                        <button>编辑</button><button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l mono">auth.password.strength_level</td>
+                    <td class="l ink">密码强度等级</td>
+                    <td class="l mono">medium</td>
+                    <td>string</td>
+                    <td>认证</td>
+                    <td>是</td>
+                    <td>30</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td class="l"><span class="truncate">simple=6-20位无要求 | medium=8-20…</span></td>
+                    <td>
+                      <div class="ops" style="justify-content: center; opacity: 1">
+                        <button>编辑</button><button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l mono">brand.login_form_title</td>
+                    <td class="l ink">登录表单标题</td>
+                    <td class="l">进入课栈</td>
+                    <td>string</td>
+                    <td>brand</td>
+                    <td>否</td>
+                    <td>40</td>
+                    <td><span class="st tone-warning">停用</span></td>
+                    <td class="l"><span class="truncate">登录页右侧表单卡的标题</span></td>
+                    <td>
+                      <div class="ops" style="justify-content: center; opacity: 1">
+                        <button>编辑</button><button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="frame">
+            <div class="frame-label is-new"><span class="dot"></span>改后（跟随顶部开关；表头仍居中）</div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>配置键</th>
+                    <th>显示名称</th>
+                    <th>配置值</th>
+                    <th>值类型</th>
+                    <th>分组</th>
+                    <th>系统内置</th>
+                    <th>
+                      <span class="sorter"
+                        >排序<span class="arrows"><i>▲</i><i>▼</i></span
+                      ></span>
+                    </th>
+                    <th>状态</th>
+                    <th>说明</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink mono">auth.password.force_change_enabled</td>
+                    <td class="ink">强制改密总开关</td>
+                    <td class="mono">true</td>
+                    <td>boolean</td>
+                    <td>认证</td>
+                    <td>是</td>
+                    <td class="r num ink">10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="truncate">全局控制是否启用强制改密拦截，关闭…</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button><button class="danger">删除</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink mono">brand.name</td>
+                    <td class="ink">系统名称</td>
+                    <td>课栈</td>
+                    <td>string</td>
+                    <td>brand</td>
+                    <td>否</td>
+                    <td class="r num ink">10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="truncate">横幅左上主标题、窄栏角标首字、登录…</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button><button class="danger">删除</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink mono">miniapp.register.page</td>
+                    <td class="ink">小程序注册页路径</td>
+                    <td class="mono">pages/register/index</td>
+                    <td>string</td>
+                    <td>miniapp</td>
+                    <td>是</td>
+                    <td class="r num ink">10</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="truncate">生成邀请码小程序码(wxacode)后扫码跳…</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button><button class="danger">删除</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink mono">auth.password.strength_level</td>
+                    <td class="ink">密码强度等级</td>
+                    <td class="mono">medium</td>
+                    <td>string</td>
+                    <td>认证</td>
+                    <td>是</td>
+                    <td class="r num ink">30</td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="truncate">simple=6-20位无要求 | medium=8-20…</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button><button class="danger">删除</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink mono">brand.login_form_title</td>
+                    <td class="ink">登录表单标题</td>
+                    <td>进入课栈</td>
+                    <td>string</td>
+                    <td>brand</td>
+                    <td>否</td>
+                    <td class="r num ink">40</td>
+                    <td><span class="st tone-warning">停用</span></td>
+                    <td><span class="truncate">登录页右侧表单卡的标题</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button><button class="danger">删除</button></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 4. 状态样式归字典 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>4. 状态的圆点 / 色块，改由字典条目决定</h2>
+          <span class="tag">你说得对，这条本来就不该写死在表格样式里</span>
+        </div>
+        <p class="sec-note">
+          现状是 <span class="mono">styles/index.css</span> 里按 Element Plus 的 tag 类型硬写的一条规则：
+          success/info 一律「圆点+文字」、warning/danger 一律软色块。也就是说<b>「什么算异常」是 CSS 猜的</b>，
+          换一个字典（比如教师状态里 <span class="mono">suspended</span> 想醒目、<span class="mono">left</span>
+          不想）就没法表达。你说的归字典，就是给 <span class="mono">sys_dict_item</span> 加一个展示语义字段
+          （下面叫 <span class="mono">item_tone</span>），列表、详情、小程序、导出都读同一个值。
+        </p>
+        <div class="cols two">
+          <div class="frame">
+            <div class="frame-label is-new"><span class="dot"></span>字典管理 · 教师状态(teacher_status) 条目编辑</div>
+            <div style="padding: 12px 16px 16px">
+              <table class="dict">
+                <thead>
+                  <tr>
+                    <th>条目名称</th>
+                    <th>条目值</th>
+                    <th>展示样式（新增）</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">在职</td>
+                    <td class="mono">active</td>
+                    <td>
+                      <span class="swatch s">圆点 · 正常</span>
+                      <select class="tone" style="margin-left: 8px">
+                        <option>success</option>
+                        <option>neutral</option>
+                        <option>warning</option>
+                        <option>danger</option>
+                      </select>
+                    </td>
+                    <td class="num">10</td>
+                    <td>启用</td>
+                  </tr>
+                  <tr>
+                    <td class="ink">停课</td>
+                    <td class="mono">suspended</td>
+                    <td>
+                      <span class="swatch w">色块 · 需处理</span>
+                      <select class="tone" style="margin-left: 8px">
+                        <option>warning</option>
+                        <option>neutral</option>
+                        <option>success</option>
+                        <option>danger</option>
+                      </select>
+                    </td>
+                    <td class="num">20</td>
+                    <td>启用</td>
+                  </tr>
+                  <tr>
+                    <td class="ink">已离职</td>
+                    <td class="mono">left</td>
+                    <td>
+                      <span class="swatch d">色块 · 终态</span>
+                      <select class="tone" style="margin-left: 8px">
+                        <option>danger</option>
+                        <option>neutral</option>
+                        <option>warning</option>
+                        <option>success</option>
+                      </select>
+                    </td>
+                    <td class="num">30</td>
+                    <td>启用</td>
+                  </tr>
+                  <tr>
+                    <td class="ink">试用</td>
+                    <td class="mono">probation</td>
+                    <td>
+                      <span class="swatch n">圆点 · 中性</span>
+                      <select class="tone" style="margin-left: 8px">
+                        <option>neutral</option>
+                        <option>success</option>
+                        <option>warning</option>
+                        <option>danger</option>
+                      </select>
+                    </td>
+                    <td class="num">40</td>
+                    <td>启用</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style="margin: 12px 0 0; font-size: 12.5px; color: var(--text-secondary)">
+                取值就四档：<b>neutral / success / warning / danger</b>。
+                规则固定为「neutral + success = 圆点+文字，warning + danger = 软色块」，
+                <b>样式本身仍是一份 CSS，字典只负责说「这个值属于哪一档」</b>，不让运维填颜色值。
+              </p>
+            </div>
+          </div>
+          <div class="frame">
+            <div class="frame-label is-new"><span class="dot"></span>同一份 tone 在列表里的渲染（含边界）</div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>姓名</th>
+                    <th>教师状态<br /><span style="font-weight: 400; font-size: 11px">字典驱动</span></th>
+                    <th>账号状态<br /><span style="font-weight: 400; font-size: 11px">代码判定，不入字典</span></th>
+                    <th>用工类型<br /><span style="font-weight: 400; font-size: 11px">字典驱动</span></th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">陈嘉禾</td>
+                    <td><span class="st tone-success">在职</span></td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="st tone-success">专职</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink">周雅琴</td>
+                    <td><span class="st tone-warning">停课</span></td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="st tone-success">专职</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink">郑清和</td>
+                    <td><span class="st tone-danger">已离职</span></td>
+                    <td><span class="st tone-warning">停用</span></td>
+                    <td><span class="st tone-warning">劳务</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ink">孙砚舟</td>
+                    <td><span class="st tone-neutral">试用</span></td>
+                    <td><span class="st tone-success">启用</span></td>
+                    <td><span class="st tone-neutral">兼职</span></td>
+                    <td>
+                      <div class="ops"><button>编辑</button></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="padding: 12px 18px 16px; font-size: 12.5px; color: var(--text-secondary)">
+              <b style="color: var(--text-primary)">边界要说清（AGENTS.md 已有这条）：</b>
+              账号 <span class="mono">active/disabled</span>、课次状态、<span class="mono">deleted</span>
+              这类<b>由代码分支判定的值不入字典</b>，所以它们的 tone 只能继续来自列配置
+              <span class="mono">columns_json.tagTypeMap</span>。落地口径因此是两层：
+              <b>字典列读字典 tone（权威源，一处改全站生效）；非字典列读列级 tagTypeMap</b>。
+              两者都归不到字典时，默认 <span class="mono">neutral</span>，绝不猜成 success。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 5. 本轮决定 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>5. 本轮逐条记账（防止下次又漂回去）</h2>
+        </div>
+        <div class="rules">
+          <div class="rule">
+            <h3><span class="no-mark">撤回</span> 表头跟随列对齐</h3>
+            <p>
+              你定：表头<b>固定居中</b>。现有 <code>styles/index.css</code> 那条全局居中规则原样保留，不动。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="no-mark">撤回</span> 身份列两行式</h3>
+            <p>
+              你定：不合并。<b>一列一个字段</b>，编号/归属该占列就占列，不做「姓名 + meta 副行」。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="no-mark">改向</span> 按钮位置</h3>
+            <p>
+              主操作<b>回到左边排</b>（本来 AGENTS.md 就是这个口径，是我上一版 demo 跑偏了）。
+              说明文案并进同一行右侧，页面从三行变两行。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="ok-mark">保留</span> 数字右对齐 + tabular-nums</h3>
+            <p>
+              你认可。人数/课时/排序/日期一律 <code>align="right"</code> +
+              <code>font-variant-numeric: tabular-nums</code>；编码、手机号走等宽字体。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="ok-mark">保留</span> 行高两档 + 状态降噪</h3>
+            <p>
+              实测舒适 47 / 紧凑 37（行高由操作按钮那格决定）；状态呈现改由字典 tone 驱动（第 4 节），
+              CSS 里那条「按 tag 类型猜异常」的规则随之删掉。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="no-mark">待定</span> 竖线 / 斑马纹</h3>
+            <p>
+              你用第 2 节的开关自己看。我推荐<b>竖线关、斑马关</b>；若你看完要留竖线，
+              就按第 2 节「坚持要竖线」那条的约束配套（禁斑马 + 竖线压淡）。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 6. 落地 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>6. 你点头之后要动的地方</h2>
+        </div>
+        <ol class="legend">
+          <li>
+            <b>core 样式段</b>：<span class="mono">packages/core/src/styles/index.css</span> ——
+            表头去底色 + 字重 500 + 底线加深；行线取代竖线（若你选关竖线）；行高两档；
+            删掉「按 tag 类型猜状态样式」那段，换成 <span class="mono">.tone-neutral/success/warning/danger</span>
+            四个类。
+          </li>
+          <li>
+            <b>页面行合并</b>：<span class="mono">ConfigurableCrudPage</span> 的按钮行与说明行合成一行
+            （左按钮 / 右说明），手写页同理跟一手。这一条会改 AGENTS.md 的「按钮与条件落点顺序」口径。
+          </li>
+            <li>
+            <b>字典 tone（要动底座表）</b>：<span class="mono">sys_dict_item</span> 加
+            <span class="mono">item_tone</span> 列 → <b>双轨各写一份迁移</b>（core <span class="mono">V10n</span> +
+            教培 <span class="mono">V7n</span>，内容一字不差）；<span class="mono">DictItemCreate/UpdateRequest</span>、
+            <span class="mono">DictItemView</span>、字典管理页表单、<span class="mono">dictStore</span>
+            的 <span class="mono">displayLabel</span> 旁边补一个 <span class="mono">toneOf(类型码, 值)</span>；
+            现有各字典类型（教师状态/用工类型/班型/课次相关）要逐条把 tone 种进迁移。
+          </li>
+          <li>
+            <b>各视图</b>：数字/时间列补 <span class="mono">align="right"</span>；带
+            <span class="mono">border stripe</span> 的 21 个文件按你选的档位删属性。
+          </li>
+          <li>
+            <b>不动的</b>：表头居中、身份列单行、树表与矩阵表不加排序/不加密度档、
+            多页签与 keep-alive 那套完全不受影响。
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <script>
+      function bind(segId, attr, echoId, echoText) {
+        var seg = document.getElementById(segId)
+        seg.addEventListener('click', function (e) {
+          var b = e.target.closest('button')
+          if (!b) return
+          document.documentElement.setAttribute(attr, b.dataset.v)
+          seg.querySelectorAll('button').forEach(function (x) {
+            x.classList.toggle('on', x === b)
+          })
+          if (echoId) {
+            var el = document.getElementById(echoId)
+            if (el) el.textContent = echoText(b.dataset.v)
+          }
+        })
+      }
+      bind('seg-grid', 'data-grid', 'echo-grid', function (v) {
+        return '竖线' + (v === 'on' ? '开' : '关')
+      })
+      bind('seg-stripe', 'data-stripe', 'echo-stripe', function (v) {
+        return '· 斑马' + (v === 'on' ? '开' : '关')
+      })
+      bind('seg-density', 'data-density', 'echo-density', function (v) {
+        return '· ' + (v === 'compact' ? '紧凑' : '舒适')
+      })
+      bind('seg-theme', 'data-theme')
+    </script>
+  </body>
+</html>

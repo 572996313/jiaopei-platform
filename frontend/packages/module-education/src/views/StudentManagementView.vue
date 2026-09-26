@@ -128,11 +128,11 @@
           ref="studentTableRef"
           :data="pagedStudents"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :cell-class-name="studentSort.cellClass"
           @sort-change="studentSort.onSortChange"
         >
           <el-table-column
@@ -219,11 +219,11 @@
           ref="enrollmentTableRef"
           :data="records"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :cell-class-name="enrollmentSort.cellClass"
           @sort-change="enrollmentSort.onSortChange"
         >
           <el-table-column
@@ -294,11 +294,11 @@
           ref="parentTableRef"
           :data="studentParents"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :cell-class-name="parentSort.cellClass"
           @sort-change="parentSort.onSortChange"
         >
           <el-table-column label="学员" min-width="180" fixed="left">

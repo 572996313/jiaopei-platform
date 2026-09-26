@@ -62,13 +62,17 @@
   --rail-active-bg: linear-gradient(160deg, var(--brand-blue-2), var(--brand-navy));
   --rail-active-shadow: 0 10px 20px -12px rgba(20, 33, 61, 0.8);
   --rail-active-ink: #fff;
-  /* 表格降噪:EP 自带的表头/斑马色在浅档偏灰,这里按品牌冷灰重定,夜档整体翻深 */
+  /* 表格降噪:EP 自带的表头色在浅档偏灰,这里按品牌冷灰重定,夜档整体翻深。
+     斑马纹全站关闭(见 styles 末尾「读行定位」段),--el-table-row-hover-bg-color 仍要定 */
   --table-border: #eef1f6;
   --table-head-bg: #f7f9fc;
   --table-head-ink: #5c6b82;
   --table-current-bg: #e8f1fb;
   --table-hover-bg: #f2f7fd;
   --table-current-bar: #2f6fb0;
+  /* 排序列整列淡底:压在 --table-head-bg 与白底行之上,比 current-bg 淡一档,
+     免得盖过「选中行」和「悬停行」的信号(优先级见下面的声明顺序) */
+  --table-sorted-col: #f1f6fc;
   /*
    * 软色状态块(提醒条、异常行、徽标):浅底 + 同色相深字的一对。
    * 业务页不要再自带 #fdf3cf/#8f5f00 这类色值——暗档下那套深字会直接压在深色底上看不见。
@@ -1086,12 +1090,20 @@ body {
 }
 
 /*
- * 说明行现在是卡片首行(标题不再重复页头菜单名),下方紧贴工具栏或表格,
+ * 单独占一行的说明(这一屏没有按钮行、或多句口径说明)是卡片首行,下方紧贴工具栏或表格,
  * 需要自己拉开间距。只命中块级用法,不命中权限卡片里复用同类的行内 span。
  */
 .education-panel > .education-context-text,
 .education-table-head > .education-context-text:only-child {
   margin-bottom: 12px;
+}
+
+/* 同一张表有主操作按钮行时,说明不再单独占一行(省一行给表格):按钮靠左、说明靠右。
+   flex:1 让它吃掉按钮行的剩余宽度并右对齐;行本身 flex-wrap,极端长文案才会折到第二行。 */
+.table-toolbar > .education-context-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
 }
 
 .education-table-head {
@@ -2019,10 +2031,6 @@ body {
   min-height: 200px;
 }
 
-.system-dict-current {
-  margin-bottom: 12px;
-}
-
 /* Element Plus 细节:表格紧凑密度、表头降噪、弹窗圆角与整体一致 */
 .el-table {
   --el-table-border-color: var(--table-border);
@@ -2052,7 +2060,95 @@ body {
   text-align: center;
 }
 
-/* 读行定位:斑马纹给行间的节奏感,点击钉住的当前行用左边线 + 底色标出来。
+/* 排序指示器:细线箭头(EP 自带的是 5px 实心三角,压在小号表头上偏重),紧贴标题右侧、
+   同时标题仍落在列中心。
+   EP 的 .caret-wrapper 是个 24px 宽的占位块,排在标题后面一起居中,实测把标题推离列中心
+   12.5px(表头全站固定居中,竖线一开这偏移一眼可见);绝对定位挂到列右边又离文字太远,
+   竖线一开读起来像下一列的符号。所以两件事分开做:
+   - .is-sortable 的 .cell 右侧多留 10px 内边距(不对称内边距会让标题轴左移 5px);
+   - 箭头盒压到 10px、左外边距 3px、右外边距 -23px,它在行盒里的净占位是 3+10-23 = -10px,
+     那一半(5px)正好把标题推回列中心。
+   算式(净占位必须 = -(右侧多留的内边距))别单改一项:改宽度或内边距后在
+   docs/mockups/sort-header-check.html 复测,那个页面会把摆位数直接打印出来。 */
+.el-table th.el-table__cell.is-sortable .cell {
+  padding-right: 20px;
+}
+
+.el-table .caret-wrapper {
+  width: 10px;
+  /* 两支 8px 高的箭头 + 2px 间距(盒高留 14 时上下两支会叠在一起) */
+  height: 18px;
+  margin-left: 3px;
+  margin-right: -23px;
+  /* EP 的箭头盒走 vertical-align: middle,实测中心比标题文字中心低 2.3px;
+     紧贴文字之后这个下沉比原来挂在右边距里时显眼,抬回来与标题共轴。 */
+  transform: translateY(-2.3px);
+}
+
+/* 箭头形状用 mask 画、不画在 border 上:mask 的描边宽度与拐点精确到像素,颜色走
+   currentColor,静置/激活两态只改 color 一个属性,不必重写四条透明 border。
+   viewBox 与元素尺寸同为 10×8,所以 mask-size: contain 即 1:1 落位、stroke 1px 不糊。
+   竖杆画在 x=4.5 而不是几何中心 5:1px 描边压在 4.5..5.5 会正好跨住像素边界、
+   渲成两列半透明灰(看着像 2px 的糊线),落在整列上才是 1 根实线。 */
+.el-table .sort-caret {
+  left: 0;
+  width: 10px;
+  height: 8px;
+  border: 0; /* 清掉 EP 的实心三角 */
+  color: var(--table-head-ink);
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* 静置态上下两支都画出来、给表头标题同档的灰(EP 默认用 --el-text-color-placeholder,
+   在表头底色上实测只有 2.18:1、夜晚档 4.44:1,等于「这列能不能点」没有信号)。
+   激活态只把方向那支转主色:EP 在 th 上挂 ascending/descending,另一支保持灰,
+   看一眼就知道现在按哪支排;上下两支同色是「未排序」的反面,不要一起上色。 */
+.el-table .sort-caret.ascending {
+  top: 0;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 3.5L4.5 0.5L8 3.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 3.5L4.5 0.5L8 3.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+.el-table .sort-caret.descending {
+  top: 10px;
+  bottom: auto;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 4.5L4.5 7.5L8 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 4.5L4.5 7.5L8 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+.el-table .ascending .sort-caret.ascending,
+.el-table .descending .sort-caret.descending {
+  color: var(--el-color-primary);
+}
+
+/* 排序一旦生效,把"反方向"那支压到几乎看不见:静置态两支并列说的是"这列可点",
+   排起来之后只剩方向那支,是正排还是倒排不用去比颜色深浅就能看出来。
+   用 opacity 而不是 display:none——留一层影子,表示"再点一下就翻到另一向"。 */
+.el-table th.ascending .sort-caret.descending,
+.el-table th.descending .sort-caret.ascending {
+  opacity: 0.2;
+}
+
+/* 排序列的标识:表头标题跟着主色走(表头底本来就与内容底色不同,再压一层淡底看不出来),
+   整列数据给一层淡底。淡底声明顺序在 current-row / hover-row 之前,
+   所以优先级是 悬停 > 选中行 > 排序列。 */
+.el-table th.el-table__cell.ascending,
+.el-table th.el-table__cell.descending {
+  color: var(--el-color-primary);
+}
+
+.el-table .el-table__body tr > td.el-table__cell.col-sorted {
+  background-color: var(--table-sorted-col);
+}
+
+/* 读行定位:全站不开斑马纹(模板上不写 stripe)——竖线已经把表切成格,再叠斑马就是小房间格纹。
+   行的节奏交给这两条:悬停整行、点击钉住的当前行(左边线 + 底色)。
    EP 默认的 current-row 底色太淡(白底表格上几乎看不出),这里加深一档。 */
 .el-table {
   --el-table-current-row-bg-color: var(--table-current-bg);
@@ -2418,6 +2514,7 @@ html.dark {
   --table-current-bg: rgba(96, 150, 205, 0.22);
   --table-hover-bg: rgba(96, 150, 205, 0.12);
   --table-current-bar: #6ea6e0;
+  --table-sorted-col: rgba(96, 150, 205, 0.1);
   /* 软色状态块夜档:底换成同色相的半透明叠加(压在深色卡上刚好),字换成提亮的同色相 */
   --soft-warn-bg: rgba(230, 162, 60, 0.16);
   --soft-warn-ink: #f0c674;

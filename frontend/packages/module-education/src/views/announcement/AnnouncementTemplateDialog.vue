@@ -18,7 +18,7 @@
         <el-button v-if="canWrite" type="primary" @click="openCreate">新增模板</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="templates" border stripe row-key="id" max-height="380">
+      <el-table v-loading="loading" :data="templates" border row-key="id" max-height="380">
         <el-table-column
           label="模板名称"
           min-width="150"

@@ -3,18 +3,17 @@
     <article class="panel-card education-panel">
       <!--
         配置化列表服务的是"一屏一张表"的页面,页头 h1 已经取了菜单名,这里不再重复标题,
-        也不显示条数(分页数由分页器承担,不分页的表体量小)。只保留"怎么生效"这一类说明行。
+        也不显示条数(分页数由分页器承担,不分页的表体量小)。
+        "怎么生效"这一类说明行由 ConfigurableList 并进它的主操作按钮行(同一行左按钮右说明),
+        所以这里不再单独渲染一行。
       -->
-      <div v-if="config?.page.description" class="education-context-text">
-        {{ config.page.description }}
-      </div>
-
       <ConfigurableList
         ref="listRef"
         :resource-code="resourceCode"
         :context="listContext"
         :actions="resolvedActions"
         :empty-text="config?.page.emptyText ?? '暂无数据'"
+        :note="config?.page.description ?? ''"
       />
     </article>
 

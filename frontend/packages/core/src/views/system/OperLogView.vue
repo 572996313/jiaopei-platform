@@ -1,12 +1,11 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-context-text">
-        请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
-      </div>
-
       <div class="table-toolbar">
         <el-button :loading="loading" @click="handleSearch">刷新</el-button>
+        <div class="education-context-text">
+          请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
+        </div>
       </div>
 
       <el-form :inline="true" class="operlog-filter-form" @submit.prevent>
@@ -99,11 +98,11 @@
           v-loading="loading"
           :data="records"
           border
-          stripe
           row-key="id"
           highlight-current-row
           style="width: 100%"
           :height="height"
+          :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
           <el-table-column prop="createdAt" label="操作时间" width="170" sortable="custom" />

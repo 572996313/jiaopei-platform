@@ -5,8 +5,6 @@
         {{ listConfigSectionError }}
       </article>
       <template v-else>
-        <div class="education-context-text">配置改完保存即生效,不需要发版。</div>
-
         <div class="table-toolbar">
           <el-button @click="guideDialogVisible = true">使用教程</el-button>
           <el-button
@@ -15,13 +13,13 @@
             @click="openCreateListConfigDialog"
             >新增配置</el-button
           >
+          <div class="education-context-text">配置改完保存即生效,不需要发版。</div>
         </div>
 
         <TableFillBox v-slot="{ height }">
           <el-table
             :data="listConfigRecords"
             border
-            stripe
             row-key="id"
             highlight-current-row
             v-loading="listConfigLoading"
@@ -66,7 +64,7 @@
                 <span v-else class="education-context-text">-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="pageSize" label="每页条数" width="90" sortable />
+            <el-table-column prop="pageSize" label="每页条数" width="90" align="right" sortable />
             <el-table-column label="状态" width="100" prop="status" sortable>
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)">{{

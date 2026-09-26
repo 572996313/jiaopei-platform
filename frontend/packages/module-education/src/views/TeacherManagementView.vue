@@ -63,13 +63,7 @@
     </div>
 
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
-        </div>
-      </div>
-
-      <!-- 本表主操作:表格上方一行、左对齐 -->
+      <!-- 本表主操作:表格上方一行、左对齐;当前范围回显靠同一行右侧,不再单独占一行 -->
       <div class="table-toolbar">
         <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
         <el-button v-if="canManage" :icon="Upload" @click="importVisible = true">
@@ -77,6 +71,9 @@
         </el-button>
         <el-button :icon="Download" :loading="exporting" @click="handleExport">导出</el-button>
         <el-button v-if="canManage" :icon="Link" @click="linkVisible = true">匹配账号</el-button>
+        <div class="education-context-text">
+          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
+        </div>
       </div>
 
       <TableFillBox v-slot="{ height }">
@@ -84,11 +81,11 @@
           ref="teacherTableRef"
           :data="teachers"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :cell-class-name="teacherSort.cellClass"
           @sort-change="teacherSort.onSortChange"
         >
           <el-table-column

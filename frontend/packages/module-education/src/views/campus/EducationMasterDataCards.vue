@@ -31,7 +31,7 @@
           <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="sortOrder" label="排序" width="100" sortable />
+      <el-table-column prop="sortOrder" label="排序" width="100" align="right" sortable />
       <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip sortable />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
@@ -70,6 +70,7 @@
       :data="courses"
       border
       :max-height="TABLE_STACK_MAX_HEIGHT"
+      :cell-class-name="courseSort.cellClass"
       @sort-change="courseSort.onSortChange"
     >
       <el-table-column prop="courseCode" label="课程编码" width="150" sortable="custom" />
@@ -136,8 +137,8 @@
       <el-table-column label="授课方式" width="160" prop="teachingMethod" sortable>
         <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
       </el-table-column>
-      <el-table-column prop="minStudents" label="最少人数" width="100" sortable />
-      <el-table-column prop="maxStudents" label="最多人数" width="100" sortable />
+      <el-table-column prop="minStudents" label="最少人数" width="100" align="right" sortable />
+      <el-table-column prop="maxStudents" label="最多人数" width="100" align="right" sortable />
       <el-table-column label="状态" width="120" prop="status" sortable>
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>

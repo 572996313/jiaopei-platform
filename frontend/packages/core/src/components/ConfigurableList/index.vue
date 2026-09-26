@@ -38,8 +38,10 @@ const props = withDefaults(
     actionsWidth?: number
     /** 空态文案(表格无数据时展示),缺省 '暂无数据' */
     emptyText?: string
+    /** 面板级说明(如 page_json.description):与主操作按钮同一行靠右显示,不再单独占一行 */
+    note?: string
   }>(),
-  { actionsWidth: 0, emptyText: '暂无数据' }
+  { actionsWidth: 0, emptyText: '暂无数据', note: '' }
 )
 
 const emit = defineEmits<{
@@ -337,8 +339,11 @@ defineExpose({
     />
 
     <template v-else-if="config">
-      <!-- 主操作按钮:放查询条件上方,条件与表格贴着看(与其余列表页同口径) -->
-      <div v-if="toolbarActions.length" class="table-toolbar configurable-list-toolbar">
+      <!--
+        主操作按钮:放查询条件上方,条件与表格贴着看(与其余列表页同口径)。
+        说明(note)与按钮同一行靠右,不再单独占一行;没有按钮时这一行只剩说明。
+      -->
+      <div v-if="toolbarActions.length || note" class="table-toolbar configurable-list-toolbar">
         <el-button
           v-for="action in toolbarActions"
           :key="action.action"
@@ -347,6 +352,7 @@ defineExpose({
         >
           {{ action.label }}
         </el-button>
+        <div v-if="note" class="education-context-text">{{ note }}</div>
       </div>
 
       <el-form
@@ -405,11 +411,11 @@ defineExpose({
           ref="tableRef"
           :data="rows"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="loading"
           :height="height"
+          :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
           <template #empty>
@@ -423,6 +429,7 @@ defineExpose({
             :width="column.width"
             :min-width="column.minWidth"
             :fixed="column.fixed"
+            :align="column.align"
             :sortable="column.sortable ? 'custom' : false"
             :show-overflow-tooltip="column.showOverflowTooltip !== false"
           >

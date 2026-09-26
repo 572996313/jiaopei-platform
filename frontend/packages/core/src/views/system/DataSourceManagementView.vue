@@ -5,8 +5,6 @@
         {{ dataSourceSectionError }}
       </article>
       <template v-else>
-        <div class="education-context-text">页面下拉选项的接口与字段映射在此维护。</div>
-
         <div class="table-toolbar">
           <el-button @click="guideDialogVisible = true">帮助</el-button>
           <el-button
@@ -15,13 +13,13 @@
             @click="openCreateDialog"
             >新增数据源</el-button
           >
+          <div class="education-context-text">页面下拉选项的接口与字段映射在此维护。</div>
         </div>
 
         <TableFillBox v-slot="{ height }">
           <el-table
             :data="dataSourceRecords"
             border
-            stripe
             row-key="id"
             highlight-current-row
             v-loading="dataSourceLoading"

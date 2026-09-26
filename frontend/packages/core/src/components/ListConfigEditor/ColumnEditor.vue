@@ -50,11 +50,24 @@
       </template>
     </el-table-column>
 
-    <el-table-column prop="fixed" label="固定列" width="140">
+    <el-table-column prop="fixed" label="固定列" width="130">
       <template #default="{ row }">
         <el-select v-model="row.fixed" size="small" placeholder="不固定">
           <el-option
             v-for="opt in COLUMN_FIXED_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+      </template>
+    </el-table-column>
+
+    <el-table-column prop="align" label="对齐" width="120">
+      <template #default="{ row }">
+        <el-select v-model="row.align" size="small" placeholder="left(默认)">
+          <el-option
+            v-for="opt in COLUMN_ALIGN_OPTIONS"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -126,7 +139,8 @@
 
     <template #tip>
       <span class="block-tip">
-        prop 必须与后端返回的字段名一致;label 是表头中文。查看
+        prop 必须与后端返回的字段名一致;label 是表头中文。「对齐」只管数据格(表头全站居中):
+        人数、时长、容量、排序号这类要比大小/求和的量值选 right,id 与手机号等标识符保持默认。查看
         <a href="https://element-plus.org/zh-CN/component/table.html" target="_blank" rel="noopener"
           >表格文档 ↗</a
         >
@@ -139,7 +153,13 @@
 import { computed } from 'vue'
 import KeyValueEditor from './KeyValueEditor.vue'
 import TableEditorShell from './TableEditorShell.vue'
-import { COLUMN_FIXED_OPTIONS, COLUMN_TYPE_OPTIONS, rendererChoices, type ColumnRow } from './types'
+import {
+  COLUMN_ALIGN_OPTIONS,
+  COLUMN_FIXED_OPTIONS,
+  COLUMN_TYPE_OPTIONS,
+  rendererChoices,
+  type ColumnRow,
+} from './types'
 
 const modelValue = defineModel<ColumnRow[]>({ required: true })
 

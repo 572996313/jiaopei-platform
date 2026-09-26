@@ -33,6 +33,9 @@ public class ListConfigServiceImpl implements ListConfigService {
     /** 列固定方向:宽表横向滚动时钉住首/尾列,缺省不固定 */
     private static final Set<String> COLUMN_FIXED_DIRECTIONS = Set.of("left", "right");
 
+    /** 数据单元格对齐(表头不受影响,前端全站固定居中),缺省 left */
+    private static final Set<String> COLUMN_ALIGNMENTS = Set.of("left", "center", "right");
+
     /** 查询控件类型:输入框(默认)/下拉/字典下拉/日期 */
     private static final Set<String> QUERY_FIELD_TYPES = Set.of("input", "select", "dict-select", "date");
 
@@ -215,6 +218,12 @@ public class ListConfigServiceImpl implements ListConfigService {
         if (fixed != null && !COLUMN_FIXED_DIRECTIONS.contains(fixed)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 where + " 的 fixed 不支持：" + fixed + ",可选值 " + COLUMN_FIXED_DIRECTIONS + " 或不填");
+        }
+        String align = optionalText(column, "align");
+        if (align != null && !COLUMN_ALIGNMENTS.contains(align)) {
+            // 可选值按固定顺序写出来:Set.of 的迭代顺序每次 JVM 启动都不同,拼进报错会让操作员以为是脏数据
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                where + " 的 align 不支持：" + align + ",可选值 left、center、right 或不填");
         }
         Object sortable = column.get("sortable");
         if (sortable != null && !(sortable instanceof Boolean)) {

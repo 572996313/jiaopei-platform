@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-guide="on" data-colhl="on">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>表头排序样式定稿 · 竖线开 + 紧凑 + 表头居中 · 课栈后台</title>
+    <style>
+      :root {
+        --page-bg: #eef1f6;
+        --card-bg: #ffffff;
+        --surface: #f7f9fc;
+        --text-primary: #1b2431;
+        --text-secondary: #5c6b82;
+        --text-faint: #a9b4c6;
+        --border: #e6ebf2;
+        --line: #dfe5ee;
+        --accent: #2f6fb0;
+        --accent-soft: #e8f1fb;
+        --t-grid: #e9edf4;
+        --t-row-line: #edf1f6;
+        --t-head-bg: #f7f9fc;
+        --t-head-ink: #5c6b82;
+        --t-head-rule: #dbe3ee;
+        --t-hover: #f4f8fd;
+        --t-selected: #eef5fc;
+        --t-sel-bar: #2f6fb0;
+        --t-sorted-col: #f6f9fd;
+        --ok: #2f9e52;
+        --soft-warn-bg: #fdf4e3;
+        --soft-warn-ink: #93620d;
+        --soft-danger-bg: #fdeceb;
+        --soft-danger-ink: #a32821;
+        --guide: rgba(214, 51, 108, 0.85);
+        /* 静置排序指示色：不能比表头标题更淡到看不见。
+           EP 用的是 --el-text-color-placeholder（在本页表头底上实测 1.98:1），
+           紧凑 + 竖线下等于"这列能不能点"完全没信号。这里回到过 4.5 的灰。 */
+        --t-sort-idle: #5c6b82;
+        --guide-ink: #b02458;
+      }
+      html[data-theme='dark'] {
+        --page-bg: #0f1620;
+        --card-bg: #16202e;
+        --surface: #1b2739;
+        --text-primary: #e6ecf5;
+        --text-secondary: #a4b4ca;
+        --text-faint: #64748b;
+        --border: rgba(150, 180, 215, 0.16);
+        --line: rgba(150, 180, 215, 0.22);
+        --accent: #6ea6e0;
+        --accent-soft: rgba(96, 150, 205, 0.22);
+        --t-grid: rgba(150, 180, 215, 0.14);
+        --t-row-line: rgba(150, 180, 215, 0.12);
+        --t-head-bg: #1b2739;
+        --t-head-ink: #a4b4ca;
+        --t-head-rule: rgba(150, 180, 215, 0.26);
+        --t-hover: rgba(96, 150, 205, 0.12);
+        --t-selected: rgba(96, 150, 205, 0.22);
+        --t-sel-bar: #6ea6e0;
+        --t-sorted-col: rgba(96, 150, 205, 0.07);
+        --ok: #4fb96c;
+        --soft-warn-bg: rgba(150, 108, 25, 0.24);
+        --soft-warn-ink: #e0b463;
+        --soft-danger-bg: rgba(150, 52, 45, 0.24);
+        --soft-danger-ink: #ef938c;
+        --guide: rgba(255, 120, 170, 0.85);
+        --guide-ink: #ff8fb8;
+        --t-sort-idle: #a4b4ca;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text-primary);
+        font:
+          14px/1.6 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system,
+          'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: 'JetBrains Mono', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---------- demo 外壳 ---------- */
+      .demo-top {
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+        padding: 11px 24px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+      }
+      .demo-top h1 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .demo-top .grow {
+        flex: 1;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .seg > span {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 4px 0 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .seg button {
+        padding: 4px 11px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .seg button.on {
+        color: #fff;
+        background: var(--accent);
+      }
+      html[data-theme='dark'] .seg button.on {
+        color: #101826;
+      }
+      main {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 24px 24px 90px;
+      }
+      section {
+        margin-bottom: 34px;
+      }
+      .sec-head {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        margin: 0 0 6px;
+      }
+      .sec-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .sec-note {
+        max-width: 100ch;
+        margin: 0 0 14px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .sec-note b {
+        color: var(--text-primary);
+      }
+      .callout {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+      }
+      .callout b {
+        color: var(--text-primary);
+      }
+      .frame {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .frame-label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 9px 16px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .frame-label b {
+        color: var(--text-primary);
+      }
+      .frame-body {
+        overflow-x: auto;
+      }
+      .grid4 {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      }
+      .verdict {
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+      }
+      .verdict b {
+        color: var(--text-primary);
+      }
+      .badge {
+        padding: 1px 7px;
+        margin-left: 6px;
+        font-size: 11px;
+        border-radius: 999px;
+      }
+      .badge.rec {
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+      }
+      .badge.now {
+        color: var(--soft-danger-ink);
+        background: var(--soft-danger-bg);
+      }
+
+      /* ---------- 表格通用：竖线开 + 紧凑 + 表头居中（本轮已定） ---------- */
+      table.t {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+      }
+      table.t thead th {
+        position: relative;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--t-head-ink);
+        text-align: center;
+        white-space: nowrap;
+        background: var(--t-head-bg);
+        border-right: 1px solid var(--t-grid);
+        border-bottom: 1px solid var(--t-head-rule);
+      }
+      table.t thead th:last-child {
+        border-right: 0;
+      }
+      table.t tbody td {
+        padding: 6px 12px;
+        color: var(--text-secondary);
+        text-align: left;
+        border-right: 1px solid var(--t-grid);
+        border-bottom: 1px solid var(--t-row-line);
+      }
+      table.t tbody td:last-child {
+        border-right: 0;
+      }
+      table.t tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      table.t tbody td.r {
+        text-align: right;
+      }
+      table.t tbody td.ink {
+        color: var(--text-primary);
+      }
+      table.t tbody tr:hover td {
+        background: var(--t-hover);
+      }
+      table.t tbody tr.is-selected td {
+        background: var(--t-selected);
+      }
+      table.t tbody tr.is-selected td:first-child {
+        box-shadow: inset 3px 0 0 var(--t-sel-bar);
+      }
+      /* 排序列整列淡底（开关控制） */
+      html[data-colhl='on'] table.t th.is-sorted,
+      html[data-colhl='on'] table.t td.col-sorted {
+        background: var(--t-sorted-col);
+      }
+      html[data-colhl='on'] table.t tbody tr:hover td.col-sorted {
+        background: var(--t-hover);
+      }
+      /* 中线辅助：把每列的几何中心画出来，偏移一眼可见 */
+      html[data-guide='on'] table.t thead th::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        pointer-events: none;
+        content: '';
+        background: var(--guide);
+      }
+      .offset {
+        display: block;
+        margin-top: 2px;
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--guide-ink);
+      }
+
+      /* ---------- 四种箭头摆法 ---------- */
+      /* A. Element Plus 现状：caret-wrapper 24px 占位在文字后 */
+      .epa {
+        display: inline-flex;
+        gap: 0;
+        align-items: center;
+      }
+      .epa .cw {
+        position: relative;
+        display: inline-flex;
+        width: 24px;
+        height: 14px;
+        align-items: center;
+        vertical-align: middle;
+      }
+      .epa .cw i {
+        position: absolute;
+        left: 7px;
+        width: 0;
+        height: 0;
+        border: 5px solid transparent;
+      }
+      .epa .cw i.up {
+        top: -5px;
+        border-bottom-color: var(--t-sort-idle);
+      }
+      .epa .cw i.dn {
+        bottom: -3px;
+        border-top-color: var(--t-sort-idle);
+      }
+      th.ascending .epa .cw i.up,
+      th.descending .epa .cw i.dn {
+        border-bottom-color: var(--accent);
+        border-top-color: var(--accent);
+      }
+
+      /* B. 单字符箭头跟在文字后 */
+      .char .g {
+        margin-left: 3px;
+        font-size: 11px;
+        color: var(--t-sort-idle);
+      }
+      th.is-sorted .char .g {
+        color: var(--accent);
+      }
+
+      /* C. 箭头绝对定位在表头右上角 */
+      .corner {
+        position: absolute;
+        top: 3px;
+        right: 5px;
+        display: inline-flex;
+        font-size: 9px;
+        line-height: 1;
+        color: var(--t-sort-idle);
+      }
+      th.is-sorted .corner {
+        color: var(--accent);
+      }
+
+      /* D. 箭头绝对定位贴右边界（竖线内侧） */
+      .edge {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        display: inline-flex;
+        font-size: 10px;
+        line-height: 1;
+        color: var(--t-sort-idle);
+        transform: translateY(-50%);
+      }
+      th.is-sorted .edge {
+        color: var(--accent);
+      }
+
+      th.sortable {
+        cursor: pointer;
+      }
+      th.sortable:hover {
+        color: var(--accent);
+      }
+      th:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+
+      /* ---------- 交互表 ---------- */
+      .hintbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 11px 18px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border);
+      }
+      .hintbar .grow {
+        flex: 1;
+      }
+      .sort-echo {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        padding: 2px 9px;
+        font-size: 12px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-radius: 999px;
+      }
+      .sort-echo button {
+        font: inherit;
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        cursor: pointer;
+      }
+      .st {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .st::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        content: '';
+        background: var(--t-sort-idle);
+      }
+      .st.ok::before {
+        background: var(--ok);
+      }
+      .st.warn {
+        padding: 1px 8px;
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+        border-radius: 999px;
+      }
+      .st.warn::before {
+        background: currentColor;
+      }
+      .ops {
+        display: flex;
+        gap: 2px;
+        justify-content: flex-end;
+      }
+      .ops button {
+        padding: 1px 6px;
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      tr:hover .ops button {
+        color: var(--accent);
+      }
+      .rules {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+      .rule {
+        padding: 12px 14px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .rule h3 {
+        margin: 0 0 5px;
+        font-size: 13px;
+      }
+      .rule p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .rule code {
+        padding: 0 4px;
+        font-family: Consolas, monospace;
+        font-size: 11.5px;
+        background: var(--surface);
+        border-radius: 3px;
+      }
+      .legend {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .legend li {
+        margin-bottom: 5px;
+      }
+      .legend b {
+        color: var(--text-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-top">
+      <h1>表头排序样式定稿</h1>
+      <span style="font-size: 12px; color: var(--text-secondary)">前提已锁：竖线开 · 紧凑 · 表头居中</span>
+      <div class="grow"></div>
+      <div class="seg" id="seg-guide">
+        <span>中线辅助</span>
+        <button data-v="on" class="on">显示</button>
+        <button data-v="off">隐藏</button>
+      </div>
+      <div class="seg" id="seg-colhl">
+        <span>排序列淡底</span>
+        <button data-v="on" class="on">开</button>
+        <button data-v="off">关</button>
+      </div>
+      <div class="seg" id="seg-theme">
+        <button data-v="light" class="on">明亮</button>
+        <button data-v="dark">夜晚</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="callout">
+        先说结论：<b>竖线一开，「表头居中」和 Element Plus 现在的排序箭头是打架的</b>。
+        EP 的箭头是个 <b>24px 宽的占位块</b>（<span class="mono">.caret-wrapper</span>，
+        <span class="mono">width:24px;height:14px</span>），排在标题文字<b>后面</b>，
+        整块一起居中 —— 实测<b>标题被推离列中心 12.5px</b>（B 方案 7.5px，C/D 为 0）。
+        没有竖线时看不出来，有竖线 + 居中表头，两侧留白一眼就不对称。
+        第二件事：<b>EP 把静置箭头刷成 <span class="mono">--el-text-color-placeholder</span>，
+        在我们表头底色上实测 1.98:1</b> —— 紧凑 + 竖线之下，"这列到底能不能点"完全没有信号。
+        所以箭头要一起定：<b>摆位 + 静置色</b>。下面那条<b>粉色竖线就是每列的几何中心</b>，
+        粉色数字是脚本量的偏差，不是估的。
+      </div>
+
+      <!-- ============ 1. 四种摆法 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>1. 排序箭头的四种摆法（真实尺寸，可点）</h2>
+        </div>
+        <div class="grid4">
+          <div class="frame">
+            <div class="frame-label">A · Element Plus 现状<span class="badge now">就是现在这版</span></div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>班级</th>
+                    <th class="sortable" data-cyc>
+                      <span class="epa">本月课时<span class="cw"><i class="up"></i><i class="dn"></i></span></span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th class="sortable" data-cyc>
+                      <span class="epa">状态<span class="cw"><i class="up"></i><i class="dn"></i></span></span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">初三数学 A 班</td>
+                    <td class="r num ink">86</td>
+                    <td><span class="st ok">启用</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                  <tr>
+                    <td class="ink">高二物理 B 班</td>
+                    <td class="r num ink">124</td>
+                    <td><span class="st warn">停课</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="verdict">
+              <b>优点</b>：零改动，EP 自带，键盘焦点环也有。
+              <b>问题</b>：实测标题被 24px 占位块推离中心 <b>12.5px</b>；上下双三角在 14px 高的紧凑表头里
+              显得重；<b>「无序」和「升序」看起来几乎一样</b>，因为未激活的那个三角只是变淡。
+            </div>
+          </div>
+
+          <div class="frame">
+            <div class="frame-label">B · 单字符箭头跟文字后<span class="badge rec">窄列最省</span></div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>班级</th>
+                    <th class="sortable" data-cyc>
+                      <span class="char">本月课时<span class="g">▲</span></span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th class="sortable" data-cyc>
+                      <span class="char">状态<span class="g">▲</span></span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">初三数学 A 班</td>
+                    <td class="r num ink">86</td>
+                    <td><span class="st ok">启用</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                  <tr>
+                    <td class="ink">高二物理 B 班</td>
+                    <td class="r num ink">124</td>
+                    <td><span class="st warn">停课</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="verdict">
+              <b>优点</b>：箭头只占 11px + 3px 间距，偏移 <b>7.5px</b>，是 A 的六成；升/降用同一个字符翻转，
+              状态区分清楚。 <b>问题</b>：仍然不是真居中；「无序」时箭头必须显示成淡的
+              <span class="mono">⇅</span>，否则人不知道这列能点。
+            </div>
+          </div>
+
+          <div class="frame">
+            <div class="frame-label">C · 箭头绝对定位在表头右上角<span class="badge rec">我推荐这个</span></div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>班级</th>
+                    <th class="sortable" data-cyc>
+                      本月课时<span class="corner">▲</span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th class="sortable" data-cyc>
+                      状态<span class="corner">▲</span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">初三数学 A 班</td>
+                    <td class="r num ink">86</td>
+                    <td><span class="st ok">启用</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                  <tr>
+                    <td class="ink">高二物理 B 班</td>
+                    <td class="r num ink">124</td>
+                    <td><span class="st warn">停课</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="verdict">
+              <b>优点</b>：<span class="mono">position:absolute</span> 不占文字宽度，
+              <b>标题真正落在列中心</b>（粉色数字应为 0）；紧凑档 14px 高的表头里它挂在角上不打架；
+              列再窄也放得下。 <b>问题</b>：箭头离文字有点远，靠「排序列淡底」把三者串起来。
+            </div>
+          </div>
+
+          <div class="frame">
+            <div class="frame-label">D · 箭头贴右边界（竖线内侧）</div>
+            <div class="frame-body">
+              <table class="t">
+                <thead>
+                  <tr>
+                    <th>班级</th>
+                    <th class="sortable" data-cyc>
+                      本月课时<span class="edge">▲</span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th class="sortable" data-cyc>
+                      状态<span class="edge">▲</span>
+                      <span class="offset" data-off></span>
+                    </th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="ink">初三数学 A 班</td>
+                    <td class="r num ink">86</td>
+                    <td><span class="st ok">启用</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                  <tr>
+                    <td class="ink">高二物理 B 班</td>
+                    <td class="r num ink">124</td>
+                    <td><span class="st warn">停课</span></td>
+                    <td><div class="ops"><button>编辑</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="verdict">
+              <b>优点</b>：同样真居中；箭头永远在同一位置（贴竖线），扫一眼就知道哪几列可排。
+              <b>问题</b>：窄列（<span class="mono">width≤70</span>）时箭头会压到文字；
+              而且它看起来像列分隔的一部分，跟竖线混。
+            </div>
+          </div>
+        </div>
+        <p class="sec-note" style="margin-top: 12px">
+          粉色数字 = <b>标题文字中心与列几何中心的偏差（px）</b>，脚本量的，不是估的。
+          点任一可排序表头可循环三态：<b>升序 → 降序 → 无序（回到后端默认序）</b>。
+        </p>
+      </section>
+
+      <!-- ============ 2. 推荐组合完整表 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>2. 推荐组合：C 方案 + 排序列淡底 + 分页行回显</h2>
+          <span>这张表是真的，点表头试试</span>
+        </div>
+        <div class="frame">
+          <div class="frame-label">
+            <b>课次列表</b> · 2026 秋季 · 第 4~6 周 · 初三数学 A 班
+          </div>
+          <div class="frame-body">
+            <table class="t" id="live">
+              <thead>
+                <tr>
+                  <th data-k="lessonDate" class="sortable">
+                    上课日期<span class="corner">▲</span><span class="offset" data-off></span>
+                  </th>
+                  <th data-k="startTime" class="sortable">
+                    节次<span class="corner">▲</span><span class="offset" data-off></span>
+                  </th>
+                  <th data-k="lessonTitle" class="sortable">
+                    课程主题<span class="corner">▲</span><span class="offset" data-off></span>
+                  </th>
+                  <th>教师 / 教室</th>
+                  <th data-k="lessonStatus" class="sortable">
+                    状态<span class="corner">▲</span><span class="offset" data-off></span>
+                  </th>
+                  <th>变动</th>
+                  <th class="sortable" data-k="attendance">
+                    出勤<span class="corner">▲</span><span class="offset" data-off></span>
+                  </th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="live-body"></tbody>
+            </table>
+          </div>
+          <div class="hintbar">
+            <span id="echo" class="sort-echo" hidden></span>
+            <span id="echo-none" style="font-size: 12px; color: var(--text-secondary)">
+              当前无列排序，走后端默认序：上课日期↑ + 开始时间↑
+            </span>
+            <span class="grow"></span>
+            <span>共 6 条</span>
+          </div>
+        </div>
+        <div class="rules" style="margin-top: 14px">
+          <div class="rule">
+            <h3>为什么还要「排序列淡底」</h3>
+            <p>
+              表头居中 + 数字右对齐，标题和内容本来就错开半格；箭头再挂到右上角，
+              「这一列在排序」的信号就太弱了。<b>整列淡底</b>（含表头）把三者一次串起来，
+              也是你确认要竖线之后最划算的补偿。关掉它（顶部开关）你能看到差别。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>为什么还要分页行那枚回显</h3>
+            <p>
+              箭头只有 9px，操作员点完常常不确定「现在到底按什么排」。
+              底部回显写成 <code>排序：上课日期 · 升序</code> + 一个「取消」，
+              顺带解决「第三下点击=取消」这个没人知道的隐藏交互。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>三态怎么定</h3>
+            <p>
+              <b>升 → 降 → 无序</b>，无序即不传 <code>sortField</code>，后端回自己的默认序
+              （课次是日期+开始时间）。<b>同时只允许一列在排</b>（已定），
+              点另一列直接把状态挪过去，不做多列叠加。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 3. 规则清单 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>3. 排序样式要定死的细节</h2>
+        </div>
+        <div class="rules">
+          <div class="rule">
+            <h3>哪些列有箭头</h3>
+            <p>
+              只有「<b>该列只展示一个字段 ∩ 后端白名单有这个键</b>」的列渲染箭头（这条已经落地：
+              14 个分页接口 + <code>columns_json.sortable</code>）。不可排序列<b>什么都不加</b>，
+              不要放灰色占位箭头——那会让人以为点不动是坏了。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>静置箭头不许淡到看不见</h3>
+            <p>
+              EP 的 <code>.sort-caret</code> 默认色是 <code>--el-text-color-placeholder</code>，
+              在我们的表头底色上<b>实测 1.98:1</b>（夜晚档 3.16:1）。竖线一开，人只会以为这列不能点。
+              定值：<b>静置 <code>--text-secondary</code>（5.13:1 / 7.13:1），激活 <code>--accent</code></b>，
+              靠<b>颜色</b>而不是靠透明度区分两态 —— 12.5px 的灰字压到 55% 就只有 2.7:1。
+              同一个道理也用在状态圆点上（见 v2 demo 的字典配色那条）。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>hover 反馈</h3>
+            <p>
+              可排序表头 <code>cursor:pointer</code>（EP 的 <code>th.is-sortable</code> 自带）+
+              文字变主色 + 淡底 <code>--t-hover</code>。<b>不要做箭头淡→实的悬停动画</b>：
+              紧凑档 14px 表头里那点位移看着抖。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>键盘可达</h3>
+            <p>
+              EP 的 <code>.caret-wrapper</code> 自带 <code>:focus-visible</code> 外框；
+              换成自绘箭头后，<b>焦点要落在整块 <code>th</code> 上</b>（加
+              <code>tabindex="0"</code> + Enter/Space 触发），否则键盘用户只能靠 Tab 一路穿过。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>窄列（width ≤ 70）</h3>
+            <p>
+              如「排序」「状态」。C 方案的角标不受影响；若选 B，箭头要压到 10px 且
+              <code>margin-left:2px</code>，否则「状态▲」会在 70px 里换行。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>插槽列必须写 prop</h3>
+            <p>
+              用 <code>#default</code> 渲染的列（状态、操作、两行式），
+              <code>sort-change</code> 的 payload 取字段名靠的是 <code>prop</code>，
+              漏写就点了没反应。这条是纯踩坑记录，已写进 AGENTS.md。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>排序和别的状态怎么打架</h3>
+            <p>
+              优先级：<b>悬停 &gt; 选中行 &gt; 排序列淡底</b>（本页就是这个顺序，可切开关验证）。
+              「重置」按钮一并清排序（<code>clearTableSort</code>）；
+              <code>destroy-on-close</code> 的弹窗每次打开 <code>resetSort()</code>，
+              否则箭头消失但状态还留着。翻页<b>保留</b>排序。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>不加排序的两类表</h3>
+            <p>
+              <b>树表</b>（菜单管理、功能权限总览）行序即层级；<b>矩阵表</b>（课次完成度的动态周列）
+              是透视结构。这两类连箭头都不渲染，也不进白名单交互。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>后端不需要再动</h3>
+            <p>
+              这轮纯样式：<code>sortField/sortOrder</code>、白名单、主键 tiebreaker、
+              非白名单报错带可选值，上一轮已全部接完并冒烟过。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 4. 落地 ============ -->
+      <section>
+        <div class="sec-head">
+          <h2>4. 选 C 的话，代码上改哪几处</h2>
+        </div>
+        <ol class="legend">
+          <li>
+            <b>core 样式段</b> <span class="mono">packages/core/src/styles/index.css</span>：
+            把 <span class="mono">.el-table .caret-wrapper</span> 改成
+            <span class="mono">position:absolute; top:3px; right:5px</span> 并压掉它 24px 的占位宽；
+            <span class="mono">.sort-caret.ascending/.descending</span> 的
+            <span class="mono">border-*-color</span> 从
+            <span class="mono">--el-text-color-placeholder</span>（实测 1.98:1）换成
+            <span class="mono">--text-secondary</span>，激活态用 <span class="mono">--accent</span>。
+            这一步覆盖<b>所有</b>表（含 <span class="mono">ConfigurableList</span>），
+            因为 EP 的 DOM 结构不变，只挪样式。
+          </li>
+          <li>
+            <b>排序列淡底</b>：EP 没有「整列高亮」的原生开关，需要宿主表加
+            <span class="mono">:cell-class-name</span> 回调，按当前
+            <span class="mono">sortField</span> 命中的列索引返回
+            <span class="mono">col-sorted</span>。<span class="mono">useTableSort</span>
+            里补一个 <span class="mono">cellClass({columnIndex})</span>，
+            各表在 <span class="mono">el-table</span> 上挂一行即可（约 10 个文件，每文件 +1 行）。
+          </li>
+          <li>
+            <b>底部回显</b>：分页行左侧渲染
+            <span class="mono">排序：{label} · {升序|降序}</span> + 取消按钮；
+            <span class="mono">ConfigurableList</span> 内置一份，手写表用同一个小组件。
+          </li>
+          <li>
+            <b>口径同步</b>：AGENTS.md「列表排序」那条要补三句——箭头摆位（角标绝对定位、不占文字宽度）、
+            三态含「无序=回落后端默认序」、优先级「悬停&gt;选中&gt;排序列淡底」。
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <script>
+      // ---- 开关 ----
+      function bind(segId, attr) {
+        var seg = document.getElementById(segId)
+        seg.addEventListener('click', function (e) {
+          var b = e.target.closest('button')
+          if (!b) return
+          document.documentElement.setAttribute(attr, b.dataset.v)
+          seg.querySelectorAll('button').forEach(function (x) {
+            x.classList.toggle('on', x === b)
+          })
+        })
+      }
+      bind('seg-guide', 'data-guide')
+      bind('seg-colhl', 'data-colhl')
+      bind('seg-theme', 'data-theme')
+
+      // 量「标题文字中心」与「列几何中心」的偏差。
+      // 只算标题本身：排序指示符（.cw/.g/.corner/.edge）与粉色数字槽都不计入 ——
+      // 要看的正是"箭头把标题挤离列中心多少"，把箭头一起量进去永远得 0。
+      var SKIP = '.offset, .cw, .char .g, .corner, .edge'
+      function measureOffsets() {
+        document.querySelectorAll('table.t thead th').forEach(function (th) {
+          var slot = th.querySelector('[data-off]')
+          if (!slot) return
+          var boxes = []
+          var walker = document.createTreeWalker(th, NodeFilter.SHOW_TEXT)
+          for (var t = walker.nextNode(); t; t = walker.nextNode()) {
+            if (!t.textContent.trim()) continue
+            var deco = false
+            for (var p = t.parentElement; p && p !== th; p = p.parentElement) {
+              if (p.matches(SKIP) || getComputedStyle(p).position === 'absolute') {
+                deco = true
+                break
+              }
+            }
+            if (deco) continue
+            var range = document.createRange()
+            range.selectNodeContents(t)
+            var list = range.getClientRects()
+            for (var i = 0; i < list.length; i++) if (list[i].width > 0) boxes.push(list[i])
+          }
+          if (!boxes.length) {
+            slot.textContent = ''
+            return
+          }
+          var left = Math.min.apply(null, boxes.map(function (b) { return b.left }))
+          var right = Math.max.apply(null, boxes.map(function (b) { return b.right }))
+          var tr = th.getBoundingClientRect()
+          var off = (left + right) / 2 - (tr.left + tr.width / 2)
+          slot.textContent =
+            '文字中心偏移 ' + (Math.abs(off) < 0.6 ? '0' : (off > 0 ? '+' : '') + off.toFixed(1)) + 'px'
+        })
+      }
+      window.addEventListener('resize', measureOffsets)
+
+      // ---- 第 1 节：点击循环三态 ----
+      document.querySelectorAll('[data-cyc]').forEach(function (th) {
+        th.tabIndex = 0
+        var state = 0 // 0 无序 1 升 2 降
+        var glyph = th.querySelector('.char .g, .corner, .edge')
+        var epa = th.querySelector('.epa')
+        function paint() {
+          th.classList.toggle('ascending', state === 1)
+          th.classList.toggle('descending', state === 2)
+          th.classList.toggle('is-sorted', state !== 0)
+          if (epa) return // A 方案靠 CSS 类切换三角颜色
+          if (glyph) glyph.textContent = state === 0 ? '⇅' : state === 1 ? '▲' : '▼'
+        }
+        function cycle() {
+          state = (state + 1) % 3
+          paint()
+          measureOffsets()
+        }
+        th.addEventListener('click', cycle)
+        th.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            cycle()
+          }
+        })
+        paint()
+      })
+
+      // ---- 第 2 节：真排序的表 ----
+      var ROWS = [
+        {lessonDate: '2026-09-26', startTime: '18:30', lessonTitle: '一次函数与图像变换', teacher: '陈嘉禾 / 302', lessonStatus: '已完成', change: '教师换人', att: 17, attTotal: 18},
+        {lessonDate: '2026-09-27', startTime: '09:00', lessonTitle: '根的判别式串讲', teacher: '陈嘉禾 / 302', lessonStatus: '已完成', change: '—', att: 18, attTotal: 18},
+        {lessonDate: '2026-10-03', startTime: '18:30', lessonTitle: '相似三角形判定', teacher: '刘文明 / 305', lessonStatus: '待上课', change: '—', att: null, attTotal: 18},
+        {lessonDate: '2026-10-04', startTime: '09:00', lessonTitle: '旋转与坐标', teacher: '—', lessonStatus: '待上课', change: '—', att: null, attTotal: 18},
+        {lessonDate: '2026-10-10', startTime: '18:30', lessonTitle: '圆的基本性质', teacher: '陈嘉禾 / 302', lessonStatus: '已完成', change: '补课', att: 16, attTotal: 18},
+        {lessonDate: '2026-10-11', startTime: '09:00', lessonTitle: '切线长定理', teacher: '陈嘉禾 / 301', lessonStatus: '已取消', change: '停课', att: null, attTotal: 18}
+      ]
+      var DEFAULT_ORDER = ['lessonDate', 'startTime']
+      var sorted = {field: '', order: ''}
+      var body = document.getElementById('live-body')
+      var echo = document.getElementById('echo')
+      var echoNone = document.getElementById('echo-none')
+
+      function current() {
+        var rows = ROWS.slice()
+        if (sorted.field) {
+          var k = sorted.field, sign = sorted.order === 'desc' ? -1 : 1
+          rows.sort(function (a, b) {
+            var x = k === 'attendance' ? (a.att === null ? -1 : a.att / a.attTotal) : a[k]
+            var y = k === 'attendance' ? (b.att === null ? -1 : b.att / b.attTotal) : b[k]
+            return x < y ? -sign : x > y ? sign : 0
+          })
+        } else {
+          rows.sort(function (a, b) {
+            return DEFAULT_ORDER.reduce(function (acc, k) {
+              if (acc) return acc
+              return a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0
+            }, 0)
+          })
+        }
+        return rows
+      }
+      function render() {
+        var idx = sorted.field
+          ? [...document.querySelectorAll('#live thead th')].findIndex(function (th) {
+              return th.dataset.k === sorted.field
+            })
+          : -1
+        body.innerHTML = current()
+          .map(function (r) {
+            var st =
+              r.lessonStatus === '已完成'
+                ? 'ok'
+                : r.lessonStatus === '已取消'
+                  ? 'warn'
+                  : ''
+            return (
+              '<tr><td class="ink num">' +
+              r.lessonDate.slice(5) +
+              '</td><td class="num">' +
+              r.startTime +
+              '</td><td class="ink">' +
+              r.lessonTitle +
+              '</td><td>' +
+              r.teacher +
+              '</td><td><span class="st ' +
+              st +
+              '">' +
+              r.lessonStatus +
+              '</span></td><td>' +
+              r.change +
+              '</td><td class="r num ink">' +
+              (r.att === null ? '—' : r.att + '/' + r.attTotal) +
+              '</td><td><div class="ops"><button>详情</button></div></td></tr>'
+            )
+          })
+          .join('')
+        document.querySelectorAll('#live tbody tr').forEach(function (tr) {
+          ;[...tr.children].forEach(function (td, i) {
+            td.classList.toggle('col-sorted', i === idx)
+          })
+        })
+        var label = {lessonDate: '上课日期', startTime: '节次', lessonTitle: '课程主题', lessonStatus: '状态', attendance: '出勤'}[sorted.field]
+        if (label) {
+          echo.hidden = false
+          echo.innerHTML =
+            '排序：' + label + ' · ' + (sorted.order === 'asc' ? '升序' : '降序') + '<button>取消</button>'
+          echo.querySelector('button').onclick = function () {
+            sorted = {field: '', order: ''}
+            paintHeaders()
+            render()
+            measureOffsets()
+          }
+          echoNone.hidden = false
+          echoNone.style.display = 'none'
+        } else {
+          echo.hidden = true
+          echoNone.style.display = ''
+        }
+      }
+      function paintHeaders() {
+        document.querySelectorAll('#live thead th').forEach(function (th) {
+          var on = th.dataset.k === sorted.field
+          th.classList.toggle('is-sorted', on)
+          var g = th.querySelector('.corner')
+          if (g) g.textContent = on ? (sorted.order === 'asc' ? '▲' : '▼') : '⇅'
+        })
+      }
+      document.querySelectorAll('#live thead th.sortable').forEach(function (th) {
+        th.tabIndex = 0
+        function go() {
+          var k = th.dataset.k
+          if (sorted.field !== k) sorted = {field: k, order: 'asc'}
+          else if (sorted.order === 'asc') sorted = {field: k, order: 'desc'}
+          else sorted = {field: '', order: ''}
+          paintHeaders()
+          render()
+          measureOffsets()
+        }
+        th.addEventListener('click', go)
+        th.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            go()
+          }
+        })
+      })
+      paintHeaders()
+      render()
+      measureOffsets()
+    </script>
+  </body>
+</html>

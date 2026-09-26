@@ -14,7 +14,8 @@
       <div class="education-context-text">
         每列 prop/label 必填;type 可选 text/datetime/dict/boolean/tags/map;type=dict 需
         dictType,可配 tagTypeMap;type=map 需 valueMap;renderer 可选
-        {{ rendererNames }}。
+        {{ rendererNames }}。另有 fixed=left/right(钉列)、sortable=true(服务端排序,字段须在后端白名单内)、
+        align=left/center/right(只作用于数据格,量值列用 right)。
       </div>
     </el-form-item>
     <el-form-item label="查询条件 queryJson">

@@ -5,15 +5,19 @@ import { ref } from 'vue'
  *
  * 排序由后端完成:视图把 sortField/sortOrder 传给分页接口,接口按各自 Service 的列白名单
  * 映射成真实列,白名单外的字段直接 BAD_REQUEST。所以列上开 sortable 之前,先确认这一列的
- * prop 在该接口白名单里;这个 composable 只负责三件事:
+ * prop 在该接口白名单里;这个 composable 只负责四件事:
  *  1. 把 Element Plus 的 ascending/descending/null 翻成后端的 asc/desc/不传;
  *  2. 点回无序(第三次点击)时清空,让接口回到自己的默认排序;
- *  3. 吃掉 resetSort() 里 clearSort() 的回调,避免重置筛选时多发一次请求。
+ *  3. 吃掉 resetSort() 里 clearSort() 的回调,避免重置筛选时多发一次请求;
+ *  4. 供出「排序列整列淡底」的单元格类名。
+ *
+ * 排序方向的正排/倒排说明不在这里:那条提示是纯 DOM 的(悬停表头即出),
+ * 由 core 的 SortHeaderHint 统一实现,挂在外壳 AppLayout 上,视图不需要接线。
  *
  * 用法:
  *   const sort = useTableSort({ onSorted: () => { page.value = 1; void load() },
  *     clearTableSort: () => tableRef.value?.clearSort() })
- *   <el-table ref="tableRef" @sort-change="sort.onSortChange">
+ *   <el-table ref="tableRef" :cell-class-name="sort.cellClass" @sort-change="sort.onSortChange">
  *     <el-table-column prop="username" sortable="custom" />
  *   拉数参数里加 `...sort.sortParams()`,重置筛选时调 `sort.resetSort()`。
  */
@@ -51,5 +55,23 @@ export function useTableSort(options: {
     options.clearTableSort?.()
   }
 
-  return { sortField, sortOrder, sortParams, onSortChange, resetSort }
+  /**
+   * 排序列整列淡底。表头居中和数字右对齐本来就让标题与内容错开,角标箭头离文字又有距离,
+   * 只靠那 10px 的箭头说不出「这一列在排」,所以整列给一层淡底把三者串起来。
+   * 优先级由 styles/index.css 的顺序保证:悬停 > 选中行 > 排序列淡底。
+   */
+  function cellClass({ column }: { column?: { property?: string } }) {
+    return sortField.value !== '' && column?.property === sortField.value ? 'col-sorted' : ''
+  }
+
+  return {
+    sortField,
+    sortOrder,
+    sortParams,
+    onSortChange,
+    resetSort,
+    cellClass,
+  }
 }
+
+export type TableSortHandle = ReturnType<typeof useTableSort>

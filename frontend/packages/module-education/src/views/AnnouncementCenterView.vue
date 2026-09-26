@@ -65,11 +65,11 @@
           ref="tableRef"
           :data="records"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="loading"
           :height="height"
+          :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
           <el-table-column prop="title" label="标题" min-width="240" fixed="left" show-overflow-tooltip sortable="custom">

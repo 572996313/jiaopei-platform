@@ -1,12 +1,11 @@
 <template>
   <section class="education-page permission-overview">
-    <div class="education-context-text">
-      权限码来自后端 @RequiresPermission 注解扫描,这里把它与受控接口、持有角色、菜单节点、列表按钮的关系一次看全。
-      数据实时聚合,页面只读;要改授权去「角色管理-分配菜单」或「菜单管理」。
-    </div>
-
     <div class="table-toolbar">
       <el-button :loading="loading" @click="loadAll">刷新</el-button>
+      <div class="education-context-text">
+        权限码来自后端 @RequiresPermission 注解扫描,这里把它与受控接口、持有角色、菜单节点、列表按钮的关系一次看全。
+        数据实时聚合,页面只读;要改授权去「角色管理-分配菜单」或「菜单管理」。
+      </div>
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" class="education-alert" />

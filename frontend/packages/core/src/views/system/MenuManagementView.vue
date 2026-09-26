@@ -5,22 +5,20 @@
         {{ menuSectionError }}
       </article>
       <template v-else>
-        <div class="education-context-text">
-          权限码按节点性质分配:页面节点挂进入本页所需的读取码,按钮节点只挂写操作码,目录节点不挂码。
-          在角色管理的「分配菜单」里勾选页面即可读、勾选按钮即可写。
-        </div>
-
         <div class="table-toolbar">
           <el-button v-if="permissions.canManageMenus" type="primary" @click="openCreateMenuDialog"
             >新增菜单</el-button
           >
+          <div class="education-context-text">
+            权限码按节点性质分配:页面节点挂进入本页所需的读取码,按钮节点只挂写操作码,目录节点不挂码。
+            在角色管理的「分配菜单」里勾选页面即可读、勾选按钮即可写。
+          </div>
         </div>
 
         <TableFillBox v-slot="{ height }">
           <el-table
             :data="flattenedMenus"
             border
-            stripe
             row-key="id"
             highlight-current-row
             :tree-props="{ children: 'children' }"

@@ -1,0 +1,1491 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-density="comfy">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>表格与表头设计参考 · 课栈后台</title>
+    <style>
+      /* ========== 令牌：与 frontend/packages/core/src/styles/index.css 同名，便于直接照搬 ========== */
+      :root {
+        --page-bg: #eef1f6;
+        --card-bg: #ffffff;
+        --surface: #f7f9fc;
+        --text-primary: #1b2431;
+        --text-secondary: #5c6b82;
+        --text-muted: #8794a8;
+        --text-faint: #a9b4c6;
+        --border: #e6ebf2;
+        --line: #dfe5ee;
+        --accent: #2f6fb0;
+        --accent-soft: #e8f1fb;
+
+        /* 表格专用 */
+        --t-grid: #eef1f6; /* 竖线（新版基本不用） */
+        --t-row-line: #edf1f6; /* 行分隔线 */
+        --t-head-bg: #f7f9fc;
+        --t-head-bg-new: transparent;
+        --t-head-ink: #5c6b82;
+        --t-head-rule: #dbe3ee;
+        --t-hover: #f4f8fd;
+        --t-stripe: #fafbfd;
+        --t-selected: #eef5fc;
+        --t-sel-bar: #2f6fb0;
+        --t-skeleton: #eef2f7;
+        --shadow-pop: 0 6px 24px rgba(23, 38, 62, 0.12);
+        --soft-ok-bg: #eaf6ee;
+        --soft-ok-ink: #22763c;
+        --soft-warn-bg: #fdf4e3;
+        --soft-warn-ink: #93620d;
+        --soft-danger-bg: #fdeceb;
+        --soft-danger-ink: #a32821;
+        --soft-info-bg: #eef2f7;
+        --soft-info-ink: #4a5a72;
+      }
+      html[data-theme='dark'] {
+        --page-bg: #0f1620;
+        --card-bg: #16202e;
+        --surface: #1b2739;
+        --text-primary: #e6ecf5;
+        --text-secondary: #a4b4ca;
+        --text-muted: #7d8ca3;
+        --text-faint: #64748b;
+        --border: rgba(150, 180, 215, 0.16);
+        --line: rgba(150, 180, 215, 0.22);
+        --accent: #6ea6e0;
+        --accent-soft: rgba(96, 150, 205, 0.22);
+        --t-grid: rgba(150, 180, 215, 0.1);
+        --t-row-line: rgba(150, 180, 215, 0.12);
+        --t-head-bg: #1b2739;
+        --t-head-ink: #a4b4ca;
+        --t-head-rule: rgba(150, 180, 215, 0.26);
+        --t-hover: rgba(96, 150, 205, 0.12);
+        --t-stripe: rgba(255, 255, 255, 0.02);
+        --t-selected: rgba(96, 150, 205, 0.22);
+        --t-sel-bar: #6ea6e0;
+        --t-skeleton: rgba(150, 180, 215, 0.12);
+        --soft-ok-bg: rgba(46, 125, 70, 0.22);
+        --soft-ok-ink: #78c795;
+        --soft-warn-bg: rgba(150, 108, 25, 0.24);
+        --soft-warn-ink: #e0b463;
+        --soft-danger-bg: rgba(150, 52, 45, 0.24);
+        --soft-danger-ink: #ef938c;
+        --soft-info-bg: rgba(90, 110, 135, 0.24);
+        --soft-info-ink: #a9b8cc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text-primary);
+        font:
+          14px/1.6 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system,
+          'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: 'JetBrains Mono', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+        font-size: 0.94em;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ========== demo 页面骨架（不属于交付样式） ========== */
+      .demo-top {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 18px;
+        align-items: center;
+        padding: 12px 26px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+      }
+      .demo-top h1 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.2px;
+      }
+      .demo-top .spacer {
+        flex: 1;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .seg button {
+        padding: 4px 11px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: none;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .seg button.on {
+        color: #fff;
+        background: var(--accent);
+      }
+      html[data-theme='dark'] .seg button.on {
+        color: #101826;
+      }
+      main {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 26px 26px 80px;
+      }
+      section {
+        margin-bottom: 34px;
+      }
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 0 0 6px;
+      }
+      .sec-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .sec-head .tag {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .sec-note {
+        max-width: 96ch;
+        margin: 0 0 16px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .sec-note b {
+        color: var(--text-primary);
+      }
+      .cols {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 1fr;
+      }
+      .cols.two {
+        grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+      }
+      .frame {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(20, 35, 60, 0.04);
+        overflow: hidden;
+      }
+      .frame-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .frame-label .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-faint);
+      }
+      .frame-label.is-new .dot {
+        background: var(--accent);
+      }
+      .frame-body {
+        overflow-x: auto;
+      }
+
+      /* ========== 表 A：现状还原（border + stripe + 表头强制居中） ========== */
+      table.legacy {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.legacy th,
+      table.legacy td {
+        border: 1px solid var(--t-grid);
+        padding: 5px 10px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      table.legacy td {
+        text-align: left;
+      }
+      table.legacy th {
+        font-weight: 600;
+        color: var(--t-head-ink);
+        background: var(--t-head-bg);
+        white-space: nowrap;
+      }
+      table.legacy tbody tr:nth-child(even) td {
+        background: #fafafa;
+      }
+      html[data-theme='dark'] table.legacy tbody tr:nth-child(even) td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      table.legacy tbody tr:hover td {
+        background: var(--t-hover);
+      }
+      table.legacy td.l {
+        text-align: left;
+      }
+      table.legacy td.r {
+        text-align: right;
+      }
+      .legacy-tag {
+        display: inline-block;
+        padding: 1px 7px;
+        font-size: 11px;
+        color: var(--soft-ok-ink);
+        background: var(--soft-ok-bg);
+        border: 1px solid currentColor;
+        border-radius: 4px;
+      }
+      .legacy-tag.warn {
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+      }
+      .legacy-link {
+        color: var(--accent);
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      /* ========== 表 B：新版 ========== */
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding: 14px 18px 12px;
+      }
+      .card-head .title {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .card-head .sub {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .card-head .grow {
+        flex: 1;
+      }
+      .btn {
+        padding: 5px 13px;
+        font: inherit;
+        font-size: 13px;
+        color: var(--text-primary);
+        background: var(--card-bg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .btn.primary {
+        color: #fff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      html[data-theme='dark'] .btn.primary {
+        color: #101826;
+      }
+      .btn.icon {
+        padding: 5px 8px;
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding: 0 18px 12px;
+      }
+      .field {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+      }
+      .field input {
+        font: inherit;
+        color: var(--text-primary);
+        background: none;
+        border: 0;
+        outline: none;
+        width: 130px;
+      }
+
+      table.modern {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+      }
+      /* 表头：无底色、跟随列对齐、500 字重、底部一条比行线更深的分隔线 */
+      table.modern thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--t-head-ink);
+        text-align: left;
+        white-space: nowrap;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--t-head-rule);
+      }
+      table.modern thead th:first-child,
+      table.modern tbody td:first-child {
+        padding-left: 18px;
+      }
+      table.modern thead th:last-child,
+      table.modern tbody td:last-child {
+        padding-right: 18px;
+      }
+      table.modern thead th.r,
+      table.modern tbody td.r {
+        text-align: right;
+      }
+      table.modern thead th.c,
+      table.modern tbody td.c {
+        text-align: center;
+      }
+      /* 排序 affordance：未排序也给淡箭头（可发现性），激活态加深 */
+      .sorter {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+        cursor: pointer;
+      }
+      .sorter .arrows {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 9px;
+        line-height: 1;
+        color: var(--text-secondary);
+      }
+      .sorter:hover {
+        color: var(--accent);
+      }
+      th.is-sorted {
+        color: var(--text-primary);
+      }
+      th.is-sorted .arrows {
+        color: var(--accent);
+      }
+      th.is-sorted .arrows i:nth-child(1) {
+        opacity: 0.55;
+      }
+      th.sort-desc .arrows i:nth-child(1) {
+        opacity: 1;
+      }
+      th.sort-desc .arrows i:nth-child(2) {
+        opacity: 0.55;
+      }
+      .sorter .arrows i {
+        font-style: normal;
+      }
+
+      /* 行：只有底边线，无竖线，无斑马；密度两档 */
+      table.modern tbody td {
+        padding: 11px 14px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--t-row-line);
+      }
+      html[data-density='compact'] table.modern tbody td {
+        padding: 6px 14px;
+      }
+      html[data-density='compact'] table.modern thead th {
+        padding: 7px 14px;
+      }
+      table.modern tbody tr:hover td {
+        background: var(--t-hover);
+      }
+      table.modern tbody tr.is-selected td {
+        background: var(--t-selected);
+      }
+      table.modern tbody tr.is-selected td:first-child {
+        box-shadow: inset 3px 0 0 var(--t-sel-bar);
+      }
+      table.modern tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      td.ink {
+        color: var(--text-primary);
+      }
+      td.dim {
+        color: var(--text-secondary);
+      }
+      .cell-2 {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .cell-2 .k {
+        font-size: 13px;
+        color: var(--text-primary);
+      }
+      .cell-2 .m {
+        font-size: 11.5px;
+        color: var(--text-secondary);
+      }
+      .truncate {
+        display: block;
+        max-width: 210px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .avatar {
+        display: inline-grid;
+        flex: none;
+        width: 26px;
+        height: 26px;
+        margin-right: 9px;
+        font-size: 12px;
+        color: var(--accent);
+        place-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+      }
+      .ident {
+        display: flex;
+        align-items: center;
+      }
+
+      /* 状态：圆点 + 文字；异常才给软色块 */
+      .st {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .st::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        content: '';
+        background: var(--text-faint);
+      }
+      .st.ok::before {
+        background: #2f9e52;
+      }
+      .st.idle::before {
+        background: var(--text-faint);
+      }
+      .st.pill-warn {
+        padding: 1px 8px;
+        color: var(--soft-warn-ink);
+        background: var(--soft-warn-bg);
+        border-radius: 999px;
+      }
+      .st.pill-warn::before {
+        background: currentColor;
+      }
+      .st.pill-danger {
+        padding: 1px 8px;
+        color: var(--soft-danger-ink);
+        background: var(--soft-danger-bg);
+        border-radius: 999px;
+      }
+      .st.pill-danger::before {
+        background: currentColor;
+      }
+      .chip {
+        display: inline-block;
+        padding: 0 7px;
+        margin-left: 6px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+      }
+
+      /* 操作：默认低对比，悬停整行时才提亮 —— 减少满屏蓝链接 */
+      .ops {
+        display: flex;
+        gap: 2px;
+        align-items: center;
+        justify-content: flex-end;
+        opacity: 0.42;
+        transition: opacity 0.12s;
+      }
+      tr:hover .ops {
+        opacity: 1;
+      }
+      .ops button {
+        padding: 2px 7px;
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--accent);
+        background: none;
+        border: 0;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .ops button:hover {
+        background: var(--accent-soft);
+      }
+      .ops button.danger {
+        color: var(--soft-danger-ink);
+      }
+
+      /* 行展开 */
+      tr.expand-row td {
+        padding: 0 18px 14px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--t-row-line);
+      }
+      .subtable {
+        width: 100%;
+        font-size: 12.5px;
+        border-collapse: collapse;
+      }
+      .subtable th {
+        padding: 8px 10px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .subtable td {
+        padding: 8px 10px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border);
+      }
+      .subtable tr:last-child td {
+        border-bottom: 0;
+      }
+      .caret {
+        display: inline-block;
+        width: 14px;
+        margin-left: -6px;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+      .caret.open {
+        transform: rotate(90deg);
+      }
+
+      /* 合计行 + 分页 */
+      tfoot td {
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-top: 1px solid var(--t-head-rule);
+      }
+      .pager {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 18px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border);
+      }
+      .pager .grow {
+        flex: 1;
+      }
+      .pg {
+        display: inline-grid;
+        min-width: 26px;
+        height: 26px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        place-items: center;
+        background: none;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .pg:hover {
+        color: var(--accent);
+        border-color: var(--line);
+      }
+      .pg.on {
+        color: var(--accent);
+        font-weight: 600;
+        border-color: var(--accent);
+      }
+
+      /* 固定列的滚动提示：右侧一道渐变，表示还有列 */
+      .sticky-demo {
+        position: relative;
+      }
+      .sticky-demo::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 300px;
+        width: 22px;
+        pointer-events: none;
+        content: '';
+        background: linear-gradient(90deg, rgba(20, 35, 60, 0.07), transparent);
+      }
+
+      /* 骨架 */
+      .sk {
+        display: inline-block;
+        height: 10px;
+        background: var(--t-skeleton);
+        border-radius: 4px;
+      }
+
+      /* 空态 */
+      .empty {
+        padding: 46px 18px;
+        text-align: center;
+      }
+      .empty .ttl {
+        margin-bottom: 4px;
+        font-size: 13.5px;
+        color: var(--text-secondary);
+      }
+      .empty .hint {
+        margin-bottom: 14px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      /* 标注块 */
+      .rules {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+      .rule {
+        padding: 12px 14px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .rule h3 {
+        margin: 0 0 5px;
+        font-size: 13px;
+      }
+      .rule p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .rule .bad {
+        color: var(--soft-danger-ink);
+      }
+      .rule .good {
+        color: var(--soft-ok-ink);
+      }
+      .rule code {
+        padding: 0 4px;
+        font-family: Consolas, monospace;
+        font-size: 11.5px;
+        background: var(--surface);
+        border-radius: 3px;
+      }
+      .legend {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .legend li {
+        margin-bottom: 4px;
+      }
+      .callout {
+        padding: 12px 16px;
+        margin-bottom: 18px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-top">
+      <h1>表格 / 表头设计参考 · 课栈后台</h1>
+      <span class="tag" style="font-size: 12px; color: var(--text-secondary)">
+        纯静态演示，不改仓库代码；可切主题与密度
+      </span>
+      <div class="spacer"></div>
+      <div class="seg" id="seg-density">
+        <button data-v="comfy" class="on">舒适</button>
+        <button data-v="compact">紧凑</button>
+      </div>
+      <div class="seg" id="seg-theme">
+        <button data-v="light" class="on">明亮</button>
+        <button data-v="dark">夜晚</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="callout">
+        本页只做一件事：把「现状」和「改后」用<b>同一份数据</b>并排画出来，让你直接判断取舍。
+        下面所有样式都用的现行令牌名（<span class="mono">--table-*</span>），落地时是改
+        <span class="mono">packages/core/src/styles/index.css</span> 的表格段 + 删掉表头强制居中那一条，
+        不需要新增依赖。
+      </div>
+
+      <!-- ================= 1. A/B ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>1. 同一份数据：现状 vs 改后</h2>
+          <span class="tag">横向可滚动</span>
+        </div>
+        <p class="sec-note">
+          左边是现在线上渲染出来的样子（<b>竖边框 + 斑马纹 + 表头强制居中 + 33px 行高</b>）。
+          丑主要来自四处：竖线把每张表切成格子（阅读时视线被反复打断）、表头居中而数据格左对齐所以标题跟内容对不上
+          （全站只有 5 个 <span class="mono">align=</span> 属性，人数/课时这类数字列也是左对齐，纵向没法比大小）、
+          斑马纹和边框叠在一起形成摩尔纹、行高太挤。
+        </p>
+        <div class="cols two">
+          <div class="frame">
+            <div class="frame-label"><span class="dot"></span>现状（border + stripe + 表头居中）</div>
+            <div class="frame-body">
+              <table class="legacy">
+                <thead>
+                  <tr>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>状态</th>
+                    <th>用工类型</th>
+                    <th>主授科目</th>
+                    <th>带班数</th>
+                    <th>本月课时</th>
+                    <th>最近登录</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="l">陈嘉禾</td>
+                    <td class="l mono">138****4021</td>
+                    <td><span class="legacy-tag">在职</span></td>
+                    <td class="l">专职</td>
+                    <td class="l">初中数学</td>
+                    <td class="l num">5</td>
+                    <td class="l num">86</td>
+                    <td>2026-09-25 19:42</td>
+                    <td>
+                      <span class="legacy-link">编辑</span>
+                      <span class="legacy-link">停用</span>
+                      <span class="legacy-link">删除</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l">刘文明</td>
+                    <td class="l mono">139****7788</td>
+                    <td><span class="legacy-tag">在职</span></td>
+                    <td class="l">兼职</td>
+                    <td class="l">高中物理</td>
+                    <td class="l num">3</td>
+                    <td class="l num">124</td>
+                    <td>2026-09-26 08:15</td>
+                    <td>
+                      <span class="legacy-link">编辑</span>
+                      <span class="legacy-link">停用</span>
+                      <span class="legacy-link">删除</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l">周雅琴</td>
+                    <td class="l mono">135****1203</td>
+                    <td><span class="legacy-tag warn">停课</span></td>
+                    <td class="l">专职</td>
+                    <td class="l">小学英语 · 自然拼读 · 剑桥青少 · KET/PET 冲刺班课</td>
+                    <td class="l num">11</td>
+                    <td class="l num">92</td>
+                    <td>2026-09-24 21:03</td>
+                    <td>
+                      <span class="legacy-link">编辑</span>
+                      <span class="legacy-link">停用</span>
+                      <span class="legacy-link">删除</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l">吴知远</td>
+                    <td class="l mono">186****5512</td>
+                    <td><span class="legacy-tag">在职</span></td>
+                    <td class="l">专职</td>
+                    <td class="l">初中语文</td>
+                    <td class="l num">4</td>
+                    <td class="l num">45</td>
+                    <td>2026-09-23 10:27</td>
+                    <td>
+                      <span class="legacy-link">编辑</span>
+                      <span class="legacy-link">停用</span>
+                      <span class="legacy-link">删除</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="l">郑清和</td>
+                    <td class="l mono">137****9965</td>
+                    <td><span class="legacy-tag">在职</span></td>
+                    <td class="l">劳务</td>
+                    <td class="l">高中化学</td>
+                    <td class="l num">2</td>
+                    <td class="l num">28</td>
+                    <td>2026-09-21 16:50</td>
+                    <td>
+                      <span class="legacy-link">编辑</span>
+                      <span class="legacy-link">停用</span>
+                      <span class="legacy-link">删除</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="frame">
+            <div class="frame-label is-new">
+              <span class="dot"></span>改后 · 方案 A（推荐：行线式 / 表头随列对齐）
+            </div>
+            <div class="card-head">
+              <span class="title">教师档案</span>
+              <span class="sub">共 128 人 · 当前校区：武大校区</span>
+              <span class="grow"></span>
+              <button class="btn">导入</button>
+              <button class="btn">导出</button>
+              <button class="btn primary">新增教师</button>
+            </div>
+            <div class="filters">
+              <span class="field">🔍<input placeholder="姓名 / 手机号" /></span>
+              <span class="field">状态：全部 ▾</span>
+              <span class="field">用工类型：全部 ▾</span>
+              <span class="field">主授科目：全部 ▾</span>
+              <span class="grow" style="flex: 1"></span>
+              <button class="btn icon" title="列设置">⚙︎ 列设置</button>
+            </div>
+            <div class="frame-body">
+              <table class="modern">
+                <thead>
+                  <tr>
+                    <th class="is-sorted sort-desc">
+                      <span class="sorter"
+                        >姓名<span class="arrows"><i>▲</i><i>▼</i></span
+                      ></span>
+                    </th>
+                    <th>手机号</th>
+                    <th>状态</th>
+                    <th>用工类型</th>
+                    <th>主授科目</th>
+                    <th class="r">
+                      <span class="sorter"
+                        >带班数<span class="arrows"><i>▲</i><i>▼</i></span
+                      ></span>
+                    </th>
+                    <th class="r">本月课时</th>
+                    <th>最近登录</th>
+                    <th class="r">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <span class="ident">
+                        <span class="avatar">陈</span>
+                        <span class="cell-2">
+                          <span class="k">陈嘉禾</span>
+                          <span class="m mono">T-100231</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td class="mono dim">138****4021</td>
+                    <td><span class="st ok">在职</span></td>
+                    <td class="dim">专职</td>
+                    <td><span class="truncate">初中数学</span></td>
+                    <td class="r num ink">5</td>
+                    <td class="r num ink">86</td>
+                    <td class="dim num">09-25 19:42</td>
+                    <td>
+                      <div class="ops">
+                        <button>编辑</button>
+                        <button>停用</button>
+                        <button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="is-selected">
+                    <td>
+                      <span class="ident">
+                        <span class="avatar">刘</span>
+                        <span class="cell-2">
+                          <span class="k">刘文明</span>
+                          <span class="m mono">T-100188</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td class="mono dim">139****7788</td>
+                    <td><span class="st ok">在职</span></td>
+                    <td class="dim">兼职</td>
+                    <td><span class="truncate">高中物理</span></td>
+                    <td class="r num ink">3</td>
+                    <td class="r num ink">124</td>
+                    <td class="dim num">09-26 08:15</td>
+                    <td>
+                      <div class="ops">
+                        <button>编辑</button>
+                        <button>停用</button>
+                        <button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="ident">
+                        <span class="caret open">▶</span>
+                        <span class="avatar">周</span>
+                        <span class="cell-2">
+                          <span class="k">周雅琴</span>
+                          <span class="m mono">T-100072</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td class="mono dim">135****1203</td>
+                    <td><span class="st pill-warn">停课</span></td>
+                    <td class="dim">专职</td>
+                    <td>
+                      <span class="truncate" title="小学英语 · 自然拼读 · 剑桥青少 · KET/PET 冲刺班课"
+                        >小学英语 · 自然拼读 · 剑桥青少 · KET/PET 冲刺班课</span
+                      >
+                    </td>
+                    <td class="r num ink">11</td>
+                    <td class="r num ink">92</td>
+                    <td class="dim num">09-24 21:03</td>
+                    <td>
+                      <div class="ops">
+                        <button>编辑</button>
+                        <button>停用</button>
+                        <button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="expand-row">
+                    <td colspan="9">
+                      <table class="subtable">
+                        <thead>
+                          <tr>
+                            <th>带班</th>
+                            <th>班型</th>
+                            <th class="r">在册</th>
+                            <th class="r">本周课时</th>
+                            <th>下次上课</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>初三数学 A 班 <span class="chip">主讲</span></td>
+                            <td class="dim">班课 · 周末</td>
+                            <td class="r num">18</td>
+                            <td class="r num">6</td>
+                            <td class="dim num">09-27 09:00</td>
+                          </tr>
+                          <tr>
+                            <td>初三数学 B 班 <span class="chip">主讲</span></td>
+                            <td class="dim">班课 · 工作日晚</td>
+                            <td class="r num">15</td>
+                            <td class="r num">6</td>
+                            <td class="dim num">09-28 18:30</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="ident">
+                        <span class="caret">▶</span>
+                        <span class="avatar">吴</span>
+                        <span class="cell-2">
+                          <span class="k">吴知远</span>
+                          <span class="m mono">T-100205</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td class="mono dim">186****5512</td>
+                    <td><span class="st ok">在职</span></td>
+                    <td class="dim">专职</td>
+                    <td><span class="truncate">初中语文</span></td>
+                    <td class="r num ink">4</td>
+                    <td class="r num ink">45</td>
+                    <td class="dim num">09-23 10:27</td>
+                    <td>
+                      <div class="ops">
+                        <button>编辑</button>
+                        <button>停用</button>
+                        <button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="ident">
+                        <span class="avatar">郑</span>
+                        <span class="cell-2">
+                          <span class="k">郑清和</span>
+                          <span class="m mono">T-100240</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td class="mono dim">137****9965</td>
+                    <td><span class="st ok">在职</span></td>
+                    <td class="dim">劳务</td>
+                    <td><span class="truncate">高中化学</span></td>
+                    <td class="r num ink">2</td>
+                    <td class="r num ink">28</td>
+                    <td class="dim num">09-21 16:50</td>
+                    <td>
+                      <div class="ops">
+                        <button>编辑</button>
+                        <button>停用</button>
+                        <button class="danger">删除</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>本页合计 5 人</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="r num">25</td>
+                    <td class="r num">375</td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="pager">
+              <span>共 128 条</span>
+              <span class="field">每页 20 ▾</span>
+              <span class="grow"></span>
+              <button class="pg">‹</button>
+              <button class="pg on">1</button>
+              <button class="pg">2</button>
+              <button class="pg">3</button>
+              <button class="pg">…</button>
+              <button class="pg">7</button>
+              <button class="pg">›</button>
+              <span>跳至</span>
+              <span class="field" style="padding: 2px 8px"><input style="width: 34px" value="1" /></span>
+              <span>页</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. 表头解剖 ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>2. 表头解剖：每一处改动的理由</h2>
+        </div>
+        <div class="rules">
+          <div class="rule">
+            <h3><span class="bad">✗</span> 竖边框 → <span class="good">✓</span> 只留行线</h3>
+            <p>
+              满框网格把表切成一个个格子，视线每读一格都要重新定位。业界（Stripe、Linear、Notion
+              数据库视图）几乎都退成水平线。落地：主列表去掉 <code>border</code> 属性，保留
+              <code>stripe</code>？——不，见下一条。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 斑马纹 → <span class="good">✓</span> 行线 + 悬停</h3>
+            <p>
+              有行线时斑马是多余的第二套分隔信号，两者叠加会出摩尔纹，还会让人误以为「一行 = 一个色块组」
+              （合并单元格/展开行时更明显）。留行线 + 悬停高亮，够定位了。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 表头强制居中 → <span class="good">✓</span> 跟随列对齐</h3>
+            <p>
+              现在 <code>styles/index.css</code> 有一条把 <code>th</code> 及
+              <code>th.is-left / .is-center / .is-right</code> 一起写成
+              <code>text-align: center</code> 的全局规则（它排在 Element Plus 之后，所以把 EP
+              自己的对齐全覆盖了），而数据格是左/右对齐，标题跟内容错位。这条要删掉，改成「表头与它所标注的那一格同向」。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 表头浅底 + 600 字重 → <span class="good">✓</span> 无底 + 500 + 深一档底线</h3>
+            <p>
+              浅灰底 <code>#f7f9fc</code> 让表头看起来像「第一行数据」。去掉底色，靠
+              <b>更深一档的底边线</b> <code>--t-head-rule</code> 与数据区分，字重 600→500、字号 13→12，
+              层级立刻轻下来。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 数字居中/左混用 → <span class="good">✓</span> 一律右对齐 + tabular-nums</h3>
+            <p>
+              「带班数 5 / 11 / 2」只有右对齐才能位数对齐比较。时间、金额、人数同理。
+              <code>font-variant-numeric: tabular-nums</code> 让每个数字同宽，纵向扫读不抖。
+              编码/手机号走等宽字体。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 33px 行高 → <span class="good">✓</span> 舒适 44 / 紧凑 34 两档</h3>
+            <p>
+              现在 <code>padding: 5px 0</code> 配 13px 字，中文笔画挤在一起。改成上下 11px（舒适）/ 6px（紧凑），
+              并做成可切换档存本机，宽表（课次、完成度矩阵）默认紧凑，档案类默认舒适。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 身份列只有一行姓名 → <span class="good">✓</span> 主行 + meta 副行</h3>
+            <p>
+              班级、课次、学员这类列表真正要区分的是「名字 + 归属（校区/日期/编号）」。两行式把两个信息装进一列，
+              省掉一列宽度，也就省掉一次横向滚动。头像首字只用于教师/学员这类「以人为主」的表。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 满屏蓝色 link 操作 → <span class="good">✓</span> 低对比，悬停提亮</h3>
+            <p>
+              每行三个高饱和链接是「表格像表单」的主因。整行 hover 时才拉满对比度；点击目标尺寸不变（44px
+              行高足够），键盘聚焦时也要常显，不能只靠 hover。超过两个动作收进「更多」。
+            </p>
+          </div>
+          <div class="rule">
+            <h3><span class="bad">✗</span> 状态是彩色实心 tag → <span class="good">✓</span> 圆点 + 文字，异常才给色块</h3>
+            <p>
+              这条我们已经做了（<code>.el-tag--success</code> 那一段），新方案沿用：常规态「圆点+文字」，
+              warning/danger 才用软色胶囊，保证异常在一列灰字里跳出来。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. 排课列表：宽表 + 固定列 ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>3. 宽表：固定身份列 + 滚动提示 + 紧凑档</h2>
+          <span class="tag">排课课次，列多、要横向滚</span>
+        </div>
+        <p class="sec-note">
+          这类表的重点不在好看，在<b>横向滚动时不迷路</b>：身份列固定 + 一道渐变阴影告诉人「右边还有列」+
+          表头吸顶。日期与星期合并成两行式，省两列；状态与变动类型并排，省一列。
+        </p>
+        <div class="frame">
+          <div class="card-head">
+            <span class="title">课次列表</span>
+            <span class="sub">2026 秋季 · 第 4~5 周</span>
+            <span class="grow"></span>
+            <span class="field">班级：初三数学 A 班 ▾</span>
+            <button class="btn">批量排课</button>
+          </div>
+          <div class="frame-body sticky-demo">
+            <table class="modern">
+              <thead>
+                <tr>
+                  <th>
+                    <span class="sorter"
+                      >上课日期<span class="arrows"><i>▲</i><i>▼</i></span
+                    ></span>
+                  </th>
+                  <th>节次</th>
+                  <th>课程主题</th>
+                  <th>教师 / 教室</th>
+                  <th>班级</th>
+                  <th>状态</th>
+                  <th>变动</th>
+                  <th class="r">出勤</th>
+                  <th class="r">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-2">
+                    <span class="k num">09-26 周五</span>
+                    <span class="m num">第 4 周</span>
+                  </td>
+                  <td class="dim num">18:30–20:00</td>
+                  <td><span class="truncate">一次函数与图像变换</span></td>
+                  <td class="dim">陈嘉禾 / 302</td>
+                  <td class="dim">初三数学 A 班</td>
+                  <td><span class="st pill-danger">已补课</span></td>
+                  <td class="dim">教师换人</td>
+                  <td class="r num">17/18</td>
+                  <td>
+                    <div class="ops"><button>详情</button><button>考勤</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cell-2">
+                    <span class="k num">09-27 周六</span>
+                    <span class="m num">第 4 周</span>
+                  </td>
+                  <td class="dim num">09:00–10:30</td>
+                  <td><span class="truncate">一元二次方程根的判别式（含期中真题串讲与错题复盘）</span></td>
+                  <td class="dim">陈嘉禾 / 302</td>
+                  <td class="dim">初三数学 A 班</td>
+                  <td><span class="st ok">已完成</span></td>
+                  <td class="dim">—</td>
+                  <td class="r num">18/18</td>
+                  <td>
+                    <div class="ops"><button>详情</button><button>考勤</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cell-2">
+                    <span class="k num">10-03 周五</span>
+                    <span class="m num">第 5 周</span>
+                  </td>
+                  <td class="dim num">18:30–20:00</td>
+                  <td><span class="truncate">相似三角形判定</span></td>
+                  <td class="dim">刘文明 / 305</td>
+                  <td class="dim">初三数学 A 班</td>
+                  <td><span class="st idle">待上课</span></td>
+                  <td class="dim">—</td>
+                  <td class="r num dim">—</td>
+                  <td>
+                    <div class="ops"><button>详情</button><button>调课</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cell-2">
+                    <span class="k num">10-04 周六</span>
+                    <span class="m num">第 5 周</span>
+                  </td>
+                  <td class="dim num">09:00–10:30</td>
+                  <td><span class="truncate">旋转与坐标</span></td>
+                  <td class="dim">—</td>
+                  <td class="dim">初三数学 A 班</td>
+                  <td><span class="st pill-warn">缺主讲</span></td>
+                  <td class="dim">—</td>
+                  <td class="r num dim">—</td>
+                  <td>
+                    <div class="ops"><button>补排</button></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span class="field">密度：紧凑（宽表默认）</span>
+            <span class="grow"></span>
+            <span>缺口 1 · 计划外 0</span>
+            <button class="pg">‹</button>
+            <button class="pg on">1</button>
+            <button class="pg">2</button>
+            <button class="pg">›</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. 其它三态 ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>4. 加载 / 空 / 部分选中</h2>
+          <span class="tag">这三态现在全站都没有设计过</span>
+        </div>
+        <div class="cols two">
+          <div class="frame">
+            <div class="frame-label"><span class="dot"></span>加载：骨架行，不是转圈</div>
+            <div class="frame-body">
+              <table class="modern">
+                <thead>
+                  <tr>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>状态</th>
+                    <th>主授科目</th>
+                    <th class="r">带班数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="sk" style="width: 78px"></span></td>
+                    <td><span class="sk" style="width: 96px"></span></td>
+                    <td><span class="sk" style="width: 46px"></span></td>
+                    <td><span class="sk" style="width: 120px"></span></td>
+                    <td class="r"><span class="sk" style="width: 22px"></span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="sk" style="width: 64px"></span></td>
+                    <td><span class="sk" style="width: 96px"></span></td>
+                    <td><span class="sk" style="width: 46px"></span></td>
+                    <td><span class="sk" style="width: 96px"></span></td>
+                    <td class="r"><span class="sk" style="width: 22px"></span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="sk" style="width: 84px"></span></td>
+                    <td><span class="sk" style="width: 96px"></span></td>
+                    <td><span class="sk" style="width: 46px"></span></td>
+                    <td><span class="sk" style="width: 110px"></span></td>
+                    <td class="r"><span class="sk" style="width: 22px"></span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="frame">
+            <div class="frame-label"><span class="dot"></span>空态：说清为什么空 + 给下一步</div>
+            <div class="frame-body">
+              <table class="modern">
+                <thead>
+                  <tr>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>状态</th>
+                    <th>主授科目</th>
+                    <th class="r">带班数</th>
+                  </tr>
+                </thead>
+              </table>
+              <div class="empty">
+                <div class="ttl">当前筛选条件下没有教师</div>
+                <div class="hint">「武大校区 + 停课」组合为空，试试清空筛选或换校区</div>
+                <button class="btn">清空筛选条件</button>
+                <button class="btn primary" style="margin-left: 8px">新增教师</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. 落地范围 ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>5. 如果照这个方向做，要动的地方</h2>
+        </div>
+        <ol class="legend">
+          <li>
+            <b>core 全局样式一处</b>：<span class="mono">packages/core/src/styles/index.css</span>
+            的表格段——删掉「表头统一居中」那条；表头去底色、字重 500、底线加深；行线替换竖线；行高两档。
+            这一步覆盖<b>所有</b>手写表和 <span class="mono">ConfigurableList</span>。
+          </li>
+          <li>
+            <b>各视图模板去掉两个属性</b>：<span class="mono">&lt;el-table border stripe&gt;</span> 里的
+            <span class="mono">border</span> 与 <span class="mono">stripe</span>（全站 21 个文件带
+            <span class="mono">stripe</span>，其中 <span class="mono">ConfigurableList</span>
+            一处改动即覆盖所有配置化列表；弹窗内的次要表格可保留斑马纹，因为它没有横向滚动），
+            并把数字/时间列补 <span class="mono">align="right"</span>。
+          </li>
+          <li>
+            <b>AGENTS.md 那条口径要同步改</b>：现在写的是「主列表一律 border stripe row-key
+            highlight-current-row」，改后只剩 <span class="mono">row-key + highlight-current-row</span>，
+            并新增「表头跟随列对齐」「数字右对齐 + tabular-nums」两条判据。
+          </li>
+          <li>
+            <b>要新增的小能力（可选，分批）</b>：密度切换（存本机）、列设置里勾可见/固定、
+            表头吸顶（EP 的 <span class="mono">:height</span> 已具备）、固定列滚动渐变提示、骨架行。
+            这些不删也能活，优先级低于 1~3。
+          </li>
+          <li>
+            <b>不建议照搬的</b>：卡片式行、行间隔大圆角、给每列加彩色底、把整表换成「多维表格」编辑器
+            ——那是协作工具（飞书/Notion）的形态，我们是高频扫读的后台，密度和确定性优先。
+          </li>
+        </ol>
+      </section>
+
+      <!-- ================= 6. 参考案例 ================= -->
+      <section>
+        <div class="sec-head">
+          <h2>6. 行业参考：分别去看哪一处</h2>
+          <span class="tag">不是抄样式，是抄它们对同一问题的答案</span>
+        </div>
+        <p class="sec-note">
+          下面每一个都标了「看什么」，比对着看比我们自己的表快。前四个是产品，后三个是规范文档。
+        </p>
+        <div class="rules">
+          <div class="rule">
+            <h3>Stripe Dashboard · Customers / Payouts</h3>
+            <p>
+              <span class="mono">dashboard.stripe.com</span> —— 收钱类后台的天花板。看三件事：
+              <b>金额全部右对齐且等宽数字</b>、<b>表头跟数据同向</b>、页面底部一条「本页合计」。
+              它的行也没有斑马纹，只有极浅的行线 + hover。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>Linear · Issues 列表</h3>
+            <p>
+              <span class="mono">linear.app</span> —— 看<b>操作按钮什么时候出现</b>：整行 hover 才显形，
+              平时只剩标题和状态，所以一屏 40 行也不吵。也看它怎么把「指派人 + 状态 + 优先级」压进一列。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>GitHub · Issues / Actions</h3>
+            <p>
+              任意仓库的 Issue 列表 —— 看<b>状态用图标+文字而不是色块</b>，以及行高恒定、
+              只有底边线的极简分隔。这是「降噪之后还认得出哪一行」的最省钱解法。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>Ant Design Pro · ProTable</h3>
+            <p>
+              <span class="mono">procomponents.ant.design/components/table</span> —— 中文后台里
+              <b>筛选行 / 按钮行 / 表格</b> 三段式最成熟的实现，也给了「密度（紧凑/默认/宽松）」三档和
+              列设置面板的标准交互。我们的筛选行顺序已经跟它一致，缺的是密度与列设置。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>shadcn/ui · Data Table</h3>
+            <p>
+              <span class="mono">ui.shadcn.com/docs/components/base/data-table</span> ——
+              看它把<b>排序、列显隐、分页、行选择</b>四件事都放在哪，是一套可以直接对照的清单。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>Semi Design · Table</h3>
+            <p>
+              <span class="mono">semi.design/zh-CN/show/table</span> —— 国产设计系统里对
+              <b>虚拟滚动、固定列、分组表头、合计行</b>说明最清楚的一份，跟我们「课次完成度矩阵」最相关。
+            </p>
+          </div>
+          <div class="rule">
+            <h3>研究：企业级表格 UX 模式汇总</h3>
+            <p>
+              <span class="mono">pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables</span>
+              与 <span class="mono">valiotti.com/designing-data-tables-readable/</span> ——
+              结论就是本页第 2 节那九条：先减分隔线、再管对齐、最后才谈配色。
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      function bind(segId, attr) {
+        var seg = document.getElementById(segId)
+        seg.addEventListener('click', function (e) {
+          var b = e.target.closest('button')
+          if (!b) return
+          document.documentElement.setAttribute(attr, b.dataset.v)
+          seg.querySelectorAll('button').forEach(function (x) {
+            x.classList.toggle('on', x === b)
+          })
+        })
+      }
+      bind('seg-density', 'data-density')
+      bind('seg-theme', 'data-theme')
+    </script>
+  </body>
+</html>

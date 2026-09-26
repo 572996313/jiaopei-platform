@@ -121,7 +121,7 @@
       >
         <div v-for="notice in ruleNotices" :key="notice" class="plan-notice-line">{{ notice }}</div>
       </el-alert>
-      <el-table :data="previewItems" border stripe row-key="key" max-height="420">
+      <el-table :data="previewItems" border row-key="key" max-height="420">
         <el-table-column width="46" align="center">
           <template #header>
             <el-checkbox

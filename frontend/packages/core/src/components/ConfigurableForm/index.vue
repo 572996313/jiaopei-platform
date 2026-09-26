@@ -45,7 +45,7 @@
             v-if="field.type === 'input' || field.type === 'password'"
             v-model="model[field.field]"
             :type="field.type === 'password' ? 'password' : 'text'"
-            show-password
+            :show-password="field.type === 'password'"
             :placeholder="field.placeholder || `请输入${field.label}`"
             :maxlength="field.maxlength"
             :disabled="isDisabled(field)"

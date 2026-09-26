@@ -50,11 +50,11 @@
           ref="tableRef"
           :data="records"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="loading"
           :height="height"
+          :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
           <el-table-column prop="code" label="凭证码" min-width="170" fixed="left" sortable="custom">
@@ -81,7 +81,7 @@
               <span v-else>{{ row.username || row.userId || '-' }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="usedCount" label="用量" width="90" sortable="custom">
+          <el-table-column prop="usedCount" label="用量" width="90" align="right" sortable="custom">
             <template #default="{ row }">
               {{ row.usedCount }} / {{ row.maxUses ?? '不限' }}
             </template>

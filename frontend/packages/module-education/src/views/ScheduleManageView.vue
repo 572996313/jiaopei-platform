@@ -62,15 +62,7 @@
     </div>
 
     <article class="panel-card education-panel">
-      <div class="education-table-head">
-        <div class="education-context-text">
-          校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
-            lessonDate || '全部'
-          }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
-        </div>
-      </div>
-
-      <!-- 主操作按钮统一放在表格上方一行、左对齐 -->
+      <!-- 主操作按钮统一放在表格上方一行、左对齐;当前范围回显放同一行右侧 -->
       <div class="table-toolbar">
         <el-button
           :icon="Refresh"
@@ -82,17 +74,22 @@
         <el-button @click="planListVisible = true">周期计划</el-button>
         <el-button @click="ruleListVisible = true">排课规则</el-button>
         <el-button type="primary" @click="openCreateDialog">新增排课</el-button>
+        <div class="education-context-text">
+          校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
+            lessonDate || '全部'
+          }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
+        </div>
       </div>
 
       <TableFillBox v-slot="{ height }">
         <el-table
           :data="lessons"
           border
-          stripe
           row-key="id"
           highlight-current-row
           v-loading="lessonsLoading"
           :height="height"
+          :cell-class-name="lessonSort.cellClass"
           @sort-change="lessonSort.onSortChange"
         >
           <el-table-column prop="lessonDate" label="上课日期" width="120" sortable="custom" />

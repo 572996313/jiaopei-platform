@@ -1,8 +1,6 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="education-context-text">机构 ID 与机构编码只读,不提供多机构切换。</div>
-
       <div class="table-toolbar">
         <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile"
           >刷新机构资料</el-button
@@ -14,6 +12,7 @@
           @click="submitInstitutionProfile"
           >保存机构资料</el-button
         >
+        <div class="education-context-text">机构 ID 与机构编码只读,不提供多机构切换。</div>
       </div>
 
       <el-alert

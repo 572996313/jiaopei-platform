@@ -27,11 +27,11 @@
     <el-table
       :data="plans"
       border
-      stripe
       row-key="id"
       highlight-current-row
       v-loading="loading"
       max-height="440"
+      :cell-class-name="sort.cellClass"
       @sort-change="sort.onSortChange"
     >
       <el-table-column label="班级" min-width="150" fixed="left">

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>排序表头落地自检(真 EP CSS + 真 core 样式)</title>
+    <!-- 引入顺序与 main.ts 一致:EP 基础 -> EP 暗色 -> core 样式 -->
+    <link rel="stylesheet" href="../../frontend/node_modules/element-plus/dist/index.css" />
+    <link rel="stylesheet" href="../../frontend/node_modules/element-plus/theme-chalk/dark/css-vars.css" />
+    <link rel="stylesheet" href="../../frontend/packages/core/src/styles/index.css" />
+    <style>
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        padding: 24px;
+      }
+      .box {
+        width: 900px;
+      }
+      .note {
+        font: 13px/1.6 system-ui, sans-serif;
+        color: var(--text-secondary);
+        margin: 18px 0 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box" id="box"></div>
+    <!-- 测量结果占位:必须在下面的脚本之前,脚本按 id 找它写入 -->
+    <pre
+      id="measure"
+      style="margin-top:20px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font:12px/1.7 ui-monospace,monospace"
+    ></pre>
+    <script>
+      // 按 Element Plus 2.14 的真实渲染结果手写一份表格 DOM(table-header/index.mjs +
+      // table-body/render-helper 的 class 列表),用来验证 core/styles/index.css 里
+      // 新加的那批选择器:偏移、淡底优先级、暗档对比度。
+      function cell(label, opts) {
+        opts = opts || {}
+        var cls = ['el-table__cell', 'is-' + (opts.align || 'left')]
+        if (opts.sortable) cls.push('is-sortable')
+        if (opts.order) cls.push(opts.order)
+        if (opts.leaf !== false) cls.push('is-leaf')
+        return (
+          '<th colspan="1" rowspan="1" class="' + cls.join(' ') + '">' +
+          '<div class="cell">' +
+          label +
+          (opts.sortable
+            ? '<button type="button" class="caret-wrapper" aria-label="按 ' + label + ' 排序">' +
+              '<i class="sort-caret ascending"></i><i class="sort-caret descending"></i></button>'
+            : '') +
+          '</div></th>'
+        )
+      }
+      function td(text, opts) {
+        opts = opts || {}
+        var cls = ['el-table__cell', 'is-' + (opts.align || 'left')]
+        if (opts.sorted) cls.push('col-sorted')
+        return '<td class="' + cls.join(' ') + '"><div class="cell">' + text + '</div></td>'
+      }
+      var HEAD =
+        cell('班级', {}) +
+        cell('本月课时', { sortable: true, align: 'right', order: 'ascending' }) +
+        cell('状态', { sortable: true }) +
+        cell('操作', { align: 'right' })
+      function row(cells, trCls) {
+        return '<tr class="' + (trCls || '') + '">' + cells.join('') + '</tr>'
+      }
+      var BODY =
+        row([td('初三数学 A 班'), td('86', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row') +
+        row([td('高二物理 B 班'), td('124', { align: 'right', sorted: true }), td('停课'), td('编辑')], 'el-table__row') +
+        row([td('初一英语 C 班'), td('58', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row current-row') +
+        row([td('高三化学 D 班'), td('140', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row hover-row')
+      // el-table 真渲染时会写一个带宽度的 colgroup;缺了它 table 会收成 min-content,
+      // 箭头摆位量出来的是退化态。这里按页面实际列宽补上。
+      function table(id, widths) {
+        return (
+          '<div id="' + id + '" class="el-table el-table--fit el-table--border el-table--enable-row-hover el-table--enable-row-transition el-table--small" style="height:260px">' +
+          '<div class="el-table__inner-wrapper">' +
+          '<div class="hidden-columns"></div>' +
+          '<div class="el-table__header-wrapper"><table class="el-table__header" style="width:' + widths.reduce((a, b) => a + b, 0) + 'px" cellspacing="0" cellpadding="0" border="0">' +
+          '<colgroup>' + widths.map((w) => '<col style="width:' + w + 'px">' ).join('') + '</colgroup>' +
+          '<thead>' +
+          '<tr>' + HEAD + '</tr></thead></table></div>' +
+          '<div class="el-table__body-wrapper"><table class="el-table__body" style="width:' + widths.reduce((a, b) => a + b, 0) + 'px" cellspacing="0" cellpadding="0" border="0">' +
+          '<colgroup>' + widths.map((w) => '<col style="width:' + w + 'px">' ).join('') + '</colgroup>' +
+          '<tbody>' +
+          BODY +
+          '</tbody></table></div>' +
+          '</div></div>'
+        )
+      }
+      // 常态列宽 + 一个最窄列(宽 = 表头文字 + 左右内边距,箭头必然顶到文字)
+      document.getElementById('box').innerHTML =
+        table('t-normal', [220, 120, 100, 90]) +
+        '<p class="note">下表把「状态」列压到刚好装下表头文字,验证最窄列会不会撞上箭头</p>' +
+        table('t-tight', [220, 120, 65, 90])
+
+      // 量标题中心相对列中心的偏移、标题与箭头的净间隙、箭头是否被 cell 裁掉,
+      // 以及细线箭头自身的一整套竖向落位(两支各自的框、间距、箭头栈在表头行内的上下余量)。
+      // 改 padding / 箭头宽度 / margin-right / 箭头盒高度之后在这里复测,不用肉眼比对。
+      function measure() {
+        var out = []
+        document.querySelectorAll('.el-table').forEach(function (t) {
+          var tr = t.querySelector('thead tr')
+          var rowRect = tr.getBoundingClientRect()
+          out.push(
+            t.id +
+              ' | 表头行高 ' +
+              rowRect.height.toFixed(1) +
+              ' | cell line-height ' +
+              getComputedStyle(t.querySelector('th .cell')).lineHeight
+          )
+          t.querySelectorAll('th.is-sortable').forEach(function (th) {
+            var cell = th.querySelector('.cell')
+            var caret = th.querySelector('.caret-wrapper')
+            var range = document.createRange()
+            range.selectNodeContents(cell.firstChild)
+            var title = range.getBoundingClientRect()
+            var c = caret.getBoundingClientRect()
+            var cb = cell.getBoundingClientRect()
+            var col = th.getBoundingClientRect()
+            var up = th.querySelector('.sort-caret.ascending').getBoundingClientRect()
+            var down = th.querySelector('.sort-caret.descending').getBoundingClientRect()
+            out.push(
+              [
+                '  ' + cell.textContent.trim(),
+                '列中心偏移 ' + (title.left + title.width / 2 - (col.left + col.width / 2)).toFixed(1),
+                '净间隙 ' + (c.left - title.right).toFixed(1),
+                '垂直差 ' + (c.top + c.height / 2 - (title.top + title.height / 2)).toFixed(1),
+                '右侧余量 ' + (cb.right - c.right).toFixed(1),
+                '箭头栈 ' + up.height.toFixed(0) + '+' + (down.top - up.bottom).toFixed(0) + '+' + down.height.toFixed(0),
+                '栈上余 ' + (up.top - rowRect.top).toFixed(1) + ' 栈下余 ' + (rowRect.bottom - down.bottom).toFixed(1)
+              ].join(' | ')
+            )
+          })
+        })
+        var pre = document.getElementById('measure')
+        pre.textContent =
+          '主题: ' + (document.documentElement.classList.contains('dark') ? '夜晚' : '明亮') + '\n' + out.join('\n')
+      }
+      measure()
+      window.__measure = measure
+    </script>
+    <!-- #measure 这个占位块必须排在上面的脚本之前,见 body 开头 -->
+  </body>
+</html>

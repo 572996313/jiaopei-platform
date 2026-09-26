@@ -15,6 +15,11 @@ export interface ListColumnConfig {
   minWidth?: number
   /** 固定列:宽表横向滚动时把"这行是谁"钉在视野里,首列推荐 left */
   fixed?: 'left' | 'right'
+  /**
+   * 数据单元格对齐(表头不受影响,全站固定居中)。量值列(人数/时长/容量/排序号/金额)
+   * 用 right,让位数对齐可比可加;标识符(id/手机号/编码)保持默认 left。
+   */
+  align?: 'left' | 'center' | 'right'
   /** 该列可否点表头排序(服务端排序);接口未列入排序白名单的字段不要开 */
   sortable?: boolean
   showOverflowTooltip?: boolean

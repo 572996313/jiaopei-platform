@@ -23,6 +23,8 @@ export interface ColumnRow {
   minWidth?: number | null
   /** 固定列方向:left 钉在左侧、right 钉在右侧,缺省不固定 */
   fixed?: string
+  /** 数据单元格对齐,缺省 left;表头不受影响(全站固定居中) */
+  align?: string
   /** 该列可否点表头排序(服务端排序);后端接口未列入排序白名单的字段不要开 */
   sortable?: boolean
   showOverflowTooltip?: boolean
@@ -130,6 +132,17 @@ export const COLUMN_FIXED_OPTIONS = [
   { value: '', label: '不固定(默认)' },
   { value: 'left', label: 'left(钉在左侧)' },
   { value: 'right', label: 'right(钉在右侧)' },
+]
+
+/**
+ * 数据单元格对齐:表头固定居中不受此项影响,所以这里只说数据格。
+ * 判据是"这列的数是不是拿来比大小/求和的"——人数、时长、容量、排序号、金额选 right,
+ * id / 手机号 / 编码这类标识符保持 left(要抄下来拨出去的字符串右对齐反而难核对)。
+ */
+export const COLUMN_ALIGN_OPTIONS = [
+  { value: '', label: 'left(默认)' },
+  { value: 'center', label: 'center(居中)' },
+  { value: 'right', label: 'right(量值列)' },
 ]
 
 export const QUERY_TYPE_OPTIONS = [
@@ -296,6 +309,7 @@ export function parseColumns(json: string): ColumnRow[] {
         width: readNumber(obj, 'width'),
         minWidth: readNumber(obj, 'minWidth'),
         fixed: readString(obj, 'fixed'),
+        align: readString(obj, 'align'),
         sortable: readBool(obj, 'sortable'),
         showOverflowTooltip: readBool(obj, 'showOverflowTooltip'),
         dictType: readString(obj, 'dictType'),
@@ -330,6 +344,9 @@ export function columnsToJson(rows: ColumnRow[]): string {
       }
       if (row.fixed && row.fixed.trim()) {
         item.fixed = row.fixed.trim()
+      }
+      if (row.align && row.align.trim()) {
+        item.align = row.align.trim()
       }
       if (row.sortable === true) {
         item.sortable = true

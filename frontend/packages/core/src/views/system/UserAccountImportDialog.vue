@@ -78,12 +78,11 @@
       <el-table
         :data="previewRows"
         border
-        stripe
         row-key="rowNum"
         max-height="360"
         :row-class-name="rowClassName"
       >
-        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" />
+        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" align="right" />
         <el-table-column prop="username" label="登录账号" width="160" fixed="left" />
         <el-table-column prop="displayName" label="显示名称" width="130" />
         <el-table-column prop="phone" label="手机号" width="130" />
@@ -123,8 +122,8 @@
         把「登录账号 + 初始口令」两列交给本人，不要替他登录。账号出现在用户管理列表即可分配角色、重置密码。
       </p>
 
-      <el-table :data="committed?.rows ?? []" border stripe row-key="rowNum" max-height="320">
-        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" />
+      <el-table :data="committed?.rows ?? []" border row-key="rowNum" max-height="320">
+        <el-table-column prop="rowNum" label="行号" width="70" fixed="left" align="right" />
         <el-table-column prop="username" label="登录账号" width="160" fixed="left" />
         <el-table-column prop="displayName" label="显示名称" width="130" />
         <el-table-column prop="userId" label="账号ID" width="180" />

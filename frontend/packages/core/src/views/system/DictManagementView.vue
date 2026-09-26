@@ -23,7 +23,6 @@
             <el-table
               :data="dictTypes"
               border
-              stripe
               row-key="id"
               highlight-current-row
               v-loading="dictTypesLoading"
@@ -74,9 +73,6 @@
           <div class="education-table-head">
             <div class="panel-title">字典条目</div>
           </div>
-          <div class="education-context-text system-dict-current">
-            当前类型:{{ selectedDictTypeCode || '未选择' }}
-          </div>
           <div class="table-toolbar">
             <el-button
               v-if="permissions.canManageDicts"
@@ -86,12 +82,14 @@
               @click="openCreateDictItemDialog"
               >新增条目</el-button
             >
+            <div class="education-context-text">
+              当前类型:{{ selectedDictTypeCode || '未选择' }}
+            </div>
           </div>
           <TableFillBox v-slot="{ height }">
             <el-table
               :data="selectedDictItems"
               border
-              stripe
               row-key="id"
               highlight-current-row
               v-loading="dictItemsLoading"
@@ -112,7 +110,7 @@
                 show-overflow-tooltip
                 sortable
               />
-              <el-table-column prop="sortNo" label="排序" width="80" sortable />
+              <el-table-column prop="sortNo" label="排序" width="80" align="right" sortable />
               <el-table-column label="状态" width="110" prop="status" sortable>
                 <template #default="{ row }">
                   <el-tag :type="statusTagType(row.status)">{{

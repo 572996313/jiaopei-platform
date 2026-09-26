@@ -64,7 +64,6 @@
         <el-table
           :data="campuses"
           border
-          stripe
           row-key="id"
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
@@ -110,7 +109,6 @@
         <el-table
           :data="classrooms"
           border
-          stripe
           row-key="id"
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
@@ -126,8 +124,8 @@
           <el-table-column label="类型" width="120" prop="roomType" sortable>
             <template #default="{ row }">{{ roomTypeLabel(row.roomType) }}</template>
           </el-table-column>
-          <el-table-column prop="floorNo" label="楼层" width="100" sortable />
-          <el-table-column prop="seatCapacity" label="容量" width="100" sortable />
+          <el-table-column prop="floorNo" label="楼层" width="100" align="right" sortable />
+          <el-table-column prop="seatCapacity" label="容量" width="100" align="right" sortable />
           <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{
@@ -164,7 +162,6 @@
         <el-table
           :data="terms"
           border
-          stripe
           row-key="id"
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
@@ -216,7 +213,6 @@
         <el-table
           :data="timeSlots"
           border
-          stripe
           row-key="id"
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
@@ -237,7 +233,7 @@
               >{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template
             >
           </el-table-column>
-          <el-table-column prop="durationMinutes" label="时长" width="100" sortable />
+          <el-table-column prop="durationMinutes" label="时长" width="100" align="right" sortable />
           <el-table-column label="类型" width="120" prop="slotType" sortable>
             <template #default="{ row }">{{ slotTypeLabel(row.slotType) }}</template>
           </el-table-column>
