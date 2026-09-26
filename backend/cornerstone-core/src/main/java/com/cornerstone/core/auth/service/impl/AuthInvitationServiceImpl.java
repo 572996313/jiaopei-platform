@@ -1,6 +1,7 @@
 package com.cornerstone.core.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.auth.domain.AuthInvitationEntity;
 import com.cornerstone.core.auth.domain.RoleEntity;
@@ -26,6 +27,7 @@ import com.cornerstone.core.auth.service.PasswordValidator;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.security.SecureRandom;
@@ -47,6 +49,17 @@ public class AuthInvitationServiceImpl implements AuthInvitationService {
 
     private static final String ACTIVE = "active";
     private static final int DEFAULT_ACTIVATION_VALID_DAYS = 7;
+
+    /** 邀请码/激活码列表可排序字段 */
+    private static final Map<String, SFunction<AuthInvitationEntity, ?>> INVITATION_SORTABLE = Map.of(
+        "code", AuthInvitationEntity::getCode,
+        "kind", AuthInvitationEntity::getKind,
+        "status", AuthInvitationEntity::getStatus,
+        "maxUses", AuthInvitationEntity::getMaxUses,
+        "usedCount", AuthInvitationEntity::getUsedCount,
+        "expiresAt", AuthInvitationEntity::getExpiresAt,
+        "remark", AuthInvitationEntity::getRemark,
+        "createdAt", AuthInvitationEntity::getCreatedAt);
     /** 去掉了易混字符(0/O/1/I)的大写字母数字表 */
     private static final char[] CODE_ALPHABET =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
@@ -144,7 +157,9 @@ public class AuthInvitationServiceImpl implements AuthInvitationService {
         if (query.getInstitutionId() != null) {
             wrapper.eq(AuthInvitationEntity::getInstitutionId, query.getInstitutionId());
         }
-        wrapper.orderByDesc(AuthInvitationEntity::getCreatedAt);
+        if (!PageSortSupport.apply(wrapper, query, INVITATION_SORTABLE, AuthInvitationEntity::getId)) {
+            wrapper.orderByDesc(AuthInvitationEntity::getCreatedAt);
+        }
 
         Page<AuthInvitationEntity> page = invitationMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

@@ -50,14 +50,11 @@ registerNavItems([
   },
 ])
 
+/**
+ * 登录页能力卡。系统名称、副标题、介绍语已经改由系统参数 brand.* 下发（V68 种入，运维在
+ * 「系统管理 → 系统参数」改），这里是结构化数组、单值输入框塞不下，才留在构建期。
+ */
 registerBranding({
-  sidebarKicker: '线下班课教务中台',
-  product: '教培管理平台',
-  mark: '培',
-  loginKicker: '教培管理平台',
-  loginTitle: '线下班课教务中台',
-  loginCopy: '聚焦校区、课程、班级、排课与课表，先把教务执行主链路跑通。',
-  loginFormTitle: '进入教培平台',
   loginFeatures: [
     { title: '组织与校区', text: '机构、校区、教室、学期、时间段统一管理。' },
     { title: '排课与执行', text: '围绕线下班课模式搭建稳定的教务中台。' },

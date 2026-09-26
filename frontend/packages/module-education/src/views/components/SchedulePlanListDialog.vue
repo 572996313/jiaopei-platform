@@ -32,14 +32,15 @@
       highlight-current-row
       v-loading="loading"
       max-height="440"
+      @sort-change="sort.onSortChange"
     >
       <el-table-column label="班级" min-width="150" fixed="left">
         <template #default="{ row }">{{ formatClass(row.classId) }}</template>
       </el-table-column>
-      <el-table-column label="频率" width="70">
+      <el-table-column label="频率" width="70" prop="weekFrequency" sortable="custom">
         <template #default="{ row }">{{ weekFrequencyLabel(row.weekFrequency) }}</template>
       </el-table-column>
-      <el-table-column label="起止日期" width="200">
+      <el-table-column label="起止日期" width="200" prop="startDate" sortable="custom">
         <template #default="{ row }">{{ row.startDate }} ~ {{ row.endDate }}</template>
       </el-table-column>
       <el-table-column label="每周节次" min-width="220">
@@ -51,7 +52,7 @@
       <el-table-column label="教室" min-width="120">
         <template #default="{ row }">{{ formatClassroom(row.classroomId) }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="80">
+      <el-table-column label="状态" width="80" prop="status" sortable="custom">
         <template #default="{ row }">
           <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
             {{ row.status === 'active' ? '启用' : '停用' }}
@@ -119,6 +120,7 @@ import {
   type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import type { ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { formatTeacherIdsAs, toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -149,6 +151,14 @@ const cancellingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const filterClassId = ref<string | null>(null)
 const filterStatus = ref<string | null>(null)
+
+/** 表头排序(服务端):无序时回到后端的 createdAt 倒序 */
+const sort = useTableSort({
+  onSorted: () => {
+    page.value = 1
+    void reload()
+  },
+})
 
 function weekFrequencyLabel(value?: string | null) {
   switch (value) {
@@ -196,6 +206,8 @@ function handleOpen() {
   page.value = 1
   filterClassId.value = props.scopeClassId || null
   filterStatus.value = null
+  // 弹窗是 destroy-on-close,表头箭头每次重开都会消失,排序状态要一起回到默认
+  sort.resetSort()
   void reload()
 }
 
@@ -219,6 +231,7 @@ async function reload() {
       status: filterStatus.value,
       page: page.value,
       pageSize: pageSize.value,
+      ...sort.sortParams(),
     })
     plans.value = result.records
     total.value = result.total

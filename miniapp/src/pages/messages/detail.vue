@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onLoad } from '@dcloudio/uni-app'
-import { ref } from 'vue'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { computed, ref } from 'vue'
 import {
   audienceLabel,
   fetchAnnouncementTypeLabels,
@@ -8,13 +8,23 @@ import {
   type MyAnnouncement,
 } from '@/api/announcement'
 
+/** 扫小程序码进来时 scene 的全部内容：a=公告ID，前缀与后端 MiniappQrcodeServiceImpl 一致 */
+const SCENE_ANNOUNCEMENT = /^a=(\d+)$/
+
 const announcement = ref<MyAnnouncement | null>(null)
+const announcementId = ref('')
 const loadFailed = ref(false)
+/** 扫码进来的码可能已经在群里挂了好几天,失败时要说清"怎样才看得到",而不是一句"不存在" */
+const enteredByScan = ref(false)
 const typeLabels = ref<Record<string, string>>({})
 
 onLoad((options) => {
-  const id = options?.id || ''
-  if (!id) {
+  const scene = options?.scene ? decodeParam(options.scene) : ''
+  const fromScene = SCENE_ANNOUNCEMENT.exec(scene)
+  enteredByScan.value = Boolean(fromScene)
+  // 应用内跳转与分享卡片带 id;只有扫码这一条路传 scene
+  announcementId.value = options?.id || (fromScene ? fromScene[1] : '')
+  if (!announcementId.value) {
     loadFailed.value = true
     return
   }
@@ -22,7 +32,7 @@ onLoad((options) => {
     typeLabels.value = labels
   })
   // 这个请求同时就是"打读"动作：服务端首次打开时记录已读时间
-  openMyAnnouncement(id)
+  openMyAnnouncement(announcementId.value)
     .then((result) => {
       announcement.value = result
     })
@@ -31,6 +41,31 @@ onLoad((options) => {
       uni.showToast({ title: '公告不存在或已撤回', icon: 'none' })
     })
 })
+
+/** 转发给同事/家长群：卡片标题用公告标题,点开直达这一条而不是消息列表 */
+onShareAppMessage(() => ({
+  title: announcement.value?.title ? `【通知】${announcement.value.title}` : '公告详情',
+  path: '/pages/messages/detail?id=' + announcementId.value,
+}))
+
+const failedText = computed(() =>
+  enteredByScan.value
+    ? '看不到这条公告：它只发给已绑定学员的家长、以及已建档并绑定账号的教师,已撤回的公告也不再可见。'
+    : '公告不存在或已撤回'
+)
+
+function goBindStudent() {
+  uni.navigateTo({ url: '/pages/bind-student/index' })
+}
+
+/** 微信把 scene 原样(百分号编码)传进 options,部分平台已解过一层,解不开就按原值判 */
+function decodeParam(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
 
 function typeLabel(code?: string | null) {
   if (!code) {
@@ -47,7 +82,8 @@ function formatTime(value?: string | null) {
 <template>
   <view class="detail-page">
     <view v-if="loadFailed" class="empty">
-      <text class="empty-text">公告不存在或已撤回</text>
+      <text class="empty-text">{{ failedText }}</text>
+      <button v-if="enteredByScan" class="bind-btn" @click="goBindStudent">去绑定学员</button>
     </view>
 
     <view v-else-if="announcement" class="detail-card">
@@ -140,6 +176,18 @@ function formatTime(value?: string | null) {
 .empty-text {
   font-size: 26rpx;
   color: #9ca3af;
+  line-height: 1.7;
+}
+
+.bind-btn {
+  margin-top: 40rpx;
+  width: 320rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 28rpx;
 }
 
 .loading-tip {

@@ -1,10 +1,12 @@
 package com.cornerstone.core.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.system.domain.entity.SystemConfigEntity;
 import com.cornerstone.core.system.dto.SystemConfigCreateRequest;
 import com.cornerstone.core.system.dto.SystemConfigPageQuery;
@@ -18,9 +20,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class SystemConfigServiceImpl implements SystemConfigService {
+
+    /** 系统参数列表可排序字段 */
+    private static final Map<String, SFunction<SystemConfigEntity, ?>> CONFIG_SORTABLE = Map.of(
+        "configKey", SystemConfigEntity::getConfigKey,
+        "displayName", SystemConfigEntity::getDisplayName,
+        "configGroup", SystemConfigEntity::getConfigGroup,
+        "sortOrder", SystemConfigEntity::getSortOrder,
+        "status", SystemConfigEntity::getStatus);
 
     private final SystemConfigMapper systemConfigMapper;
 
@@ -53,8 +64,10 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(SystemConfigEntity::getStatus, status.trim());
         }
-        wrapper.orderByAsc(SystemConfigEntity::getSortOrder)
-            .orderByAsc(SystemConfigEntity::getConfigKey);
+        if (!PageSortSupport.apply(wrapper, query, CONFIG_SORTABLE, SystemConfigEntity::getId)) {
+            wrapper.orderByAsc(SystemConfigEntity::getSortOrder)
+                .orderByAsc(SystemConfigEntity::getConfigKey);
+        }
 
         Page<SystemConfigEntity> page = systemConfigMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

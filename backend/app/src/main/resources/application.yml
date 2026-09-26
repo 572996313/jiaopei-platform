@@ -40,6 +40,8 @@ cornerstone:
     public-paths:
       - /api/health
       - /api/system/bootstrap
+      # 品牌文案要在登录页展示,必须免登录可读;返回的只是展示文案,不含任何数据
+      - /api/system/branding
       - /api/auth/**
       - /v3/api-docs/**
       - /swagger-ui/**

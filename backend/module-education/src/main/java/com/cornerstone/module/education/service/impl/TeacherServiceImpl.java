@@ -2,12 +2,14 @@ package com.cornerstone.module.education.service.impl;
 
 import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.dto.TeacherCreateRequest;
 import com.cornerstone.module.education.dto.TeacherExportRow;
@@ -44,6 +46,18 @@ public class TeacherServiceImpl implements TeacherService {
     /** 用工类型未选时的回落值，与 jp_teacher.employment_type 的列默认值一致 */
     private static final String DEFAULT_EMPLOYMENT_TYPE = "full_time";
 
+    /** 教师列表可排序字段:校区/登录账号是 ID 列,列表上显示的是名称,不参与排序 */
+    private static final Map<String, SFunction<TeacherEntity, ?>> TEACHER_SORTABLE = Map.of(
+        "teacherCode", TeacherEntity::getTeacherCode,
+        "teacherName", TeacherEntity::getTeacherName,
+        "phone", TeacherEntity::getPhone,
+        "gender", TeacherEntity::getGender,
+        "title", TeacherEntity::getTitle,
+        "employmentType", TeacherEntity::getEmploymentType,
+        "status", TeacherEntity::getStatus,
+        "hiredAt", TeacherEntity::getHiredAt,
+        "remark", TeacherEntity::getRemark);
+
     private final TeacherMapper teacherMapper;
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
@@ -77,9 +91,20 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public PageResult<TeacherEntity> pageTeachers(TeacherPageQuery query) {
+        LambdaQueryWrapper<TeacherEntity> wrapper = buildWrapper(query);
+        if (!PageSortSupport.apply(wrapper, query, TEACHER_SORTABLE, TeacherEntity::getId)) {
+            applyDefaultOrder(wrapper);
+        }
         Page<TeacherEntity> page = teacherMapper.selectPage(
-            new Page<>(query.getPage(), query.getPageSize()), buildWrapper(query));
+            new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, page.getRecords());
+    }
+
+    /** 列表、分页与导出共用默认排序 */
+    private void applyDefaultOrder(LambdaQueryWrapper<TeacherEntity> wrapper) {
+        wrapper.orderByAsc(TeacherEntity::getInstitutionId)
+            .orderByAsc(TeacherEntity::getCampusId)
+            .orderByAsc(TeacherEntity::getTeacherCode);
     }
 
     @Override
@@ -92,7 +117,9 @@ public class TeacherServiceImpl implements TeacherService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "待导出 " + total + " 条，超过单次上限 " + MAX_EXPORT_ROWS + " 条，请先按校区或关键字收窄范围");
         }
-        List<TeacherEntity> teachers = teacherMapper.selectList(buildWrapper(query));
+        LambdaQueryWrapper<TeacherEntity> exportWrapper = buildWrapper(query);
+        applyDefaultOrder(exportWrapper);
+        List<TeacherEntity> teachers = teacherMapper.selectList(exportWrapper);
         Map<Long, String> campusCodes = loadCampusCodes(teachers);
         Map<Long, String> usernames = loadUsernames(teachers);
         // 字典列一次取全表建映射：逐行翻译会把字典接口打爆
@@ -118,10 +145,7 @@ public class TeacherServiceImpl implements TeacherService {
 
     /** 列表、分页与导出共用同一套筛选条件，三处各拼一遍迟早查出不同结果 */
     private LambdaQueryWrapper<TeacherEntity> buildWrapper(TeacherPageQuery query) {
-        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
-            .orderByAsc(TeacherEntity::getInstitutionId)
-            .orderByAsc(TeacherEntity::getCampusId)
-            .orderByAsc(TeacherEntity::getTeacherCode);
+        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(TeacherEntity::getInstitutionId, query.getInstitutionId());
         }

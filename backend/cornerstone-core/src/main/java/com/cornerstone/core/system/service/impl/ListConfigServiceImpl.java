@@ -216,6 +216,10 @@ public class ListConfigServiceImpl implements ListConfigService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 where + " 的 fixed 不支持：" + fixed + ",可选值 " + COLUMN_FIXED_DIRECTIONS + " 或不填");
         }
+        Object sortable = column.get("sortable");
+        if (sortable != null && !(sortable instanceof Boolean)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, where + " 的 sortable 只能是 true 或 false");
+        }
     }
 
     private void validateQueryField(Map<String, Object> field, String where) {

@@ -69,20 +69,21 @@
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
         >
-          <el-table-column prop="campusCode" label="校区编码" width="150" fixed="left" />
+          <el-table-column prop="campusCode" label="校区编码" width="150" fixed="left" sortable />
           <el-table-column
             prop="campusName"
             label="校区名称"
             min-width="180"
             show-overflow-tooltip
+            sortable
           />
-          <el-table-column prop="campusType" label="校区类型" width="120">
+          <el-table-column prop="campusType" label="校区类型" width="120" sortable>
             <template #default="{ row }">{{ campusTypeLabel(row.campusType) }}</template>
           </el-table-column>
-          <el-table-column prop="principalName" label="负责人" width="120" />
-          <el-table-column prop="phone" label="联系电话" width="150" />
-          <el-table-column prop="address" label="地址" min-width="220" show-overflow-tooltip />
-          <el-table-column prop="status" label="状态" width="120">
+          <el-table-column prop="principalName" label="负责人" width="120" sortable />
+          <el-table-column prop="phone" label="联系电话" width="150" sortable />
+          <el-table-column prop="address" label="地址" min-width="220" show-overflow-tooltip sortable />
+          <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{ campusStatusLabel(row.status) }}</el-tag>
             </template>
@@ -114,26 +115,27 @@
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
         >
-          <el-table-column prop="classroomCode" label="教室编码" width="150" fixed="left" />
+          <el-table-column prop="classroomCode" label="教室编码" width="150" fixed="left" sortable />
           <el-table-column
             prop="classroomName"
             label="教室名称"
             min-width="180"
             show-overflow-tooltip
+            sortable
           />
-          <el-table-column label="类型" width="120">
+          <el-table-column label="类型" width="120" prop="roomType" sortable>
             <template #default="{ row }">{{ roomTypeLabel(row.roomType) }}</template>
           </el-table-column>
-          <el-table-column prop="floorNo" label="楼层" width="100" />
-          <el-table-column prop="seatCapacity" label="容量" width="100" />
-          <el-table-column prop="status" label="状态" width="120">
+          <el-table-column prop="floorNo" label="楼层" width="100" sortable />
+          <el-table-column prop="seatCapacity" label="容量" width="100" sortable />
+          <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{
                 classroomStatusLabel(row.status)
               }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="可排课" width="100">
+          <el-table-column label="可排课" width="100" prop="allowScheduling" sortable>
             <template #default="{ row }">{{ row.allowScheduling ? '是' : '否' }}</template>
           </el-table-column>
           <el-table-column label="操作" width="150" fixed="right">
@@ -167,18 +169,24 @@
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
         >
-          <el-table-column prop="termCode" label="学期编码" width="150" fixed="left" />
-          <el-table-column prop="termName" label="学期名称" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="academicYear" label="学年" width="120" />
-          <el-table-column label="学季" width="120">
+          <el-table-column prop="termCode" label="学期编码" width="150" fixed="left" sortable />
+          <el-table-column
+            prop="termName"
+            label="学期名称"
+            min-width="180"
+            show-overflow-tooltip
+            sortable
+          />
+          <el-table-column prop="academicYear" label="学年" width="120" sortable />
+          <el-table-column label="学季" width="120" prop="season" sortable>
             <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
           </el-table-column>
-          <el-table-column label="起止日期" min-width="220">
+          <el-table-column label="起止日期" min-width="220" prop="startDate" sortable>
             <template #default="{ row }"
               >{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template
             >
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="120">
+          <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{ termStatusLabel(row.status) }}</el-tag>
             </template>
@@ -213,26 +221,27 @@
           highlight-current-row
           :max-height="TABLE_STACK_MAX_HEIGHT"
         >
-          <el-table-column prop="slotCode" label="时间段编码" width="150" fixed="left" />
+          <el-table-column prop="slotCode" label="时间段编码" width="150" fixed="left" sortable />
           <el-table-column
             prop="slotName"
             label="时间段名称"
             min-width="180"
             show-overflow-tooltip
+            sortable
           />
-          <el-table-column label="星期" width="90">
+          <el-table-column label="星期" width="90" prop="weekday" sortable>
             <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
           </el-table-column>
-          <el-table-column label="时间" min-width="180">
+          <el-table-column label="时间" min-width="180" prop="startTime" sortable>
             <template #default="{ row }"
               >{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template
             >
           </el-table-column>
-          <el-table-column prop="durationMinutes" label="时长" width="100" />
-          <el-table-column label="类型" width="120">
+          <el-table-column prop="durationMinutes" label="时长" width="100" sortable />
+          <el-table-column label="类型" width="120" prop="slotType" sortable>
             <template #default="{ row }">{{ slotTypeLabel(row.slotType) }}</template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="120">
+          <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{
                 timeSlotStatusLabel(row.status)

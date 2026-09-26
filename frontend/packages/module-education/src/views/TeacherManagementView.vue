@@ -81,6 +81,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="teacherTableRef"
           :data="teachers"
           border
           stripe
@@ -88,21 +89,29 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          @sort-change="teacherSort.onSortChange"
         >
-          <el-table-column prop="teacherCode" label="教师编码" width="160" fixed="left" />
+          <el-table-column
+            prop="teacherCode"
+            label="教师编码"
+            width="160"
+            fixed="left"
+            sortable="custom"
+          />
           <el-table-column
             prop="teacherName"
             label="教师姓名"
             min-width="160"
             show-overflow-tooltip
             fixed="left"
+            sortable="custom"
           />
           <el-table-column label="校区" min-width="160">
             <template #default="{ row }">
               {{ formatCampus(row.campusId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="phone" label="手机号" width="150" />
+          <el-table-column prop="phone" label="手机号" width="150" sortable="custom" />
           <el-table-column label="登录账号" width="110">
             <template #default="{ row }">
               <el-tag :type="row.userId ? 'success' : 'info'">
@@ -110,20 +119,26 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="用工类型" width="120">
+          <el-table-column prop="employmentType" label="用工类型" width="120" sortable="custom">
             <template #default="{ row }">
               {{ employmentTypeLabel(row.employmentType) }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column prop="status" label="状态" width="120" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="teacherStatusTagType(row.status)">
                 {{ teacherStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="hiredAt" label="入职日期" width="140" />
-          <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="hiredAt" label="入职日期" width="140" sortable="custom" />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="200"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openTeacherDialog('edit', row)"
@@ -243,6 +258,7 @@ import {
   type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
@@ -262,6 +278,14 @@ const teacherPage = ref(1)
 const teacherPageSize = ref(10)
 const teacherTotal = ref(0)
 const teacherKeyword = ref('')
+const teacherTableRef = ref<{ clearSort: () => void } | null>(null)
+/** 表头排序交给服务端:点表头回到第一页重查,取消排序则回到接口默认排序 */
+const teacherSort = useTableSort({
+  onSorted: () => {
+    void searchTeachers()
+  },
+  clearTableSort: () => teacherTableRef.value?.clearSort(),
+})
 
 const statsVisible = ref(false)
 
@@ -383,6 +407,7 @@ async function loadTeachers() {
       keyword: trimToUndefined(teacherKeyword.value),
       page: teacherPage.value,
       pageSize: teacherPageSize.value,
+      ...teacherSort.sortParams(),
     })
     teachers.value = result.records
     teacherTotal.value = result.total
@@ -552,6 +577,7 @@ watch(
     campusId.value = null
     teacherKeyword.value = ''
     teacherPage.value = 1
+    teacherSort.resetSort()
     await loadCampusesAndTeachers()
   }
 )

@@ -16,16 +16,23 @@
     <div class="table-toolbar">
       <el-button type="primary" @click="openCourseCategoryDialog('create')">新增分类</el-button>
     </div>
+    <!-- 分类/班型是全量小表,排序走 Element Plus 本地比较,不发请求 -->
     <el-table :data="courseCategories" border :max-height="TABLE_STACK_MAX_HEIGHT">
-      <el-table-column prop="categoryCode" label="分类编码" width="150" />
-      <el-table-column prop="categoryName" label="分类名称" min-width="180" show-overflow-tooltip />
-      <el-table-column label="状态" width="120">
+      <el-table-column prop="categoryCode" label="分类编码" width="150" sortable />
+      <el-table-column
+        prop="categoryName"
+        label="分类名称"
+        min-width="180"
+        show-overflow-tooltip
+        sortable
+      />
+      <el-table-column label="状态" width="120" prop="status" sortable>
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="sortOrder" label="排序" width="100" />
-      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="sortOrder" label="排序" width="100" sortable />
+      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip sortable />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)"
@@ -59,19 +66,30 @@
         @clear="searchCourses"
       />
     </div>
-    <el-table :data="courses" border :max-height="TABLE_STACK_MAX_HEIGHT">
-      <el-table-column prop="courseCode" label="课程编码" width="150" />
-      <el-table-column prop="courseName" label="课程名称" min-width="180" show-overflow-tooltip />
+    <el-table
+      :data="courses"
+      border
+      :max-height="TABLE_STACK_MAX_HEIGHT"
+      @sort-change="courseSort.onSortChange"
+    >
+      <el-table-column prop="courseCode" label="课程编码" width="150" sortable="custom" />
+      <el-table-column
+        prop="courseName"
+        label="课程名称"
+        min-width="180"
+        show-overflow-tooltip
+        sortable="custom"
+      />
       <el-table-column label="课程分类" min-width="160">
         <template #default="{ row }">
           {{ courseCategories.find((item) => item.id === row.categoryId)?.categoryName || '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="subjectName" label="学科" width="120" />
-      <el-table-column label="授课方式" width="160">
+      <el-table-column prop="subjectName" label="学科" width="120" sortable="custom" />
+      <el-table-column label="授课方式" width="160" prop="teachingMethod" sortable="custom">
         <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="120">
+      <el-table-column label="状态" width="120" prop="status" sortable="custom">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
         </template>
@@ -107,14 +125,20 @@
       <el-button type="primary" @click="openClassTypeDialog('create')">新增班型</el-button>
     </div>
     <el-table :data="classTypes" border :max-height="TABLE_STACK_MAX_HEIGHT">
-      <el-table-column prop="typeCode" label="班型编码" width="150" />
-      <el-table-column prop="typeName" label="班型名称" min-width="180" show-overflow-tooltip />
-      <el-table-column label="授课方式" width="160">
+      <el-table-column prop="typeCode" label="班型编码" width="150" sortable />
+      <el-table-column
+        prop="typeName"
+        label="班型名称"
+        min-width="180"
+        show-overflow-tooltip
+        sortable
+      />
+      <el-table-column label="授课方式" width="160" prop="teachingMethod" sortable>
         <template #default="{ row }">{{ teachingMethodLabel(row.teachingMethod) }}</template>
       </el-table-column>
-      <el-table-column prop="minStudents" label="最少人数" width="100" />
-      <el-table-column prop="maxStudents" label="最多人数" width="100" />
-      <el-table-column label="状态" width="120">
+      <el-table-column prop="minStudents" label="最少人数" width="100" sortable />
+      <el-table-column prop="maxStudents" label="最多人数" width="100" sortable />
+      <el-table-column label="状态" width="120" prop="status" sortable>
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
         </template>
@@ -268,6 +292,7 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import {
   createClassType,
   createCourse,
@@ -316,6 +341,14 @@ const coursePage = ref(1)
 const coursePageSize = ref(10)
 const courseTotal = ref(0)
 const courseKeyword = ref('')
+
+/** 课程列表表头排序(服务端):无序时回到后端的默认排序 */
+const courseSort = useTableSort({
+  onSorted: () => {
+    coursePage.value = 1
+    void loadCourses()
+  },
+})
 
 const courseCategoryDialogVisible = ref(false)
 const courseDialogVisible = ref(false)
@@ -422,6 +455,7 @@ async function loadCourses() {
       keyword: trimToUndefined(courseKeyword.value),
       page: coursePage.value,
       pageSize: coursePageSize.value,
+      ...courseSort.sortParams(),
     })
     courses.value = result.records
     courseTotal.value = result.total

@@ -206,6 +206,7 @@
       </div>
 
       <TableFillBox v-slot="{ height }">
+        <!-- 本表按当前筛选范围一次取全量,不分页,所以排序走 Element Plus 本地比较,不发请求 -->
         <el-table
           :data="visibleRecords"
           border
@@ -233,16 +234,16 @@
               {{ formatStudent(row.studentId) }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column label="状态" width="120" prop="status" sortable>
             <template #default="{ row }">
               <el-tag :type="classStudentTagType(row.status)">
                 {{ classStudentStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="joinedAt" label="入班日期" width="140" />
-          <el-table-column prop="leftAt" label="离班日期" width="140" />
-          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="joinedAt" label="入班日期" width="140" sortable />
+          <el-table-column prop="leftAt" label="离班日期" width="140" sortable />
+          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip sortable />
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
@@ -291,18 +292,18 @@
                 {{ formatTeacher(row.teacherId) }}
               </template>
             </el-table-column>
-            <el-table-column label="角色" width="120">
+            <el-table-column label="角色" width="120" prop="teacherRole" sortable>
               <template #default="{ row }">
                 {{ classTeacherRoleLabel(row.teacherRole) }}
               </template>
             </el-table-column>
-            <el-table-column label="主讲" width="90">
+            <el-table-column label="主讲" width="90" prop="isPrimary" sortable>
               <template #default="{ row }">
                 {{ row.isPrimary ? '是' : '否' }}
               </template>
             </el-table-column>
-            <el-table-column prop="joinedAt" label="生效日期" width="130" />
-            <el-table-column prop="status" label="状态" width="110">
+            <el-table-column prop="joinedAt" label="生效日期" width="130" sortable />
+            <el-table-column prop="status" label="状态" width="110" sortable>
               <template #default="{ row }">
                 <el-tag :type="classTeacherStatusTagType(row.status)">{{
                   classTeacherStatusLabel(row.status)
@@ -369,24 +370,25 @@
                 min-width="140"
                 show-overflow-tooltip
                 fixed="left"
+                sortable
               />
-              <el-table-column label="关系" width="110">
+              <el-table-column label="关系" width="110" prop="relationType" sortable>
                 <template #default="{ row }">
                   {{ parentRelationLabel(row.relationType) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="parentPhone" label="联系电话" width="150" />
-              <el-table-column label="主联系人" width="100">
+              <el-table-column prop="parentPhone" label="联系电话" width="150" sortable />
+              <el-table-column label="主联系人" width="100" prop="primaryContact" sortable>
                 <template #default="{ row }">
                   {{ row.primaryContact ? '是' : '否' }}
                 </template>
               </el-table-column>
-              <el-table-column label="紧急联系" width="100">
+              <el-table-column label="紧急联系" width="100" prop="emergencyContact" sortable>
                 <template #default="{ row }">
                   {{ row.emergencyContact ? '是' : '否' }}
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="100">
+              <el-table-column label="状态" width="100" prop="status" sortable>
                 <template #default="{ row }">
                   <el-tag :type="studentParentTagType(row.status)">{{
                     studentParentStatusLabel(row.status)

@@ -33,18 +33,21 @@
               min-width="150"
               show-overflow-tooltip
               fixed="left"
+              sortable
             />
             <el-table-column
               prop="resourceName"
               label="资源名称"
               min-width="120"
               show-overflow-tooltip
+              sortable
             />
             <el-table-column
               prop="endpoint"
               label="分页接口"
               min-width="190"
               show-overflow-tooltip
+              sortable
             />
             <el-table-column label="关联数据源" min-width="220">
               <template #default="{ row }">
@@ -63,15 +66,21 @@
                 <span v-else class="education-context-text">-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="pageSize" label="每页条数" width="90" />
-            <el-table-column label="状态" width="100">
+            <el-table-column prop="pageSize" label="每页条数" width="90" sortable />
+            <el-table-column label="状态" width="100" prop="status" sortable>
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)">{{
                   statusLabel(row.status, statusLabelMap)
                 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+            <el-table-column
+              prop="remark"
+              label="备注"
+              min-width="150"
+              show-overflow-tooltip
+              sortable
+            />
             <el-table-column
               v-if="permissions.canManageListConfigs"
               label="操作"

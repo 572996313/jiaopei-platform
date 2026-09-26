@@ -2,6 +2,7 @@ package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
@@ -10,6 +11,7 @@ import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementEntity;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementReceiverEntity;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementTemplateEntity;
@@ -54,6 +56,16 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private static final String SCOPE_ALL = "all";
     private static final String SCOPE_PART = "part";
 
+    /** 公告列表可排序字段:已读人数是聚合值,不在本表列里,不参与排序 */
+    private static final Map<String, SFunction<MsgAnnouncementEntity, ?>> ANNOUNCEMENT_SORTABLE = Map.of(
+        "title", MsgAnnouncementEntity::getTitle,
+        "typeCode", MsgAnnouncementEntity::getTypeCode,
+        "status", MsgAnnouncementEntity::getStatus,
+        "topFlag", MsgAnnouncementEntity::getTopFlag,
+        "receiverTotal", MsgAnnouncementEntity::getReceiverTotal,
+        "publishedAt", MsgAnnouncementEntity::getPublishedAt,
+        "createdAt", MsgAnnouncementEntity::getCreatedAt);
+
     /**
      * 三档接收对象各自绑死一条解析 SQL 分支（教师/家长/全部账号），运维在字典里加一档不会多出解析逻辑，
      * 所以按 AGENTS「枚举值/字典规范」的边界留在代码里，不入字典。
@@ -94,8 +106,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public PageResult<AnnouncementView> pageAnnouncements(AnnouncementPageQuery query) {
         Long institutionId = AuthContext.requireUser().orgId();
         LambdaQueryWrapper<MsgAnnouncementEntity> wrapper = new LambdaQueryWrapper<MsgAnnouncementEntity>()
-            .eq(MsgAnnouncementEntity::getInstitutionId, institutionId)
-            .orderByDesc(MsgAnnouncementEntity::getCreatedAt);
+            .eq(MsgAnnouncementEntity::getInstitutionId, institutionId);
         if (hasText(query.getStatus())) {
             wrapper.eq(MsgAnnouncementEntity::getStatus, query.getStatus().trim());
         }
@@ -108,6 +119,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
         if (hasText(query.getKeyword())) {
             wrapper.like(MsgAnnouncementEntity::getTitle, query.getKeyword().trim());
+        }
+        if (!PageSortSupport.apply(wrapper, query, ANNOUNCEMENT_SORTABLE, MsgAnnouncementEntity::getId)) {
+            wrapper.orderByDesc(MsgAnnouncementEntity::getCreatedAt);
         }
         Page<MsgAnnouncementEntity> page = announcementMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);
@@ -123,6 +137,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public AnnouncementView getAnnouncement(Long id) {
         MsgAnnouncementEntity entity = requireOwnAnnouncement(id, AuthContext.requireUser().orgId());
         return toView(entity, readCountsOf(List.of(id)).getOrDefault(id, 0L), displayNames(List.of(entity)));
+    }
+
+    @Override
+    public void requireShareable(Long id) {
+        MsgAnnouncementEntity entity = requireOwnAnnouncement(id, AuthContext.requireUser().orgId());
+        if (!STATUS_PUBLISHED.equals(entity.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "只有已发布的公告能生成小程序码：草稿还没有接收人，撤回后扫码也看不到内容");
+        }
     }
 
     @Override

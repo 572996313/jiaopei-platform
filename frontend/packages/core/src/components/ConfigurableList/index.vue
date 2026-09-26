@@ -10,6 +10,7 @@ import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import { useDataSourceStore } from '@cornerstone/core/stores/dataSource'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import {
   ConfigurableCell,
   collectDictTypes,
@@ -58,6 +59,15 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const queryModel = reactive<Record<string, string>>({})
+const tableRef = ref<{ clearSort: () => void } | null>(null)
+/** 表头排序(单列、服务端):空 sortField 表示走接口默认排序 */
+const sort = useTableSort({
+  onSorted: () => {
+    page.value = 1
+    void fetchPage()
+  },
+  clearTableSort: () => tableRef.value?.clearSort(),
+})
 
 // 竞态守卫:快速切换查询/翻页时丢弃过期响应
 let fetchToken = 0
@@ -110,6 +120,7 @@ async function loadConfig() {
     config.value = parsed
     pageSize.value = parsed.pageSize && parsed.pageSize > 0 ? parsed.pageSize : 10
     page.value = 1
+    sort.resetSort()
     initQueryModel(parsed)
     const dictTypes = collectDictTypes(parsed)
     if (dictTypes.length) {
@@ -129,7 +140,11 @@ async function loadConfig() {
 }
 
 function buildQueryParams(): Record<string, unknown> {
-  const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
+  const params: Record<string, unknown> = {
+    page: page.value,
+    pageSize: pageSize.value,
+    ...sort.sortParams(),
+  }
   for (const [key, value] of Object.entries(queryModel)) {
     if (value !== '' && value !== null && value !== undefined) {
       params[key] = value
@@ -180,6 +195,7 @@ function resetQuery() {
     return
   }
   initQueryModel(config.value)
+  sort.resetSort()
   page.value = 1
   void fetchPage()
 }
@@ -386,6 +402,7 @@ defineExpose({
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="tableRef"
           :data="rows"
           border
           stripe
@@ -393,6 +410,7 @@ defineExpose({
           highlight-current-row
           v-loading="loading"
           :height="height"
+          @sort-change="sort.onSortChange"
         >
           <template #empty>
             <el-empty :description="props.emptyText" :image-size="70" />
@@ -405,6 +423,7 @@ defineExpose({
             :width="column.width"
             :min-width="column.minWidth"
             :fixed="column.fixed"
+            :sortable="column.sortable ? 'custom' : false"
             :show-overflow-tooltip="column.showOverflowTooltip !== false"
           >
             <template #default="{ row }">

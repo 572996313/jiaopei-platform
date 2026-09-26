@@ -1,14 +1,17 @@
 package com.cornerstone.core.audit.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.audit.domain.OperLogEntity;
 import com.cornerstone.core.audit.dto.OperLogPageQuery;
 import com.cornerstone.core.audit.dto.OperLogView;
 import com.cornerstone.core.audit.mapper.OperLogMapper;
 import com.cornerstone.core.common.api.PageResult;
+import com.cornerstone.core.common.model.PageSortSupport;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,13 +22,26 @@ public class OperLogQueryService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /** 操作日志列表可排序字段 */
+    private static final Map<String, SFunction<OperLogEntity, ?>> OPER_LOG_SORTABLE = Map.of(
+        "username", OperLogEntity::getUsername,
+        "portal", OperLogEntity::getPortal,
+        "operation", OperLogEntity::getOperation,
+        "actionType", OperLogEntity::getActionType,
+        "success", OperLogEntity::getSuccess,
+        "durationMs", OperLogEntity::getDurationMs,
+        "clientIp", OperLogEntity::getClientIp,
+        "method", OperLogEntity::getMethod,
+        "path", OperLogEntity::getPath,
+        "createdAt", OperLogEntity::getCreatedAt);
+
     private final OperLogMapper operLogMapper;
 
     public OperLogQueryService(OperLogMapper operLogMapper) {
         this.operLogMapper = operLogMapper;
     }
 
-    /** 分页查询操作日志,按操作时间倒序。 */
+    /** 分页查询操作日志,默认按操作时间倒序。 */
     public PageResult<OperLogView> page(OperLogPageQuery query) {
         LambdaQueryWrapper<OperLogEntity> wrapper = new LambdaQueryWrapper<>();
         String username = normalize(query.getUsername());
@@ -52,7 +68,9 @@ public class OperLogQueryService {
         if (end != null) {
             wrapper.le(OperLogEntity::getCreatedAt, end);
         }
-        wrapper.orderByDesc(OperLogEntity::getCreatedAt);
+        if (!PageSortSupport.apply(wrapper, query, OPER_LOG_SORTABLE, OperLogEntity::getId)) {
+            wrapper.orderByDesc(OperLogEntity::getCreatedAt);
+        }
 
         Page<OperLogEntity> page = operLogMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

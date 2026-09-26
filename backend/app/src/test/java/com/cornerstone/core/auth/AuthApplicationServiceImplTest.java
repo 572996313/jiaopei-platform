@@ -125,6 +125,32 @@ class AuthApplicationServiceImplTest {
         org.junit.jupiter.api.Assertions.assertNotNull(user.getPasswordUpdatedAt());
     }
 
+    /** 业务模块绑定档案后回写显示名：超列宽直接拒绝，而不是把整句塞进 varchar(128) */
+    @Test
+    void updateDisplayNameWritesAndRejectsTooLong() {
+        UserAccountEntity user = user();
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+
+        service.updateDisplayName(1L, " 小明家长 ");
+
+        assertEquals("小明家长", user.getDisplayName());
+        assertThrows(BusinessException.class,
+            () -> service.updateDisplayName(1L, "名".repeat(AuthApplicationService.MAX_DISPLAY_NAME_LENGTH + 1)));
+        assertThrows(BusinessException.class, () -> service.updateDisplayName(1L, "   "));
+    }
+
+    /** 名字没变就不写库：档案名常改、账号名跟着改，重复绑定不应产生空更新 */
+    @Test
+    void updateDisplayNameSkipsWriteWhenUnchanged() {
+        UserAccountEntity user = user();
+        user.setDisplayName("小明家长");
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+
+        service.updateDisplayName(1L, " 小明家长 ");
+
+        verify(userAccountMapper, never()).updateById(any(UserAccountEntity.class));
+    }
+
     @Test
     void currentUserReturnsEffectiveForceChangeWhenSwitchDisabled() {
         authenticate();

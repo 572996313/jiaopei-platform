@@ -1,7 +1,7 @@
 <template>
   <LoginShell>
     <div class="page-kicker">系统登录</div>
-    <h2 class="form-title">{{ brand.loginFormTitle }}</h2>
+    <h2 class="form-title">{{ loginFormTitle }}</h2>
     <p v-if="loginPageTip" class="login-form-tip">{{ loginPageTip }}</p>
 
     <el-alert
@@ -39,13 +39,13 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchLoginPage } from '@cornerstone/core/api/auth'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
-import { currentBrand } from '@cornerstone/core/extension/module-extensions'
+import { useBranding } from '@cornerstone/core/composables/use-branding'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
-/** 品牌文案由壳工程 registerBranding 登记；壳在 import 阶段就跑完了，这里取到的是最终值 */
-const brand = currentBrand()
+/** 登录表单标题来自系统参数 brand.login_form_title，与 LoginShell 读同一份请求结果 */
+const { loginFormTitle } = useBranding()
 
 const submitting = ref(false)
 const formError = ref('')

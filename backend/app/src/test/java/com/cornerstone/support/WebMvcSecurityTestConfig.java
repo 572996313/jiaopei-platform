@@ -80,6 +80,10 @@ public class WebMvcSecurityTestConfig {
             }
 
             @Override
+            public void updateDisplayName(Long userId, String displayName) {
+            }
+
+            @Override
             public void invalidateUserSessions(Long userId) {
             }
 
@@ -188,6 +192,16 @@ public class WebMvcSecurityTestConfig {
                 }
                 if ("auth.login.page_tip".equals(key)) {
                     return "默认管理员账号 admin";
+                }
+                // 品牌参数：只 stub 三条，brand.login_copy 故意不配，用来断言"未配置返回空串"
+                if ("brand.name".equals(key)) {
+                    return "测试平台";
+                }
+                if ("brand.tagline".equals(key)) {
+                    return "测试用定位副标题";
+                }
+                if ("brand.login_form_title".equals(key)) {
+                    return "进入测试平台";
                 }
                 return defaultValue;
             }

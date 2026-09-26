@@ -10,6 +10,9 @@ public interface AuthApplicationService {
 
     String FORCE_CHANGE_ENABLED_KEY = "auth.password.force_change_enabled";
 
+    /** 显示名称列宽上限，与 sys_user_account.display_name 的 varchar(128) 一致 */
+    int MAX_DISPLAY_NAME_LENGTH = 128;
+
     LoginResponse login(LoginRequest request);
 
     void logout(String accessToken);
@@ -19,6 +22,14 @@ public interface AuthApplicationService {
     CurrentUserResponse currentUser();
 
     void changePassword(ChangePasswordRequest request);
+
+    /**
+     * 回写账号显示名，供业务模块在档案关联建立后把"我是谁"同步到账号上。
+     *
+     * <p>显示名不在 JWT 也不在 Redis 会话里（{@code AuthenticatedUser} 只有 username），
+     * {@code /api/auth/me} 每次现读库，所以改完不必失效会话。</p>
+     */
+    void updateDisplayName(Long userId, String displayName);
 
     void invalidateUserSessions(Long userId);
 

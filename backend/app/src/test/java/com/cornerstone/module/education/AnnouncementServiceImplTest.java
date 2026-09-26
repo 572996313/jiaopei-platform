@@ -1,5 +1,6 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -153,6 +154,21 @@ class AnnouncementServiceImplTest {
             () -> service.updateDraft(5L, request(List.of("teacher"), "all", List.of(), List.of())));
 
         assertTrue(exception.getMessage().contains("只有草稿可以修改"));
+    }
+
+    @Test
+    void onlyPublishedAnnouncementGetsWxacode() {
+        when(announcementMapper.selectById(5L)).thenReturn(draft(5L, "teacher", "all", null, null));
+        BusinessException draft = assertThrows(BusinessException.class, () -> service.requireShareable(5L));
+        assertTrue(draft.getMessage().contains("已发布"));
+
+        MsgAnnouncementEntity recalled = published(5L);
+        recalled.setStatus("recalled");
+        when(announcementMapper.selectById(5L)).thenReturn(recalled);
+        assertThrows(BusinessException.class, () -> service.requireShareable(5L));
+
+        when(announcementMapper.selectById(5L)).thenReturn(published(5L));
+        assertDoesNotThrow(() -> service.requireShareable(5L));
     }
 
     @Test

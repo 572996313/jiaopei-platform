@@ -93,9 +93,10 @@
           highlight-current-row
           v-loading="lessonsLoading"
           :height="height"
+          @sort-change="lessonSort.onSortChange"
         >
-          <el-table-column prop="lessonDate" label="上课日期" width="120" />
-          <el-table-column label="星期" width="100">
+          <el-table-column prop="lessonDate" label="上课日期" width="120" sortable="custom" />
+          <el-table-column label="星期" width="100" prop="lessonWeekday" sortable="custom">
             <template #default="{ row }">
               {{ weekdayLabel(row.lessonWeekday) }}
             </template>
@@ -110,7 +111,7 @@
               {{ formatClassroom(row.classroomId) }}
             </template>
           </el-table-column>
-          <el-table-column label="时段" min-width="170">
+          <el-table-column label="时段" min-width="170" prop="startTime" sortable="custom">
             <template #default="{ row }">
               {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
             </template>
@@ -125,8 +126,9 @@
             label="课程主题"
             min-width="160"
             show-overflow-tooltip
+            sortable="custom"
           />
-          <el-table-column label="状态" width="120">
+          <el-table-column label="状态" width="120" prop="lessonStatus" sortable="custom">
             <template #default="{ row }">
               <div class="lesson-status-cell">
                 <el-tag :type="lessonStatusTagType(row.lessonStatus)">
@@ -138,7 +140,13 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="180"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column label="停补关联" min-width="200">
             <template #default="{ row }">
               <div class="relation-cell">
@@ -292,6 +300,7 @@ import {
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import SchedulePlanWizardDialog from './components/SchedulePlanWizardDialog.vue'
@@ -327,6 +336,14 @@ const lessons = ref<ScheduleLessonRecord[]>([])
 const lessonPage = ref(1)
 const lessonPageSize = ref(10)
 const lessonTotal = ref(0)
+
+/** 表头排序(服务端):无序时回到后端的日期+开始时间默认排序 */
+const lessonSort = useTableSort({
+  onSorted: () => {
+    lessonPage.value = 1
+    void refreshLessons()
+  },
+})
 
 const pageError = ref('')
 const lookupLoading = ref(false)
@@ -572,8 +589,10 @@ async function refreshLessons() {
       lessonDate: lessonDate.value,
       page: lessonPage.value,
       pageSize: lessonPageSize.value,
+      ...lessonSort.sortParams(),
     })
-    lessons.value = sortedLessons(result.records)
+    // 表头排序由后端完成;无排序时才在前端补一次日期+时间顺序(接口默认序已如此,此处只是稳定展示)
+    lessons.value = lessonSort.sortField.value ? result.records : sortedLessons(result.records)
     lessonTotal.value = result.total
     void loadRelatedLessons(lessons.value)
   } catch (error) {

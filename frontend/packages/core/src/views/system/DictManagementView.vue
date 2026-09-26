@@ -36,14 +36,16 @@
                 min-width="160"
                 show-overflow-tooltip
                 fixed="left"
+                sortable
               />
               <el-table-column
                 prop="typeName"
                 label="类型名称"
                 min-width="180"
                 show-overflow-tooltip
+                sortable
               />
-              <el-table-column label="状态" width="110">
+              <el-table-column label="状态" width="110" prop="status" sortable>
                 <template #default="{ row }">
                   <el-tag :type="statusTagType(row.status)">{{
                     statusLabel(row.status, statusLabelMap)
@@ -95,11 +97,23 @@
               v-loading="dictItemsLoading"
               :height="height"
             >
-              <el-table-column prop="itemCode" label="编码" width="140" fixed="left" />
-              <el-table-column prop="itemName" label="名称" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="itemValue" label="值" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="sortNo" label="排序" width="80" />
-              <el-table-column label="状态" width="110">
+              <el-table-column prop="itemCode" label="编码" width="140" fixed="left" sortable />
+              <el-table-column
+                prop="itemName"
+                label="名称"
+                min-width="140"
+                show-overflow-tooltip
+                sortable
+              />
+              <el-table-column
+                prop="itemValue"
+                label="值"
+                min-width="140"
+                show-overflow-tooltip
+                sortable
+              />
+              <el-table-column prop="sortNo" label="排序" width="80" sortable />
+              <el-table-column label="状态" width="110" prop="status" sortable>
                 <template #default="{ row }">
                   <el-tag :type="statusTagType(row.status)">{{
                     statusLabel(row.status, statusLabelMap)

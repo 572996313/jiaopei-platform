@@ -23,6 +23,8 @@ export interface ColumnRow {
   minWidth?: number | null
   /** 固定列方向:left 钉在左侧、right 钉在右侧,缺省不固定 */
   fixed?: string
+  /** 该列可否点表头排序(服务端排序);后端接口未列入排序白名单的字段不要开 */
+  sortable?: boolean
   showOverflowTooltip?: boolean
   dictType?: string
   tagTypeMap?: KeyValuePair[]
@@ -294,6 +296,7 @@ export function parseColumns(json: string): ColumnRow[] {
         width: readNumber(obj, 'width'),
         minWidth: readNumber(obj, 'minWidth'),
         fixed: readString(obj, 'fixed'),
+        sortable: readBool(obj, 'sortable'),
         showOverflowTooltip: readBool(obj, 'showOverflowTooltip'),
         dictType: readString(obj, 'dictType'),
         tagTypeMap: readPairs(obj, 'tagTypeMap'),
@@ -327,6 +330,9 @@ export function columnsToJson(rows: ColumnRow[]): string {
       }
       if (row.fixed && row.fixed.trim()) {
         item.fixed = row.fixed.trim()
+      }
+      if (row.sortable === true) {
+        item.sortable = true
       }
       if (row.showOverflowTooltip === true) {
         item.showOverflowTooltip = true

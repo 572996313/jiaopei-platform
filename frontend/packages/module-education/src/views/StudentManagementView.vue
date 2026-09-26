@@ -125,6 +125,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="studentTableRef"
           :data="pagedStudents"
           border
           stripe
@@ -132,16 +133,24 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          @sort-change="studentSort.onSortChange"
         >
-          <el-table-column prop="studentNo" label="学号" width="140" fixed="left" />
+          <el-table-column
+            prop="studentNo"
+            label="学号"
+            width="140"
+            fixed="left"
+            sortable="custom"
+          />
           <el-table-column
             prop="studentName"
             label="姓名"
             min-width="120"
             show-overflow-tooltip
             fixed="left"
+            sortable="custom"
           />
-          <el-table-column label="性别" width="80">
+          <el-table-column prop="gender" label="性别" width="80" sortable="custom">
             <template #default="{ row }">
               {{ genderLabel(row.gender) }}
             </template>
@@ -151,17 +160,24 @@
             label="监护人"
             min-width="120"
             show-overflow-tooltip
+            sortable="custom"
           />
-          <el-table-column prop="guardianPhone" label="监护人电话" width="150" />
-          <el-table-column label="状态" width="100">
+          <el-table-column prop="guardianPhone" label="监护人电话" width="150" sortable="custom" />
+          <el-table-column prop="status" label="状态" width="100" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="studentStatusTagType(row.status)">
                 {{ studentStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="enrolledAt" label="入学日期" width="130" />
-          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="enrolledAt" label="入学日期" width="130" sortable="custom" />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="180"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openStudentDialog('edit', row)"
@@ -200,6 +216,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="enrollmentTableRef"
           :data="records"
           border
           stripe
@@ -207,8 +224,15 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          @sort-change="enrollmentSort.onSortChange"
         >
-          <el-table-column prop="enrollmentNo" label="报名编号" width="160" fixed="left" />
+          <el-table-column
+            prop="enrollmentNo"
+            label="报名编号"
+            width="160"
+            fixed="left"
+            sortable="custom"
+          />
           <el-table-column label="学员" min-width="180">
             <template #default="{ row }">
               {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
@@ -219,18 +243,24 @@
               {{ row.className || formatClass(row.classId) }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column prop="status" label="状态" width="120" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="enrollmentTagType(row.status)">
                 {{ enrollmentStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="来源渠道" width="140">
+          <el-table-column prop="channel" label="来源渠道" width="140" sortable="custom">
             <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
           </el-table-column>
-          <el-table-column prop="enrolledAt" label="报名日期" width="140" />
-          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="enrolledAt" label="报名日期" width="140" sortable="custom" />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="220"
+            show-overflow-tooltip
+            sortable="custom"
+          />
         </el-table>
       </TableFillBox>
 
@@ -261,6 +291,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="parentTableRef"
           :data="studentParents"
           border
           stripe
@@ -268,6 +299,7 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          @sort-change="parentSort.onSortChange"
         >
           <el-table-column label="学员" min-width="180" fixed="left">
             <template #default="{ row }">
@@ -280,30 +312,42 @@
             min-width="140"
             show-overflow-tooltip
             fixed="left"
+            sortable="custom"
           />
-          <el-table-column label="关系" width="120">
+          <el-table-column prop="relationType" label="关系" width="120" sortable="custom">
             <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
           </el-table-column>
-          <el-table-column prop="parentPhone" label="联系电话" width="160" />
-          <el-table-column prop="wechatNo" label="微信号" width="160" />
-          <el-table-column label="主联系人" width="100">
+          <el-table-column prop="parentPhone" label="联系电话" width="160" sortable="custom" />
+          <el-table-column prop="wechatNo" label="微信号" width="160" sortable="custom" />
+          <el-table-column prop="isPrimary" label="主联系人" width="100" sortable="custom">
             <template #default="{ row }">
               {{ row.isPrimary ? '是' : '否' }}
             </template>
           </el-table-column>
-          <el-table-column label="紧急联系" width="100">
+          <el-table-column
+            prop="isEmergencyContact"
+            label="紧急联系"
+            width="100"
+            sortable="custom"
+          >
             <template #default="{ row }">
               {{ row.isEmergencyContact ? '是' : '否' }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column prop="status" label="状态" width="120" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="studentParentTagType(row.status)">
                 {{ studentParentStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="220"
+            show-overflow-tooltip
+            sortable="custom"
+          />
         </el-table>
       </TableFillBox>
 
@@ -544,6 +588,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -592,6 +637,30 @@ const enrollmentTotal = ref(0)
 const parentPage = ref(1)
 const parentPageSize = ref(10)
 const parentTotal = ref(0)
+const studentTableRef = ref<{ clearSort: () => void } | null>(null)
+const enrollmentTableRef = ref<{ clearSort: () => void } | null>(null)
+const parentTableRef = ref<{ clearSort: () => void } | null>(null)
+/** 三张表各自一套服务端排序:点表头回到第一页重查,取消排序回到接口默认排序 */
+const studentSort = useTableSort({
+  onSorted: () => {
+    void searchStudents()
+  },
+  clearTableSort: () => studentTableRef.value?.clearSort(),
+})
+const enrollmentSort = useTableSort({
+  onSorted: () => {
+    enrollmentPage.value = 1
+    void loadEnrollments()
+  },
+  clearTableSort: () => enrollmentTableRef.value?.clearSort(),
+})
+const parentSort = useTableSort({
+  onSorted: () => {
+    parentPage.value = 1
+    void loadParents()
+  },
+  clearTableSort: () => parentTableRef.value?.clearSort(),
+})
 const pageError = ref('')
 const formError = ref('')
 const parentFormError = ref('')
@@ -960,6 +1029,7 @@ async function loadStudents() {
         keyword: trimToUndefined(studentKeyword.value),
         page: studentPage.value,
         pageSize: studentPageSize.value,
+        ...studentSort.sortParams(),
       })
       pagedStudents.value = result.records
       studentTotal.value = result.total
@@ -986,6 +1056,7 @@ async function loadEnrollments() {
         studentId: studentId.value,
         page: enrollmentPage.value,
         pageSize: enrollmentPageSize.value,
+        ...enrollmentSort.sortParams(),
       })
       records.value = result.records
       enrollmentTotal.value = result.total
@@ -1011,6 +1082,7 @@ async function loadParents() {
         studentId: studentId.value,
         page: parentPage.value,
         pageSize: parentPageSize.value,
+        ...parentSort.sortParams(),
       })
       studentParents.value = result.records
       parentTotal.value = result.total

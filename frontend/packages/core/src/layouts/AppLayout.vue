@@ -3,10 +3,10 @@
     <!-- ============ 横幅:全站唯一一条深色带,品牌 / 当前页 / 搜索 / 机构 / 账号 ============ -->
     <header class="shell-banner">
       <div class="banner-brand">
-        <span class="banner-mark">{{ brand.mark }}</span>
+        <span v-if="brandMark" class="banner-mark">{{ brandMark }}</span>
         <div class="banner-brand-text">
-          <b>{{ brand.product }}</b>
-          <span>{{ brand.sidebarKicker }}</span>
+          <b>{{ brandName }}</b>
+          <span>{{ brandTagline }}</span>
         </div>
       </div>
 
@@ -391,9 +391,9 @@ import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
 import {
   contributedBannerActions,
   contributedNavItems,
-  currentBrand,
   type NavItemDefinition,
 } from '@cornerstone/core/extension/module-extensions'
+import { useBranding } from '@cornerstone/core/composables/use-branding'
 import { useTheme, type ThemeMode } from '@cornerstone/core/composables/use-theme'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -412,12 +412,13 @@ const router = useRouter()
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
 
+/** 品牌文案来自系统参数 brand.*：直接刷新进后台时也要拉一次，登录页拉过则复用同一份请求 */
+const { brandName, brandTagline, brandMark, loadBranding } = useBranding()
+
 onMounted(() => {
   institutionStore.loadInstitutions()
+  loadBranding()
 })
-
-/** 品牌文案由壳工程 registerBranding 登记；壳在 import 阶段就跑完了，这里取到的是最终值 */
-const brand = currentBrand()
 
 /** ================= 外观档位（明亮/夜晚/跟随系统） ================= */
 const { themeMode, setTheme, THEME_OPTIONS } = useTheme()
@@ -668,7 +669,7 @@ const pageTitle = computed(
     currentPageTrail.value.label ||
     tabs.tabs.find((tab) => tab.path === route.path)?.label ||
     titleOfPath(route.path) ||
-    brand.product
+    brandName.value
 )
 
 /** 窄栏把二级页收进悬停浮层,搜索面板就是它的平铺目录:直达项与目录子页都在内 */

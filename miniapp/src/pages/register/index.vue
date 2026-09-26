@@ -69,7 +69,8 @@ async function handleRegister() {
     uni.hideLoading()
     uni.showToast({ title: '注册成功', icon: 'success' })
     setTimeout(() => {
-      uni.reLaunch({ url: '/pages/index/index' })
+      // 扫公告码进来的人:注册只是路过,回到他原本要点开的那条公告
+      uni.reLaunch({ url: takePendingRoute() || '/pages/index/index' })
     }, 600)
   } catch (error) {
     uni.hideLoading()

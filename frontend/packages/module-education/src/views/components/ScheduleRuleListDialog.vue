@@ -32,31 +32,32 @@
       highlight-current-row
       v-loading="loading"
       max-height="440"
+      @sort-change="sort.onSortChange"
     >
-      <el-table-column label="类型" width="80" fixed="left">
+      <el-table-column label="类型" width="80" fixed="left" prop="ruleType" sortable="custom">
         <template #default="{ row }">
           <el-tag size="small" :type="row.ruleType === 'forbidden' ? 'danger' : 'warning'">
             {{ row.ruleType === 'forbidden' ? '禁排' : '必排' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="对象" min-width="170">
+      <el-table-column label="对象" min-width="170" prop="targetType" sortable="custom">
         <template #default="{ row }">{{ formatTarget(row) }}</template>
       </el-table-column>
       <el-table-column label="节次格子" min-width="240">
         <template #default="{ row }">{{ formatSlots(row.slots) }}</template>
       </el-table-column>
-      <el-table-column label="生效区间" width="200">
+      <el-table-column label="生效区间" width="200" prop="startDate" sortable="custom">
         <template #default="{ row }">{{ formatRange(row) }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="80">
+      <el-table-column label="状态" width="80" prop="status" sortable="custom">
         <template #default="{ row }">
           <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
             {{ row.status === 'active' ? '启用' : '停用' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="批注" min-width="160">
+      <el-table-column label="批注" min-width="160" prop="remark" sortable="custom">
         <template #default="{ row }">{{ row.remark || '—' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="130" fixed="right">
@@ -106,6 +107,7 @@ import {
   type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -133,6 +135,14 @@ const deletingId = ref<string | null>(null)
 const filterRuleType = ref<string | null>(null)
 const filterTargetType = ref<string | null>(null)
 const filterStatus = ref<string | null>(null)
+
+/** 表头排序(服务端):无序时回到后端的 createdAt 倒序 */
+const sort = useTableSort({
+  onSorted: () => {
+    page.value = 1
+    void reload()
+  },
+})
 
 function formatTarget(rule: ScheduleRuleRecord) {
   const id = rule.targetId
@@ -171,6 +181,8 @@ function handleOpen() {
   filterRuleType.value = null
   filterTargetType.value = null
   filterStatus.value = null
+  // 弹窗是 destroy-on-close,表头箭头每次重开都会消失,排序状态要一起回到默认
+  sort.resetSort()
   void reload()
 }
 
@@ -194,6 +206,7 @@ async function reload() {
       status: filterStatus.value,
       page: page.value,
       pageSize: pageSize.value,
+      ...sort.sortParams(),
     })
     rules.value = result.records
     total.value = result.total

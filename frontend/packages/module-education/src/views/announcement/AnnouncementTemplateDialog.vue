@@ -19,13 +19,26 @@
       </div>
 
       <el-table v-loading="loading" :data="templates" border stripe row-key="id" max-height="380">
-        <el-table-column label="模板名称" min-width="150" fixed="left" show-overflow-tooltip>
+        <el-table-column
+          label="模板名称"
+          min-width="150"
+          fixed="left"
+          show-overflow-tooltip
+          prop="name"
+          sortable
+        >
           <template #default="{ row }">{{ row.name }}</template>
         </el-table-column>
-        <el-table-column label="预填标题" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          label="预填标题"
+          min-width="200"
+          show-overflow-tooltip
+          prop="title"
+          sortable
+        >
           <template #default="{ row }">{{ row.title }}</template>
         </el-table-column>
-        <el-table-column label="类型" width="110">
+        <el-table-column label="类型" width="110" prop="typeCode" sortable>
           <template #default="{ row }">{{ typeLabel(row.typeCode) }}</template>
         </el-table-column>
         <el-table-column label="接收对象" min-width="150">

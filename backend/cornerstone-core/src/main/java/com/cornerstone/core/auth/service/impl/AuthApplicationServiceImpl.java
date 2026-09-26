@@ -140,6 +140,25 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     }
 
     @Override
+    @Transactional
+    public void updateDisplayName(Long userId, String displayName) {
+        String value = normalize(displayName);
+        if (value == null || value.isBlank()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "显示名称不能为空");
+        }
+        if (value.length() > MAX_DISPLAY_NAME_LENGTH) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "显示名称长度不能超过 " + MAX_DISPLAY_NAME_LENGTH + " 个字符");
+        }
+        UserAccountEntity user = requireUser(userId);
+        if (value.equals(user.getDisplayName())) {
+            return;
+        }
+        user.setDisplayName(value);
+        userAccountMapper.updateById(user);
+    }
+
+    @Override
     public void invalidateUserSessions(Long userId) {
         tokenCacheService.invalidateUserTokens(userId);
     }

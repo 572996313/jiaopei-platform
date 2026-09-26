@@ -95,6 +95,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="tableRef"
           v-loading="loading"
           :data="records"
           border
@@ -103,36 +104,56 @@
           highlight-current-row
           style="width: 100%"
           :height="height"
+          @sort-change="sort.onSortChange"
         >
-          <el-table-column prop="createdAt" label="操作时间" width="170" />
+          <el-table-column prop="createdAt" label="操作时间" width="170" sortable="custom" />
           <el-table-column
             prop="operation"
             label="操作名称"
             min-width="140"
             show-overflow-tooltip
+            sortable="custom"
           />
-          <el-table-column prop="username" label="操作人" width="120" show-overflow-tooltip>
+          <el-table-column
+            prop="username"
+            label="操作人"
+            width="120"
+            show-overflow-tooltip
+            sortable="custom"
+          >
             <template #default="{ row }">
               {{ row.username || '未知' }}
             </template>
           </el-table-column>
-          <el-table-column prop="portal" label="端口" width="90">
+          <el-table-column prop="portal" label="端口" width="90" sortable="custom">
             <template #default="{ row }">
               <el-tag size="small" :type="portalTagType(row.portal)">{{
                 portalLabel(row.portal)
               }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="actionType" label="类型" width="90">
+          <el-table-column prop="actionType" label="类型" width="90" sortable="custom">
             <template #default="{ row }">
               {{ actionTypeLabel(row.actionType) }}
             </template>
           </el-table-column>
-          <el-table-column prop="method" label="方法" width="80" />
-          <el-table-column prop="path" label="请求路径" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="clientIp" label="IP" width="130" show-overflow-tooltip />
-          <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" />
-          <el-table-column prop="success" label="状态" width="80">
+          <el-table-column prop="method" label="方法" width="80" sortable="custom" />
+          <el-table-column
+            prop="path"
+            label="请求路径"
+            min-width="180"
+            show-overflow-tooltip
+            sortable="custom"
+          />
+          <el-table-column
+            prop="clientIp"
+            label="IP"
+            width="130"
+            show-overflow-tooltip
+            sortable="custom"
+          />
+          <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" sortable="custom" />
+          <el-table-column prop="success" label="状态" width="80" sortable="custom">
             <template #default="{ row }">
               <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{
                 row.success ? '成功' : '失败'
@@ -198,6 +219,7 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { onMounted, reactive, ref } from 'vue'
 import type { OperLogSummary } from '@cornerstone/core/api/system'
 import { fetchOperLogs } from '@cornerstone/core/api/system'
@@ -208,6 +230,14 @@ const records = ref<OperLogSummary[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const tableRef = ref<{ clearSort: () => void } | null>(null)
+const sort = useTableSort({
+  onSorted: () => {
+    page.value = 1
+    void load()
+  },
+  clearTableSort: () => tableRef.value?.clearSort(),
+})
 
 const detailVisible = ref(false)
 const detail = ref<OperLogSummary | null>(null)
@@ -268,6 +298,7 @@ function buildPageParams() {
   return {
     page: page.value,
     pageSize: pageSize.value,
+    ...sort.sortParams(),
     username: query.username.trim() || undefined,
     actionType: query.actionType || undefined,
     portal: query.portal || undefined,
@@ -305,6 +336,7 @@ function handleReset() {
   query.operation = ''
   query.success = null
   timeRange.value = null
+  sort.resetSort()
   page.value = 1
   void load()
 }

@@ -2,6 +2,7 @@ package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthContext;
+import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.module.education.domain.entity.UserStudentRelEntity;
 import com.cornerstone.module.education.dto.BindStudentRequest;
 import com.cornerstone.module.education.dto.MiniappLessonView;
@@ -49,6 +50,8 @@ public class MiniappServiceImpl implements MiniappService {
     private static final String ACTIVE = "active";
     /** jp_class_student 的在班状态值(见 ClassStudentEntity 注释)，与其余按 status='active' 过滤任课/在班的查询同口径 */
     private static final String CLASS_STUDENT_ACTIVE = ACTIVE;
+    /** 家长账号显示名的后缀：孩子姓名顿号连接 + 该后缀 */
+    private static final String PARENT_NAME_SUFFIX = "家长";
 
     private final UserStudentRelMapper userStudentRelMapper;
     private final StudentMapper studentMapper;
@@ -61,12 +64,14 @@ public class MiniappServiceImpl implements MiniappService {
     private final TeacherMapper teacherMapper;
     private final SystemConfigService systemConfigService;
     private final DictValueValidator dictValueValidator;
+    private final AuthApplicationService authApplicationService;
 
     public MiniappServiceImpl(UserStudentRelMapper userStudentRelMapper, StudentMapper studentMapper,
                               StudentParentMapper studentParentMapper, ClassStudentMapper classStudentMapper,
                               TeachingClassMapper teachingClassMapper, ScheduleLessonMapper scheduleLessonMapper,
                               CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper,
-                              SystemConfigService systemConfigService, DictValueValidator dictValueValidator) {
+                              SystemConfigService systemConfigService, DictValueValidator dictValueValidator,
+                              AuthApplicationService authApplicationService) {
         this.userStudentRelMapper = userStudentRelMapper;
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
@@ -78,6 +83,7 @@ public class MiniappServiceImpl implements MiniappService {
         this.teacherMapper = teacherMapper;
         this.systemConfigService = systemConfigService;
         this.dictValueValidator = dictValueValidator;
+        this.authApplicationService = authApplicationService;
     }
 
     @Override
@@ -97,6 +103,7 @@ public class MiniappServiceImpl implements MiniappService {
         relation.setStudentId(student.getId());
         relation.setRemark(request.remark());
         userStudentRelMapper.insert(relation);
+        syncAccountDisplayName();
         return toStudentBrief(student);
     }
 
@@ -108,6 +115,7 @@ public class MiniappServiceImpl implements MiniappService {
         if (deleted == 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "未找到该学员的绑定关系,请勿重复解绑");
         }
+        syncAccountDisplayName();
     }
 
     @Override
@@ -214,6 +222,7 @@ public class MiniappServiceImpl implements MiniappService {
         studentMapper.updateById(student);
         // 顺带建关联,让学生复用现有课表查询(按 user-student rel 过滤)
         insertSelfRelation(userId, student.getId(), student.getInstitutionId());
+        syncAccountDisplayName();
         return toOwnProfile(student);
     }
 
@@ -238,6 +247,7 @@ public class MiniappServiceImpl implements MiniappService {
             if (created.getId() != null) {
                 insertSelfRelation(userId, created.getId(), created.getInstitutionId());
             }
+            syncAccountDisplayName();
             return toOwnProfile(created);
         }
         // 已归属:仅可编辑姓名/性别/生日
@@ -245,6 +255,7 @@ public class MiniappServiceImpl implements MiniappService {
         student.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         student.setBirthday(request.birthday());
         studentMapper.updateById(student);
+        syncAccountDisplayName();
         return toOwnProfile(student);
     }
 
@@ -252,10 +263,72 @@ public class MiniappServiceImpl implements MiniappService {
 
     /** 仅学生端用户(角色含 MINIAPP_STUDENT)可调用学生档案相关方法 */
     private void requireStudentPortal() {
-        AuthContext.requireUser().roles().stream()
-            .filter(MiniappPortalResolver.ROLE_CODE_STUDENT::equals)
-            .findAny()
-            .orElseThrow(() -> new BusinessException(ResultCode.FORBIDDEN, "仅学生账号可操作自己的档案"));
+        if (!isStudentPortal()) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅学生账号可操作自己的档案");
+        }
+    }
+
+    private boolean isStudentPortal() {
+        return AuthContext.requireUser().roles().contains(MiniappPortalResolver.ROLE_CODE_STUDENT);
+    }
+
+    /**
+     * 档案绑定关系变化后，把账号显示名同步成档案给出的名字：学生用自己的档案姓名，家长用孩子姓名拼接。
+     *
+     * <p>名字来源一律取档案而不是注册时填的微信昵称，管理员与本人看账号列表时才能一眼知道这个账号是谁。
+     * 无档案可依据时（家长解绑了全部孩子、学生还没归档）保留现有名字：显示名列非空，清空只能塞占位文案，
+     * 而占位文案会把"上一个孩子的家长"直接盖成"微信用户"，比留着旧名字更难看。</p>
+     */
+    private void syncAccountDisplayName() {
+        Long userId = AuthContext.requireUser().userId();
+        if (isStudentPortal()) {
+            StudentEntity own = myOwnedStudentOrNull();
+            if (own != null) {
+                authApplicationService.updateDisplayName(userId, own.getStudentName());
+            }
+            return;
+        }
+        List<String> childNames = boundStudentNames(userId);
+        if (!childNames.isEmpty()) {
+            authApplicationService.updateDisplayName(userId, composeParentDisplayName(childNames));
+        }
+    }
+
+    /** 已绑定学员的姓名，按绑定先后排序，保证同一批绑定无论重算多少次都得到同一个名字 */
+    private List<String> boundStudentNames(Long userId) {
+        List<UserStudentRelEntity> relations = userStudentRelMapper.selectList(new LambdaQueryWrapper<UserStudentRelEntity>()
+            .eq(UserStudentRelEntity::getUserId, userId)
+            .orderByAsc(UserStudentRelEntity::getId));
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        List<Long> studentIds = relations.stream().map(UserStudentRelEntity::getStudentId).toList();
+        Map<Long, StudentEntity> students = groupById(studentMapper.selectBatchIds(studentIds));
+        return relations.stream()
+            .map(relation -> students.get(relation.getStudentId()))
+            .filter(Objects::nonNull)
+            .map(StudentEntity::getStudentName)
+            .filter(name -> name != null && !name.isBlank())
+            .toList();
+    }
+
+    /**
+     * 家长显示名 =「孩子A、孩子B家长」。列宽上限 128，孩子多或姓名长时按能放下的孩子数截断并补「等」，
+     * 连一个孩子都放不下时截孩子姓名保住后缀——整句被裁掉会看不出这是谁的家长。
+     */
+    private String composeParentDisplayName(List<String> childNames) {
+        String all = String.join("、", childNames) + PARENT_NAME_SUFFIX;
+        if (all.length() <= AuthApplicationService.MAX_DISPLAY_NAME_LENGTH) {
+            return all;
+        }
+        for (int keep = childNames.size() - 1; keep >= 1; keep--) {
+            String candidate = String.join("、", childNames.subList(0, keep)) + "等" + PARENT_NAME_SUFFIX;
+            if (candidate.length() <= AuthApplicationService.MAX_DISPLAY_NAME_LENGTH) {
+                return candidate;
+            }
+        }
+        int budget = AuthApplicationService.MAX_DISPLAY_NAME_LENGTH - PARENT_NAME_SUFFIX.length();
+        return childNames.get(0).substring(0, budget) + PARENT_NAME_SUFFIX;
     }
 
     /** 当前账号归属的学生档案;未归属返回 null */

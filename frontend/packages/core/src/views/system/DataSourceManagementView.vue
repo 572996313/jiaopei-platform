@@ -33,9 +33,16 @@
               min-width="140"
               show-overflow-tooltip
               fixed="left"
+              sortable
             />
-            <el-table-column prop="sourceName" label="名称" min-width="120" show-overflow-tooltip />
-            <el-table-column label="类型" width="90">
+            <el-table-column
+              prop="sourceName"
+              label="名称"
+              min-width="120"
+              show-overflow-tooltip
+              sortable
+            />
+            <el-table-column label="类型" width="90" prop="sourceType" sortable>
               <template #default="{ row }">
                 <el-tag :type="row.sourceType === 'dict' ? 'warning' : 'primary'" size="small">{{
                   sourceTypeLabel(row.sourceType)
@@ -57,7 +64,7 @@
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column label="状态" width="90" prop="status" sortable>
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)">{{
                   statusLabel(row.status, statusLabelMap)
@@ -69,6 +76,7 @@
               label="说明"
               min-width="160"
               show-overflow-tooltip
+              sortable
             />
             <el-table-column
               v-if="permissions.canManageDataSources"

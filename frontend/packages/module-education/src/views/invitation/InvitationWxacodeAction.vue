@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { http } from '@cornerstone/core/api/http'
+import { fetchWxacode } from '@cornerstone/module-education/api/wechat'
 import type { InvitationSummary } from '@cornerstone/core/api/invitation'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 
@@ -37,34 +37,15 @@ const imageUrl = ref('')
 async function openWxacode() {
   loading.value = true
   try {
-    const response = await http.get<Blob>(
-      `/education/wechat/invitations/${encodeURIComponent(props.row.code)}/wxacode`,
-      { responseType: 'blob' }
-    )
+    const blob = await fetchWxacode(`/education/wechat/invitations/${encodeURIComponent(props.row.code)}/wxacode`)
     revokeUrl()
-    imageUrl.value = URL.createObjectURL(response.data)
+    imageUrl.value = URL.createObjectURL(blob)
     dialogVisible.value = true
   } catch (error) {
-    ElMessage.error(await extractMessage(error))
+    ElMessage.error(error instanceof Error ? error.message : '生成小程序码失败，请稍后重试')
   } finally {
     loading.value = false
   }
-}
-
-/** blob 请求里后端的失败响应也是 Blob，需要先读出 ApiResponse 的 message */
-async function extractMessage(error: unknown): Promise<string> {
-  const data = (error as { response?: { data?: unknown } })?.response?.data
-  if (data instanceof Blob) {
-    try {
-      const json = JSON.parse(await data.text())
-      if (typeof json?.message === 'string') {
-        return json.message
-      }
-    } catch {
-      // 不是 JSON 就落通用文案
-    }
-  }
-  return '生成小程序码失败，请稍后重试'
 }
 
 function download() {

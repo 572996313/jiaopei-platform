@@ -1,10 +1,12 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.ScheduleRuleEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
@@ -22,6 +24,7 @@ import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ScheduleRuleServiceImpl implements ScheduleRuleService {
+
+    /** 冲突规则列表可排序字段:生效对象是 ID 列,列表上显示的是名称,不参与排序 */
+    private static final Map<String, SFunction<ScheduleRuleEntity, ?>> RULE_SORTABLE = Map.of(
+        "ruleType", ScheduleRuleEntity::getRuleType,
+        "targetType", ScheduleRuleEntity::getTargetType,
+        "startDate", ScheduleRuleEntity::getStartDate,
+        "endDate", ScheduleRuleEntity::getEndDate,
+        "status", ScheduleRuleEntity::getStatus,
+        "remark", ScheduleRuleEntity::getRemark,
+        "createdAt", ScheduleRuleEntity::getCreatedAt);
 
     private final ScheduleRuleMapper ruleMapper;
     private final TeachingClassMapper classMapper;
@@ -48,8 +61,7 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
 
     @Override
     public PageResult<ScheduleRuleView> pageRules(ScheduleRulePageQuery query) {
-        LambdaQueryWrapper<ScheduleRuleEntity> wrapper = new LambdaQueryWrapper<ScheduleRuleEntity>()
-            .orderByDesc(ScheduleRuleEntity::getCreatedAt);
+        LambdaQueryWrapper<ScheduleRuleEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(ScheduleRuleEntity::getInstitutionId, query.getInstitutionId());
         }
@@ -64,6 +76,9 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         }
         if (notBlank(query.getStatus())) {
             wrapper.eq(ScheduleRuleEntity::getStatus, query.getStatus().trim());
+        }
+        if (!PageSortSupport.apply(wrapper, query, RULE_SORTABLE, ScheduleRuleEntity::getId)) {
+            wrapper.orderByDesc(ScheduleRuleEntity::getCreatedAt);
         }
         Page<ScheduleRuleEntity> page = ruleMapper.selectPage(new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, page.getRecords().stream().map(this::toView).toList());

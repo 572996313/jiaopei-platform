@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cornerstone.core.auth.context.AuthenticatedUser;
+import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.module.education.domain.entity.UserStudentRelEntity;
 import com.cornerstone.module.education.dto.BindStudentRequest;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
@@ -61,13 +62,15 @@ class MiniappServiceImplTest {
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
     private final SystemDictService systemDictService = mock(SystemDictService.class);
     private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
+    private final AuthApplicationService authApplicationService = mock(AuthApplicationService.class);
 
     private MiniappServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
-            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService, dictValueValidator);
+            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService,
+            dictValueValidator, authApplicationService);
         when(systemConfigService.getIntConfig("auth.register.default_institution_id", 1)).thenReturn(1);
         when(systemDictService.listItems("gender")).thenReturn(List.of(
             new DictItemView(40L, 5L, "male", "男", "male", 10, "active", null),
@@ -394,6 +397,80 @@ class MiniappServiceImplTest {
         verify(studentMapper, never()).updateById(any(StudentEntity.class));
     }
 
+    @Test
+    void bindStudentSyncsParentDisplayName() {
+        StudentEntity student = student(10L, "S001", "小明");
+        when(studentMapper.selectOne(any())).thenReturn(student);
+        when(relMapper.selectCount(any())).thenReturn(0L);
+        when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L)));
+        when(studentMapper.selectBatchIds(any())).thenReturn(List.of(student));
+        when(classStudentMapper.selectList(any())).thenReturn(List.of());
+
+        service.bindStudent(new BindStudentRequest("STUDENT_NO", "S001", "小明", "老大"));
+
+        verify(authApplicationService).updateDisplayName(1L, "小明家长");
+    }
+
+    @Test
+    void displayNameJoinsAllBoundChildren() {
+        when(relMapper.physicalDelete(1L, 99L)).thenReturn(1);
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L), rel(1L, 11L)));
+        when(studentMapper.selectBatchIds(any())).thenReturn(
+            List.of(student(10L, "S001", "小明"), student(11L, "S002", "小红")));
+
+        service.unbindStudent(99L);
+
+        verify(authApplicationService).updateDisplayName(1L, "小明、小红家长");
+    }
+
+    /** 孩子多到 128 列宽放不下时，按能放下的孩子数截断并补「等」，后缀必须保住 */
+    @Test
+    void displayNameKeepsSuffixWhenChildrenOverflow() {
+        String longName = "名".repeat(60);
+        when(relMapper.physicalDelete(1L, 99L)).thenReturn(1);
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L), rel(1L, 11L), rel(1L, 12L)));
+        when(studentMapper.selectBatchIds(any())).thenReturn(List.of(
+            student(10L, "S001", longName), student(11L, "S002", longName), student(12L, "S003", longName)));
+
+        service.unbindStudent(99L);
+
+        String expected = longName + "、" + longName + "等家长";
+        assertTrue(expected.length() <= AuthApplicationService.MAX_DISPLAY_NAME_LENGTH);
+        verify(authApplicationService).updateDisplayName(1L, expected);
+    }
+
+    /** 解绑最后一个孩子后没有档案可依据，保留现有名字而不是清空 */
+    @Test
+    void unbindLastStudentKeepsCurrentDisplayName() {
+        when(relMapper.physicalDelete(1L, 10L)).thenReturn(1);
+        when(relMapper.selectList(any())).thenReturn(List.of());
+
+        service.unbindStudent(10L);
+
+        verify(authApplicationService, never()).updateDisplayName(any(), any());
+    }
+
+    /** 学生端取自己档案的姓名，不加「家长」后缀 */
+    @Test
+    void studentProfileSaveSyncsOwnName() {
+        authenticateStudent(2L);
+        StudentEntity created = student(30L, "S003", "小花");
+        created.setUserId(2L);
+        when(studentMapper.selectOne(any())).thenReturn(null).thenReturn(created);
+        when(studentMapper.insert(any(StudentEntity.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, StudentEntity.class).setId(30L);
+            return 1;
+        });
+        when(relMapper.selectCount(any())).thenReturn(0L);
+        when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
+        when(classStudentMapper.selectList(any())).thenReturn(List.of());
+
+        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
+
+        verify(authApplicationService).updateDisplayName(2L, "小花");
+    }
+
     // ---- helpers ----
 
     private void authenticate(Long userId) {
@@ -408,6 +485,14 @@ class MiniappServiceImplTest {
             userId, 1L, "wx_openid", java.util.Set.of("MINIAPP_STUDENT"), java.util.Set.of("miniapp:access"), false, "student");
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", java.util.Set.of()));
+    }
+
+    private UserStudentRelEntity rel(Long userId, Long studentId) {
+        UserStudentRelEntity relation = new UserStudentRelEntity();
+        relation.setInstitutionId(1L);
+        relation.setUserId(userId);
+        relation.setStudentId(studentId);
+        return relation;
     }
 
     private StudentEntity student(Long id, String studentNo, String studentName) {

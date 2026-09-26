@@ -154,6 +154,12 @@ class CornerstoneBaselineGuardTest {
         assertThat(seed)
             .as("登录页提示语属各项目自己的系统参数，不种进底座基线")
             .doesNotContain("auth.login.page_tip");
+        assertThat(seed)
+            .as("品牌文案（brand.*）属各项目自己的系统参数，不种进底座基线")
+            .doesNotContain("brand.name")
+            .doesNotContain("brand.tagline")
+            .doesNotContain("brand.login_copy")
+            .doesNotContain("brand.login_form_title");
     }
 
     // ------------------------------------------------------------------ 解析工具

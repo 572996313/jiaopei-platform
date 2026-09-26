@@ -329,7 +329,8 @@
             v-loading="dayLoading"
             :max-height="TABLE_STACK_MAX_HEIGHT"
           >
-            <el-table-column label="时段" min-width="170">
+            <!-- 日课表是一次性全量加载的客户端表,排序走 Element Plus 本地比较,不发请求 -->
+            <el-table-column label="时段" min-width="170" prop="startTime" sortable>
               <template #default="{ row }">
                 {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
               </template>
@@ -354,8 +355,9 @@
               label="课程主题"
               min-width="160"
               show-overflow-tooltip
+              sortable
             />
-            <el-table-column label="状态" width="120">
+            <el-table-column label="状态" width="120" prop="lessonStatus" sortable>
               <template #default="{ row }">
                 <div class="lesson-status-cell">
                   <el-tag :type="lessonStatusTagType(row.lessonStatus)">

@@ -40,3 +40,22 @@ export function getStoredAuthorization() {
   }
   return `${session.tokenType || 'Bearer'} ${session.accessToken}`
 }
+
+const PENDING_ROUTE_STORAGE_KEY = 'cornerstone.mini.pending-route'
+
+/**
+ * 登录前那一步想去的页面。
+ *
+ * <p>扫公告码/点分享卡片进来的人多半还没登录，被弹回登录页就等于这一条码白发了——
+ * 所以跳登录页之前先把目标地址记下来，登录或注册成功后回到原页。</p>
+ */
+export function savePendingRoute(url: string) {
+  uni.setStorageSync(PENDING_ROUTE_STORAGE_KEY, url)
+}
+
+/** 取一次即清：它是"上一次没登录进去的那页"，只对紧接着的那次登录有效，留到下次登录就成了误导 */
+export function takePendingRoute(): string {
+  const url = String(uni.getStorageSync(PENDING_ROUTE_STORAGE_KEY) || '')
+  uni.removeStorageSync(PENDING_ROUTE_STORAGE_KEY)
+  return url
+}

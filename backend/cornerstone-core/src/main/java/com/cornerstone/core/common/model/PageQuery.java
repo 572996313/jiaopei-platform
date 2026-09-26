@@ -19,6 +19,13 @@ public class PageQuery {
     @Max(value = 100, message = "每页条数不能超过 100")
     private Integer pageSize = 10;
 
+    @Schema(description = "排序字段,取值见各接口说明;不传则用该接口的默认排序")
+    private String sortField;
+
+    @Schema(description = "排序方向(asc=升序,desc=降序),仅在 sortField 存在时生效,缺省 asc",
+            allowableValues = {"asc", "desc"})
+    private String sortOrder;
+
     public Integer getPage() {
         return page;
     }
@@ -33,5 +40,21 @@ public class PageQuery {
 
     public void setPageSize(Integer pageSize) {
         this.pageSize = pageSize;
+    }
+
+    public String getSortField() {
+        return sortField;
+    }
+
+    public void setSortField(String sortField) {
+        this.sortField = sortField;
+    }
+
+    public String getSortOrder() {
+        return sortOrder;
+    }
+
+    public void setSortOrder(String sortOrder) {
+        this.sortOrder = sortOrder;
     }
 }

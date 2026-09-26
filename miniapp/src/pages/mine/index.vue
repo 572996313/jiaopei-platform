@@ -40,6 +40,10 @@ onShow(() => {
   if (!authStore.isLoggedIn()) {
     return
   }
+  // 绑定档案后账号显示名会跟着变，这里重拉一次，不用退出重登才能看到新名字
+  authStore.refreshUserInfo().catch(() => {
+    // 拉取失败继续用本机缓存的登录态展示
+  })
   if (isStudent.value) {
     loadMyProfile()
   } else {

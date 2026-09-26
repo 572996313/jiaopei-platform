@@ -1,9 +1,11 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.SchedulePlanEntity;
@@ -56,6 +58,14 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     private static final String STATUS_INACTIVE = "inactive";
     private static final List<String> OCCUPYING_STATUSES = List.of("scheduled", "rescheduled", "makeup");
 
+    /** 排课计划列表可排序字段:班级/教师/教室是 ID 列,列表上显示的是名称,不参与排序 */
+    private static final Map<String, SFunction<SchedulePlanEntity, ?>> PLAN_SORTABLE = Map.of(
+        "startDate", SchedulePlanEntity::getStartDate,
+        "endDate", SchedulePlanEntity::getEndDate,
+        "weekFrequency", SchedulePlanEntity::getWeekFrequency,
+        "status", SchedulePlanEntity::getStatus,
+        "createdAt", SchedulePlanEntity::getCreatedAt);
+
     private final SchedulePlanMapper planMapper;
     private final TeachingClassMapper classMapper;
     private final TeacherMapper teacherMapper;
@@ -84,8 +94,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
 
     @Override
     public PageResult<SchedulePlanView> pagePlans(SchedulePlanPageQuery query) {
-        LambdaQueryWrapper<SchedulePlanEntity> wrapper = new LambdaQueryWrapper<SchedulePlanEntity>()
-            .orderByDesc(SchedulePlanEntity::getCreatedAt);
+        LambdaQueryWrapper<SchedulePlanEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(SchedulePlanEntity::getInstitutionId, query.getInstitutionId());
         }
@@ -103,6 +112,9 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         }
         if (query.getActiveTo() != null) {
             wrapper.le(SchedulePlanEntity::getStartDate, query.getActiveTo());
+        }
+        if (!PageSortSupport.apply(wrapper, query, PLAN_SORTABLE, SchedulePlanEntity::getId)) {
+            wrapper.orderByDesc(SchedulePlanEntity::getCreatedAt);
         }
         Page<SchedulePlanEntity> page = planMapper.selectPage(new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, page.getRecords().stream().map(this::toView).toList());

@@ -24,6 +24,14 @@ public interface AnnouncementService {
     /** 管理端详情。 */
     AnnouncementView getAnnouncement(Long id);
 
+    /**
+     * 分享前校验：公告必须属于当前登录机构，且处于已发布状态，否则拒绝。
+     *
+     * <p>草稿还没有接收人行、撤回的公告扫码也看不到内容，两者都不该生成小程序码。
+     * 状态判定留在本服务，状态常量的字面量不外泄。</p>
+     */
+    void requireShareable(Long id);
+
     /** 发布前按范围试算触达人数，不落库、不写接收人表。 */
     AnnouncementRecipientPreview previewRecipients(AnnouncementUpsertRequest request);
 

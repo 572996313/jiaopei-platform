@@ -1,10 +1,12 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.CourseCategoryEntity;
 import com.cornerstone.module.education.domain.entity.CourseEntity;
 import com.cornerstone.module.education.dto.CourseCreateRequest;
@@ -16,12 +18,21 @@ import com.cornerstone.module.education.service.CourseService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CourseServiceImpl implements CourseService {
+
+    /** 课程列表可排序字段 */
+    private static final Map<String, SFunction<CourseEntity, ?>> COURSE_SORTABLE = Map.of(
+        "courseCode", CourseEntity::getCourseCode,
+        "courseName", CourseEntity::getCourseName,
+        "subjectName", CourseEntity::getSubjectName,
+        "teachingMethod", CourseEntity::getTeachingMethod,
+        "status", CourseEntity::getStatus);
 
     private final CourseMapper courseMapper;
     private final CourseCategoryMapper courseCategoryMapper;
@@ -38,25 +49,20 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseEntity> listCourses(Long institutionId, Long categoryId) {
-        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<CourseEntity>()
-            .orderByAsc(CourseEntity::getInstitutionId)
-            .orderByAsc(CourseEntity::getCategoryId)
-            .orderByAsc(CourseEntity::getCourseCode);
+        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<>();
         if (institutionId != null) {
             wrapper.eq(CourseEntity::getInstitutionId, institutionId);
         }
         if (categoryId != null) {
             wrapper.eq(CourseEntity::getCategoryId, categoryId);
         }
+        applyDefaultOrder(wrapper);
         return courseMapper.selectList(wrapper);
     }
 
     @Override
     public PageResult<CourseEntity> pageCourses(CoursePageQuery query) {
-        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<CourseEntity>()
-            .orderByAsc(CourseEntity::getInstitutionId)
-            .orderByAsc(CourseEntity::getCategoryId)
-            .orderByAsc(CourseEntity::getCourseCode);
+        LambdaQueryWrapper<CourseEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(CourseEntity::getInstitutionId, query.getInstitutionId());
         }
@@ -76,9 +82,19 @@ public class CourseServiceImpl implements CourseService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(CourseEntity::getStatus, status);
         }
+        if (!PageSortSupport.apply(wrapper, query, COURSE_SORTABLE, CourseEntity::getId)) {
+            applyDefaultOrder(wrapper);
+        }
         Page<CourseEntity> page = courseMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, page.getRecords());
+    }
+
+    /** 列表与分页共用默认排序 */
+    private void applyDefaultOrder(LambdaQueryWrapper<CourseEntity> wrapper) {
+        wrapper.orderByAsc(CourseEntity::getInstitutionId)
+            .orderByAsc(CourseEntity::getCategoryId)
+            .orderByAsc(CourseEntity::getCourseCode);
     }
 
     @Override

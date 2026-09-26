@@ -1,10 +1,12 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.StudentParentEntity;
 import com.cornerstone.module.education.dto.StudentParentCreateRequest;
@@ -26,6 +28,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class StudentParentServiceImpl implements StudentParentService {
 
+    /** 家长列表可排序字段:学员是 ID 列,列表上显示的是姓名,不参与排序 */
+    private static final Map<String, SFunction<StudentParentEntity, ?>> PARENT_SORTABLE = Map.of(
+        "parentName", StudentParentEntity::getParentName,
+        "relationType", StudentParentEntity::getRelationType,
+        "parentPhone", StudentParentEntity::getParentPhone,
+        "wechatNo", StudentParentEntity::getWechatNo,
+        "isPrimary", StudentParentEntity::getIsPrimary,
+        "isEmergencyContact", StudentParentEntity::getIsEmergencyContact,
+        "status", StudentParentEntity::getStatus,
+        "remark", StudentParentEntity::getRemark);
+
     private final StudentParentMapper studentParentMapper;
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
@@ -41,30 +54,35 @@ public class StudentParentServiceImpl implements StudentParentService {
 
     @Override
     public List<StudentParentEntity> listStudentParents(Long institutionId, Long studentId) {
-        LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<StudentParentEntity>()
-            .orderByAsc(StudentParentEntity::getStudentId)
-            .orderByDesc(StudentParentEntity::getIsPrimary)
-            .orderByAsc(StudentParentEntity::getId);
+        LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<>();
         if (institutionId != null) {
             wrapper.eq(StudentParentEntity::getInstitutionId, institutionId);
         }
         if (studentId != null) {
             wrapper.eq(StudentParentEntity::getStudentId, studentId);
         }
+        applyDefaultOrder(wrapper);
         return studentParentMapper.selectList(wrapper);
+    }
+
+    /** 列表与分页共用默认排序:同一学员内主监护人排前 */
+    private void applyDefaultOrder(LambdaQueryWrapper<StudentParentEntity> wrapper) {
+        wrapper.orderByAsc(StudentParentEntity::getStudentId)
+            .orderByDesc(StudentParentEntity::getIsPrimary)
+            .orderByAsc(StudentParentEntity::getId);
     }
 
     @Override
     public PageResult<StudentParentView> pageStudentParents(StudentParentPageQuery query) {
-        LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<StudentParentEntity>()
-            .orderByAsc(StudentParentEntity::getStudentId)
-            .orderByDesc(StudentParentEntity::getIsPrimary)
-            .orderByAsc(StudentParentEntity::getId);
+        LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(StudentParentEntity::getInstitutionId, query.getInstitutionId());
         }
         if (query.getStudentId() != null) {
             wrapper.eq(StudentParentEntity::getStudentId, query.getStudentId());
+        }
+        if (!PageSortSupport.apply(wrapper, query, PARENT_SORTABLE, StudentParentEntity::getId)) {
+            applyDefaultOrder(wrapper);
         }
         Page<StudentParentEntity> page = studentParentMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

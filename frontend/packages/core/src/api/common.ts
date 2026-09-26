@@ -14,4 +14,8 @@ export interface PageResult<T> {
 export interface PageParams {
   page?: number
   pageSize?: number
+  /** 排序字段,取值见各接口 Service 的白名单;不传则该接口用自己的默认排序 */
+  sortField?: string
+  /** 排序方向(asc/desc),仅在 sortField 存在时生效;由 useTableSort 生成,不手写 */
+  sortOrder?: string
 }

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/config'
-import { clearStoredAuthSession, getStoredAuthorization } from '@/utils/auth-session'
+import { clearStoredAuthSession, getStoredAuthorization, savePendingRoute } from '@/utils/auth-session'
 
 export interface ApiResponse<T> {
   code: string | number
@@ -87,11 +87,40 @@ function recoverSessionOnce(): Promise<boolean> {
 function goToLogin() {
   clearStoredAuthSession()
   const pages = getCurrentPages()
+  const page = pages[pages.length - 1]
   // 已经在登录页就不再 reLaunch,重复跳转会把登录页销毁重建,表现就是屏幕一直闪
-  if (pages[pages.length - 1]?.route === 'pages/login/index') {
+  if (!page?.route || page.route === 'pages/login/index') {
     return
   }
+  savePendingRoute(fullPathOf(page))
   uni.reLaunch({ url: '/pages/login/index' })
+}
+
+interface PageSnapshot {
+  route?: string
+  options?: Record<string, unknown>
+}
+
+/**
+ * 把当前页还原成可以直接 reLaunch 的地址。
+ * 扫码进来的 scene 已经是微信编码过的一层(`a%3D123`),先解一次再统一编码,
+ * 否则回跳时它变成 `a%253D123`,页面解一层拿到的是 `a%3D123`,认不出是公告。
+ */
+function fullPathOf(page: PageSnapshot): string {
+  const query = Object.entries(page.options ?? {})
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(decodeParam(String(value)))}`)
+    .join('&')
+  return `/${page.route}${query ? '?' + query : ''}`
+}
+
+function decodeParam(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    // 不是合法的百分号编码就原样带回,不能因为解不开就把整页参数丢了
+    return value
+  }
 }
 
 function localizeNetworkError(errMsg: string | undefined): string {

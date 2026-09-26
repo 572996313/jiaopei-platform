@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { currentBrand } from '@cornerstone/core/extension/module-extensions'
+import { useBranding } from '@cornerstone/core/composables/use-branding'
 import { useTheme } from '@cornerstone/core/composables/use-theme'
 
 /**
  * 认证页共用的外壳：流动底色 + 品牌区（含周历网格主视觉）+ 右侧表单卡插槽。
  * 登录/注册/激活/改密四页共用这一份，改版式只改这里，不在各页复制 markup。
  *
- * 品牌文案一律来自壳工程 registerBranding，底座不写死任何项目名词。
+ * 系统名称与介绍文案来自系统参数 brand.*（运维在后台改，不用重新构建），
+ * 底座不写死任何项目名词；能力卡是结构化数组、系统参数页塞不下，仍由壳工程 registerBranding 登记。
  */
-const brand = computed(() => currentBrand())
+const { brandName, brandTagline, loginCopy, loadBranding } = useBranding()
+const features = computed(() => currentBrand().loginFeatures)
+loadBranding()
 
 /** 主视觉：一周七天的格子，填充位是固定图案，波浪只是装饰，不表示任何真实数据 */
 const WEEK_DAYS = ['一', '二', '三', '四', '五', '六', '日']
@@ -68,9 +72,9 @@ const { themeMode, isLight, setTheme, THEME_OPTIONS } = useTheme()
 
     <section class="login-panel login-panel-brand">
       <div class="login-brand-copy">
-        <div class="login-kicker">{{ brand.loginKicker }}</div>
-        <h1 class="login-title">{{ brand.loginTitle }}</h1>
-        <p v-if="brand.loginCopy" class="login-copy">{{ brand.loginCopy }}</p>
+        <div class="login-kicker">{{ brandName }}</div>
+        <h1 class="login-title">{{ brandTagline }}</h1>
+        <p v-if="loginCopy" class="login-copy">{{ loginCopy }}</p>
       </div>
 
       <div class="login-motif" aria-hidden="true">
@@ -87,8 +91,8 @@ const { themeMode, isLight, setTheme, THEME_OPTIONS } = useTheme()
         </div>
       </div>
 
-      <div v-if="brand.loginFeatures.length" class="login-feature-list">
-        <div v-for="feature in brand.loginFeatures" :key="feature.title" class="login-feature-card">
+      <div v-if="features.length" class="login-feature-list">
+        <div v-for="feature in features" :key="feature.title" class="login-feature-card">
           <div class="login-feature-title">{{ feature.title }}</div>
           <div class="login-feature-text">{{ feature.text }}</div>
         </div>

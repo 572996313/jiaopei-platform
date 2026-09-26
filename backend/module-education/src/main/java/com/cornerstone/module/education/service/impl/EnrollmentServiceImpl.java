@@ -1,10 +1,12 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
@@ -29,6 +31,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class EnrollmentServiceImpl implements EnrollmentService {
 
+    /** 报名列表可排序字段:学员/班级是 ID 列,列表上显示的是名称,不参与排序 */
+    private static final Map<String, SFunction<EnrollmentEntity, ?>> ENROLLMENT_SORTABLE = Map.of(
+        "enrollmentNo", EnrollmentEntity::getEnrollmentNo,
+        "channel", EnrollmentEntity::getChannel,
+        "status", EnrollmentEntity::getStatus,
+        "enrolledAt", EnrollmentEntity::getEnrolledAt,
+        "remark", EnrollmentEntity::getRemark);
+
     private final EnrollmentMapper enrollmentMapper;
     private final InstitutionMapper institutionMapper;
     private final StudentMapper studentMapper;
@@ -47,10 +57,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public List<EnrollmentEntity> listEnrollments(Long institutionId, Long classId, Long studentId) {
-        LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<EnrollmentEntity>()
-            .orderByAsc(EnrollmentEntity::getInstitutionId)
-            .orderByAsc(EnrollmentEntity::getClassId)
-            .orderByAsc(EnrollmentEntity::getStudentId);
+        LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<>();
         if (institutionId != null) {
             wrapper.eq(EnrollmentEntity::getInstitutionId, institutionId);
         }
@@ -60,15 +67,20 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         if (studentId != null) {
             wrapper.eq(EnrollmentEntity::getStudentId, studentId);
         }
+        applyDefaultOrder(wrapper);
         return enrollmentMapper.selectList(wrapper);
+    }
+
+    /** 列表与分页共用默认排序 */
+    private void applyDefaultOrder(LambdaQueryWrapper<EnrollmentEntity> wrapper) {
+        wrapper.orderByAsc(EnrollmentEntity::getInstitutionId)
+            .orderByAsc(EnrollmentEntity::getClassId)
+            .orderByAsc(EnrollmentEntity::getStudentId);
     }
 
     @Override
     public PageResult<EnrollmentView> pageEnrollments(EnrollmentPageQuery query) {
-        LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<EnrollmentEntity>()
-            .orderByAsc(EnrollmentEntity::getInstitutionId)
-            .orderByAsc(EnrollmentEntity::getClassId)
-            .orderByAsc(EnrollmentEntity::getStudentId);
+        LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(EnrollmentEntity::getInstitutionId, query.getInstitutionId());
         }
@@ -77,6 +89,9 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         }
         if (query.getStudentId() != null) {
             wrapper.eq(EnrollmentEntity::getStudentId, query.getStudentId());
+        }
+        if (!PageSortSupport.apply(wrapper, query, ENROLLMENT_SORTABLE, EnrollmentEntity::getId)) {
+            applyDefaultOrder(wrapper);
         }
         Page<EnrollmentEntity> page = enrollmentMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

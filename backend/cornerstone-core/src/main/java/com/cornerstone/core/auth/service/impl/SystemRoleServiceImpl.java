@@ -1,6 +1,7 @@
 package com.cornerstone.core.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.dto.RoleCreateRequest;
@@ -13,8 +14,10 @@ import com.cornerstone.core.auth.service.SystemRoleService;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class SystemRoleServiceImpl implements SystemRoleService {
 
     private static final String ACTIVE = "active";
+
+    /** 角色列表可排序字段 */
+    private static final Map<String, SFunction<RoleEntity, ?>> ROLE_SORTABLE = Map.of(
+        "roleCode", RoleEntity::getRoleCode,
+        "roleName", RoleEntity::getRoleName,
+        "status", RoleEntity::getStatus,
+        "remark", RoleEntity::getRemark);
 
     private final RoleMapper roleMapper;
     private final AuthApplicationService authApplicationService;
@@ -53,7 +63,9 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(RoleEntity::getStatus, status);
         }
-        wrapper.orderByAsc(RoleEntity::getRoleCode);
+        if (!PageSortSupport.apply(wrapper, query, ROLE_SORTABLE, RoleEntity::getId)) {
+            wrapper.orderByAsc(RoleEntity::getRoleCode);
+        }
 
         Page<RoleEntity> page = roleMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

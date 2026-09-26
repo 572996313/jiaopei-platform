@@ -62,6 +62,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="tableRef"
           :data="records"
           border
           stripe
@@ -69,17 +70,18 @@
           highlight-current-row
           v-loading="loading"
           :height="height"
+          @sort-change="sort.onSortChange"
         >
-          <el-table-column label="标题" min-width="240" fixed="left" show-overflow-tooltip>
+          <el-table-column prop="title" label="标题" min-width="240" fixed="left" show-overflow-tooltip sortable="custom">
             <template #default="{ row }">
               <el-tag v-if="row.top" type="danger" size="small" class="ann-top-tag">置顶</el-tag>
               <span>{{ row.title }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="类型" width="120">
+          <el-table-column prop="typeCode" label="类型" width="120" sortable="custom">
             <template #default="{ row }">{{ typeLabel(row.typeCode) }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
+          <el-table-column prop="status" label="状态" width="100" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="statusTag(row.status)">{{ statusLabel(row.status) }}</el-tag>
             </template>
@@ -99,7 +101,7 @@
               <span v-else>{{ row.readCount ?? 0 }} / {{ row.receiverTotal ?? 0 }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="发布 / 撤回" min-width="170">
+          <el-table-column prop="publishedAt" label="发布 / 撤回" min-width="170" sortable="custom">
             <template #default="{ row }">
               <div v-if="row.publishedAt">{{ row.publishedByName || '—' }} · {{ formatTime(row.publishedAt) }}</div>
               <div v-if="row.recalledAt" class="ann-muted">
@@ -285,7 +287,20 @@
           <el-descriptions-item v-if="detail.remark" label="备注">{{ detail.remark }}</el-descriptions-item>
         </el-descriptions>
       </div>
+      <template #footer>
+        <!-- 只有已发布能出图：草稿没有接收人，撤回的公告扫码也看不到，后端同一口径硬拦 -->
+        <el-button
+          v-if="canWrite && detail?.status === 'published'"
+          type="primary"
+          @click="wxacodeVisible = true"
+        >
+          生成小程序码
+        </el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
     </el-dialog>
+
+    <AnnouncementWxacodeDialog v-model="wxacodeVisible" :announcement="detail" />
 
     <AnnouncementTemplateDialog v-model="templateVisible" />
   </section>
@@ -296,8 +311,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import AnnouncementTemplateDialog from '@cornerstone/module-education/views/announcement/AnnouncementTemplateDialog.vue'
+import AnnouncementWxacodeDialog from '@cornerstone/module-education/views/announcement/AnnouncementWxacodeDialog.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -334,6 +351,13 @@ const page = ref(1)
 const pageSize = ref(10)
 const loading = ref(false)
 const pageError = ref('')
+const tableRef = ref<{ clearSort: () => void } | null>(null)
+const sort = useTableSort({
+  onSorted: () => {
+    void search()
+  },
+  clearTableSort: () => tableRef.value?.clearSort(),
+})
 const campuses = ref<CampusSummary[]>([])
 const classes = ref<TeachingClassSummary[]>([])
 
@@ -343,6 +367,7 @@ const formVisible = ref(false)
 const templateVisible = ref(false)
 const detailVisible = ref(false)
 const detail = ref<AnnouncementRecord | null>(null)
+const wxacodeVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const publishing = ref(false)
@@ -416,6 +441,7 @@ async function loadAnnouncements() {
       keyword: filters.keyword.trim() || undefined,
       page: page.value,
       pageSize: pageSize.value,
+      ...sort.sortParams(),
     })
     records.value = result.records
     total.value = result.total

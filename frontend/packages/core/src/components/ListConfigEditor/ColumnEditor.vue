@@ -66,6 +66,10 @@
     <!-- 展开行:跟类型相关的次要属性 -->
     <template #expand="{ row }">
       <div class="te-expand-grid">
+        <el-form-item label="可点表头排序(服务端排序,字段须在后端白名单内)">
+          <el-switch v-model="row.sortable" />
+        </el-form-item>
+
         <el-form-item label="超出省略(内容过长显示…+悬浮全文)">
           <el-switch v-model="row.showOverflowTooltip" />
         </el-form-item>
@@ -149,6 +153,7 @@ function createRow(): ColumnRow {
     type: 'text',
     width: null,
     minWidth: null,
+    sortable: false,
     showOverflowTooltip: false,
     tagTypeMap: [],
     valueMap: [],

@@ -1,7 +1,9 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
@@ -30,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,17 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private static final String SCHEDULED = "scheduled";
     private static final String RESCHEDULED = "rescheduled";
     private static final String CANCELLED = "cancelled";
+
+    /** 课次列表可排序字段:班级/教室/教师是 ID 列,列表上显示的是名称,不参与排序 */
+    private static final Map<String, SFunction<ScheduleLessonEntity, ?>> LESSON_SORTABLE = Map.of(
+        "lessonDate", ScheduleLessonEntity::getLessonDate,
+        "lessonWeekday", ScheduleLessonEntity::getLessonWeekday,
+        "startTime", ScheduleLessonEntity::getStartTime,
+        "endTime", ScheduleLessonEntity::getEndTime,
+        "lessonTitle", ScheduleLessonEntity::getLessonTitle,
+        "lessonStatus", ScheduleLessonEntity::getLessonStatus,
+        "changeType", ScheduleLessonEntity::getChangeType,
+        "remark", ScheduleLessonEntity::getRemark);
     private static final String MAKEUP = "makeup";
     private static final String COMPLETED = "completed";
     private static final String CANCELLED_MAKEUP = "cancelled_makeup";
@@ -87,8 +101,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
 
     @Override
     public PageResult<ScheduleLessonView> pageLessons(ScheduleLessonPageQuery query) {
-        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder();
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<>();
         applyScopeFilters(wrapper, query);
+        applyOrder(wrapper, query);
         Page<ScheduleLessonEntity> page = lessonMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, toViews(page.getRecords(), Boolean.FALSE));
@@ -97,7 +112,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     @Override
     public PageResult<ScheduleLessonView> pagePendingMakeupLessons(ScheduleLessonPageQuery query) {
         // 待补课 = 已停课且没有任何"停课补课"课次关联,直接在 SQL 层收敛,避免全量拉取后内存过滤
-        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder()
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<ScheduleLessonEntity>()
             .eq(ScheduleLessonEntity::getLessonStatus, CANCELLED)
             .notExists("""
                 SELECT 1 FROM schedule_lesson linked
@@ -107,9 +122,17 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
                   AND linked.related_lesson_id = schedule_lesson.id
                 """);
         applyScopeFilters(wrapper, query);
+        applyOrder(wrapper, query);
         Page<ScheduleLessonEntity> page = lessonMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, toViews(page.getRecords(), Boolean.FALSE));
+    }
+
+    /** 分页列表的排序:前端传了白名单内的字段就按它排,否则沿用默认的上课时间顺序 */
+    private void applyOrder(LambdaQueryWrapper<ScheduleLessonEntity> wrapper, ScheduleLessonPageQuery query) {
+        if (!PageSortSupport.apply(wrapper, query, LESSON_SORTABLE, ScheduleLessonEntity::getId)) {
+            applyDefaultOrder(wrapper);
+        }
     }
 
     private void applyScopeFilters(LambdaQueryWrapper<ScheduleLessonEntity> wrapper, ScheduleLessonPageQuery query) {
@@ -456,8 +479,14 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     private LambdaQueryWrapper<ScheduleLessonEntity> baseOrder() {
-        return new LambdaQueryWrapper<ScheduleLessonEntity>()
-            .orderByAsc(ScheduleLessonEntity::getLessonDate)
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<>();
+        applyDefaultOrder(wrapper);
+        return wrapper;
+    }
+
+    /** 课次默认排序:先按日期再按开始时间 */
+    private void applyDefaultOrder(LambdaQueryWrapper<ScheduleLessonEntity> wrapper) {
+        wrapper.orderByAsc(ScheduleLessonEntity::getLessonDate)
             .orderByAsc(ScheduleLessonEntity::getStartTime);
     }
 

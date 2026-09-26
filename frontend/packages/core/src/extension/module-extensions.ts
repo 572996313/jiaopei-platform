@@ -125,35 +125,17 @@ export function contributedNavItems(): NavItemDefinition[] {
   return navItemContributions
 }
 
-/** 品牌文案：侧边栏与登录页展示的产物名，底座只给中性默认值 */
+/**
+ * 构建期品牌配置：系统名称一类的展示文案已改由系统参数 brand.* 运行期下发（见 composables/use-branding.ts），
+ * 这里只留"结构上是数组、系统参数页的单值输入框塞不下"的内容，底座给空默认值、不写死任何项目名词。
+ */
 export interface BrandDefinition {
-  /** 侧边栏顶部小字（副标题） */
-  sidebarKicker: string
-  /** 侧边栏主标题，同时是页面标题兜底 */
-  product: string
-  /** 窄栏（图标导航）品牌角标，单字 */
-  mark: string
-  /** 登录页左侧小字 */
-  loginKicker: string
-  /** 登录页左侧大字 */
-  loginTitle: string
-  /** 登录页一句话介绍 */
-  loginCopy: string
   /** 登录页能力卡，空数组则整块不渲染 */
   loginFeatures: Array<{ title: string; text: string }>
-  /** 登录表单标题 */
-  loginFormTitle: string
 }
 
 const defaultBrand: BrandDefinition = {
-  sidebarKicker: 'Cornerstone',
-  product: '管理平台',
-  mark: 'C',
-  loginKicker: 'Cornerstone',
-  loginTitle: '通用管理平台',
-  loginCopy: '账号、角色、权限、字典与列表配置由底座提供，业务模块按需挂载。',
   loginFeatures: [],
-  loginFormTitle: '登录平台',
 }
 
 let brand: BrandDefinition = { ...defaultBrand }

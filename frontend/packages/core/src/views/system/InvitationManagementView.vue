@@ -47,6 +47,7 @@
 
       <TableFillBox v-slot="{ height }">
         <el-table
+          ref="tableRef"
           :data="records"
           border
           stripe
@@ -54,8 +55,9 @@
           highlight-current-row
           v-loading="loading"
           :height="height"
+          @sort-change="sort.onSortChange"
         >
-          <el-table-column label="凭证码" min-width="170" fixed="left">
+          <el-table-column prop="code" label="凭证码" min-width="170" fixed="left" sortable="custom">
             <template #default="{ row }">
               <code class="invitation-code">{{ row.code }}</code>
               <el-button text type="primary" size="small" @click="copyCode(row.code)"
@@ -63,7 +65,7 @@
               >
             </template>
           </el-table-column>
-          <el-table-column label="类型" width="90">
+          <el-table-column prop="kind" label="类型" width="90" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="row.kind === 'INVITE' ? 'primary' : 'warning'" size="small">
                 {{ row.kind === 'INVITE' ? '邀请码' : '激活码' }}
@@ -79,22 +81,28 @@
               <span v-else>{{ row.username || row.userId || '-' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="用量" width="90">
+          <el-table-column prop="usedCount" label="用量" width="90" sortable="custom">
             <template #default="{ row }">
               {{ row.usedCount }} / {{ row.maxUses ?? '不限' }}
             </template>
           </el-table-column>
-          <el-table-column label="有效期至" width="170">
+          <el-table-column prop="expiresAt" label="有效期至" width="170" sortable="custom">
             <template #default="{ row }">{{ row.expiresAt || '长期' }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="110">
+          <el-table-column prop="status" label="状态" width="110" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="availabilityTag(row)" size="small">{{
                 availabilityLabel(row)
               }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="140"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column
             v-if="permissions.canManageInvitations || hasRowActions()"
             label="操作"
@@ -238,6 +246,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import {
   createActivationCode,
   createInvite,
@@ -271,6 +280,14 @@ const query = reactive({
   status: '',
   page: 1,
   pageSize: 20,
+})
+
+const tableRef = ref<{ clearSort: () => void } | null>(null)
+const sort = useTableSort({
+  onSorted: () => {
+    void reload(1)
+  },
+  clearTableSort: () => tableRef.value?.clearSort(),
 })
 
 const institutions = ref<InstitutionSummary[]>([])
@@ -328,6 +345,7 @@ async function reload(page?: number) {
       status: trimToUndefined(query.status),
       page: query.page,
       pageSize: query.pageSize,
+      ...sort.sortParams(),
     })
     records.value = result.records
     total.value = result.total

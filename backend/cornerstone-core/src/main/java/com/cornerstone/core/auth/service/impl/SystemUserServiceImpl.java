@@ -1,6 +1,7 @@
 package com.cornerstone.core.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
@@ -19,6 +20,7 @@ import com.cornerstone.core.auth.service.SystemUserService;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.LinkedHashSet;
@@ -37,6 +39,16 @@ public class SystemUserServiceImpl implements SystemUserService {
 
     private static final String ACTIVE = "active";
     private static final String DEFAULT_INITIAL_PASSWORD = "Init@123456";
+
+    /** 用户列表可排序字段:与列表列一一对应,机构/校区是 ID 列不参与排序 */
+    private static final Map<String, SFunction<UserAccountEntity, ?>> USER_SORTABLE = Map.of(
+        "username", UserAccountEntity::getUsername,
+        "displayName", UserAccountEntity::getDisplayName,
+        "phone", UserAccountEntity::getPhone,
+        "status", UserAccountEntity::getStatus,
+        "passwordResetRequired", UserAccountEntity::getPasswordResetRequired,
+        "lastLoginAt", UserAccountEntity::getLastLoginAt,
+        "remark", UserAccountEntity::getRemark);
 
     private final UserAccountMapper userAccountMapper;
     private final RoleMapper roleMapper;
@@ -79,7 +91,9 @@ public class SystemUserServiceImpl implements SystemUserService {
         if (query.getInstitutionId() != null) {
             wrapper.eq(UserAccountEntity::getInstitutionId, query.getInstitutionId());
         }
-        wrapper.orderByAsc(UserAccountEntity::getUsername);
+        if (!PageSortSupport.apply(wrapper, query, USER_SORTABLE, UserAccountEntity::getId)) {
+            wrapper.orderByAsc(UserAccountEntity::getUsername);
+        }
 
         Page<UserAccountEntity> page = userAccountMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);

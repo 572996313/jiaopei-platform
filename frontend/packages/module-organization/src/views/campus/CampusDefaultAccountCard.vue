@@ -49,8 +49,8 @@
     />
 
     <el-table :data="preferences" border :max-height="TABLE_STACK_MAX_HEIGHT">
-      <el-table-column prop="username" label="账号" width="180" />
-      <el-table-column prop="displayName" label="显示名称" min-width="160" />
+      <el-table-column prop="username" label="账号" width="180" sortable />
+      <el-table-column prop="displayName" label="显示名称" min-width="160" sortable />
       <el-table-column label="默认校区" min-width="160">
         <template #default>{{ campusLabel }}</template>
       </el-table-column>

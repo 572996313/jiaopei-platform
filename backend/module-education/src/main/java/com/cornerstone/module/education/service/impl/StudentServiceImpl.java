@@ -1,10 +1,12 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentPageQuery;
@@ -17,6 +19,7 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,18 @@ public class StudentServiceImpl implements StudentService {
 
     /** 学员未选状态时的回落值，与 jp_student.status 的列默认值一致 */
     private static final String DEFAULT_STUDENT_STATUS = "studying";
+
+    /** 学员列表可排序字段 */
+    private static final Map<String, SFunction<StudentEntity, ?>> STUDENT_SORTABLE = Map.of(
+        "studentNo", StudentEntity::getStudentNo,
+        "studentName", StudentEntity::getStudentName,
+        "gender", StudentEntity::getGender,
+        "birthday", StudentEntity::getBirthday,
+        "guardianName", StudentEntity::getGuardianName,
+        "guardianPhone", StudentEntity::getGuardianPhone,
+        "status", StudentEntity::getStatus,
+        "enrolledAt", StudentEntity::getEnrolledAt,
+        "remark", StudentEntity::getRemark);
 
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
@@ -42,10 +57,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<StudentEntity> listStudents(Long institutionId, Long campusId, String keyword) {
-        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
-            .orderByAsc(StudentEntity::getInstitutionId)
-            .orderByAsc(StudentEntity::getCampusId)
-            .orderByAsc(StudentEntity::getStudentNo);
+        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
         if (institutionId != null) {
             wrapper.eq(StudentEntity::getInstitutionId, institutionId);
         }
@@ -58,15 +70,13 @@ public class StudentServiceImpl implements StudentService {
                 .or()
                 .like(StudentEntity::getStudentNo, keyword));
         }
+        applyDefaultOrder(wrapper);
         return studentMapper.selectList(wrapper);
     }
 
     @Override
     public PageResult<StudentEntity> pageStudents(StudentPageQuery query) {
-        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
-            .orderByAsc(StudentEntity::getInstitutionId)
-            .orderByAsc(StudentEntity::getCampusId)
-            .orderByAsc(StudentEntity::getStudentNo);
+        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(StudentEntity::getInstitutionId, query.getInstitutionId());
         }
@@ -84,9 +94,19 @@ public class StudentServiceImpl implements StudentService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(StudentEntity::getStatus, status);
         }
+        if (!PageSortSupport.apply(wrapper, query, STUDENT_SORTABLE, StudentEntity::getId)) {
+            applyDefaultOrder(wrapper);
+        }
         Page<StudentEntity> page = studentMapper.selectPage(
             new Page<>(query.getPage(), query.getPageSize()), wrapper);
         return PageResult.of(page, page.getRecords());
+    }
+
+    /** 列表与分页共用默认排序 */
+    private void applyDefaultOrder(LambdaQueryWrapper<StudentEntity> wrapper) {
+        wrapper.orderByAsc(StudentEntity::getInstitutionId)
+            .orderByAsc(StudentEntity::getCampusId)
+            .orderByAsc(StudentEntity::getStudentNo);
     }
 
     @Override

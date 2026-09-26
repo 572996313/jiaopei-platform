@@ -2,15 +2,16 @@
 import { onShow } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { isApiError } from '@/utils/request'
+import { takePendingRoute } from '@/utils/auth-session'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 const loading = ref(false)
 
 onShow(() => {
-  // 已登录用户从分享/扫码等入口回到小程序时,直接进入首页
+  // 已登录用户从分享/扫码等入口回到小程序时,直接回到他本来要看的那一页(没有则首页)
   if (authStore.isLoggedIn()) {
-    uni.reLaunch({ url: '/pages/index/index' })
+    uni.reLaunch({ url: takePendingRoute() || '/pages/index/index' })
   }
 })
 
@@ -24,9 +25,9 @@ async function handleWechatLogin() {
     const bound = await authStore.loginByWechat()
     uni.hideLoading()
     if (bound) {
-      uni.reLaunch({ url: '/pages/index/index' })
+      uni.reLaunch({ url: takePendingRoute() || '/pages/index/index' })
     } else {
-      // 首次使用,引导选择身份完成注册
+      // 首次使用,引导选择身份完成注册;没登录进去的那一页仍留在 storage,注册成功后由注册页取
       uni.navigateTo({ url: '/pages/register/index' })
     }
   } catch (error) {
