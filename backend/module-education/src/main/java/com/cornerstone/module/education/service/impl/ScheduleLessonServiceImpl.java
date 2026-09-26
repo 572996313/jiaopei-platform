@@ -21,6 +21,7 @@ import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ScheduleLessonService;
+import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +60,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private static final String MAKEUP = "makeup";
     private static final String COMPLETED = "completed";
     private static final String CANCELLED_MAKEUP = "cancelled_makeup";
+    /** 跨机构访问被拒时的提示对象名：「无权访问其他机构的排课课次」 */
+    private static final String SUBJECT = "排课课次";
 
     private final ScheduleLessonMapper lessonMapper;
     private final ScheduleTeacherRelMapper teacherRelMapper;
@@ -84,9 +88,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public List<ScheduleLessonView> listLessons(Long institutionId, Long campusId, Long classId, LocalDate lessonDate,
                                                 Boolean pendingMakeupOnly) {
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder();
-        if (institutionId != null) {
-            wrapper.eq(ScheduleLessonEntity::getInstitutionId, institutionId);
-        }
+        wrapper.eq(ScheduleLessonEntity::getInstitutionId,
+            ScheduleInstitutionGuard.resolveForQuery(institutionId, SUBJECT));
         if (campusId != null) {
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
         }
@@ -136,9 +139,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     private void applyScopeFilters(LambdaQueryWrapper<ScheduleLessonEntity> wrapper, ScheduleLessonPageQuery query) {
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(ScheduleLessonEntity::getInstitutionId, query.getInstitutionId());
-        }
+        wrapper.eq(ScheduleLessonEntity::getInstitutionId,
+            ScheduleInstitutionGuard.resolveForQuery(query.getInstitutionId(), SUBJECT));
         if (query.getCampusId() != null) {
             wrapper.eq(ScheduleLessonEntity::getCampusId, query.getCampusId());
         }
@@ -165,7 +167,11 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         assertNoConflicts(request, null);
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setDeleted(Boolean.FALSE);
-        lessonMapper.insert(entity);
+        try {
+            lessonMapper.insert(entity);
+        } catch (DuplicateKeyException exception) {
+            throw slotTakenException();
+        }
         replaceTeachers(entity.getId(), request.teacherIds());
         return toViews(List.of(entity), Boolean.FALSE).getFirst();
     }
@@ -178,7 +184,11 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         assertNoConflicts(request, id);
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setId(id);
-        lessonMapper.updateById(entity);
+        try {
+            lessonMapper.updateById(entity);
+        } catch (DuplicateKeyException exception) {
+            throw slotTakenException();
+        }
         replaceTeachers(id, request.teacherIds());
         return toViews(List.of(requireLesson(id)), Boolean.FALSE).getFirst();
     }
@@ -207,10 +217,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "周起始日期和周结束日期必须为有效日期，且周起始日期不能晚于周结束日期");
         }
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = baseOrder()
-            .between(ScheduleLessonEntity::getLessonDate, weekStart, weekEnd);
-        if (institutionId != null) {
-            wrapper.eq(ScheduleLessonEntity::getInstitutionId, institutionId);
-        }
+            .between(ScheduleLessonEntity::getLessonDate, weekStart, weekEnd)
+            .eq(ScheduleLessonEntity::getInstitutionId,
+                ScheduleInstitutionGuard.resolveForQuery(institutionId, SUBJECT));
         if (campusId != null) {
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
         }
@@ -242,6 +251,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     }
 
     private ScheduleMaterial validateMaterial(ScheduleLessonRequest request, Long currentLessonId) {
+        // 写入口的机构一律先与登录机构比对，下面所有"资料归属"校验才有意义
+        ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + request.classId());
@@ -341,7 +352,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private ScheduleConflictCheckResponse detectConflicts(ScheduleLessonRequest request, Long excludeLessonId) {
         List<String> types = new ArrayList<>();
         List<String> messages = new ArrayList<>();
-        Long classCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId)
+        Long classCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId, request.institutionId())
             .eq(ScheduleLessonEntity::getClassId, request.classId())
             .eq(ScheduleLessonEntity::getLessonDate, request.lessonDate())
             .eq(ScheduleLessonEntity::getTimeSlotId, request.timeSlotId()));
@@ -349,7 +360,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             types.add("class");
             messages.add("该班级在此时段已有排课");
         }
-        Long classroomCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId)
+        Long classroomCount = lessonMapper.selectCount(conflictWrapper(excludeLessonId, request.institutionId())
             .eq(ScheduleLessonEntity::getClassroomId, request.classroomId())
             .eq(ScheduleLessonEntity::getLessonDate, request.lessonDate())
             .eq(ScheduleLessonEntity::getTimeSlotId, request.timeSlotId()));
@@ -380,8 +391,9 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
     }
 
-    private LambdaQueryWrapper<ScheduleLessonEntity> conflictWrapper(Long excludeLessonId) {
+    private LambdaQueryWrapper<ScheduleLessonEntity> conflictWrapper(Long excludeLessonId, Long institutionId) {
         LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<ScheduleLessonEntity>()
+            .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
             .in(ScheduleLessonEntity::getLessonStatus, SCHEDULED, RESCHEDULED, MAKEUP);
         if (excludeLessonId != null) {
             wrapper.ne(ScheduleLessonEntity::getId, excludeLessonId);
@@ -475,6 +487,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         if (entity == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课课次不存在：" + id);
         }
+        ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
         return entity;
     }
 
@@ -524,6 +537,15 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         return SCHEDULED.equalsIgnoreCase(lessonStatus)
             || RESCHEDULED.equalsIgnoreCase(lessonStatus)
             || MAKEUP.equalsIgnoreCase(lessonStatus);
+    }
+
+    /**
+     * 撞数据库唯一键时的中文提示。上面的冲突校验是先查后插，双页签或直调接口能在校验通过后同时落进同一格子，
+     * 兜底的唯一约束是 schedule_lesson.class_slot_guard / classroom_slot_guard（见 V72 迁移）。
+     */
+    private BusinessException slotTakenException() {
+        return new BusinessException(ResultCode.BAD_REQUEST,
+            "该班级或教室在此时段已有课次（并发写入被数据库唯一约束拦下），请刷新后重试");
     }
 
     private String normalize(String value) {

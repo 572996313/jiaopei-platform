@@ -91,7 +91,9 @@ mvn -q -pl app spring-boot:run                             # 本地运行（需�
 mvn -q dependency:go-offline                               # 预拉依赖（Dockerfile 构建也走这一步）
 ```
 
-本地依赖：`docker compose -f docker/docker-compose.yml up -d`（MySQL 8.4 + Redis 7.4，库 `jiaopei_platform`）。后端默认连 `127.0.0.1:3306` 与 `127.0.0.1:6379`。Flyway 已启用，迁移位于 `classpath:db/migration`，`baseline-on-migrate=true`。
+本地依赖：`docker compose -f docker/docker-compose.yml up -d`（compose 声明 MySQL 8.4 + Redis 7.4，库 `jiaopei_platform`）。后端默认连 `127.0.0.1:3306` 与 `127.0.0.1:6379`。Flyway 已启用，迁移位于 `classpath:db/migration`，`baseline-on-migrate=true`。
+
+> **本机实况与 compose 声明不一致**：这台机器没走 Docker，MySQL/Redis 是原生服务，`SELECT VERSION()` 是 **8.0.46**（客户端 8.4.9）。上面那行描述的是 compose 文件，不是本机在跑的东西；判断版本一律以 `SELECT VERSION()` 为准（生产则是 8.4，见「迁移脚本生产兼容检查」）。
 
 > 已知不一致：`application.yml` 默认连 `root/1234`，而 `docker/docker-compose.yml` 初始化为 `root/root`。以实际能连上的为准，可用 `DB_*` / `REDIS_*` 环境变量覆盖，不要为迁就文档去改本机密码。
 
@@ -210,18 +212,26 @@ pnpm dev:h5            # H5 调试
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
 
-**服务器口径：只支持 MySQL 8.x，不再兼容 5.7/5.x**（本地与生产同为 8.4）。不为旧版本做任何写法妥协，也不允许再引入"因为 5.7 没有所以绕一下"的理由。
+**服务器口径：只支持 MySQL 8.x（8.0 起），不兼容 5.7/5.x**。不为旧版本做任何写法妥协，也不允许再引入"因为 5.7 没有所以绕一下"的理由；现场库若低于 8.x，要求升级到 8.x，不通过改迁移去适配。版本以 `SELECT VERSION()` 为准，别拿 compose 的镜像声明当实况（本机实为 8.0.46，见「后端常用命令」的本地依赖一条）。
 
-但**下面这批禁项不是因为 5.x，而是因为解析器**：Flyway 11.7.2 的 MySQL 支持上限是 8.1，连到 8.4 时退化走 `MySQL-5 SqlParser`（2026-09-20 生产日志实证，`MySQL-5 SqlParser failed` 即由此而来）。**限制在 Flyway 的解析器，不在服务器版本**——把 MySQL 要求提到 8.x 并不能摘掉它。要真正放开 8.0-only 语法，只能升 Flyway 到识别 8.4 的版本并实测通过，届时再回来改本节（已记入待办）。**每个新迁移提交前必须逐条自查以下各项**，任何一条不满足就不许合并：
+**"解析器退化"这个旧依据已在 2026-09-26 撤回**，改成下面的实测结论，别再拿它当禁项的理由：
 
-1. **禁用 MySQL 8.0-only 语法**：CTE（`WITH ... AS`）、窗口函数（`ROW_NUMBER() OVER (...)`）、`JSON_TABLE`、8.0 专属字符集/函数（如 `utf8mb4_0900_ai_ci`）。去重等操作改用 `DELETE t1 FROM t JOIN t t2 ON t1.id > t2.id AND ...` 自连接。
+- 先前写的"Flyway 11.7.2 的 MySQL 支持上限是 8.1，连到 8.4 会退化走 `MySQL-5 SqlParser`"在本机**查不到任何佐证**：flyway-core / flyway-mysql 11.7.2（含仓库里 8.0.5、8.5.11、8.5.13、9.22.3、10.10.0 的 jar）内不存在 `MySQL-5` 与 `SqlParser` 这两个字符串，MySQL 侧只有 `MySQLParser` 与 `MariaDBParser` 两个实现，也没有任何版本上限判定。
+- 同一套 Flyway 11.7.2 打到 MySQL **8.0.46** 做真回放，`WITH ... AS` 更新、`ROW_NUMBER() OVER ()` 更新、`DEFAULT (IF(1 = 1, 'yes', 'no'))` 三种写法**全部原样执行通过**（`-X` 打印的 `Executing SQL` 与源文件一字不差，说明没有被改写或错切）。
+- 所以下面这批禁项当前的身份是**保守口径**，不是"已定位的解析器缺陷"。生产 8.4 那次 `MySQL-5 SqlParser failed` 的组件归属还没查实——要查实得翻生产启动日志里第一条 Flyway/SQL 报错，并核对部署 jar 内 `org/flywaydb/` 的实际版本。在查实之前照旧执行（改口径要重新回放验证，成本远低于再翻一次生产）；要放开某一条，先在与生产同版本的库上实测通过，再把本节的依据替换成那次实测。
+- **已经发过的迁移脚本里那些"Flyway 的 MySQL-5 解析器"注释不要回头改**（V48/V49/V59/V70/V71 与 core 的 V106/V107）：改一个字符就变 checksum，生产会直接拒绝启动，按「已上生产不许原地改」的规矩只能新增迁移，而迁移内容一个字都不需要变。本节把口径纠正过来就够了。
+
+**每个新迁移提交前必须逐条自查以下各项**，任何一条不满足就不许合并：
+
+1. **暂不使用 MySQL 8.0-only 语法**（保守口径，见上面 2026-09-26 的实测：这三样在 8.0.46 + Flyway 11.7.2 已验证可跑，生产侧未复测前不放开）：CTE（`WITH ... AS`）、窗口函数（`ROW_NUMBER() OVER (...)`）、`JSON_TABLE`。去重等操作改用 `DELETE t1 FROM t JOIN t t2 ON t1.id > t2.id AND ...` 自连接。**`utf8mb4_0900_ai_ci` 一类的 8.0 专属排序规则不在此列、任何情况都不许写**——那是第 2 条的排序规则漂移问题，跟解析器无关。
 2. **建表/加列必须显式写 `COLLATE`**：只写 `DEFAULT CHARSET=utf8mb4` 会让排序规则随服务器默认漂移（8.4 默认 `utf8mb4_0900_ai_ci`），同一脚本在不同环境长出不同表。本项目统一 `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`；V14 漏写导致的漂移已由 V44 归一。
 3. **禁用 MariaDB 方言**：`ALTER TABLE ... ADD COLUMN|DROP INDEX|MODIFY COLUMN IF [NOT] EXISTS` 在 MySQL 任何版本都不存在，只有 `CREATE TABLE IF NOT EXISTS` 合法。
-4. **禁用 `IF(` 函数**：Flyway MySQL-5 解析器会把表达式里的 `IF (` 按存储程序 `IF...THEN...END IF` 块处理而直接报语法错（`IFNULL`/`CONCAT`/`GROUP_CONCAT` 不受影响）。
+4. **暂不使用 `IF(` 函数**（保守口径）：旧依据"Flyway 解析器会把表达式里的 `IF (` 按存储程序 `IF...THEN...END IF` 块处理"已被 2026-09-26 的实测否证（`DEFAULT (IF(1 = 1, 'yes', 'no'))` 被原样执行通过）。仍先不放开，是因为只验了一种上下文；要放开就在与生产同版本的库上把你实际要用的写法跑通再改。表达式里需要条件时用 `CASE WHEN ... END`（V72 的生成列就是这么写的，已验证）。`IFNULL`/`CONCAT`/`GROUP_CONCAT` 从来不受影响。
 5. **迁移保持普通 DDL、一条路径**：不写 `@sql + PREPARE` 动态守卫（审查口径：脚本要一眼读懂）。唯一键重建按"**先建新键、后删旧键**"顺序：新键同样以 institution_id 开头，外键最左前缀索引全程不断（避免 1553）；若新旧键**同名**，先建新会报 1061 Duplicate key name，必须改为先 `DROP INDEX` 旧键再 `ADD` 新键（删建也可合进同一条 ALTER）；软删数据清理用普通 `DELETE`。脚本停在半实施状态时（重放报 1060/1061/1091，说明上次已执行过部分语句）注意：**Flyway 每次重启都从头重放整个脚本，注释掉已执行语句是无效的**——按脚本尾部恢复注释处理：手工补完缺失 DDL，删失败行并补插一条 checksum 与 jar 一致的 `success=1` 历史记录，再重启。
 6. **外键与前缀索引**：删唯一键/索引前确认它是子查询外键列的最左前缀索引，否则先 `DROP FOREIGN KEY`、键调整完再回挂（否则 1553）。
-7. **验证方式**：本地用 scratch 库把 V1..V<n> 全量 source 一遍（`mysql --default-character-set=utf8mb4`，Windows 客户端默认码字符集会报 Data too long），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态（本地与生产同为 8.4，回放即等价验证；语法以 Flyway 实际使用的解析器口径为准，不是服务器版本口径）。
+7. **验证方式**：本地用 scratch 库把 V1..V<n> 全量走**真 Flyway** 跑一遍（`mvn org.flywaydb:flyway-maven-plugin:<版本>:migrate`，插件要额外挂 `flyway-mysql` 与 `mysql-connector-j`，否则报找不到 driver / database plugin；**别用 `mysql` 客户端 source 整个目录**，V13 这类脚本会 `ALTER TABLE flyway_schema_history`、历史表不存在直接失败），至少覆盖“干净链路一次跑通 + 上次失败现场的中间态按恢复指引续跑”两种状态。**本地是 8.0.46、生产是 8.4，回放不等于等价验证**：本地通过只证明 8.0 这一档没问题，涉及 8.4 特有默认值（排序规则、`information_schema` 行为）的脚本要在头部注释写明"本地已验、生产待验"。手工用 `mysql` 客户端复测单条语句时带 `--default-character-set=utf8mb4` 并**从文件喂入**（`mysql … < probe.sql`）：Windows 客户端默认码字符集会报 Data too long，而 Git Bash 里 `mysql -e "…中文 COMMENT…"` 会把中文字面量打坏成 1064——这个 1064 曾被我误判成"MySQL 不接受该写法"。
 8. **生产修复流程**：迁移失败（`Detected failed migration to version X`）→ 修复脚本后在生产执行 `DELETE FROM flyway_schema_history WHERE version='X' AND success=0`（等价 flyway repair），再重启后端让 Flyway 重放；改过的脚本若已在生产成功过，则不允许原地改，必须新增修复迁移。
+9. **生成列的写法**：`GENERATED ALWAYS AS` 之前**不能**出现可空声明（`VARCHAR(64) NULL GENERATED …` 直接 1064，省略即默认 NULL），`COLLATE` 写在数据类型后面；表达式里被拼进的列必须全 `NOT NULL`，否则 `CONCAT_WS` 会跳过 NULL 参数、把不同的行拼成同一个键（V72 的键取值范围就是按这两条定的）。
 
 ## 底座边界（Cornerstone 阶段二B 起为物理 Maven 隔离，详见 `docs/底座分离与Cornerstone重构计划.md`）
 

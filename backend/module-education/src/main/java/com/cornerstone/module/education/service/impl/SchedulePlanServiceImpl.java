@@ -26,6 +26,7 @@ import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.SchedulePlanService;
+import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.SchedulePlanExpander;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
@@ -48,6 +49,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +59,8 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     private static final String STATUS_ACTIVE = "active";
     private static final String STATUS_INACTIVE = "inactive";
     private static final List<String> OCCUPYING_STATUSES = List.of("scheduled", "rescheduled", "makeup");
+    /** 跨机构访问被拒时的提示对象名：「无权访问其他机构的排课计划」 */
+    private static final String SUBJECT = "排课计划";
 
     /** 排课计划列表可排序字段:班级/教师/教室是 ID 列,列表上显示的是名称,不参与排序 */
     private static final Map<String, SFunction<SchedulePlanEntity, ?>> PLAN_SORTABLE = Map.of(
@@ -95,9 +99,8 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     @Override
     public PageResult<SchedulePlanView> pagePlans(SchedulePlanPageQuery query) {
         LambdaQueryWrapper<SchedulePlanEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(SchedulePlanEntity::getInstitutionId, query.getInstitutionId());
-        }
+        wrapper.eq(SchedulePlanEntity::getInstitutionId,
+            ScheduleInstitutionGuard.resolveForQuery(query.getInstitutionId(), SUBJECT));
         if (query.getCampusId() != null) {
             wrapper.eq(SchedulePlanEntity::getCampusId, query.getCampusId());
         }
@@ -259,6 +262,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         if (entity == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课计划不存在：" + id);
         }
+        ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
         return entity;
     }
 
@@ -271,9 +275,6 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
             return entity.getId();
         }
         SchedulePlanEntity entity = requirePlan(planId);
-        if (!Objects.equals(entity.getInstitutionId(), request.institutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "排课计划不属于当前机构");
-        }
         applyDefinition(entity, request, resolved);
         planMapper.updateById(entity);
         return entity.getId();
@@ -312,7 +313,14 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         lesson.setEndTime(slot.getEndTime());
         lesson.setLessonStatus("scheduled");
         lesson.setDeleted(Boolean.FALSE);
-        lessonMapper.insert(lesson);
+        try {
+            lessonMapper.insert(lesson);
+        } catch (DuplicateKeyException exception) {
+            // 上面的占用检查是先查后插，双页签同时提交会一起通过，兜底的唯一约束见 V72 迁移
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "该班级或教室在此时段已有课次（并发写入被数据库唯一约束拦下）："
+                    + occurrence.lessonDate() + " 时段" + occurrence.timeSlotId() + "，本次提交未生效");
+        }
         for (Long teacherId : resolved.teacherIds()) {
             ScheduleTeacherRelEntity relation = new ScheduleTeacherRelEntity();
             relation.setLessonId(lesson.getId());
@@ -388,6 +396,8 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     }
 
     private ResolvedPlan resolve(SchedulePlanRequest request) {
+        // 预览/提交/更新都先过这一关：请求声明的机构必须就是登录机构，下面的资料归属校验才成立
+        ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + request.classId());

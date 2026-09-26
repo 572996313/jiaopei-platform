@@ -18,6 +18,7 @@ import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ScheduleRuleService;
+import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
@@ -43,6 +44,9 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         "remark", ScheduleRuleEntity::getRemark,
         "createdAt", ScheduleRuleEntity::getCreatedAt);
 
+    /** 跨机构访问被拒时的提示对象名：「无权访问其他机构的排课规则」 */
+    private static final String SUBJECT = "排课规则";
+
     private final ScheduleRuleMapper ruleMapper;
     private final TeachingClassMapper classMapper;
     private final TeacherMapper teacherMapper;
@@ -62,9 +66,8 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
     @Override
     public PageResult<ScheduleRuleView> pageRules(ScheduleRulePageQuery query) {
         LambdaQueryWrapper<ScheduleRuleEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(ScheduleRuleEntity::getInstitutionId, query.getInstitutionId());
-        }
+        wrapper.eq(ScheduleRuleEntity::getInstitutionId,
+            ScheduleInstitutionGuard.resolveForQuery(query.getInstitutionId(), SUBJECT));
         if (notBlank(query.getRuleType())) {
             wrapper.eq(ScheduleRuleEntity::getRuleType, query.getRuleType().trim());
         }
@@ -105,9 +108,6 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
     @Transactional
     public ScheduleRuleView updateRule(Long id, ScheduleRuleRequest request) {
         ScheduleRuleEntity existing = requireRule(id);
-        if (!Objects.equals(existing.getInstitutionId(), request.institutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "排课规则不属于当前机构");
-        }
         ResolvedRule resolved = resolve(request);
         assertCellsFree(request, resolved, id);
         applyDefinition(existing, request, resolved);
@@ -127,6 +127,7 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         if (entity == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课规则不存在：" + id);
         }
+        ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
         return entity;
     }
 
@@ -146,6 +147,8 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
      * 校验规则对象与格子的归属：目标必须存在且属于该机构，时段必须与机构/校区及格子星期一致（与排课同一口径）。
      */
     private ResolvedRule resolve(ScheduleRuleRequest request) {
+        // 规则只能落在登录机构自己的班级/教师身上：请求声明的机构与登录机构不一致直接拒
+        ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
         String ruleType = normalize(request.ruleType());
         if (!List.of(ScheduleRuleSupport.RULE_FORBIDDEN, ScheduleRuleSupport.RULE_REQUIRED).contains(ruleType)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "规则类型只能是禁排或必排");

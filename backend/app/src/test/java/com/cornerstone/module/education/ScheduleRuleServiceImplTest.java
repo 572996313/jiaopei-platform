@@ -3,10 +3,14 @@ package com.cornerstone.module.education;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cornerstone.core.auth.context.AuthenticatedUser;
+import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.ScheduleRuleEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.dto.ScheduleRulePageQuery;
 import com.cornerstone.module.education.dto.ScheduleRuleRequest;
 import com.cornerstone.module.education.dto.ScheduleRuleView;
 import com.cornerstone.module.education.dto.ScheduleSlotCell;
@@ -21,10 +25,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,6 +65,17 @@ class ScheduleRuleServiceImplTest {
         new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, objectMapper);
     private final ScheduleRuleServiceImpl service =
         new ScheduleRuleServiceImpl(ruleMapper, classMapper, teacherMapper, timeSlotMapper, ruleSupport);
+
+    @BeforeEach
+    void authenticateOperator() {
+        // 规则接口的机构范围取自登录态（ScheduleInstitutionGuard），单测要先把它造出来
+        authenticate(1L, 1L);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void createRulePersistsNormalizedDefinitionAndDefaultsToActive() {
@@ -185,7 +205,39 @@ class ScheduleRuleServiceImplTest {
         BusinessException error = assertThrows(BusinessException.class,
             () -> service.updateRule(900L, new ScheduleRuleRequest(2L, "forbidden", "class", 100L,
                 List.of(new ScheduleSlotCell(2, 501L)), null, null, null, null)));
-        assertTrue(error.getMessage().contains("不属于当前机构"));
+        assertEquals(ResultCode.FORBIDDEN, error.getResultCode());
+        assertTrue(error.getMessage().contains("排课规则"));
+    }
+
+    @Test
+    void pageRulesAlwaysFilterByLoginInstitution() {
+        when(ruleMapper.selectPage(any(), any())).thenReturn(new Page<>(1, 10));
+
+        service.pageRules(new ScheduleRulePageQuery());
+
+        ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(ruleMapper).selectPage(any(), captor.capture());
+        LambdaQueryWrapper wrapper = captor.getValue();
+        wrapper.getSqlSegment();
+        // 不传机构不再等于全库可见
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(1L));
+    }
+
+    @Test
+    void ruleQueriesAndReadsRejectOtherInstitution() {
+        ScheduleRulePageQuery foreignQuery = new ScheduleRulePageQuery();
+        foreignQuery.setInstitutionId(2L);
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.pageRules(foreignQuery)).getResultCode());
+
+        ScheduleRuleEntity foreign = existingRule(903L, "forbidden", "[{\"weekday\":1,\"timeSlotId\":500}]");
+        foreign.setInstitutionId(2L);
+        when(ruleMapper.selectById(903L)).thenReturn(foreign);
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.getRule(903L)).getResultCode());
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.deleteRule(903L)).getResultCode());
+        verify(ruleMapper, never()).deleteById(903L);
     }
 
     @Test
@@ -255,5 +307,13 @@ class ScheduleRuleServiceImplTest {
 
     private ScheduleRuleRequest request(String ruleType, List<ScheduleSlotCell> slots) {
         return new ScheduleRuleRequest(1L, ruleType, "class", 100L, slots, null, null, null, null);
+    }
+
+    /** 排课服务的机构范围来自登录态，单测要把 SecurityContext 里的用户造出来（参照 AnnouncementServiceImplTest） */
+    private void authenticate(Long userId, Long institutionId) {
+        AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
+            Set.of("ADMIN"), Set.of("education:read", "education:write"), false, "admin");
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
     }
 }

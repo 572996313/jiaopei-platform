@@ -3,6 +3,9 @@ package com.cornerstone.module.education;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cornerstone.core.auth.context.AuthenticatedUser;
+import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.SchedulePlanEntity;
@@ -13,6 +16,7 @@ import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
 import com.cornerstone.module.education.dto.SchedulePlanCommitRequest;
 import com.cornerstone.module.education.dto.SchedulePlanCommitResponse;
 import com.cornerstone.module.education.dto.SchedulePlanOccurrence;
+import com.cornerstone.module.education.dto.SchedulePlanPageQuery;
 import com.cornerstone.module.education.dto.SchedulePlanPreviewResponse;
 import com.cornerstone.module.education.dto.SchedulePlanRequest;
 import com.cornerstone.module.education.dto.ScheduleSlotCell;
@@ -36,11 +40,17 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -48,6 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -90,6 +101,17 @@ class SchedulePlanServiceImplTest {
         planMapper, classMapper, teacherMapper, classroomMapper,
         timeSlotMapper, lessonMapper, teacherRelMapper, ruleSupport, objectMapper
     );
+
+    @BeforeEach
+    void authenticateOperator() {
+        // 计划接口的机构范围取自登录态（ScheduleInstitutionGuard），单测要先把它造出来
+        authenticate(1L, 1L);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void previewMarksConflictAndSkippedDates() {
@@ -279,8 +301,32 @@ class SchedulePlanServiceImplTest {
     }
 
     @Test
+    void commitReportsUniqueKeyRaceWithTheCellItLost() {
+        stubValidMasterData();
+        doAnswer(invocation -> {
+            SchedulePlanEntity entity = invocation.getArgument(0);
+            entity.setId(900L);
+            return 1;
+        }).when(planMapper).insert(any(SchedulePlanEntity.class));
+        // 占用检查先放行、落库时另一个会话已经写进同一格：V72 的 class_slot_guard 拦下
+        doThrow(new DuplicateKeyException(
+            "Duplicate entry '100#2026-06-01#500' for key 'schedule_lesson.uk_schedule_lesson_class_slot'"))
+            .when(lessonMapper).insert(any(ScheduleLessonEntity.class));
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.commit(commitRequest(null, START)));
+
+        assertEquals(ResultCode.BAD_REQUEST, error.getResultCode());
+        assertTrue(error.getMessage().contains("并发写入"), error.getMessage());
+        assertTrue(error.getMessage().contains("2026-06-01"), error.getMessage());
+    }
+
+    @Test
     void cancelPlanLessonsDeletesFutureOccupyingLessons() {
-        when(planMapper.selectById(900L)).thenReturn(new SchedulePlanEntity());
+        SchedulePlanEntity plan = new SchedulePlanEntity();
+        plan.setId(900L);
+        plan.setInstitutionId(1L);
+        when(planMapper.selectById(900L)).thenReturn(plan);
         ScheduleLessonEntity first = occupiedLesson(LocalDate.now().plusDays(1));
         first.setId(901L);
         ScheduleLessonEntity second = occupiedLesson(LocalDate.now().plusDays(8));
@@ -380,5 +426,57 @@ class SchedulePlanServiceImplTest {
         rule.setStatus("active");
         rule.setRemark("测试规则");
         return rule;
+    }
+
+    @Test
+    void pagePlansAlwaysFilterByLoginInstitution() {
+        when(planMapper.selectPage(any(), any())).thenReturn(new Page<>(1, 10));
+        SchedulePlanPageQuery query = new SchedulePlanPageQuery();
+
+        service.pagePlans(query);
+
+        ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(planMapper).selectPage(any(), captor.capture());
+        LambdaQueryWrapper wrapper = captor.getValue();
+        wrapper.getSqlSegment();
+        // 不传机构不再等于全库可见
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(1L));
+    }
+
+    @Test
+    void readsAndWritesRejectOtherInstitution() {
+        SchedulePlanPageQuery foreignQuery = new SchedulePlanPageQuery();
+        foreignQuery.setInstitutionId(2L);
+        BusinessException listError = assertThrows(BusinessException.class, () -> service.pagePlans(foreignQuery));
+        assertEquals(ResultCode.FORBIDDEN, listError.getResultCode());
+        assertTrue(listError.getMessage().contains("排课计划"));
+
+        SchedulePlanEntity foreign = new SchedulePlanEntity();
+        foreign.setId(900L);
+        foreign.setInstitutionId(2L);
+        when(planMapper.selectById(900L)).thenReturn(foreign);
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.getPlan(900L)).getResultCode());
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.deletePlan(900L)).getResultCode());
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.cancelPlanLessons(900L)).getResultCode());
+        verify(planMapper, never()).deleteById(900L);
+
+        SchedulePlanRequest foreignRequest = new SchedulePlanRequest(2L, 10L, 20L, 100L, 300L, List.of(400L),
+            List.of(MONDAY_SLOT), null, START, END, List.of(), null, null);
+        assertEquals(ResultCode.FORBIDDEN,
+            assertThrows(BusinessException.class, () -> service.preview(foreignRequest)).getResultCode());
+        assertEquals(ResultCode.FORBIDDEN, assertThrows(BusinessException.class,
+            () -> service.commit(new SchedulePlanCommitRequest(null, foreignRequest,
+                List.of(new SchedulePlanOccurrence(START, 500L))))).getResultCode());
+    }
+
+    /** 排课服务的机构范围来自登录态，单测要把 SecurityContext 里的用户造出来（参照 AnnouncementServiceImplTest） */
+    private void authenticate(Long userId, Long institutionId) {
+        AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
+            Set.of("ADMIN"), Set.of("education:read", "education:write"), false, "admin");
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
     }
 }
