@@ -11,8 +11,9 @@ import { ref } from 'vue'
  *  3. 吃掉 resetSort() 里 clearSort() 的回调,避免重置筛选时多发一次请求;
  *  4. 供出「排序列整列淡底」的单元格类名。
  *
- * 排序方向的正排/倒排说明不在这里:那条提示是纯 DOM 的(悬停表头即出),
- * 由 core 的 SortHeaderHint 统一实现,挂在外壳 AppLayout 上,视图不需要接线。
+ * 排序方向不在这里说话:正排/倒排由表头那对上下堆叠的细线尖对(⇅)自己表示
+ * (生效后只留方向那一支),纯 CSS 的活,见 core/styles/index.css 的「排序指示器」段,
+ * 视图与本 composable 都不需要接线。
  *
  * 用法:
  *   const sort = useTableSort({ onSorted: () => { page.value = 1; void load() },

@@ -61,15 +61,16 @@
         cell('班级', {}) +
         cell('本月课时', { sortable: true, align: 'right', order: 'ascending' }) +
         cell('状态', { sortable: true }) +
+        cell('最近登录', { sortable: true, order: 'descending' }) +
         cell('操作', { align: 'right' })
       function row(cells, trCls) {
         return '<tr class="' + (trCls || '') + '">' + cells.join('') + '</tr>'
       }
       var BODY =
-        row([td('初三数学 A 班'), td('86', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row') +
-        row([td('高二物理 B 班'), td('124', { align: 'right', sorted: true }), td('停课'), td('编辑')], 'el-table__row') +
-        row([td('初一英语 C 班'), td('58', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row current-row') +
-        row([td('高三化学 D 班'), td('140', { align: 'right', sorted: true }), td('启用'), td('编辑')], 'el-table__row hover-row')
+        row([td('初三数学 A 班'), td('86', { align: 'right', sorted: true }), td('启用'), td('09-21 10:04'), td('编辑')], 'el-table__row') +
+        row([td('高二物理 B 班'), td('124', { align: 'right', sorted: true }), td('停课'), td('09-20 18:22'), td('编辑')], 'el-table__row') +
+        row([td('初一英语 C 班'), td('58', { align: 'right', sorted: true }), td('启用'), td('09-19 09:10'), td('编辑')], 'el-table__row current-row') +
+        row([td('高三化学 D 班'), td('140', { align: 'right', sorted: true }), td('启用'), td('09-18 20:31'), td('编辑')], 'el-table__row hover-row')
       // el-table 真渲染时会写一个带宽度的 colgroup;缺了它 table 会收成 min-content,
       // 箭头摆位量出来的是退化态。这里按页面实际列宽补上。
       function table(id, widths) {
@@ -89,15 +90,44 @@
           '</div></div>'
         )
       }
-      // 常态列宽 + 一个最窄列(宽 = 表头文字 + 左右内边距,箭头必然顶到文字)
+      // 常态列宽 + 一个最窄列(状态压到刚好装下表头文字) + 一个"四字表头压到安全线"的列
       document.getElementById('box').innerHTML =
-        table('t-normal', [220, 120, 100, 90]) +
-        '<p class="note">下表把「状态」列压到刚好装下表头文字,验证最窄列会不会撞上箭头</p>' +
-        table('t-tight', [220, 120, 65, 90])
+        table('t-normal', [220, 120, 100, 110, 90]) +
+        '<p class="note">下表把「状态」列压到刚好装下表头文字,并把四字的「最近登录」压到 90px(实库里最紧的「每页条数」就是这个宽度),验证窄列会不会撞上箭头</p>' +
+        table('t-tight', [220, 120, 65, 90, 90])
 
-      // 量标题中心相对列中心的偏移、标题与箭头的净间隙、箭头是否被 cell 裁掉,
-      // 以及细线箭头自身的一整套竖向落位(两支各自的框、间距、箭头栈在表头行内的上下余量)。
+      // 量标题中心相对列中心的偏移、标题与箭头槽的净间隙、箭头是否被 cell 裁掉,
+      // 以及 ⇅ 那对细线尖对的落位(两支各自在槽内的上下位、间距、生效态单支是否回到标题轴心)。
       // 改 padding / 箭头宽度 / margin-right / 箭头盒高度之后在这里复测,不用肉眼比对。
+      // 「右侧余量」为负 = 被 .cell 的 overflow 裁掉;算式是
+      // 余量 = 列宽/2 - 文字宽/2 - 箭头盒左外边距 - 箭头盒宽,与 padding-right 无关
+      // (padding 加大只是把整行连同裁切线一起左挪),所以窄列装不下时只能减箭头盒宽度。
+      // 「栈中心差」= 看得境那几支的并集中心 与 标题中心 的差,静置两支/生效一支都应为 0。
+      function rgbOf(txt) {
+        var m = (txt || '').match(/[\d.]+/g)
+        return m ? [ +m[0], +m[1], +m[2], m.length > 3 ? +m[3] : 1 ] : null
+      }
+      function effBg(el) {
+        var c = null, n = el
+        while (n && n !== document.documentElement) {
+          var m = rgbOf(getComputedStyle(n).backgroundColor)
+          if (m && (m.length < 4 || m[3] > 0)) {
+            var a = m.length > 3 ? m[3] : 1, base = c || [255, 255, 255]
+            c = [0, 1, 2].map(function (i) { return m[i] * a + base[i] * (1 - a) })
+            if (a >= 1) break
+          }
+          n = n.parentElement
+        }
+        return c || [255, 255, 255]
+      }
+      function lum(rgb) {
+        var s = rgb.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) })
+        return 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2]
+      }
+      function ratio(fg, bg) {
+        var a = lum(fg), b = lum(bg)
+        return ((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2)
+      }
       function measure() {
         var out = []
         document.querySelectorAll('.el-table').forEach(function (t) {
@@ -121,15 +151,23 @@
             var col = th.getBoundingClientRect()
             var up = th.querySelector('.sort-caret.ascending').getBoundingClientRect()
             var down = th.querySelector('.sort-caret.descending').getBoundingClientRect()
+            var upVis = getComputedStyle(th.querySelector('.sort-caret.ascending')).visibility !== 'hidden'
+            var downVis = getComputedStyle(th.querySelector('.sort-caret.descending')).visibility !== 'hidden'
+            var shownEls = [upVis ? th.querySelector('.sort-caret.ascending') : null, downVis ? th.querySelector('.sort-caret.descending') : null].filter(Boolean)
+            var shown = shownEls.map(function (e) { return e.getBoundingClientRect() })
+            var top = Math.min.apply(null, shown.map(function (r) { return r.top }))
+            var bottom = Math.max.apply(null, shown.map(function (r) { return r.bottom }))
+            var idle = rgbOf(getComputedStyle(shownEls[0]).color)
             out.push(
               [
-                '  ' + cell.textContent.trim(),
+                '  ' + cell.textContent.trim() + (th.className.indexOf('ascending') >= 0 ? '[升序]' : th.className.indexOf('descending') >= 0 ? '[降序]' : '[静置]'),
                 '列中心偏移 ' + (title.left + title.width / 2 - (col.left + col.width / 2)).toFixed(1),
                 '净间隙 ' + (c.left - title.right).toFixed(1),
-                '垂直差 ' + (c.top + c.height / 2 - (title.top + title.height / 2)).toFixed(1),
                 '右侧余量 ' + (cb.right - c.right).toFixed(1),
-                '箭头栈 ' + up.height.toFixed(0) + '+' + (down.top - up.bottom).toFixed(0) + '+' + down.height.toFixed(0),
-                '栈上余 ' + (up.top - rowRect.top).toFixed(1) + ' 栈下余 ' + (rowRect.bottom - down.bottom).toFixed(1)
+                '栈中心差 ' + ((top + bottom) / 2 - (title.top + title.height / 2)).toFixed(1),
+                '两支 ' + up.width.toFixed(0) + '×' + up.height.toFixed(0) + '/' + down.width.toFixed(0) + '×' + down.height.toFixed(0) + ' 缝 ' + (down.top - up.bottom).toFixed(1),
+                '可见 ' + (upVis ? '↑' : '') + (downVis ? '↓' : '') + ' 槽内上余 ' + (up.top - c.top).toFixed(1) + ' 下余 ' + (c.bottom - down.bottom).toFixed(1),
+                '色 ' + idle.slice(0, 3).map(Math.round).join(',') + ' 对表头底 ' + ratio(idle.slice(0, 3), effBg(th))
               ].join(' | ')
             )
           })

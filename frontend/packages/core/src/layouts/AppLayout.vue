@@ -346,9 +346,6 @@
       <div v-if="!tabs.history.length" class="app-history-empty">还没有访问记录</div>
     </div>
 
-    <!-- ============ 悬停排序表头时的方向说明(自绘浮层,自己 teleport 到 body) ============ -->
-    <SortHeaderHint />
-
     <!-- ============ 菜单偏好设置 ============ -->
     <el-dialog v-model="menuPreferencesVisible" title="菜单偏好" width="460px">
       <p class="menu-pref-tip">偏好仅保存在当前浏览器，不随账号同步。</p>
@@ -391,7 +388,6 @@ import {
   Sunny,
 } from '@element-plus/icons-vue'
 import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
-import SortHeaderHint from '@cornerstone/core/components/SortHeaderHint.vue'
 import {
   contributedBannerActions,
   contributedNavItems,

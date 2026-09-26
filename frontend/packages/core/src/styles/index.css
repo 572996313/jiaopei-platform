@@ -73,6 +73,10 @@
   /* 排序列整列淡底:压在 --table-head-bg 与白底行之上,比 current-bg 淡一档,
      免得盖过「选中行」和「悬停行」的信号(优先级见下面的声明顺序) */
   --table-sorted-col: #f1f6fc;
+  /* 排序箭头的静置色:压在 --table-head-bg 上实测 3.22:1(过 WCAG 图形 3:1 线,
+     但明显轻于一档表头字),悬停与生效才升到 --table-head-ink。两档各配一个值,
+     不是同一个透明度——深色底上同样的透明度会掉到 3:1 以下 */
+  --table-sort-idle: #818c9f;
   /*
    * 软色状态块(提醒条、异常行、徽标):浅底 + 同色相深字的一对。
    * 业务页不要再自带 #fdf3cf/#8f5f00 这类色值——暗档下那套深字会直接压在深色底上看不见。
@@ -2060,43 +2064,49 @@ body {
   text-align: center;
 }
 
-/* 排序指示器:细线箭头(EP 自带的是 5px 实心三角,压在小号表头上偏重),紧贴标题右侧、
-   同时标题仍落在列中心。
-   EP 的 .caret-wrapper 是个 24px 宽的占位块,排在标题后面一起居中,实测把标题推离列中心
-   12.5px(表头全站固定居中,竖线一开这偏移一眼可见);绝对定位挂到列右边又离文字太远,
-   竖线一开读起来像下一列的符号。所以两件事分开做:
-   - .is-sortable 的 .cell 右侧多留 10px 内边距(不对称内边距会让标题轴左移 5px);
-   - 箭头盒压到 10px、左外边距 3px、右外边距 -23px,它在行盒里的净占位是 3+10-23 = -10px,
-     那一半(5px)正好把标题推回列中心。
-   算式(净占位必须 = -(右侧多留的内边距))别单改一项:改宽度或内边距后在
-   docs/mockups/sort-header-check.html 复测,那个页面会把摆位数直接打印出来。 */
+/* 排序指示器:一枚紧凑的 ⇅(上下两个 1px 细线尖对,各 9×5、中间留 2px 缝,不带长杆)。
+   排序在日常里用得少,所以静置态压淡(--table-sort-idle,压在表头底上实测约 3.2:1,
+   过图形 3:1 线就够:不抢眼但"这列能点"看得见),鼠标进这一列升到 --table-head-ink。
+   排序生效后**只留方向那一支**(另一支 visibility:hidden,槽位留着、标题一格不跳),
+   并把它挪到槽位正中与标题共轴;颜色**不转主色**(用户 2026-09-26:"不要亮了"),
+   "正在按这列排"由表头标题主色 + 整列淡底承担,箭头只管方向。
+   形状用 mask 画、不画在 border 上:mask 的描边宽度与拐点精确到像素;viewBox 与元素同为 9×5,
+   所以 mask-size: contain 即 1:1 落位、stroke 1px 不糊。拐点画在 **x=4.5**:1px 描边压在
+   4..5 这一整列上才是实线,画在 4.5..5.5 会跨住像素边界、渲成两列半透明灰(看着像 2px 的糊线);
+   两端收在 x=0.5 / 8.5,描边不外溢到盒子外。
+   摆位:EP 的 .caret-wrapper 原本 24px 宽、排在标题后面一起居中,会把标题推离列中心;
+   绝对定位挂列右边又离文字太远,竖线一开读起来像下一列的符号。所以两件事配平:
+   - .is-sortable 的 .cell 右侧多留内边距(不对称内边距让标题轴左移一半的量);
+   - 箭头盒 9px、左外边距 3px、右外边距 -22px,行盒净占位 3+9-22 = -10px,
+     正好把标题推回列中心。
+   裁切线余量 = 列宽/2 - 文字宽/2 - 左外边距 - 盒宽,与 padding-right 无关(加内边距只是把整行
+   连同裁切线一起左挪),所以列宽安全线是「列宽 >= 表头文字宽 + 24」,实库里最紧的是 90px 的
+   「每页条数」。盒高 12 仍在 line-height 23 之内(上下各余 5.5),**加高前先确认不为负**。
+   负边距是这套摆位的唯一支点,改宽度或内边距必须同步改 margin-right;复测在
+   docs/mockups/sort-header-check.html(真 EP CSS,底部把摆位数打印出来,还会把两支 mask
+   画进 canvas 数像素)。 */
 .el-table th.el-table__cell.is-sortable .cell {
   padding-right: 20px;
 }
 
 .el-table .caret-wrapper {
-  width: 10px;
-  /* 两支 8px 高的箭头 + 2px 间距(盒高留 14 时上下两支会叠在一起) */
-  height: 18px;
+  width: 9px;
+  height: 12px; /* 两支尖对各 5px + 中间 2px 缝 */
   margin-left: 3px;
-  margin-right: -23px;
+  margin-right: -22px;
   /* EP 的箭头盒走 vertical-align: middle,实测中心比标题文字中心低 2.3px;
      紧贴文字之后这个下沉比原来挂在右边距里时显眼,抬回来与标题共轴。 */
   transform: translateY(-2.3px);
 }
 
-/* 箭头形状用 mask 画、不画在 border 上:mask 的描边宽度与拐点精确到像素,颜色走
-   currentColor,静置/激活两态只改 color 一个属性,不必重写四条透明 border。
-   viewBox 与元素尺寸同为 10×8,所以 mask-size: contain 即 1:1 落位、stroke 1px 不糊。
-   竖杆画在 x=4.5 而不是几何中心 5:1px 描边压在 4.5..5.5 会正好跨住像素边界、
-   渲成两列半透明灰(看着像 2px 的糊线),落在整列上才是 1 根实线。 */
 .el-table .sort-caret {
   left: 0;
-  width: 10px;
-  height: 8px;
+  width: 9px;
+  height: 5px;
   border: 0; /* 清掉 EP 的实心三角 */
-  color: var(--table-head-ink);
+  color: var(--table-sort-idle);
   background-color: currentColor;
+  transition: color 0.12s ease;
   -webkit-mask-position: center;
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
@@ -2105,34 +2115,37 @@ body {
   mask-size: contain;
 }
 
-/* 静置态上下两支都画出来、给表头标题同档的灰(EP 默认用 --el-text-color-placeholder,
-   在表头底色上实测只有 2.18:1、夜晚档 4.44:1,等于「这列能不能点」没有信号)。
-   激活态只把方向那支转主色:EP 在 th 上挂 ascending/descending,另一支保持灰,
-   看一眼就知道现在按哪支排;上下两支同色是「未排序」的反面,不要一起上色。 */
+/* 上支:开口朝下的尖在顶格(^) */
 .el-table .sort-caret.ascending {
   top: 0;
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 3.5L4.5 0.5L8 3.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 3.5L4.5 0.5L8 3.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 5'%3E%3Cpath d='M0.5 4.5L4.5 0.5L8.5 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 5'%3E%3Cpath d='M0.5 4.5L4.5 0.5L8.5 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
 }
 
+/* 下支:开口朝上的尖(v),EP 原本用 bottom 把它压在盒外,现在两支都在槽内 */
 .el-table .sort-caret.descending {
-  top: 10px;
+  top: auto;
+  bottom: 0;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 5'%3E%3Cpath d='M0.5 0.5L4.5 4.5L8.5 0.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 5'%3E%3Cpath d='M0.5 0.5L4.5 4.5L8.5 0.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+/* 悬停整列表头:两支一起升到实灰,"这列能点"从"看得见"变"明确" */
+.el-table th.el-table__cell.is-sortable:hover .sort-caret {
+  color: var(--table-head-ink);
+}
+
+/* 生效态:留下方向那支,并挪到槽位正中(12-5)/2=3.5,与标题共轴;颜色实灰、不上主色 */
+.el-table th.el-table__cell.ascending .sort-caret.ascending,
+.el-table th.el-table__cell.descending .sort-caret.descending {
+  top: 3.5px;
   bottom: auto;
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 4.5L4.5 7.5L8 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M4.5 0.5V7.5M1 4.5L4.5 7.5L8 4.5' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  color: var(--table-head-ink);
 }
 
-.el-table .ascending .sort-caret.ascending,
-.el-table .descending .sort-caret.descending {
-  color: var(--el-color-primary);
-}
-
-/* 排序一旦生效,把"反方向"那支压到几乎看不见:静置态两支并列说的是"这列可点",
-   排起来之后只剩方向那支,是正排还是倒排不用去比颜色深浅就能看出来。
-   用 opacity 而不是 display:none——留一层影子,表示"再点一下就翻到另一向"。 */
-.el-table th.ascending .sort-caret.descending,
-.el-table th.descending .sort-caret.ascending {
-  opacity: 0.2;
+.el-table th.el-table__cell.ascending .sort-caret.descending,
+.el-table th.el-table__cell.descending .sort-caret.ascending {
+  visibility: hidden;
 }
 
 /* 排序列的标识:表头标题跟着主色走(表头底本来就与内容底色不同,再压一层淡底看不出来),
@@ -2515,6 +2528,8 @@ html.dark {
   --table-hover-bg: rgba(96, 150, 205, 0.12);
   --table-current-bar: #6ea6e0;
   --table-sorted-col: rgba(96, 150, 205, 0.1);
+  /* 静置箭头夜档取值:压在 #1b2739 表头底上实测 3.20:1(算法与明亮档同,颜色不能照抄) */
+  --table-sort-idle: #667589;
   /* 软色状态块夜档:底换成同色相的半透明叠加(压在深色卡上刚好),字换成提亮的同色相 */
   --soft-warn-bg: rgba(230, 162, 60, 0.16);
   --soft-warn-ink: #f0c674;
