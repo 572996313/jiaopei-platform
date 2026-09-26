@@ -1,6 +1,7 @@
 package com.cornerstone.core.system.controller;
 
 import com.cornerstone.core.auth.annotation.RequiresPermission;
+import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.system.dto.SystemConfigCreateRequest;
 import com.cornerstone.core.system.dto.SystemConfigPageQuery;
@@ -71,7 +72,10 @@ public class SystemConfigController {
     @DeleteMapping("/{id}")
     @RequiresPermission("system:config:write")
     @Operation(summary = "删除系统参数")
-    public void deleteConfig(@PathVariable Long id) {
+    public ApiResponse<Void> deleteConfig(@PathVariable Long id) {
+        // 必须返回标准信封:void 会产生 200 空 body,前端 unwrap 校验 success 字段时
+        // 会把这次成功的删除误判为失败(弹"请求失败"且不刷新列表)
         systemConfigService.deleteConfig(id);
+        return ApiResponse.success("系统参数已删除", null);
     }
 }

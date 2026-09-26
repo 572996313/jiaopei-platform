@@ -172,7 +172,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "系统内置配置不允许删除");
         }
 
-        systemConfigMapper.deleteById(id);
+        systemConfigMapper.physicalDeleteById(id);
     }
 
     private SystemConfigView toView(SystemConfigEntity entity) {

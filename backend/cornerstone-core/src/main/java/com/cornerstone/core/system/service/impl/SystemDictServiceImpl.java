@@ -123,7 +123,7 @@ public class SystemDictServiceImpl implements SystemDictService {
         if (itemCount != null && itemCount > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "字典类型下仍存在条目，请先删除条目：" + id);
         }
-        typeMapper.deleteById(id);
+        typeMapper.physicalDeleteById(id);
     }
 
     @Override
@@ -164,7 +164,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     @Transactional
     public void deleteItem(Long id) {
         requireItem(id);
-        itemMapper.deleteById(id);
+        itemMapper.physicalDeleteById(id);
     }
 
     private DictTypeView toTypeView(SystemDictTypeEntity entity) {

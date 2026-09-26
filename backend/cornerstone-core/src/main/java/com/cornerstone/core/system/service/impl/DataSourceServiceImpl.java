@@ -139,7 +139,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         if (entity.getId() != null && entity.getId() <= 6) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "内置数据源不允许删除,可改为停用");
         }
-        dataSourceMapper.deleteById(id);
+        dataSourceMapper.physicalDeleteById(id);
     }
 
     private DataSourceEntity requireDataSource(Long id) {

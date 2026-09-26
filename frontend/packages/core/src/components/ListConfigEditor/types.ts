@@ -474,9 +474,9 @@ export function actionsToJson(rows: ActionRow[]): string | null {
         const item: Record<string, unknown> = {
           action: row.action.trim(),
           label: row.label.trim(),
-        }
-        if (row.position && row.position !== 'toolbar') {
-          item.position = row.position
+          // position 是后端保存校验的必填字段(toolbar/row),toolbar 也不能省,
+          // 省掉会被 ListConfigServiceImpl 的结构校验以"缺少必填字段 position"拒掉。
+          position: row.position === 'row' ? 'row' : 'toolbar',
         }
         if (row.buttonType && row.buttonType.trim()) {
           item.buttonType = row.buttonType.trim()

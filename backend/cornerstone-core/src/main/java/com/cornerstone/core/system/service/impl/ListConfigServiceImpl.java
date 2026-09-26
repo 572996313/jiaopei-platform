@@ -148,7 +148,7 @@ public class ListConfigServiceImpl implements ListConfigService {
         if (entity.getId() != null && entity.getId() <= 3) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "内置列表配置不允许删除,可改为停用");
         }
-        listConfigMapper.deleteById(entity);
+        listConfigMapper.physicalDeleteById(entity.getId());
     }
 
     private ListConfigEntity requireConfig(Long id) {

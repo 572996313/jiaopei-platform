@@ -120,7 +120,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         if (childCount != null && childCount > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "菜单存在子节点，不能删除");
         }
-        menuMapper.deleteById(id);
+        menuMapper.physicalDeleteById(id);
     }
 
     @Override
