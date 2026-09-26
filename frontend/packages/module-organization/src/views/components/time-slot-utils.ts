@@ -80,12 +80,12 @@ export const SECTION_GROUPS: SectionGroupMeta[] = [
 
 export function defaultTimeSlotConfig(): TimeSlotConfig {
   return {
-    morningStudy: { count: 1, durationMinutes: 20, breakMinutes: 10, startTime: '07:50' },
-    morning: { count: 4, durationMinutes: 45, breakMinutes: 10, startTime: '08:00' },
+    morningStudy: { count: 0, durationMinutes: 20, breakMinutes: 10, startTime: '07:50' },
+    morning: { count: 2, durationMinutes: 45, breakMinutes: 10, startTime: '08:00' },
     morningBigBreak: { minutes: 0, afterSection: 0 },
-    afternoon: { count: 3, durationMinutes: 45, breakMinutes: 10, startTime: '14:00' },
+    afternoon: { count: 2, durationMinutes: 45, breakMinutes: 10, startTime: '14:00' },
     afternoonBigBreak: { minutes: 0, afterSection: 0 },
-    eveningStudy: { count: 2, durationMinutes: 45, breakMinutes: 10, startTime: '19:00' },
+    eveningStudy: { count: 0, durationMinutes: 45, breakMinutes: 10, startTime: '19:00' },
     weekdays: [1, 2, 3, 4, 5],
   }
 }
