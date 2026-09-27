@@ -173,123 +173,11 @@
     </el-dialog>
 
     <!-- 家长联系人是"打电话才看"的明细，收进右侧抽屉，不占名册页的纵向预算 -->
-    <el-drawer v-model="parentDrawerVisible" size="520px" :title="`家长联系人：${contactStudentLabel}`">
-      <el-alert
-        v-if="parentError"
-        :title="parentError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-
-      <div class="table-toolbar">
-        <el-button link type="primary" :disabled="!contactStudentId" @click="openParentDialog('create')">
-          新增联系人
-        </el-button>
-      </div>
-
-      <el-table
-        :data="studentParents"
-        border
-        row-key="id"
-        v-loading="parentLoading"
-        :max-height="TABLE_STACK_MAX_HEIGHT"
-      >
-        <el-table-column prop="parentName" label="联系人" min-width="140" show-overflow-tooltip />
-        <el-table-column label="关系" width="110" prop="relationType">
-          <template #default="{ row }">{{ parentRelationLabel(row.relationType) }}</template>
-        </el-table-column>
-        <el-table-column prop="parentPhone" label="联系电话" width="150" />
-        <el-table-column label="主联系人" width="100" prop="primaryContact">
-          <template #default="{ row }">{{ row.primaryContact ? '是' : '否' }}</template>
-        </el-table-column>
-        <el-table-column label="紧急联系" width="100" prop="emergencyContact">
-          <template #default="{ row }">{{ row.emergencyContact ? '是' : '否' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="100" prop="status">
-          <template #default="{ row }">
-            <el-tag :type="studentParentTagType(row.status)">{{
-              studentParentStatusLabel(row.status)
-            }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <div class="table-actions">
-              <el-button link type="warning" :disabled="row.primaryContact" @click="promotePrimaryParent(row)">
-                设为主联系人
-              </el-button>
-              <el-button link type="primary" @click="openParentDialog('edit', row)">编辑</el-button>
-              <el-button link type="danger" @click="removeStudentParent(row)">删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div v-if="!parentLoading && studentParents.length === 0" class="education-empty">
-        该学员下暂无家长联系人。
-      </div>
-    </el-drawer>
-
-    <el-dialog
-      v-model="parentDialogVisible"
-      :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'"
-      width="560px"
-    >
-      <el-alert
-        v-if="parentFormError"
-        :title="parentFormError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="所属学员" required>
-          <StudentSelect
-            v-model="parentForm.studentId"
-            :institution-id="institutionId"
-            :campus-id="campusId"
-          />
-        </el-form-item>
-        <el-form-item label="联系人姓名">
-          <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
-        </el-form-item>
-        <el-form-item label="关系">
-          <DictSelect v-model="parentForm.relationType" type-code="parent_relation" placeholder="选择关系" />
-        </el-form-item>
-        <el-form-item label="联系电话">
-          <el-input v-model="parentForm.parentPhone" placeholder="填写家长手机号" />
-        </el-form-item>
-        <el-form-item label="微信号">
-          <el-input v-model="parentForm.wechatNo" placeholder="可选" />
-        </el-form-item>
-        <el-form-item label="联系人状态">
-          <el-select v-model="parentForm.status">
-            <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="主联系人">
-          <el-switch v-model="parentForm.isPrimary" />
-        </el-form-item>
-        <el-form-item label="紧急联系人">
-          <el-switch v-model="parentForm.isEmergencyContact" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="parentForm.remark" type="textarea" :rows="3" placeholder="补充联系人说明" />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="parentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="parentSubmitting" @click="submitStudentParent">
-          {{ parentDialogMode === 'create' ? '提交联系人' : '保存联系人' }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <StudentParentDrawer
+      v-model="parentDrawerVisible"
+      :institution-id="institutionId"
+      :student-id="contactStudentId"
+    />
   </section>
 </template>
 
@@ -300,39 +188,30 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
-import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { rememberStudentOptions, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
 import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
 import ClassSelect from './components/ClassSelect.vue'
 import StudentSelect from './components/StudentSelect.vue'
+import StudentParentDrawer from './components/StudentParentDrawer.vue'
 import {
   createClassStudent,
-  createStudentParent,
   deleteClassStudent,
-  deleteStudentParent,
   fetchClassStudentPage,
   fetchClassTypes,
   fetchCourses,
-  fetchStudentParents,
-  updateStudentParent,
   type ClassStudentViewRecord,
   type ClassTypeRecord,
   type CourseRecord,
-  type StudentParentCreatePayload,
-  type StudentParentRecord,
 } from '@cornerstone/module-education/api/education'
 
 const route = useRoute()
 const router = useRouter()
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
-const dictStore = useDictStore()
 const { campusId } = storeToRefs(scopeStore)
 const { institutionId, campuses, loadScope } = useEducationScope()
 
@@ -357,21 +236,13 @@ const rosterSort = useTableSort({
   clearTableSort: () => rosterTableRef.value?.clearSort(),
 })
 
-const studentParents = ref<StudentParentRecord[]>([])
 const pageError = ref('')
-const parentError = ref('')
 const formError = ref('')
-const parentFormError = ref('')
 const loading = ref(false)
 const tableLoading = ref(false)
-const parentLoading = ref(false)
 const submitting = ref(false)
-const parentSubmitting = ref(false)
 const dialogVisible = ref(false)
 const parentDrawerVisible = ref(false)
-const parentDialogVisible = ref(false)
-const parentDialogMode = ref<'create' | 'edit'>('create')
-const editingParentId = ref<string | null>(null)
 
 const form = reactive({
   classId: '' as string | null,
@@ -379,18 +250,6 @@ const form = reactive({
   status: 'active',
   joinedAt: todayValue(),
   leftAt: '',
-  remark: '',
-})
-
-const parentForm = reactive({
-  studentId: '' as string | null,
-  parentName: '',
-  relationType: '',
-  parentPhone: '',
-  wechatNo: '',
-  isPrimary: true,
-  isEmergencyContact: false,
-  status: 'active',
   remark: '',
 })
 
@@ -405,10 +264,6 @@ const classTypeMap = computed(() => {
     classTypes.value.map((item) => [item.id, item.typeName || item.typeCode || `班型 #${item.id}`])
   )
 })
-
-const contactStudentLabel = computed(() =>
-  contactStudentId.value ? studentLabelOf(contactStudentId.value) : '未选择学员'
-)
 
 function todayValue() {
   const now = new Date()
@@ -472,30 +327,6 @@ function classStudentTagType(status?: string | null) {
   }
 }
 
-function parentRelationLabel(value?: string | null) {
-  return dictStore.displayLabel('parent_relation', value)
-}
-
-function studentParentStatusLabel(status?: string | null) {
-  switch (status) {
-    case 'inactive':
-      return '停用'
-    case 'active':
-    default:
-      return '启用'
-  }
-}
-
-function studentParentTagType(status?: string | null) {
-  switch (status) {
-    case 'inactive':
-      return 'info'
-    case 'active':
-    default:
-      return 'success'
-  }
-}
-
 function resetForm() {
   form.classId = classId.value || ''
   form.studentId = studentId.value || ''
@@ -504,35 +335,6 @@ function resetForm() {
   form.leftAt = ''
   form.remark = ''
   formError.value = ''
-}
-
-function resetParentForm() {
-  parentForm.studentId = contactStudentId.value || ''
-  parentForm.parentName = ''
-  parentForm.relationType = ''
-  parentForm.parentPhone = ''
-  parentForm.wechatNo = ''
-  parentForm.isPrimary = true
-  parentForm.isEmergencyContact = false
-  parentForm.status = 'active'
-  parentForm.remark = ''
-  parentFormError.value = ''
-  editingParentId.value = null
-}
-
-function buildParentPayload(): StudentParentCreatePayload {
-  return {
-    institutionId: institutionId.value as string,
-    studentId: parentForm.studentId as string,
-    parentName: parentForm.parentName.trim(),
-    relationType: trimToUndefined(parentForm.relationType),
-    parentPhone: trimToUndefined(parentForm.parentPhone),
-    wechatNo: trimToUndefined(parentForm.wechatNo),
-    isPrimary: parentForm.isPrimary,
-    isEmergencyContact: parentForm.isEmergencyContact,
-    status: trimToUndefined(parentForm.status),
-    remark: trimToUndefined(parentForm.remark),
-  }
 }
 
 /** 名册页只需要课程与班型两张字典做名称回显，教师与班级数组不进这页 */
@@ -585,26 +387,6 @@ async function loadRosterPage() {
   }
 }
 
-async function loadParentRecords(targetStudentId?: string | null) {
-  if (!institutionId.value || !targetStudentId) {
-    studentParents.value = []
-    return
-  }
-  parentLoading.value = true
-  parentError.value = ''
-  try {
-    studentParents.value = await fetchStudentParents({
-      institutionId: institutionId.value,
-      studentId: targetStudentId,
-    })
-  } catch (error) {
-    studentParents.value = []
-    parentError.value = toMessage(error, '家长联系人加载失败')
-  } finally {
-    parentLoading.value = false
-  }
-}
-
 async function loadRecords() {
   rosterPage.value = 1
   await loadRosterPage()
@@ -634,7 +416,7 @@ function openDialog() {
 }
 
 /** 从行上进入联系人抽屉：行自带学员名称，先记进缓存供抽屉标题回显 */
-async function openParentDrawer(row?: ClassStudentViewRecord | null) {
+function openParentDrawer(row?: ClassStudentViewRecord | null) {
   if (row?.studentId) {
     rememberStudentOptions([
       { id: row.studentId, studentNo: row.studentNo, studentName: row.studentName },
@@ -642,28 +424,8 @@ async function openParentDrawer(row?: ClassStudentViewRecord | null) {
   }
   contactStudentId.value = row?.studentId || studentId.value || null
   parentDrawerVisible.value = true
-  await loadParentRecords(contactStudentId.value)
 }
 
-function openParentDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
-  resetParentForm()
-  parentDialogMode.value = mode
-
-  if (mode === 'edit' && row) {
-    editingParentId.value = row.id
-    parentForm.studentId = row.studentId || contactStudentId.value || ''
-    parentForm.parentName = row.parentName || ''
-    parentForm.relationType = row.relationType || ''
-    parentForm.parentPhone = row.parentPhone || ''
-    parentForm.wechatNo = row.wechatNo || ''
-    parentForm.isPrimary = Boolean(row.primaryContact)
-    parentForm.isEmergencyContact = Boolean(row.emergencyContact)
-    parentForm.status = row.status || 'active'
-    parentForm.remark = row.remark || ''
-  }
-
-  parentDialogVisible.value = true
-}
 
 async function submitClassStudent() {
   if (!institutionId.value) {
@@ -726,91 +488,8 @@ async function removeClassStudent(row: ClassStudentViewRecord) {
   }
 }
 
-async function submitStudentParent() {
-  if (!institutionId.value) {
-    parentFormError.value = '请先选择机构范围'
-    return
-  }
-  if (!parentForm.studentId) {
-    parentFormError.value = '请选择所属学员'
-    return
-  }
-  if (!trimToUndefined(parentForm.parentName)) {
-    parentFormError.value = '请填写联系人姓名'
-    return
-  }
 
-  parentSubmitting.value = true
-  parentFormError.value = ''
-  try {
-    const payload = buildParentPayload()
-    if (parentDialogMode.value === 'create') {
-      await createStudentParent(payload)
-      ElMessage.success('家长联系人已新增')
-    } else if (editingParentId.value) {
-      await updateStudentParent(editingParentId.value, payload)
-      ElMessage.success('家长联系人已更新')
-    }
-    parentDialogVisible.value = false
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    parentFormError.value = toMessage(
-      error,
-      parentDialogMode.value === 'create' ? '新增家长联系人失败' : '更新家长联系人失败'
-    )
-  } finally {
-    parentSubmitting.value = false
-  }
-}
 
-async function promotePrimaryParent(row: StudentParentRecord) {
-  try {
-    await ElMessageBox.confirm(
-      `确定将「${row.parentName || '该联系人'}」设为主联系人吗？`,
-      '切换主联系人',
-      { type: 'warning', confirmButtonText: '设为主联系人', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
-
-  try {
-    await updateStudentParent(row.id, {
-      institutionId: institutionId.value as string,
-      studentId: row.studentId || (contactStudentId.value as string),
-      parentName: row.parentName || '',
-      relationType: trimToUndefined(row.relationType || ''),
-      parentPhone: trimToUndefined(row.parentPhone || ''),
-      wechatNo: trimToUndefined(row.wechatNo || ''),
-      isPrimary: true,
-      isEmergencyContact: Boolean(row.emergencyContact),
-      status: row.status || 'active',
-      remark: trimToUndefined(row.remark || ''),
-    })
-    ElMessage.success('已切换主联系人')
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    ElMessage.error(toMessage(error, '切换主联系人失败'))
-  }
-}
-
-async function removeStudentParent(row: StudentParentRecord) {
-  try {
-    await ElMessageBox.confirm(`确认删除 ${row.parentName || '该联系人'} 吗？`, '删除家长联系人', {
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  try {
-    await deleteStudentParent(row.id)
-    ElMessage.success('家长联系人已删除')
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    ElMessage.error(toMessage(error, '删除家长联系人失败'))
-  }
-}
 
 async function refreshAll() {
   loading.value = true
@@ -862,8 +541,7 @@ watch(
 )
 
 onMounted(async () => {
-  // 联系人列要用的字典在进页面时就拉取（DictSelect 自己拉，表格列不会）
-  void dictStore.ensureLoaded(['parent_relation']).catch(() => undefined)
+  // 抽屉里的关系列要字典，由 StudentParentDrawer 自己拉
   await institutionStore.loadInstitutions()
   await refreshAll()
   // 机构装载时上面那条 watch 会把班级清空，所以带 ?classId= 进来要等初始化完再落一次

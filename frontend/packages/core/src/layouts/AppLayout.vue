@@ -184,7 +184,7 @@
                   class="rail-trigger"
                   :class="{
                     'is-active': isNavItemActive(item),
-                    'is-pinned': activeRailPopoverKey === item.key,
+                    'is-pinned': pinnedRailKey === item.key,
                   }"
                   :title="item.label"
                   @click="toggleRailPin(item, $event)"
@@ -216,7 +216,7 @@
                       :to="child.to"
                       class="rail-pop-item"
                       :class="{ 'is-active': isChildActive(child) }"
-                      @click="handleRailChildClick(item)"
+                      @click="handleRailChildClick"
                     >
                       <el-icon v-if="child.icon" class="rail-pop-icon"
                         ><component :is="child.icon"
@@ -1092,9 +1092,9 @@ const railPopoverTop = ref(14)
 /** 起点收到此列底部之上至少留出的浮层高度,再靠 max-height 截断 */
 const RAIL_POPOVER_MIN_ROOM = 180
 
-function measureRailPopoverTop(trigger: HTMLElement) {
-  const nav = trigger.closest('.app-nav')
-  if (!nav) {
+function measureRailPopoverTop(trigger: HTMLElement | null | undefined) {
+  const nav = trigger?.closest('.app-nav')
+  if (!nav || !trigger) {
     return
   }
   const navBox = nav.getBoundingClientRect()
@@ -1103,15 +1103,23 @@ function measureRailPopoverTop(trigger: HTMLElement) {
 }
 
 const activeRailPopoverKey = computed(() => {
-  return pinnedRailKey.value ?? hoveredRailKey.value
+  // 悬停优先于钉住：钉住某组后再移到别的入口，浮层必须换成当前那一格，
+  // 否则会停在上一组的内容上（位置已跟着鼠标走、标题却是旧的）。
+  return hoveredRailKey.value ?? pinnedRailKey.value
+})
+
+/**
+ * 浮层换宿主时要重量起点：钉住的那组在鼠标移出后重新接管显示，
+ * 此时没有 mouseenter 可量，沿用上一次悬停的偏移会让浮层停在别的格子上。
+ */
+watch(activeRailPopoverKey, async () => {
+  await nextTick()
+  const cell = document.querySelector('.rail-popover')?.closest('.rail-cell') as HTMLElement | null
+  measureRailPopoverTop(cell)
 })
 
 function openRail(item: RailItem, event: MouseEvent) {
   cancelCloseRail()
-  if (!item.children.length) {
-    hoveredRailKey.value = null
-    return
-  }
   measureRailPopoverTop(event.currentTarget as HTMLElement)
   hoveredRailKey.value = item.key
 }
@@ -1124,9 +1132,6 @@ function cancelCloseRail() {
 }
 
 function scheduleCloseRail() {
-  if (pinnedRailKey.value) {
-    return
-  }
   cancelCloseRail()
   railCloseTimer.value = setTimeout(() => {
     hoveredRailKey.value = null
@@ -1152,10 +1157,9 @@ function toggleRailPin(item: RailItem, event: MouseEvent) {
   }
 }
 
-function handleRailChildClick(item: RailItem) {
-  if (pinnedRailKey.value === item.key) {
-    pinnedRailKey.value = null
-  }
+function handleRailChildClick() {
+  // 选定目的地即解除钉住，否则鼠标移出导航栏后旧组的浮层会重新盖在新页面上
+  pinnedRailKey.value = null
 }
 
 /** 点击侧边栏之外的区域:收起钉住的窄栏浮层(pin-outside)、smart 模式下展开的组,以及页签右键菜单 */

@@ -1,22 +1,19 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { AlarmClock, Avatar, Bell, Notebook, Reading, User } from '@element-plus/icons-vue'
+import { AlarmClock, Avatar, Bell, Files, Notebook, Reading, User } from '@element-plus/icons-vue'
 import {
   registerBannerActions,
   registerInvitationActions,
   registerNavItems,
   registerPermissionLabels,
-  registerPageSlot,
 } from '@cornerstone/core/extension/module-extensions'
 
 /**
  * 教务模块入口：对外只暴露路由清单。
- * 校区管理页里的"课程分类/课程/班型"三张卡片原本是页面内的一块，
- * 拆包时抽成组件按页面插槽注入——组织模块因此不需要反向依赖教务模块，
- * 不装配本模块时那三张卡片自动消失。
+ * 对底座的扩展点注册写在本文件，import 即完成注册。
  */
 
-/** 教务模块路由：教师/学员/班级/排课/考勤 */
+/** 教务模块路由：教师/学员/班级/课程/排课/考勤 */
 export const educationRoutes: RouteRecordRaw[] = [
   {
     path: 'teachers',
@@ -24,9 +21,19 @@ export const educationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-education/views/TeacherManagementView.vue'),
   },
   {
+    path: 'courses',
+    name: 'courses',
+    component: () => import('@cornerstone/module-education/views/CourseManagementView.vue'),
+  },
+  {
     path: 'students',
     name: 'students',
     component: () => import('@cornerstone/module-education/views/StudentManagementView.vue'),
+  },
+  {
+    path: 'enrollments',
+    name: 'enrollments',
+    component: () => import('@cornerstone/module-education/views/EnrollmentManagementView.vue'),
   },
   {
     path: 'classes',
@@ -99,14 +106,27 @@ registerNavItems([
   {
     key: 'students',
     to: '/students',
-    label: '报名与入班',
-    title: '报名与入班',
+    label: '学员档案',
+    title: '学员档案',
     icon: User,
     group: 'daily',
     groupLabel: '日常教务',
     groupOrder: 20,
     prefixes: ['/students'],
-    // 入口显隐与名称由 sys_menu 节点驱动(V61):角色没勾这个页面就看不到入口
+    // 入口显隐与名称由 sys_menu 节点驱动(V84 节点):报名拆到独立页后这一页只剩学员本身
+    menuCode: 'education_students',
+  },
+  {
+    key: 'enrollments',
+    to: '/enrollments',
+    label: '学员报名',
+    title: '学员报名',
+    icon: Notebook,
+    group: 'daily',
+    groupLabel: '日常教务',
+    groupOrder: 20,
+    prefixes: ['/enrollments'],
+    // 原「报名与入班」页收窄成只管报名(V84):入班在「班级名册」，档案在这一页
     menuCode: 'education_enrollments',
   },
   {
@@ -135,6 +155,19 @@ registerNavItems([
     menuCode: 'education_class_roster',
   },
   {
+    key: 'courses',
+    to: '/courses',
+    label: '课程档案',
+    title: '课程档案',
+    icon: Files,
+    group: 'archive',
+    groupLabel: '档案中心',
+    groupOrder: 40,
+    prefixes: ['/courses'],
+    // 原「校区与学期」页里的三张教务卡片独立成页(V85):课程为主表，分类与班型封顶并排
+    menuCode: 'education_courses',
+  },
+  {
     key: 'teachers',
     to: '/teachers',
     label: '教师档案',
@@ -159,14 +192,6 @@ registerNavItems([
     menuCode: 'announcement_center',
   },
 ])
-
-registerPageSlot('campus-detail', {
-  name: 'education-master-data',
-  order: 10,
-  component: defineAsyncComponent(
-    () => import('@cornerstone/module-education/views/campus/EducationMasterDataCards.vue')
-  ),
-})
 
 /**
  * 注册凭证页的行操作：邀请码可生成直达小程序注册页的太阳码。

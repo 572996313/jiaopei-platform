@@ -63,7 +63,13 @@
           </el-table-column>
           <el-table-column prop="principalName" label="负责人" width="120" sortable />
           <el-table-column prop="phone" label="联系电话" width="150" sortable />
-          <el-table-column prop="address" label="地址" min-width="220" show-overflow-tooltip sortable />
+          <el-table-column
+            prop="address"
+            label="地址"
+            min-width="220"
+            show-overflow-tooltip
+            sortable
+          />
           <el-table-column prop="status" label="状态" width="120" sortable>
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">{{ campusStatusLabel(row.status) }}</el-tag>
@@ -130,9 +136,6 @@
 
       <!-- 账号默认校区偏好：底座用户表已无该列，由本模块按校区维护（校区在卡片内选） -->
       <CampusDefaultAccountCard :campuses="campuses" />
-
-      <!-- 其他业务模块注入的资源卡片（教务：课程分类/课程/班型） -->
-      <component :is="slot.component" v-for="slot in detailSlots" :key="slot.name" />
     </div>
 
     <el-dialog
@@ -241,7 +244,6 @@
         }}</el-button>
       </template>
     </el-dialog>
-
   </section>
 </template>
 
@@ -251,7 +253,6 @@ import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { getPageSlots, notifyPageRefresh } from '@cornerstone/core/extension/module-extensions'
 import {
   createCampus,
   createTerm,
@@ -273,8 +274,6 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
-/** 其他模块往本页注入的资源卡片（教务模块注入课程/课程分类/班型） */
-const detailSlots = getPageSlots('campus-detail')
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 /**
  * 本页不再按校区筛选内容，但「校区默认账号」卡与教室/节次页共用同一个校区范围，
@@ -639,8 +638,6 @@ async function confirmDeleteTerm(row: TermSummary) {
 
 async function refreshAll() {
   await loadResources()
-  // 注入的教务卡片自己拉数据，宿主刷新按钮统一广播
-  notifyPageRefresh('campus-detail')
 }
 
 async function initializePage() {
@@ -666,9 +663,7 @@ watch(
 
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
-  void dictStore
-    .ensureLoaded(['campus_type', 'term_season'])
-    .catch(() => undefined)
+  void dictStore.ensureLoaded(['campus_type', 'term_season']).catch(() => undefined)
   initializePage()
 })
 </script>
