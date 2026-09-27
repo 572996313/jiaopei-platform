@@ -133,6 +133,8 @@ export function compactTimeRange(startTime?: string | null, endTime?: string | n
   return startTime?.slice(0, 5) || endTime?.slice(0, 5) || ''
 }
 
+const WEEKDAY_PREFIX_RE = /^周[一二三四五六日]/
+
 export function timeSlotOptionLabel(
   name?: string | null,
   startTime?: string | null,
@@ -142,8 +144,45 @@ export function timeSlotOptionLabel(
   const label = name || '时间段'
   const timeRange = compactTimeRange(startTime, endTime)
   const week = weekdayLabel(weekday)
-  return [label, timeRange, week === '未知' ? '' : week].filter(Boolean).join(' / ')
+  // 节次名自带"周一上1"这类前缀时不再重复拼一遍星期
+  const needWeek = week !== '未知' && !WEEKDAY_PREFIX_RE.test(label)
+  return [label, timeRange, needWeek ? week : ''].filter(Boolean).join(' / ')
 }
+
+/** 节次名的星期前缀在网格列头/下拉分组里已经说过,展示时剥掉 */
+export function timeSlotShortName(name?: string | null) {
+  if (!name) {
+    return ''
+  }
+  const stripped = name.replace(WEEKDAY_PREFIX_RE, '')
+  return stripped || name
+}
+
+/** 节次所属时段,下拉分组用。slot_type 只分早自习/授课/晚自习,授课再按开始时间拆上下午 */
+export function timeSlotSectionOf(slot: {
+  slotType?: string | null
+  startTime?: string | null
+}): string {
+  if (slot.slotType === 'morning_study') {
+    return '早自习'
+  }
+  if (slot.slotType === 'self_study') {
+    return '晚自习'
+  }
+  if (slot.slotType === 'break') {
+    return '课间'
+  }
+  const hour = Number(slot.startTime?.slice(0, 2))
+  if (!Number.isFinite(hour)) {
+    return '其他'
+  }
+  if (hour < 12) {
+    return '上午'
+  }
+  return hour < 18 ? '下午' : '晚上'
+}
+
+export const TIME_SLOT_SECTION_ORDER = ['早自习', '上午', '下午', '晚上', '课间', '其他']
 
 export function weekdayLabel(weekday?: number | null) {
   switch (weekday) {

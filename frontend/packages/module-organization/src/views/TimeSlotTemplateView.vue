@@ -6,13 +6,7 @@
 
     <div class="page-toolbar">
       <div class="page-toolbar-filters" v-loading="loading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="onCampusChange"
-        >
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="onCampusChange">
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -44,6 +38,7 @@
         <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate"
           >删除模板</el-button
         >
+        <el-button @click="goTimeSlotList">节次明细</el-button>
         <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       </div>
     </div>
@@ -52,60 +47,44 @@
       <el-empty description="请选择时段模板,或新建一个时段模板开始编辑" />
     </div>
 
-    <div v-else class="ts-editor-grid">
-      <article class="panel-card">
-        <div class="resource-head">
-          <div class="panel-title">节次参数</div>
+    <article v-else class="panel-card">
+      <div class="table-toolbar">
+        <el-button v-if="canWrite" @click="regenerateRows">按参数生成</el-button>
+        <el-button v-if="canWrite" @click="addRow">添加节次</el-button>
+        <el-button
+          v-if="canWrite"
+          type="primary"
+          :loading="saving"
+          :disabled="conflicts.size > 0"
+          @click="saveGrid"
+        >
+          保存
+        </el-button>
+        <div class="education-context-text">
+          当前模板:{{ selectedTemplate.templateName }};网格 {{ rows.length }} 个节次 ×
+          {{ config.weekdays.length }} 天
         </div>
-        <TimeSlotConfigForm v-model="config" :disabled="!canWrite" />
-        <div class="ts-config-actions">
-          <el-button v-if="canWrite" @click="regenerateRows">按参数生成节次表</el-button>
-        </div>
-        <div class="ts-config-hint">
-          修改参数后点击「按参数生成」刷新右侧网格;生成结果仍可在网格内逐格微调。
-        </div>
-      </article>
+      </div>
 
-      <article class="panel-card">
-        <div class="resource-head">
-          <div>
-            <div class="panel-title">节次时间设置</div>
-            <div class="education-context-text">
-              当前模板:{{ selectedTemplate.templateName }};网格 {{ rows.length }} 个节次 ×
-              {{ config.weekdays.length }} 天;点击单元格可修改或清空该节该天的时间
-            </div>
-          </div>
-          <div class="ts-grid-actions">
-            <el-button v-if="canWrite" size="small" @click="addRow">添加节次</el-button>
-            <el-button
-              v-if="canWrite"
-              type="primary"
-              size="small"
-              :loading="saving"
-              :disabled="conflicts.size > 0"
-              @click="saveGrid"
-            >
-              保存
-            </el-button>
-          </div>
-        </div>
-        <el-alert
-          v-if="conflicts.size > 0"
-          :title="`存在 ${conflicts.size / 2} 组时间重叠的节次,请调整后再保存(红色单元格)`"
-          type="error"
-          show-icon
-          :closable="false"
-          class="ts-conflict-alert"
-        />
-        <TimeSlotGridEditor
-          :rows="rows"
-          :weekdays="config.weekdays"
-          :conflicts="conflicts"
-          :editable="canWrite"
-          @remove-row="removeRow"
-        />
-      </article>
-    </div>
+      <!-- 参数表自己的列头（时段/节数/时长…）已经说明它是什么，不再单独占一行标题 -->
+      <TimeSlotConfigForm v-model="config" :disabled="!canWrite" />
+      <div class="ts-section-label">节次时间</div>
+      <el-alert
+        v-if="conflicts.size > 0"
+        :title="`存在 ${conflicts.size / 2} 组时间重叠的节次,请调整后再保存(红色单元格)`"
+        type="error"
+        show-icon
+        :closable="false"
+        class="ts-conflict-alert"
+      />
+      <TimeSlotGridEditor
+        :rows="rows"
+        :weekdays="config.weekdays"
+        :conflicts="conflicts"
+        :editable="canWrite"
+        @remove-row="removeRow"
+      />
+    </article>
 
     <el-dialog v-model="createDialogVisible" title="新建时段模板" width="480px">
       <el-alert
@@ -153,6 +132,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import {
@@ -182,6 +162,7 @@ import {
   type SectionRow,
 } from './components/time-slot-utils'
 
+const router = useRouter()
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
 const educationScope = useEducationScopeStore()
@@ -215,6 +196,10 @@ const selectedTemplate = computed(
   () => templates.value.find((item) => item.id === selectedTemplateId.value) || null
 )
 
+function toMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 function campusText(id?: string | null) {
   if (!id) {
     return '机构级'
@@ -223,15 +208,14 @@ function campusText(id?: string | null) {
   return campus?.campusName || campus?.campusCode || `校区 #${id}`
 }
 
-async function onCampusChange(value: string | null) {
-  educationScope.setCampus(value)
-  if (
-    selectedTemplateId.value &&
-    !filteredTemplates.value.some((item) => item.id === selectedTemplateId.value)
-  ) {
-    selectedTemplateId.value = null
-    rows.value = []
-  }
+/** 节次明细是另一张页面,跳过去时把当前校区带过去（两页共用 educationScope 那份范围） */
+function goTimeSlotList() {
+  educationScope.setCampus(campusId.value)
+  router.push('/time-slot-list')
+}
+
+async function onCampusChange() {
+  educationScope.setCampus(campusId.value)
   // 节次按校区取；网格里的行不动，避免换校区把未保存的编辑清掉
   await reloadTimeSlots()
 }
@@ -278,7 +262,7 @@ function removeRow(row: SectionRow) {
   rows.value = rows.value.filter((item) => item !== row)
 }
 
-/** 只重拉节次清单（换校区、保存网格后用），按当前校区取本校区 + 机构通用 */
+/** 网格要把已保存的节次还原成行：这份清单只用于回填网格，逐条维护去节次明细页 */
 async function reloadTimeSlots() {
   if (!institutionId.value) {
     timeSlots.value = []
@@ -288,7 +272,7 @@ async function reloadTimeSlots() {
     timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
   } catch (error) {
     timeSlots.value = []
-    pageError.value = error instanceof Error ? error.message : '加载节次时间失败'
+    pageError.value = toMessage(error, '加载节次时间失败')
   }
 }
 
@@ -319,7 +303,7 @@ async function refreshAll() {
       rows.value = []
     }
   } catch (error) {
-    pageError.value = error instanceof Error ? error.message : '加载时段模板失败'
+    pageError.value = toMessage(error, '加载时段模板失败')
   } finally {
     loading.value = false
   }
@@ -352,7 +336,7 @@ async function saveGrid() {
     )
     await reloadTimeSlots()
   } catch (error) {
-    pageError.value = error instanceof Error ? error.message : '保存节次时间失败'
+    pageError.value = toMessage(error, '保存节次时间失败')
   } finally {
     saving.value = false
   }
@@ -396,7 +380,7 @@ async function submitCreate() {
     createDialogVisible.value = false
     ElMessage.success('时段模板已创建,请确认节次时间后保存')
   } catch (error) {
-    createError.value = error instanceof Error ? error.message : '创建时段模板失败'
+    createError.value = toMessage(error, '创建时段模板失败')
   } finally {
     creating.value = false
   }
@@ -423,7 +407,7 @@ async function confirmDeleteTemplate() {
     rows.value = []
     templates.value = await fetchTimeSlotTemplates(institutionId.value)
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '删除时段模板失败')
+    ElMessage.error(toMessage(error, '删除时段模板失败'))
   }
 }
 
@@ -433,7 +417,9 @@ watch(institutionId, () => {
   refreshAll()
 })
 
-onMounted(refreshAll)
+onMounted(() => {
+  refreshAll()
+})
 </script>
 
 <style scoped>
@@ -447,35 +433,19 @@ onMounted(refreshAll)
   padding: 40px 0;
 }
 
-.ts-editor-grid {
-  display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+/* 一张卡里两个区块的分隔标题:参数与网格是先后两步,不写清容易以为网格是独立设置 */
+.ts-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 10px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--line);
 }
 
-@media (max-width: 1200px) {
-  .ts-editor-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ts-config-actions {
-  margin-top: 12px;
-}
-
-.ts-config-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.ts-grid-actions {
-  display: flex;
-  gap: 8px;
-}
-
+/* 冲突提示默认 40px 高，压到 28px：这一页纵向是按像素省的，一行提示就挤掉一整节次 */
 .ts-conflict-alert {
+  padding: 4px 10px;
   margin-bottom: 8px;
 }
 

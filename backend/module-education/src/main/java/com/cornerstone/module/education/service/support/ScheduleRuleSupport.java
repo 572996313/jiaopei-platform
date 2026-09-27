@@ -271,9 +271,14 @@ public class ScheduleRuleSupport {
             return (name == null || name.isBlank() ? kind + rule.targetId() : kind + "「" + name + "」") + " ";
         }
 
+        /** 调用方已在前缀里给出"周一"，节次名自带同名前缀时剥掉，避免消息读成"周一·周一上1"。 */
         private String slotLabel(Long timeSlotId) {
             String name = slotNames.get(timeSlotId);
-            return name == null || name.isBlank() ? "时段" + timeSlotId : name;
+            if (name == null || name.isBlank()) {
+                return "时段" + timeSlotId;
+            }
+            String stripped = name.replaceFirst("^周[一二三四五六日]", "");
+            return stripped.isBlank() ? name : stripped;
         }
 
         private static String remarkSuffix(Rule rule) {

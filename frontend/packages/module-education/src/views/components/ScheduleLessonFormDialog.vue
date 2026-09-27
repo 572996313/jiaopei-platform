@@ -134,23 +134,6 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="时间段">
-          <el-select
-            v-model="form.timeSlotId"
-            placeholder="选择时间段"
-            filterable
-            :disabled="lockLessonFields"
-          >
-            <el-option
-              v-for="item in timeSlots"
-              :key="item.id"
-              :label="
-                timeSlotOptionLabel(item.slotName, item.startTime, item.endTime, item.weekday)
-              "
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="上课日期">
           <el-date-picker
             v-model="form.lessonDate"
@@ -160,6 +143,29 @@
             style="width: 100%"
             :disabled="lockLessonFields"
           />
+        </el-form-item>
+        <el-form-item label="节次">
+          <el-select
+            v-model="form.timeSlotId"
+            :placeholder="slotPlaceholder"
+            filterable
+            :disabled="lockLessonFields || !form.campusId"
+            no-data-text="该日期所在星期在本校区没有节次，请调整日期或到「时间段管理」维护"
+            style="width: 100%"
+          >
+            <el-option-group
+              v-for="group in slotGroups"
+              :key="group.label"
+              :label="group.label"
+            >
+              <el-option
+                v-for="item in group.options"
+                :key="item.slot.id"
+                :label="slotOptionLabel(item)"
+                :value="item.slot.id"
+              />
+            </el-option-group>
+          </el-select>
         </el-form-item>
         <el-form-item label="排课状态">
           <el-select v-model="form.lessonStatus" disabled>
@@ -264,10 +270,14 @@ import {
   conflictTypeLabel,
   lessonStatusLabel,
   normalizeTeacherIds,
-  timeSlotOptionLabel,
+  TIME_SLOT_SECTION_ORDER,
+  timeSlotSectionOf,
+  timeSlotShortName,
   toMessage,
   todayValue,
   trimToUndefined,
+  weekdayFromDate,
+  weekdayLabel,
 } from './schedule-utils'
 
 /**
@@ -336,6 +346,97 @@ const form = reactive({
   relatedLessonId: '',
   remark: '',
 })
+
+interface SlotOption {
+  slot: TimeSlotSummary
+  note: string
+}
+
+/**
+ * 可排节次：后端要求「课次日期的星期 = 节次的星期」且节次属于同校区，
+ * 所以候选只列本校区 + 上课日期那一天的节次（机构级 700+ 条收成一天 10 条）。
+ */
+const usableSlots = computed(() => {
+  const weekday = weekdayFromDate(form.lessonDate)
+  const campus = form.campusId
+  return props.timeSlots.filter((slot) => {
+    if (!slot.id || (slot.status && slot.status !== 'active')) {
+      return false
+    }
+    if (campus && slot.campusId && slot.campusId !== campus) {
+      return false
+    }
+    return !weekday || slot.weekday === weekday
+  })
+})
+
+// 选中项落在候选外（改了日期、节次被停用）时仍列出来并写明原因，否则下拉会显示裸 id
+const slotOptions = computed<SlotOption[]>(() => {
+  const options: SlotOption[] = usableSlots.value.map((slot) => ({ slot, note: '' }))
+  const selectedId = form.timeSlotId
+  if (!selectedId || options.some((item) => item.slot.id === selectedId)) {
+    return options
+  }
+  const selected = props.timeSlots.find((slot) => slot.id === selectedId)
+  if (selected) {
+    options.push({
+      slot: selected,
+      note: selected.status && selected.status !== 'active' ? '已停用' : '与上课日期的星期不同',
+    })
+  }
+  return options
+})
+
+const slotGroups = computed(() => {
+  const groups = new Map<string, SlotOption[]>()
+  for (const option of slotOptions.value) {
+    const label = timeSlotSectionOf(option.slot)
+    const bucket = groups.get(label)
+    if (bucket) {
+      bucket.push(option)
+    } else {
+      groups.set(label, [option])
+    }
+  }
+  const orderOf = (section: string) => {
+    const index = TIME_SLOT_SECTION_ORDER.indexOf(section)
+    return index === -1 ? TIME_SLOT_SECTION_ORDER.length : index
+  }
+  return [...groups.entries()]
+    .sort((left, right) => orderOf(left[0]) - orderOf(right[0]))
+    .map(([label, options]) => ({
+      label,
+      options: options.sort((a, b) =>
+        (a.slot.startTime || '').localeCompare(b.slot.startTime || '')
+      ),
+    }))
+})
+
+function slotOptionLabel(option: SlotOption) {
+  const name = timeSlotShortName(option.slot.slotName) || '未命名节次'
+  const range = compactTimeRange(option.slot.startTime, option.slot.endTime)
+  const base = [name, range].filter(Boolean).join(' ')
+  return option.note ? `${base}（${option.note}）` : base
+}
+
+/** 节次候选跟着上课日期的星期走，placeholder 里点明白，否则操作员不知道列表为什么只剩一天的量 */
+const slotPlaceholder = computed(() => {
+  if (!form.campusId) {
+    return '请先选择校区'
+  }
+  const week = weekdayLabel(weekdayFromDate(form.lessonDate))
+  return week === '未知' ? '选择节次' : `选择${week}的节次`
+})
+
+// 日期或校区变了，旧节次多半已不适用：当场清掉，别把必然被后端拒的组合留到保存那一步
+watch(
+  () => [form.lessonDate, form.campusId],
+  () => {
+    if (form.timeSlotId && !usableSlots.value.some((slot) => slot.id === form.timeSlotId)) {
+      form.timeSlotId = ''
+    }
+  }
+)
 
 const isExecutionMode = computed(
   () => props.mode === 'reschedule' || props.mode === 'cancel' || props.mode === 'makeup'

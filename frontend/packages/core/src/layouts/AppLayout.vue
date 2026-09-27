@@ -166,7 +166,7 @@
                 v-for="item in group.items"
                 :key="item.key"
                 class="rail-cell"
-                @mouseenter="openRail(item)"
+                @mouseenter="openRail(item, $event)"
                 @mouseleave="scheduleCloseRail()"
               >
                 <RouterLink
@@ -187,7 +187,7 @@
                     'is-pinned': activeRailPopoverKey === item.key,
                   }"
                   :title="item.label"
-                  @click="toggleRailPin(item)"
+                  @click="toggleRailPin(item, $event)"
                 >
                   <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
                 </button>
@@ -195,6 +195,7 @@
                 <div
                   v-if="item.children.length && activeRailPopoverKey === item.key"
                   class="rail-popover"
+                  :style="{ '--rail-pop-top': railPopoverTop + 'px' }"
                   @mouseenter="cancelCloseRail()"
                   @mouseleave="scheduleCloseRail()"
                 >
@@ -1086,17 +1087,32 @@ const navRailGroups = computed(() => {
 const hoveredRailKey = ref<string | null>(null)
 const pinnedRailKey = ref<string | null>(null)
 const railCloseTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+/** 浮层的纵向起点(相对导航列顶部),跟着被悬停的那一格走,不是钉在列顶 */
+const railPopoverTop = ref(14)
+/** 起点收到此列底部之上至少留出的浮层高度,再靠 max-height 截断 */
+const RAIL_POPOVER_MIN_ROOM = 180
+
+function measureRailPopoverTop(trigger: HTMLElement) {
+  const nav = trigger.closest('.app-nav')
+  if (!nav) {
+    return
+  }
+  const navBox = nav.getBoundingClientRect()
+  const offset = trigger.getBoundingClientRect().top - navBox.top
+  railPopoverTop.value = Math.max(14, Math.min(offset, navBox.height - RAIL_POPOVER_MIN_ROOM))
+}
 
 const activeRailPopoverKey = computed(() => {
   return pinnedRailKey.value ?? hoveredRailKey.value
 })
 
-function openRail(item: RailItem) {
+function openRail(item: RailItem, event: MouseEvent) {
   cancelCloseRail()
   if (!item.children.length) {
     hoveredRailKey.value = null
     return
   }
+  measureRailPopoverTop(event.currentTarget as HTMLElement)
   hoveredRailKey.value = item.key
 }
 
@@ -1118,11 +1134,12 @@ function scheduleCloseRail() {
   }, 200)
 }
 
-function toggleRailPin(item: RailItem) {
+function toggleRailPin(item: RailItem, event: MouseEvent) {
   if (!item.children.length) {
     hoveredRailKey.value = null
     return
   }
+  measureRailPopoverTop(event.currentTarget as HTMLElement)
   // hover 模式:浮层只跟随鼠标,点击不钉住
   if (menuPreferences.value.railPopover === 'hover') {
     return

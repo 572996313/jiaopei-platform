@@ -125,7 +125,7 @@
           </el-table-column>
           <el-table-column label="节次" width="150">
             <template #default="{ row }">
-              {{ row.slotName || `时段 #${row.timeSlotId}` }}
+              {{ timeSlotShortName(row.slotName) || row.slotName || `时段 #${row.timeSlotId}` }}
               <span class="auto-time">{{ row.startTime?.slice(0, 5) }}~{{ row.endTime?.slice(0, 5) }}</span>
             </template>
           </el-table-column>
@@ -239,7 +239,7 @@ import {
 import { formatDateTime } from '@cornerstone/core/components/ConfigurableList/renderers'
 import { TABLE_STACK_MAX_HEIGHT, TABLE_VIEWPORT_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
-import { toMessage, weekdayLabel } from './schedule-utils'
+import { timeSlotShortName, toMessage, weekdayLabel } from './schedule-utils'
 import type { ClassScopeValue } from '@cornerstone/module-education/composables/useClassOptions'
 import ClassMultiSelect from './ClassMultiSelect.vue'
 

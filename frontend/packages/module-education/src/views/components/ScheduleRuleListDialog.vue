@@ -134,7 +134,7 @@ import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import SchoolCalendarPanel from './SchoolCalendarPanel.vue'
-import { toMessage, weekdayLabel } from './schedule-utils'
+import { timeSlotShortName, toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
   modelValue: boolean
@@ -199,7 +199,11 @@ function formatSlots(slots?: SchedulePlanSlotItem[] | null) {
   return slots
     .map((slot) => {
       const timeSlot = props.timeSlots.find((item) => item.id === slot.timeSlotId)
-      return `${weekdayLabel(slot.weekday)}${timeSlot?.slotName || `时段#${slot.timeSlotId}`}`
+      // 节次名可能自带"周一"前缀,再拼 weekdayLabel 会读成"周一周一上1"
+      const name = timeSlot
+        ? timeSlotShortName(timeSlot.slotName) || '节次'
+        : `时段#${slot.timeSlotId}`
+      return `${weekdayLabel(slot.weekday)}${name}`
     })
     .join('、')
 }

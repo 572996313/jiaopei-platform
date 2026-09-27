@@ -219,6 +219,7 @@ import type {
   ClassroomSummary,
   TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
+import { weekdayFromDate } from './schedule-utils'
 
 interface TimeRow {
   key: string
@@ -549,7 +550,33 @@ function emitCellClick(date: string, row: GridRow) {
   }
   const classroomId =
     view.value === 'classroom' && focusClassroomId.value ? focusClassroomId.value : null
-  emit('cell-click', { date, timeSlotId: row.isTimeRow ? row.slotId || null : null, classroomId })
+  emit('cell-click', { date, timeSlotId: slotIdForDay(row, date), classroomId })
+}
+
+/**
+ * 行是"时间点"，同一时间点在七天上是七条不同的节次记录，
+ * 所以点格子时要按这一格的日期现找节次，不能取整行第一条（可能是别的天、别的校区的）。
+ */
+function slotIdForDay(row: GridRow, date: string) {
+  if (!row.isTimeRow) {
+    return null
+  }
+  const weekday = weekdayFromDate(date)
+  if (!weekday || !row.start) {
+    return row.slotId || null
+  }
+  const candidates = props.timeSlots.filter(
+    (slot) => slot.id && slot.weekday === weekday && slot.startTime === row.start
+  )
+  if (candidates.length === 0) {
+    return null
+  }
+  if (candidates.length === 1) {
+    return candidates[0].id
+  }
+  // 多校区共用同一时间点：跟着这一格里已有的课次走，空格才拿第一条
+  const campusId = rowLessons(row, date)[0]?.campusId
+  return candidates.find((slot) => campusId && slot.campusId === campusId)?.id || candidates[0].id
 }
 </script>
 

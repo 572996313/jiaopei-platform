@@ -95,7 +95,15 @@
         </el-form-item>
         <el-form-item label="节次格子" required>
           <div class="rule-grid-wrap">
-            <SchedulePatternGrid v-model="formSlots" :time-slots="scopedTimeSlots" />
+            <SchedulePatternGrid
+              v-if="targetCampusId"
+              v-model="formSlots"
+              :time-slots="scopedTimeSlots"
+            />
+            <!-- 没定校区就没法收窄节次：整机构的时段混在一格里比节次多更难选 -->
+            <span v-else class="rule-context-text">
+              先选上面的「约束对象」，节次网格只列出该校区的时间段。
+            </span>
           </div>
         </el-form-item>
       </el-form>

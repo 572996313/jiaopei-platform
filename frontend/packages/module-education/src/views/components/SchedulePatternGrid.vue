@@ -2,6 +2,7 @@
   <div class="pattern-grid">
     <div class="pattern-grid-toolbar">
       <span class="pattern-grid-tip">点击单元格选择每周固定节次，再点一次取消</span>
+      <span v-if="hasVaried" class="pattern-grid-tip">● 表示这一天的开始时间与本行其他天不同</span>
       <span class="pattern-grid-count">已选 {{ modelValue.length }} 个节次</span>
     </div>
     <div class="pattern-grid-scroll">
@@ -24,12 +25,13 @@
             :class="{
               'is-empty': !row.cells[day],
               'is-selected': !!row.cells[day] && isSelected(row.cells[day]!),
+              'is-varied': !!row.cells[day] && isVaried(row, row.cells[day]!),
             }"
             :title="row.cells[day] ? cellTitle(row, day) : '该星期没有此节次'"
             @click="toggleCell(row, day)"
           >
             <template v-if="row.cells[day]">
-              <span class="pattern-grid-slot-name">{{ row.cells[day]!.slotName }}</span>
+              <span class="pattern-grid-slot-name">{{ timeSlotShortName(row.cells[day]!.slotName) }}</span>
               <span class="pattern-grid-slot-time">{{
                 compactTimeRange(row.cells[day]!.startTime, row.cells[day]!.endTime)
               }}</span>
@@ -50,12 +52,16 @@
 import { computed } from 'vue'
 import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
 import type { SchedulePlanSlotItem } from '@cornerstone/module-education/api/education'
-import { compactTimeRange, weekdayLabel } from './schedule-utils'
+import { compactTimeRange, timeSlotShortName, weekdayLabel } from './schedule-utils'
 
 interface PatternRow {
   key: string
   label: string
   order: number
+  /** 机构通用节次(campus_id 为空)与本校区节次同名时用来区分两块行 */
+  generic: boolean
+  /** 本行各天里出现最多的开始时间,用来标出"这天时间不一样"的格子 */
+  baseStart: string
   cells: Record<number, TimeSlotSummary | undefined>
 }
 
@@ -70,32 +76,71 @@ const emit = defineEmits<{
 
 const weekdays = [1, 2, 3, 4, 5, 6, 7]
 
-// 按 slotName 归并成行(同一节次名在不同星期是不同时间段行)，排序取 sortNo/开始时间
+// 行身份用「模板 + 节次编码」:编码跨星期稳定(MS1/AM1/PM1…),而名称是操作员手填的,
+// 按名称归并会在"周几+节次"式命名下把一行拆成 7 行、每行只剩一个格子。
 const gridRows = computed<PatternRow[]>(() => {
   const rows = new Map<string, PatternRow>()
   for (const slot of props.timeSlots) {
     if (!slot.weekday || !slot.id) {
       continue
     }
-    const key = slot.slotName || `时段#${slot.id}`
+    const order = slot.sortNo ?? Number.MAX_SAFE_INTEGER
+    const generic = !slot.campusId
+    const key = `${generic ? 'G' : 'C'}::${slot.templateId ?? ''}::${slot.slotCode || slot.slotName || `时段#${slot.id}`}`
     let row = rows.get(key)
     if (!row) {
-      row = { key, label: key, order: slot.sortNo ?? Number.MAX_SAFE_INTEGER, cells: {} }
+      row = { key, label: '', order, generic, cells: {}, baseStart: '' }
       rows.set(key, row)
     }
-    const order = slot.sortNo ?? Number.MAX_SAFE_INTEGER
     row.order = Math.min(row.order, order)
     const existing = row.cells[slot.weekday]
     if (!existing || (existing.sortNo ?? Number.MAX_SAFE_INTEGER) > order) {
       row.cells[slot.weekday] = slot
     }
   }
-  return Array.from(rows.values()).sort(
+  const list = Array.from(rows.values())
+  for (const row of list) {
+    const days = weekdays.filter((day) => row.cells[day])
+    // 名称取最早那天(周一~周日里最先出现的),星期前缀由列头承担
+    const first = days.length > 0 ? row.cells[days[0]] : undefined
+    row.label = timeSlotShortName(first?.slotName) || '未命名节次'
+    row.baseStart = dominantStart(days.map((day) => row.cells[day]?.startTime))
+  }
+  // 机构通用节次与本校区节次同名时并列成两块,不加区分就成了两行"上1"不知道点哪个
+  const labelCount = new Map<string, number>()
+  for (const row of list) {
+    labelCount.set(row.label, (labelCount.get(row.label) || 0) + 1)
+  }
+  for (const row of list) {
+    if ((labelCount.get(row.label) || 0) > 1) {
+      row.label = `${row.label}（${row.generic ? '机构通用' : '本校区'}）`
+    }
+  }
+  return list.sort(
     (left, right) =>
-      left.order - right.order ||
-      left.label.localeCompare(right.label, 'zh-Hans-CN')
+      left.order - right.order || left.label.localeCompare(right.label, 'zh-Hans-CN')
   )
 })
+
+function dominantStart(times: Array<string | null | undefined>) {
+  const counts = new Map<string, number>()
+  for (const time of times) {
+    const value = time?.slice(0, 5)
+    if (!value) {
+      continue
+    }
+    counts.set(value, (counts.get(value) || 0) + 1)
+  }
+  let best = ''
+  let bestCount = 0
+  for (const [value, count] of counts) {
+    if (count > bestCount) {
+      best = value
+      bestCount = count
+    }
+  }
+  return best
+}
 
 const boardColumns = computed(() => `88px repeat(7, minmax(96px, 1fr))`)
 
@@ -105,12 +150,24 @@ function isSelected(slot: TimeSlotSummary) {
   )
 }
 
+function isVaried(row: PatternRow, slot: TimeSlotSummary) {
+  const start = slot.startTime?.slice(0, 5)
+  return Boolean(row.baseStart && start && start !== row.baseStart)
+}
+
+const hasVaried = computed(() =>
+  gridRows.value.some((row) =>
+    weekdays.some((day) => row.cells[day] && isVaried(row, row.cells[day]!))
+  )
+)
+
 function cellTitle(row: PatternRow, day: number) {
   const slot = row.cells[day]
   if (!slot) {
     return ''
   }
-  return `${weekdayLabel(day)} ${slot.slotName || ''} ${compactTimeRange(slot.startTime, slot.endTime)}`
+  const varied = isVaried(row, slot) ? `（本行其他天是 ${row.baseStart} 开始）` : ''
+  return `${weekdayLabel(day)} ${row.label} ${compactTimeRange(slot.startTime, slot.endTime)}${varied}`
 }
 
 function toggleCell(row: PatternRow, day: number) {
@@ -187,11 +244,24 @@ function toggleCell(row: PatternRow, day: number) {
 }
 
 .pattern-grid-cell.is-slot {
+  position: relative;
   cursor: pointer;
   color: var(--text-secondary);
   transition:
     border-color 0.15s,
     background 0.15s;
+}
+
+/* 同一节次在这天的开始时间与本行其他天不同 */
+.pattern-grid-cell.is-slot.is-varied::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .pattern-grid-cell.is-slot:hover {

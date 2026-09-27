@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { OfficeBuilding, Timer } from '@element-plus/icons-vue'
+import { OfficeBuilding } from '@element-plus/icons-vue'
 import {
   onInstitutionReset,
   registerNavItems,
@@ -13,7 +13,7 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
  * 所以壳工程装配清单必须引到本文件（只挂路由不引入口 = 扩展点不生效）。
  */
 
-/** 组织模块路由：校区/教室/学期/时间段 与 时段模板 */
+/** 组织模块路由：校区与学期 / 教室 / 时段模板 / 节次明细 */
 export const organizationRoutes: RouteRecordRaw[] = [
   {
     path: 'campus',
@@ -21,9 +21,19 @@ export const organizationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-organization/views/CampusManagementView.vue'),
   },
   {
+    path: 'classrooms',
+    name: 'classrooms',
+    component: () => import('@cornerstone/module-organization/views/ClassroomManagementView.vue'),
+  },
+  {
     path: 'time-slots',
     name: 'time-slots',
     component: () => import('@cornerstone/module-organization/views/TimeSlotTemplateView.vue'),
+  },
+  {
+    path: 'time-slot-list',
+    name: 'time-slot-list',
+    component: () => import('@cornerstone/module-organization/views/TimeSlotListView.vue'),
   },
 ]
 
@@ -42,29 +52,17 @@ registerPermissionLabels([
  */
 registerNavItems([
   {
-    key: 'campus',
+    key: 'teaching-resources',
     to: '/campus',
-    label: '机构与教学资源',
-    title: '机构与教学资源',
+    label: '教学资源',
+    title: '教学资源',
     icon: OfficeBuilding,
     group: 'archive',
     groupLabel: '档案中心',
     groupOrder: 40,
-    prefixes: ['/campus'],
-    // 入口显隐与名称由 sys_menu 节点驱动(V61):角色没勾这个页面就看不到入口
-    menuCode: 'organization_campus',
-  },
-  {
-    key: 'time-slots',
-    to: '/time-slots',
-    label: '时间段设置',
-    title: '时间段设置(节次模板与网格编辑)',
-    icon: Timer,
-    group: 'archive',
-    groupLabel: '档案中心',
-    groupOrder: 40,
-    prefixes: ['/time-slots'],
-    menuCode: 'organization_time_slots',
+    prefixes: ['/campus', '/classrooms', '/time-slots', '/time-slot-list'],
+    // 目录与四张页面（校区与学期 / 教室管理 / 时段模板 / 节次明细）的名称、顺序、图标都在 sys_menu(V81/V82)
+    menuCatalogCode: 'organization_teaching_resources',
   },
 ])
 

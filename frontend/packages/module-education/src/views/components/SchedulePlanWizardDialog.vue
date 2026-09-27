@@ -95,7 +95,15 @@
         </el-form-item>
         <el-form-item label="每周节次" required>
           <div class="plan-grid-wrap">
-            <SchedulePatternGrid v-model="formSlots" :time-slots="scopedTimeSlots" />
+            <SchedulePatternGrid
+              v-if="scopedCampusId"
+              v-model="formSlots"
+              :time-slots="scopedTimeSlots"
+            />
+            <!-- 同上：校区跟班级走，没选班级前不铺整机构的节次网格 -->
+            <span v-else class="plan-context-text">
+              先选上面的「班级」，节次网格只列出该班级所在校区的时间段。
+            </span>
           </div>
         </el-form-item>
       </el-form>
@@ -150,7 +158,11 @@
         <el-table-column label="星期" width="72">
           <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
         </el-table-column>
-        <el-table-column prop="slotName" label="节次" min-width="110" />
+        <el-table-column label="节次" min-width="110">
+          <template #default="{ row }">{{
+            timeSlotShortName(row.slotName) || row.slotName || '—'
+          }}</template>
+        </el-table-column>
         <el-table-column label="时间" width="120">
           <template #default="{ row }">{{
             compactTimeRange(row.startTime, row.endTime) || '—'
@@ -206,7 +218,13 @@ import type { TermSummary, ClassroomSummary, TimeSlotSummary } from '@cornerston
 import ClassSelect from './ClassSelect.vue'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
 import { ensureClassKnown } from '../../composables/classLabels'
-import { compactTimeRange, normalizeTeacherIds, toMessage, weekdayLabel } from './schedule-utils'
+import {
+  compactTimeRange,
+  normalizeTeacherIds,
+  timeSlotShortName,
+  toMessage,
+  weekdayLabel,
+} from './schedule-utils'
 
 const props = defineProps<{
   modelValue: boolean

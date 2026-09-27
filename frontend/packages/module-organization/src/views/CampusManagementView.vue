@@ -15,25 +15,6 @@
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleCampusChange"
-        >
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-    </div>
-
     <div v-show="statsVisible" class="dashboard-grid campus-stat-grid">
       <article class="stat-card">
         <div class="stat-label">校区数量</div>
@@ -41,12 +22,13 @@
         <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
       </article>
       <article class="stat-card">
-        <div class="stat-label">教室数量</div>
-        <div class="stat-value">{{ classrooms.length }}</div>
-        <div class="stat-hint">当前校区：{{ formatCampus(campusId) }}</div>
+        <div class="stat-label">学期数量</div>
+        <div class="stat-value">{{ terms.length }}</div>
+        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
       </article>
     </div>
 
+    <!-- 本页只留机构级资源：校区/学期/账号默认校区。教室按校区在「教室管理」，节次在「节次与时间模板」 -->
     <div class="resource-grid">
       <article class="panel-card resource-card">
         <div class="resource-head">
@@ -91,57 +73,6 @@
             <template #default="{ row }">
               <el-button link type="primary" @click="openCampusDialog('edit', row)">编辑</el-button>
               <el-button link type="danger" @click="confirmDeleteCampus(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </article>
-
-      <article class="panel-card resource-card">
-        <div class="resource-head">
-          <div>
-            <div class="panel-title">教室列表</div>
-            <div class="education-context-text">当前校区：{{ formatCampus(campusId) }}</div>
-          </div>
-        </div>
-        <div class="table-toolbar">
-          <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
-        </div>
-        <el-table
-          :data="classrooms"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="TABLE_STACK_MAX_HEIGHT"
-        >
-          <el-table-column prop="classroomCode" label="教室编码" width="150" fixed="left" sortable />
-          <el-table-column
-            prop="classroomName"
-            label="教室名称"
-            min-width="180"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column label="类型" width="120" prop="roomType" sortable>
-            <template #default="{ row }">{{ roomTypeLabel(row.roomType) }}</template>
-          </el-table-column>
-          <el-table-column prop="floorNo" label="楼层" width="100" align="right" sortable />
-          <el-table-column prop="seatCapacity" label="容量" width="100" align="right" sortable />
-          <el-table-column prop="status" label="状态" width="120" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                classroomStatusLabel(row.status)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="可排课" width="100" prop="allowScheduling" sortable>
-            <template #default="{ row }">{{ row.allowScheduling ? '是' : '否' }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openClassroomDialog('edit', row)"
-                >编辑</el-button
-              >
-              <el-button link type="danger" @click="confirmDeleteClassroom(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -197,73 +128,8 @@
         </el-table>
       </article>
 
-      <article class="panel-card resource-card">
-        <div class="resource-head">
-          <div>
-            <div class="panel-title">时间段列表</div>
-            <div class="education-context-text">
-              {{
-                campusId
-                  ? `当前校区：${formatCampus(campusId)}，另含机构通用时间段`
-                  : '未筛选校区：显示本机构全部时间段'
-              }}
-            </div>
-          </div>
-        </div>
-        <div class="table-toolbar">
-          <el-button @click="router.push('/time-slots')">网格编辑</el-button>
-          <el-button type="primary" @click="openTimeSlotDialog('create')">新增时间段</el-button>
-        </div>
-        <el-table
-          :data="timeSlots"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="TABLE_STACK_MAX_HEIGHT"
-        >
-          <el-table-column prop="slotCode" label="时间段编码" width="150" fixed="left" sortable />
-          <el-table-column
-            prop="slotName"
-            label="时间段名称"
-            min-width="180"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column label="星期" width="90" prop="weekday" sortable>
-            <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
-          </el-table-column>
-          <el-table-column label="适用校区" width="150" prop="campusId" sortable show-overflow-tooltip>
-            <template #default="{ row }">{{ row.campusId ? formatCampus(row.campusId) : '机构通用' }}</template>
-          </el-table-column>
-          <el-table-column label="时间" min-width="180" prop="startTime" sortable>
-            <template #default="{ row }"
-              >{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template
-            >
-          </el-table-column>
-          <el-table-column prop="durationMinutes" label="时长" width="100" align="right" sortable />
-          <el-table-column label="类型" width="120" prop="slotType" sortable>
-            <template #default="{ row }">{{ slotTypeLabel(row.slotType) }}</template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="120" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                timeSlotStatusLabel(row.status)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openTimeSlotDialog('edit', row)"
-                >编辑</el-button
-              >
-              <el-button link type="danger" @click="confirmDeleteTimeSlot(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </article>
-
-      <!-- 账号默认校区偏好：底座用户表已无该列，由本模块按校区维护 -->
-      <CampusDefaultAccountCard :campus-id="campusId" :campuses="campuses" />
+      <!-- 账号默认校区偏好：底座用户表已无该列，由本模块按校区维护（校区在卡片内选） -->
+      <CampusDefaultAccountCard :campuses="campuses" />
 
       <!-- 其他业务模块注入的资源卡片（教务：课程分类/课程/班型） -->
       <component :is="slot.component" v-for="slot in detailSlots" :key="slot.name" />
@@ -316,59 +182,6 @@
         <el-button @click="campusDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="campusSubmitting" @click="submitCampus">{{
           campusDialogMode === 'create' ? '提交校区' : '保存修改'
-        }}</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
-      v-model="classroomDialogVisible"
-      :title="classroomDialogMode === 'create' ? '新增教室' : '编辑教室'"
-      width="560px"
-    >
-      <el-alert
-        v-if="classroomFormError"
-        :title="classroomFormError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="归属校区">
-          <el-select v-model="classroomForm.campusId" placeholder="选择校区" filterable>
-            <el-option
-              v-for="item in campuses"
-              :key="item.id"
-              :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="教室编码"
-          ><el-input v-model="classroomForm.classroomCode"
-        /></el-form-item>
-        <el-form-item label="教室名称"
-          ><el-input v-model="classroomForm.classroomName"
-        /></el-form-item>
-        <el-form-item label="教室类型"
-          ><DictSelect v-model="classroomForm.roomType" type-code="room_type"
-        /></el-form-item>
-        <el-form-item label="楼层"><el-input v-model="classroomForm.floorNo" /></el-form-item>
-        <el-form-item label="座位数"
-          ><el-input-number v-model="classroomForm.seatCapacity" :min="0" style="width: 100%"
-        /></el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="classroomForm.status">
-            <el-option label="空闲" value="idle" />
-            <el-option label="占用" value="occupied" />
-            <el-option label="维护" value="maintenance" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="classroomDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classroomSubmitting" @click="submitClassroom">{{
-          classroomDialogMode === 'create' ? '提交教室' : '保存修改'
         }}</el-button>
       </template>
     </el-dialog>
@@ -429,85 +242,11 @@
       </template>
     </el-dialog>
 
-    <el-dialog
-      v-model="timeSlotDialogVisible"
-      :title="timeSlotDialogMode === 'create' ? '新增时间段' : '编辑时间段'"
-      width="560px"
-    >
-      <el-alert
-        v-if="timeSlotFormError"
-        :title="timeSlotFormError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="适用校区">
-          <el-select v-model="timeSlotForm.campusId" placeholder="选择校区" clearable filterable>
-            <el-option
-              v-for="item in campuses"
-              :key="item.id"
-              :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="时间段编码"><el-input v-model="timeSlotForm.slotCode" /></el-form-item>
-        <el-form-item label="时间段名称"><el-input v-model="timeSlotForm.slotName" /></el-form-item>
-        <el-form-item label="星期">
-          <el-select v-model="timeSlotForm.weekday">
-            <el-option
-              v-for="day in weekdays"
-              :key="day.value"
-              :label="day.label"
-              :value="day.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="开始时间"
-          ><el-time-picker
-            v-model="timeSlotForm.startTime"
-            value-format="HH:mm:ss"
-            placeholder="选择开始时间"
-            style="width: 100%"
-        /></el-form-item>
-        <el-form-item label="结束时间"
-          ><el-time-picker
-            v-model="timeSlotForm.endTime"
-            value-format="HH:mm:ss"
-            placeholder="选择结束时间"
-            style="width: 100%"
-        /></el-form-item>
-        <el-form-item label="时长（分钟）">
-          <el-input-number
-            v-model="timeSlotForm.durationMinutes"
-            :min="1"
-            disabled
-            style="width: 100%"
-          />
-          <div class="education-context-text">由开始和结束时间自动计算</div>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="timeSlotForm.status">
-            <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="timeSlotDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="timeSlotSubmitting" @click="submitTimeSlot">{{
-          timeSlotDialogMode === 'create' ? '提交时间段' : '保存修改'
-        }}</el-button>
-      </template>
-    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useRouter } from 'vue-router'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
@@ -515,25 +254,15 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { getPageSlots, notifyPageRefresh } from '@cornerstone/core/extension/module-extensions'
 import {
   createCampus,
-  createClassroom,
   createTerm,
-  createTimeSlot,
   deleteCampus,
-  deleteClassroom,
   deleteTerm,
-  deleteTimeSlot,
   fetchCampuses,
-  fetchClassrooms,
   fetchTerms,
-  fetchTimeSlots,
   updateCampus,
-  updateClassroom,
   updateTerm,
-  updateTimeSlot,
   type CampusSummary,
-  type ClassroomSummary,
   type TermSummary,
-  type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import CampusDefaultAccountCard from '@cornerstone/module-organization/views/campus/CampusDefaultAccountCard.vue'
@@ -544,15 +273,16 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
-const router = useRouter()
 /** 其他模块往本页注入的资源卡片（教务模块注入课程/课程分类/班型） */
 const detailSlots = getPageSlots('campus-detail')
-const { campusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
+/**
+ * 本页不再按校区筛选内容，但「校区默认账号」卡与教室/节次页共用同一个校区范围，
+ * 加载完校区后要把它兜成一个有效值，避免切页时带着上一个机构留下的死 id。
+ */
+const { campusId } = storeToRefs(scopeStore)
 const campuses = ref<CampusSummary[]>([])
-const classrooms = ref<ClassroomSummary[]>([])
 const terms = ref<TermSummary[]>([])
-const timeSlots = ref<TimeSlotSummary[]>([])
 
 const statsVisible = ref(false)
 
@@ -560,29 +290,19 @@ const pageError = ref('')
 const lookupLoading = ref(false)
 
 const campusDialogVisible = ref(false)
-const classroomDialogVisible = ref(false)
 const termDialogVisible = ref(false)
-const timeSlotDialogVisible = ref(false)
 
 const campusDialogMode = ref<'create' | 'edit'>('create')
-const classroomDialogMode = ref<'create' | 'edit'>('create')
 const termDialogMode = ref<'create' | 'edit'>('create')
-const timeSlotDialogMode = ref<'create' | 'edit'>('create')
 
 const editingCampusId = ref<string | null>(null)
-const editingClassroomId = ref<string | null>(null)
 const editingTermId = ref<string | null>(null)
-const editingTimeSlotId = ref<string | null>(null)
 
 const campusSubmitting = ref(false)
-const classroomSubmitting = ref(false)
 const termSubmitting = ref(false)
-const timeSlotSubmitting = ref(false)
 
 const campusFormError = ref('')
-const classroomFormError = ref('')
 const termFormError = ref('')
-const timeSlotFormError = ref('')
 
 const campusForm = reactive({
   campusCode: '',
@@ -595,16 +315,6 @@ const campusForm = reactive({
   status: 'planning',
 })
 
-const classroomForm = reactive({
-  campusId: '' as string | null,
-  classroomCode: '',
-  classroomName: '',
-  roomType: '',
-  floorNo: '',
-  seatCapacity: 20,
-  status: 'idle',
-})
-
 const termForm = reactive({
   termCode: '',
   termName: '',
@@ -613,55 +323,6 @@ const termForm = reactive({
   startDate: '',
   endDate: '',
   status: 'draft',
-})
-
-const timeSlotForm = reactive({
-  campusId: '' as string | null,
-  slotCode: '',
-  slotName: '',
-  weekday: 1,
-  startTime: '08:00:00',
-  endTime: '09:30:00',
-  durationMinutes: 90,
-  status: 'active',
-})
-
-function timeSlotMinutes(value?: string | null) {
-  if (!value) {
-    return Number.NaN
-  }
-  const [hours, minutes] = value.split(':').map(Number)
-  return (hours || 0) * 60 + (minutes || 0)
-}
-
-// 后端要求 durationMinutes 与起止时间差值完全一致，这里随时间选择自动重算
-watch(
-  () => [timeSlotForm.startTime, timeSlotForm.endTime] as const,
-  ([start, end]) => {
-    const diff = timeSlotMinutes(end) - timeSlotMinutes(start)
-    if (Number.isFinite(diff) && diff > 0) {
-      timeSlotForm.durationMinutes = diff
-    }
-  }
-)
-
-const weekdays = [
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 },
-  { label: '周六', value: 6 },
-  { label: '周日', value: 7 },
-]
-
-const campusMap = computed(() => {
-  return new Map(
-    campuses.value.map((item) => [
-      item.id,
-      item.campusName || item.campusCode || `校区 #${item.id}`,
-    ])
-  )
 })
 
 function toMessage(error: unknown, fallback: string) {
@@ -675,13 +336,6 @@ function trimToUndefined(value: string) {
 
 function formatInstitution(id?: string | null) {
   return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return campusMap.value.get(id) || `校区 #${id}`
 }
 
 function campusTypeLabel(value?: string | null) {
@@ -700,18 +354,6 @@ function campusStatusLabel(value?: string | null) {
   }
 }
 
-function classroomStatusLabel(value?: string | null) {
-  switch (value) {
-    case 'occupied':
-      return '占用'
-    case 'maintenance':
-      return '维护'
-    case 'idle':
-    default:
-      return '空闲'
-  }
-}
-
 function termStatusLabel(value?: string | null) {
   switch (value) {
     case 'active':
@@ -724,46 +366,20 @@ function termStatusLabel(value?: string | null) {
   }
 }
 
-function timeSlotStatusLabel(value?: string | null) {
-  switch (value) {
-    case 'inactive':
-      return '停用'
-    case 'active':
-    default:
-      return '启用'
-  }
-}
-
 function statusTagType(value?: string | null) {
   switch (value) {
     case 'active':
       return 'success'
     case 'suspended':
-    case 'maintenance':
       return 'warning'
-    case 'archived':
-    case 'inactive':
-      return 'info'
     default:
-      // 规划中等常态用中性色,不占警示位
+      // 规划中/草稿/归档这类常态用中性色,不占警示位
       return 'info'
   }
 }
 
-function weekdayLabel(value?: number | null) {
-  return weekdays.find((item) => item.value === value)?.label || '-'
-}
-
-function roomTypeLabel(value?: string | null) {
-  return dictStore.displayLabel('room_type', value)
-}
-
 function seasonLabel(value?: string | null) {
   return dictStore.displayLabel('term_season', value)
-}
-
-function slotTypeLabel(value?: string | null) {
-  return dictStore.displayLabel('slot_type', value)
 }
 
 function resetCampusForm() {
@@ -778,17 +394,6 @@ function resetCampusForm() {
   campusFormError.value = ''
 }
 
-function resetClassroomForm() {
-  classroomForm.campusId = campusId.value
-  classroomForm.classroomCode = ''
-  classroomForm.classroomName = ''
-  classroomForm.roomType = ''
-  classroomForm.floorNo = ''
-  classroomForm.seatCapacity = 20
-  classroomForm.status = 'idle'
-  classroomFormError.value = ''
-}
-
 function resetTermForm() {
   termForm.termCode = ''
   termForm.termName = ''
@@ -800,54 +405,10 @@ function resetTermForm() {
   termFormError.value = ''
 }
 
-function resetTimeSlotForm() {
-  timeSlotForm.campusId = campusId.value
-  timeSlotForm.slotCode = ''
-  timeSlotForm.slotName = ''
-  timeSlotForm.weekday = 1
-  timeSlotForm.startTime = '08:00:00'
-  timeSlotForm.endTime = '09:30:00'
-  timeSlotForm.durationMinutes = 90
-  timeSlotForm.status = 'active'
-  timeSlotFormError.value = ''
-}
-
-async function loadClassrooms() {
-  if (!campusId.value) {
-    classrooms.value = []
-    return
-  }
-
-  try {
-    classrooms.value = await fetchClassrooms(campusId.value)
-  } catch (error) {
-    classrooms.value = []
-    pageError.value = toMessage(error, '教室列表加载失败')
-  }
-}
-
-async function loadTimeSlots() {
-  try {
-    // 与教室卡不同：教室必须挂在某个校区下，不选校区就没有内容；节次有「机构通用」这一类，
-    // 清空筛选时回落到整机构，否则通用节次在没有选中校区时无法维护
-    timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
-  } catch (error) {
-    timeSlots.value = []
-    pageError.value = toMessage(error, '时间段列表加载失败')
-  }
-}
-
-/** 校区筛选同时决定教室与时间段两张卡的内容 */
-async function handleCampusChange() {
-  await Promise.all([loadClassrooms(), loadTimeSlots()])
-}
-
 async function loadResources() {
   if (!institutionId.value) {
     campuses.value = []
-    classrooms.value = []
     terms.value = []
-    timeSlots.value = []
     return
   }
 
@@ -865,9 +426,6 @@ async function loadResources() {
     if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
       campusId.value = campusList[0]?.id || null
     }
-
-    // 时间段要在校区定下来之后再取，它按校区筛
-    await Promise.all([loadClassrooms(), loadTimeSlots()])
   } catch (error) {
     pageError.value = toMessage(error, '组织资源加载失败')
   } finally {
@@ -895,25 +453,6 @@ function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
   campusDialogVisible.value = true
 }
 
-function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
-  classroomDialogMode.value = mode
-  if (mode === 'edit' && row) {
-    editingClassroomId.value = row.id
-    classroomForm.campusId = row.campusId ?? campusId.value
-    classroomForm.classroomCode = row.classroomCode ?? ''
-    classroomForm.classroomName = row.classroomName ?? ''
-    classroomForm.roomType = row.roomType ?? ''
-    classroomForm.floorNo = row.floorNo ?? ''
-    classroomForm.seatCapacity = row.seatCapacity ?? 20
-    classroomForm.status = row.status ?? 'idle'
-  } else {
-    editingClassroomId.value = null
-    resetClassroomForm()
-  }
-  classroomFormError.value = ''
-  classroomDialogVisible.value = true
-}
-
 function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
   termDialogMode.value = mode
   if (mode === 'edit' && row) {
@@ -931,26 +470,6 @@ function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
   }
   termFormError.value = ''
   termDialogVisible.value = true
-}
-
-function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
-  timeSlotDialogMode.value = mode
-  if (mode === 'edit' && row) {
-    editingTimeSlotId.value = row.id
-    timeSlotForm.campusId = row.campusId ?? null
-    timeSlotForm.slotCode = row.slotCode ?? ''
-    timeSlotForm.slotName = row.slotName ?? ''
-    timeSlotForm.weekday = row.weekday ?? 1
-    timeSlotForm.startTime = row.startTime ?? '08:00:00'
-    timeSlotForm.endTime = row.endTime ?? '09:30:00'
-    timeSlotForm.durationMinutes = row.durationMinutes ?? 90
-    timeSlotForm.status = row.status ?? 'active'
-  } else {
-    editingTimeSlotId.value = null
-    resetTimeSlotForm()
-  }
-  timeSlotFormError.value = ''
-  timeSlotDialogVisible.value = true
 }
 
 async function submitCampus() {
@@ -1031,83 +550,6 @@ async function confirmDeleteCampus(row: CampusSummary) {
     await loadResources()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除校区失败'))
-  }
-}
-
-async function submitClassroom() {
-  if (!classroomForm.campusId) {
-    classroomFormError.value = '请选择归属校区'
-    return
-  }
-  if (
-    !trimToUndefined(classroomForm.classroomCode) ||
-    !trimToUndefined(classroomForm.classroomName)
-  ) {
-    classroomFormError.value = '请完整填写教室编码和名称'
-    return
-  }
-
-  classroomSubmitting.value = true
-  classroomFormError.value = ''
-  try {
-    if (classroomDialogMode.value === 'create') {
-      await createClassroom({
-        campusId: classroomForm.campusId,
-        classroomCode: classroomForm.classroomCode.trim(),
-        classroomName: classroomForm.classroomName.trim(),
-        roomType: trimToUndefined(classroomForm.roomType),
-        floorNo: trimToUndefined(classroomForm.floorNo),
-        seatCapacity: classroomForm.seatCapacity,
-        status: classroomForm.status,
-      })
-      ElMessage.success('教室已新增')
-    } else if (editingClassroomId.value) {
-      await updateClassroom(editingClassroomId.value, {
-        campusId: classroomForm.campusId,
-        classroomCode: classroomForm.classroomCode.trim(),
-        classroomName: classroomForm.classroomName.trim(),
-        roomType: trimToUndefined(classroomForm.roomType),
-        floorNo: trimToUndefined(classroomForm.floorNo),
-        seatCapacity: classroomForm.seatCapacity,
-        status: classroomForm.status,
-      })
-      ElMessage.success('教室已更新')
-    }
-    classroomDialogVisible.value = false
-    if (campusId.value !== classroomForm.campusId) {
-      campusId.value = classroomForm.campusId
-    }
-    await loadClassrooms()
-  } catch (error) {
-    classroomFormError.value = toMessage(
-      error,
-      classroomDialogMode.value === 'create' ? '新增教室失败' : '更新教室失败'
-    )
-  } finally {
-    classroomSubmitting.value = false
-  }
-}
-
-async function confirmDeleteClassroom(row: ClassroomSummary) {
-  try {
-    await ElMessageBox.confirm(
-      `确定删除教室「${row.classroomName || row.classroomCode || row.id}」吗？`,
-      '删除确认',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      }
-    )
-  } catch {
-    return
-  }
-  try {
-    await deleteClassroom(row.id)
-    ElMessage.success('教室已删除')
-    await loadClassrooms()
-  } catch (error) {
-    ElMessage.error(toMessage(error, '删除教室失败'))
   }
 }
 
@@ -1195,93 +637,6 @@ async function confirmDeleteTerm(row: TermSummary) {
   }
 }
 
-async function submitTimeSlot() {
-  if (!institutionId.value) {
-    timeSlotFormError.value = '请先选择机构范围'
-    return
-  }
-  if (!trimToUndefined(timeSlotForm.slotCode) || !trimToUndefined(timeSlotForm.slotName)) {
-    timeSlotFormError.value = '请完整填写时间段编码和名称'
-    return
-  }
-  if (!timeSlotForm.startTime || !timeSlotForm.endTime) {
-    timeSlotFormError.value = '请选择开始和结束时间'
-    return
-  }
-  if (timeSlotMinutes(timeSlotForm.endTime) <= timeSlotMinutes(timeSlotForm.startTime)) {
-    timeSlotFormError.value = '结束时间必须晚于开始时间'
-    return
-  }
-
-  timeSlotSubmitting.value = true
-  timeSlotFormError.value = ''
-  try {
-    if (timeSlotDialogMode.value === 'create') {
-      await createTimeSlot({
-        institutionId: institutionId.value,
-        campusId: timeSlotForm.campusId || null,
-        slotCode: timeSlotForm.slotCode.trim(),
-        slotName: timeSlotForm.slotName.trim(),
-        weekday: timeSlotForm.weekday,
-        startTime: timeSlotForm.startTime,
-        endTime: timeSlotForm.endTime,
-        durationMinutes: timeSlotForm.durationMinutes,
-        status: timeSlotForm.status,
-      })
-      ElMessage.success('时间段已新增')
-    } else if (editingTimeSlotId.value) {
-      await updateTimeSlot(editingTimeSlotId.value, {
-        campusId: timeSlotForm.campusId || null,
-        slotCode: timeSlotForm.slotCode.trim(),
-        slotName: timeSlotForm.slotName.trim(),
-        weekday: timeSlotForm.weekday,
-        startTime: timeSlotForm.startTime,
-        endTime: timeSlotForm.endTime,
-        durationMinutes: timeSlotForm.durationMinutes,
-        status: timeSlotForm.status,
-      })
-      ElMessage.success('时间段已更新')
-    }
-    timeSlotDialogVisible.value = false
-    // 存到别的校区（或改成机构通用）时跟着切过去，否则刚保存的那条会被当前校区筛选挡掉
-    const savedCampusId = timeSlotForm.campusId || null
-    if (campusId.value !== savedCampusId) {
-      campusId.value = savedCampusId
-    }
-    await loadTimeSlots()
-  } catch (error) {
-    timeSlotFormError.value = toMessage(
-      error,
-      timeSlotDialogMode.value === 'create' ? '新增时间段失败' : '更新时间段失败'
-    )
-  } finally {
-    timeSlotSubmitting.value = false
-  }
-}
-
-async function confirmDeleteTimeSlot(row: TimeSlotSummary) {
-  try {
-    await ElMessageBox.confirm(
-      `确定删除时间段「${row.slotName || row.slotCode || row.id}」吗？`,
-      '删除确认',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      }
-    )
-  } catch {
-    return
-  }
-  try {
-    await deleteTimeSlot(row.id)
-    ElMessage.success('时间段已删除')
-    await loadTimeSlots()
-  } catch (error) {
-    ElMessage.error(toMessage(error, '删除时间段失败'))
-  }
-}
-
 async function refreshAll() {
   await loadResources()
   // 注入的教务卡片自己拉数据，宿主刷新按钮统一广播
@@ -1311,7 +666,9 @@ watch(
 
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
-  void dictStore.ensureLoaded(['room_type', 'term_season', 'campus_type', 'slot_type']).catch(() => undefined)
+  void dictStore
+    .ensureLoaded(['campus_type', 'term_season'])
+    .catch(() => undefined)
   initializePage()
 })
 </script>

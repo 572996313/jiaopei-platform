@@ -9,33 +9,44 @@
       <div>
         <div class="panel-title">校区默认账号</div>
         <div class="education-context-text">
-          {{ campusId ? `当前校区：${campusLabel}` : '请先在上方筛选校区' }}
+          {{ campusId ? `当前校区：${campusLabel}` : '当前机构下暂无校区' }}
         </div>
       </div>
-      <div v-if="campusId && canManageUsers" class="resource-head-actions">
-        <el-select
-          v-model="pendingUserId"
-          placeholder="选择账号"
-          filterable
-          clearable
-          :loading="candidateLoading"
-          class="campus-pref-picker"
-        >
+      <div class="resource-head-actions">
+        <!-- 校区范围与教室/节次页共用同一个 store，这里切了那两页跟着切 -->
+        <el-select v-model="campusId" placeholder="选择校区" filterable class="campus-pref-picker">
           <el-option
-            v-for="item in candidateUsers"
+            v-for="item in campuses"
             :key="item.id"
-            :label="`${item.displayName || item.username}(${item.username})`"
+            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
             :value="item.id"
           />
         </el-select>
-        <el-button
-          type="primary"
-          :disabled="!pendingUserId"
-          :loading="saving"
-          @click="assignDefaultCampus"
-        >
-          设为本校区默认
-        </el-button>
+        <template v-if="campusId && canManageUsers">
+          <el-select
+            v-model="pendingUserId"
+            placeholder="选择账号"
+            filterable
+            clearable
+            :loading="candidateLoading"
+            class="campus-pref-picker"
+          >
+            <el-option
+              v-for="item in candidateUsers"
+              :key="item.id"
+              :label="`${item.displayName || item.username}(${item.username})`"
+              :value="item.id"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            :disabled="!pendingUserId"
+            :loading="saving"
+            @click="assignDefaultCampus"
+          >
+            设为本校区默认
+          </el-button>
+        </template>
       </div>
     </div>
 
@@ -71,6 +82,7 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { fetchSystemUserPage, type SystemUserSummary } from '@cornerstone/core/api/system'
@@ -82,14 +94,16 @@ import {
   type CampusAccountPreference,
   type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 
 const props = defineProps<{
-  campusId: string | null
   campuses: CampusSummary[]
 }>()
 
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
+/** 校区范围与教室、节次模板页共用同一份，卡片内自带选择器 */
+const { campusId } = storeToRefs(useEducationScopeStore())
 
 const canWrite = computed(() => auth.hasPermission('organization:write'))
 /** 候选账号来自底座用户分页接口，需要用户管理权限；无权限时只隐藏选择器，列表仍可查看 */
@@ -103,18 +117,21 @@ const candidateLoading = ref(false)
 const errorMessage = ref('')
 
 const campusLabel = computed(() => {
-  const matched = props.campuses.find((item) => item.id === props.campusId)
-  return matched?.campusName || matched?.campusCode || `校区 #${props.campusId}`
+  if (!campusId.value) {
+    return '未选择'
+  }
+  const matched = props.campuses.find((item) => item.id === campusId.value)
+  return matched?.campusName || matched?.campusCode || `校区 #${campusId.value}`
 })
 
 async function loadPreferences() {
-  if (!props.campusId) {
+  if (!campusId.value) {
     preferences.value = []
     return
   }
   errorMessage.value = ''
   try {
-    preferences.value = await fetchCampusAccountPreferences(props.campusId)
+    preferences.value = await fetchCampusAccountPreferences(campusId.value)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '默认账号加载失败'
   }
@@ -159,10 +176,10 @@ async function savePreference(userId: string, campusId: string | null, message: 
 }
 
 function assignDefaultCampus() {
-  if (!pendingUserId.value || !props.campusId) {
+  if (!pendingUserId.value || !campusId.value) {
     return
   }
-  void savePreference(pendingUserId.value, props.campusId, '默认校区已设置')
+  void savePreference(pendingUserId.value, campusId.value, '默认校区已设置')
 }
 
 function clearDefaultCampus(row: CampusAccountPreference) {
@@ -170,7 +187,7 @@ function clearDefaultCampus(row: CampusAccountPreference) {
 }
 
 watch(
-  () => props.campusId,
+  campusId,
   async () => {
     await loadPreferences()
     await loadCandidates()

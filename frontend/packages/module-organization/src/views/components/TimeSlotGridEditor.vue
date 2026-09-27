@@ -19,19 +19,17 @@
               class="ts-row-name-input"
               placeholder="节次名称"
             />
-            <span v-else>{{ row.slotName }}</span>
-            <div class="ts-row-meta">
-              <span class="ts-row-code">{{ row.slotCode }}</span>
-              <el-button
-                v-if="editable"
-                link
-                type="danger"
-                size="small"
-                @click="$emit('remove-row', row)"
-              >
-                删除
-              </el-button>
-            </div>
+            <span v-else class="ts-row-name">{{ row.slotName }}</span>
+            <span class="ts-row-code">{{ row.slotCode }}</span>
+            <el-button
+              v-if="editable"
+              link
+              type="danger"
+              size="small"
+              @click="$emit('remove-row', row)"
+            >
+              删除
+            </el-button>
           </th>
           <td
             v-for="day in weekdays"
@@ -175,13 +173,14 @@ function clearCell(row: SectionRow, day: number) {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .ts-grid th,
 .ts-grid td {
   border: 1px solid var(--el-border-color-lighter);
-  padding: 6px 8px;
+  /* 行高一压下来,十节次也能整屏看见;调到 6px 以上就会逼出滚轮 */
+  padding: 2px 6px;
   text-align: center;
 }
 
@@ -191,29 +190,36 @@ function clearCell(row: SectionRow, day: number) {
 }
 
 .ts-grid-corner {
-  width: 130px;
+  width: 168px;
 }
 
 .ts-grid-row-head {
   background: var(--el-fill-color-lighter);
   font-weight: 600;
-}
-
-.ts-row-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 2px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ts-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ts-row-code {
+  flex: none;
   font-size: 11px;
   color: var(--el-text-color-secondary);
   font-weight: 400;
 }
 
 .ts-row-name-input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ts-cell-button {
