@@ -37,41 +37,27 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
+        <ClassSelect
           v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
           placeholder="筛选班级"
-          clearable
-          filterable
           @change="loadRecords"
-        >
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select
+        />
+        <StudentSelect
           v-model="studentId"
-          placeholder="筛选学员"
-          clearable
-          filterable
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          placeholder="搜索学员（姓名/学号）"
           @change="handleStudentFilterChange"
-        >
-          <el-option
-            v-for="item in students"
-            :key="item.id"
-            :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
+        />
       </div>
     </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
         <div class="stat-label">班级数</div>
-        <div class="stat-value">{{ classes.length }}</div>
+        <div class="stat-value">{{ classTotal }}</div>
         <div class="stat-hint">{{ campusId ? '按当前校区筛选' : '当前机构全部校区' }}</div>
       </article>
       <article class="stat-card">
@@ -215,47 +201,55 @@
       </div>
 
       <TableFillBox v-slot="{ height }">
-        <!-- 本表按当前筛选范围一次取全量,不分页,所以排序走 Element Plus 本地比较,不发请求 -->
         <el-table
-          :data="visibleRecords"
+          ref="studentTableRef"
+          :data="records"
           border
           row-key="id"
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :cell-class-name="studentSort.cellClass"
+          @sort-change="studentSort.onSortChange"
         >
           <el-table-column label="班级" min-width="180" fixed="left">
             <template #default="{ row }">
-              {{ formatClass(row.classId) }}
+              {{ classLabel(row) }}
             </template>
           </el-table-column>
           <el-table-column label="课程 / 班型" min-width="220">
             <template #default="{ row }">
               <div class="class-inline-meta">
-                <span>{{ formatCourse(classOf(row.classId)?.courseId) }}</span>
-                <span>{{ formatClassType(classOf(row.classId)?.classTypeId) }}</span>
+                <span>{{ formatCourse(row.courseId) }}</span>
+                <span>{{ formatClassType(row.classTypeId) }}</span>
               </div>
             </template>
           </el-table-column>
           <el-table-column label="学员" min-width="180">
             <template #default="{ row }">
-              {{ formatStudent(row.studentId) }}
+              {{ studentLabel(row) }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120" prop="status" sortable>
+          <el-table-column label="状态" width="120" prop="status" sortable="custom">
             <template #default="{ row }">
               <el-tag :type="classStudentTagType(row.status)">
                 {{ classStudentStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="joinedAt" label="入班日期" width="140" sortable />
-          <el-table-column prop="leftAt" label="离班日期" width="140" sortable />
-          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip sortable />
+          <el-table-column prop="joinedAt" label="入班日期" width="140" sortable="custom" />
+          <el-table-column prop="leftAt" label="离班日期" width="140" sortable="custom" />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="220"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
-                <el-button link type="primary" @click="openParentPanel(row.studentId)"
+                <el-button link type="primary" @click="openParentPanel(row)"
                   >联系人</el-button
                 >
                 <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
@@ -265,9 +259,20 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!tableLoading && visibleRecords.length === 0" class="education-empty">
+      <div v-if="!tableLoading && records.length === 0" class="education-empty">
         当前筛选范围下暂无班级学员关系。
       </div>
+
+      <el-pagination
+        v-model:current-page="studentPage"
+        v-model:page-size="studentPageSize"
+        class="panel-pagination"
+        :total="studentTotal"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="loadStudentPage"
+        @size-change="handleStudentPageSizeChange"
+      />
     </article>
 
     <div class="dashboard-grid class-relation-grid">
@@ -440,33 +445,14 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="入班班级" required>
-          <el-select v-model="form.classId" placeholder="选择班级" filterable>
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <ClassSelect v-model="form.classId" :institution-id="institutionId" :campus-id="campusId" />
         </el-form-item>
         <el-form-item label="学员" required>
-          <el-select
+          <StudentSelect
             v-model="form.studentId"
-            placeholder="输入姓名或学号搜索学员"
-            filterable
-            remote
-            :remote-method="searchStudents"
-            :loading="studentSearchLoading"
-            @focus="onStudentSelectFocus"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in studentSearchResults"
-              :key="item.id"
-              :label="`${item.studentName || ''}（${item.studentNo || ''}）`"
-              :value="item.id"
-            />
-          </el-select>
+            :institution-id="institutionId"
+            :campus-id="campusId"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">
@@ -522,14 +508,7 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="所属班级" required>
-          <el-select v-model="teacherForm.classId" placeholder="选择班级" filterable>
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <ClassSelect v-model="teacherForm.classId" :institution-id="institutionId" :campus-id="campusId" />
         </el-form-item>
         <el-form-item label="教师">
           <el-select v-model="teacherForm.teacherId" placeholder="选择教师" filterable>
@@ -840,14 +819,11 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="所属学员" required>
-          <el-select v-model="parentForm.studentId" placeholder="选择学员" filterable>
-            <el-option
-              v-for="item in students"
-              :key="item.id"
-              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <StudentSelect
+            v-model="parentForm.studentId"
+            :institution-id="institutionId"
+            :campus-id="campusId"
+          />
         </el-form-item>
         <el-form-item label="联系人姓名">
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
@@ -902,7 +878,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createClassStudent,
   deleteClassStudent,
@@ -913,12 +889,14 @@ import {
   deleteClassTeacher,
   deleteStudentParent,
   deleteTeachingClass,
-  fetchClassStudents,
+  fetchClassCount,
+  fetchClassStudentPage,
+  fetchClassStudentActiveCount,
   fetchClassTeachers,
   fetchClassTypes,
   fetchCourses,
   fetchStudentParents,
-  fetchStudents,
+  fetchTeachingClass,
   fetchTeachers,
   type ClassChangeNoticeRecord,
   type TeachingClassSummary,
@@ -926,14 +904,13 @@ import {
   updateClassTeacher,
   updateTeachingClass,
   updateStudentParent,
-  type ClassStudentRecord,
+  type ClassStudentViewRecord,
   type ClassTeacherCreatePayload,
   type ClassTeacherRecord,
   type ClassTypeRecord,
   type CourseRecord,
   type StudentParentCreatePayload,
   type StudentParentRecord,
-  type StudentSummary,
   type TeacherSummary,
   type TeachingClassCreatePayload,
 } from '@cornerstone/module-education/api/education'
@@ -942,7 +919,12 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import LessonTargetFields from './components/LessonTargetFields.vue'
+import ClassSelect from './components/ClassSelect.vue'
+import StudentSelect from './components/StudentSelect.vue'
+import { rememberStudentOptions, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
+import { classLabelOf, rememberClassOptions } from '@cornerstone/module-education/composables/classLabels'
 
 interface ReminderItem {
   key: string
@@ -962,7 +944,7 @@ const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
 const { campusId } = storeToRefs(scopeStore)
-const { institutionId, campuses, classes, students, terms, loadScope } = useEducationScope()
+const { institutionId, campuses, terms, loadScope } = useEducationScope()
 const teachers = ref<TeacherSummary[]>([])
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
@@ -973,7 +955,23 @@ const activeParentStudentId = ref<string | null>(null)
 
 const statsVisible = ref(false)
 
-const records = ref<ClassStudentRecord[]>([])
+const records = ref<ClassStudentViewRecord[]>([])
+// 班级学员关系服务端分页:表只装当前页，在班人数另走 active-count 统计
+const studentPage = ref(1)
+const studentPageSize = ref(20)
+const studentTotal = ref(0)
+const activeClassStudentCount = ref(0)
+/** 统计卡的"班级数"走服务端计数：本机已没有全量班级数组 */
+const classTotal = ref(0)
+const studentTableRef = ref<{ clearSort: () => void } | null>(null)
+/** 表头排序交给服务端:点表头回到第一页重查，取消排序则回到接口默认排序 */
+const studentSort = useTableSort({
+  onSorted: () => {
+    studentPage.value = 1
+    void loadStudentPage()
+  },
+  clearTableSort: () => studentTableRef.value?.clearSort(),
+})
 const classTeachers = ref<ClassTeacherRecord[]>([])
 const studentParents = ref<StudentParentRecord[]>([])
 const classChangeNotices = ref<ClassChangeNoticeRecord[]>([])
@@ -1005,16 +1003,12 @@ const classCreateFormError = ref('')
 
 const form = reactive({
   classId: '' as string | null,
-  studentId: '' as string,
+  studentId: '' as string | null,
   status: 'active',
   joinedAt: todayValue(),
   leftAt: '',
   remark: '',
 })
-
-const studentSearchResults = ref<StudentSummary[]>([])
-const studentSearchLoading = ref(false)
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const teacherForm = reactive({
   classId: '' as string | null,
@@ -1072,21 +1066,6 @@ const parentForm = reactive({
   remark: '',
 })
 
-const classMap = computed(() => {
-  return new Map(
-    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
-  )
-})
-
-const studentMap = computed(() => {
-  return new Map(
-    students.value.map((item) => [
-      item.id,
-      item.studentName || item.studentNo || `学员 #${item.id}`,
-    ])
-  )
-})
-
 const teacherMap = computed(() => {
   return new Map(
     teachers.value.map((item) => [
@@ -1108,24 +1087,11 @@ const classTypeMap = computed(() => {
   )
 })
 
-const currentClass = computed(() => {
-  return classes.value.find((item) => item.id === classId.value) || null
-})
+/** 班级主档只展示选中的那一个班，档案按需单条取，不再把全机构班级拉回本机当字典 */
+const currentClass = ref<TeachingClassSummary | null>(null)
 
 const contactStudentId = computed(() => {
   return activeParentStudentId.value || studentId.value || null
-})
-
-const activeClassStudentCount = computed(() => {
-  return records.value.filter((item) => item.status === 'active' || !item.status).length
-})
-
-// 学员筛选改为前端过滤，保证 records 始终是当前班级的完整名单，在班人数统计不受筛选影响
-const visibleRecords = computed(() => {
-  if (!studentId.value) {
-    return records.value
-  }
-  return records.value.filter((item) => item.studentId === studentId.value)
 })
 
 const primaryTeacher = computed(() => {
@@ -1248,22 +1214,21 @@ function classChangeNoticeTitle(noticeType?: string | null) {
   }
 }
 
-function classOf(id?: string | null) {
-  return classes.value.find((item) => item.id === id) || null
+/** 分页行自带班级与学员名称，不再依赖全量班级/学员列表回显 */
+function classLabel(row: ClassStudentViewRecord) {
+  return row.className || row.classCode || formatClass(row.classId)
+}
+
+function studentLabel(row: ClassStudentViewRecord) {
+  return row.studentName || row.studentNo || formatStudent(row.studentId)
 }
 
 function formatClass(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return classMap.value.get(id) || `班级 #${id}`
+  return classLabelOf(id)
 }
 
 function formatStudent(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return studentMap.value.get(id) || `学员 #${id}`
+  return studentLabelOf(id)
 }
 
 function formatTeacher(id?: string | null) {
@@ -1381,37 +1346,6 @@ function resetForm() {
   form.leftAt = ''
   form.remark = ''
   formError.value = ''
-  studentSearchResults.value = students.value
-}
-
-async function searchStudents(query: string) {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-  }
-  const trimmed = query.trim()
-  if (!trimmed || !institutionId.value) {
-    studentSearchResults.value = students.value
-    return
-  }
-  searchDebounceTimer = setTimeout(async () => {
-    studentSearchLoading.value = true
-    try {
-      studentSearchResults.value = await fetchStudents({
-        institutionId: institutionId.value,
-        keyword: trimmed,
-      })
-    } catch {
-      studentSearchResults.value = []
-    } finally {
-      studentSearchLoading.value = false
-    }
-  }, 300)
-}
-
-function onStudentSelectFocus() {
-  if (studentSearchResults.value.length === 0) {
-    studentSearchResults.value = students.value
-  }
 }
 
 function resetTeacherForm() {
@@ -1622,8 +1556,7 @@ function buildParentPayload(): StudentParentCreatePayload {
 async function refreshScopeData() {
   if (!institutionId.value) {
     campuses.value = []
-    classes.value = []
-    students.value = []
+    classTotal.value = 0
     teachers.value = []
     courses.value = []
     classTypes.value = []
@@ -1633,28 +1566,17 @@ async function refreshScopeData() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(campusId.value, null)
-    const [teacherList, courseList, classTypeList] = await Promise.all([
+    await loadScope()
+    const [teacherList, courseList, classTypeList, count] = await Promise.all([
       fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
       fetchCourses({ institutionId: institutionId.value }),
       fetchClassTypes({ institutionId: institutionId.value }),
+      fetchClassCount({ institutionId: institutionId.value, campusId: campusId.value }),
     ])
     teachers.value = teacherList
     courses.value = courseList
     classTypes.value = classTypeList
-
-    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
-      classId.value = null
-    }
-    if (studentId.value && !students.value.some((item) => item.id === studentId.value)) {
-      studentId.value = null
-    }
-    if (
-      activeParentStudentId.value &&
-      !students.value.some((item) => item.id === activeParentStudentId.value)
-    ) {
-      activeParentStudentId.value = null
-    }
+    classTotal.value = count
   } catch (error) {
     pageError.value = toMessage(error, '范围数据加载失败')
   } finally {
@@ -1705,34 +1627,103 @@ async function loadClassChangeNoticeRecords() {
   }
 }
 
-async function loadRecords() {
+/** 只拉当前页的班级学员关系，翻页与排序走这里，不回第一页 */
+async function loadStudentPage() {
   if (!institutionId.value) {
     records.value = []
+    studentTotal.value = 0
+    return
+  }
+  tableLoading.value = true
+  pageError.value = ''
+  try {
+    const result = await fetchClassStudentPage({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      classId: classId.value,
+      studentId: studentId.value,
+      page: studentPage.value,
+      pageSize: studentPageSize.value,
+      ...studentSort.sortParams(),
+    })
+    records.value = result.records
+    studentTotal.value = result.total
+  } catch (error) {
+    records.value = []
+    studentTotal.value = 0
+    pageError.value = toMessage(error, '班级学员关系加载失败')
+  } finally {
+    tableLoading.value = false
+  }
+}
+
+/** 在班人数按整班统计：分页表只有当前页，不能拿它算人数 */
+async function loadActiveClassStudentCount() {
+  if (!institutionId.value || !classId.value) {
+    activeClassStudentCount.value = 0
+    return
+  }
+  try {
+    activeClassStudentCount.value = await fetchClassStudentActiveCount(
+      institutionId.value,
+      classId.value
+    )
+  } catch (error) {
+    activeClassStudentCount.value = 0
+    pageError.value = toMessage(error, '班级在班人数加载失败')
+  }
+}
+
+/** 班级教师只在选中班级时加载 */
+async function loadClassTeachers() {
+  if (!classId.value) {
+    classTeachers.value = []
+    return
+  }
+  classTeachers.value = await fetchClassTeachers({ classId: classId.value })
+}
+
+/** 筛选条件或机构范围变化：回到第一页，把学员页与随班级加载的数据一起重拉 */
+/** 选中的那个班按需取整条档案：主档卡、风险项和编辑弹窗预填都读它 */
+async function loadCurrentClass() {
+  if (!institutionId.value || !classId.value) {
+    currentClass.value = null
+    return
+  }
+  try {
+    const detail = await fetchTeachingClass(institutionId.value, classId.value)
+    currentClass.value = detail
+    rememberClassOptions([detail])
+  } catch (error) {
+    currentClass.value = null
+    pageError.value = toMessage(error, '班级主档加载失败')
+  }
+}
+
+async function loadRecords() {
+  studentPage.value = 1
+  if (!institutionId.value) {
+    records.value = []
+    studentTotal.value = 0
+    activeClassStudentCount.value = 0
+    currentClass.value = null
     classTeachers.value = []
     studentParents.value = []
     classChangeNotices.value = []
     noticeError.value = ''
     return
   }
-
   tableLoading.value = true
   pageError.value = ''
   try {
-    const [studentRecords, teacherRecords] = await Promise.all([
-      fetchClassStudents({
-        classId: classId.value,
-      }),
-      classId.value
-        ? fetchClassTeachers({
-            classId: classId.value,
-          })
-        : Promise.resolve([]),
+    await Promise.all([
+      loadStudentPage(),
+      loadClassTeachers(),
+      loadActiveClassStudentCount(),
+      loadCurrentClass(),
     ])
-    records.value = studentRecords
-    classTeachers.value = teacherRecords
     await Promise.all([loadParentRecords(contactStudentId.value), loadClassChangeNoticeRecords()])
   } catch (error) {
-    records.value = []
     classTeachers.value = []
     studentParents.value = []
     classChangeNotices.value = []
@@ -1740,6 +1731,11 @@ async function loadRecords() {
   } finally {
     tableLoading.value = false
   }
+}
+
+function handleStudentPageSizeChange() {
+  studentPage.value = 1
+  void loadStudentPage()
 }
 
 async function handleCampusChange() {
@@ -1788,8 +1784,14 @@ function openClassProfileDialog() {
   classProfileDialogVisible.value = true
 }
 
-async function openParentPanel(targetStudentId?: string | null) {
-  activeParentStudentId.value = targetStudentId || studentId.value || null
+/** 从分页行进入联系人面板：行上自带学员名称，先记进缓存供标题回显 */
+async function openParentPanel(row?: ClassStudentViewRecord | null) {
+  if (row?.studentId) {
+    rememberStudentOptions([
+      { id: row.studentId, studentNo: row.studentNo, studentName: row.studentName },
+    ])
+  }
+  activeParentStudentId.value = row?.studentId || studentId.value || null
   await loadParentRecords(activeParentStudentId.value)
 }
 
@@ -1853,10 +1855,10 @@ async function submitClassStudent() {
   }
 }
 
-async function removeClassStudent(row: ClassStudentRecord) {
+async function removeClassStudent(row: ClassStudentViewRecord) {
   try {
     await ElMessageBox.confirm(
-      `确认将 ${formatStudent(row.studentId)} 移出班级 ${formatClass(row.classId)} 吗？`,
+      `确认将 ${studentLabel(row)} 移出班级 ${classLabel(row)} 吗？`,
       '移出班级',
       { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' }
     )
@@ -2122,13 +2124,6 @@ onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
   void dictStore.ensureLoaded(['teacher_role', 'parent_relation']).catch(() => undefined)
   initializePage()
-})
-
-onUnmounted(() => {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = null
-  }
 })
 </script>
 

@@ -25,20 +25,14 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item :label="targetObjectLabel" required>
-          <el-select
+          <ClassSelect
             v-if="formTargetType === 'class'"
             v-model="formTargetId"
+            :institution-id="institutionId"
+            :campus-id="scopeCampusId"
             placeholder="选择要约束的班级"
-            filterable
             @change="handleTargetChange"
-          >
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          />
           <el-select
             v-else-if="formTargetType === 'teacher'"
             v-model="formTargetId"
@@ -117,7 +111,7 @@
 <script setup lang="ts">
 // 排课规则编辑器：先定"约束谁、禁排还是必排"，再在节次×星期网格上勾格子。
 // 禁排格子与教室/教师占用同层判定，排课时直接拦下；必排只在计划预览里提示覆盖缺口。
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   createScheduleRule,
@@ -126,17 +120,17 @@ import {
   type ScheduleRulePayload,
   type ScheduleRuleRecord,
   type TeacherSummary,
-  type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import type { ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import ClassSelect from './ClassSelect.vue'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
+import { ensureClassKnown } from '@cornerstone/module-education/composables/classLabels'
 import { toMessage } from './schedule-utils'
 
 const props = defineProps<{
   modelValue: boolean
   institutionId: string | null
   editRule: ScheduleRuleRecord | null
-  classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
   classrooms: ClassroomSummary[]
   timeSlots: TimeSlotSummary[]
@@ -194,9 +188,24 @@ const targetObjectLabel = computed(() => {
   return formTargetType.value === 'teacher' ? '教师' : '教室'
 })
 
+/** 规则对象是班级时，它所属校区要按 id 取（下拉已改成按需搜索，本机没有全量班级） */
+const classCampusId = ref<string | null>(null)
+
+watch(
+  () => (formTargetType.value === 'class' ? formTargetId.value : ''),
+  async (id) => {
+    classCampusId.value = null
+    const known = await ensureClassKnown(props.institutionId, id || null)
+    if (formTargetId.value === id) {
+      classCampusId.value = known?.campusId || null
+    }
+  },
+  { immediate: true }
+)
+
 const targetCampusId = computed(() => {
   if (formTargetType.value === 'class') {
-    return props.classes.find((item) => item.id === formTargetId.value)?.campusId || null
+    return classCampusId.value
   }
   if (formTargetType.value === 'teacher') {
     return props.teachers.find((item) => item.id === formTargetId.value)?.campusId || null

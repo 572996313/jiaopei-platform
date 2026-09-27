@@ -50,34 +50,21 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
+        <ClassSelect
           v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          :term-id="termId"
           placeholder="筛选班级"
-          clearable
-          filterable
           @change="loadRecords"
-        >
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select
+        />
+        <StudentSelect
           v-model="studentId"
-          placeholder="筛选学员"
-          clearable
-          filterable
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          placeholder="搜索学员（姓名/学号）"
           @change="loadRecords"
-        >
-          <el-option
-            v-for="item in students"
-            :key="item.id"
-            :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
+        />
       </div>
     </div>
 
@@ -89,7 +76,7 @@
       </article>
       <article class="stat-card">
         <div class="stat-label">班级数</div>
-        <div class="stat-value">{{ classes.length }}</div>
+        <div class="stat-value">{{ classTotal }}</div>
         <div class="stat-hint">{{ termId ? '按当前学期筛选' : '按校区范围筛选' }}</div>
       </article>
       <article class="stat-card">
@@ -235,12 +222,12 @@
           />
           <el-table-column label="学员" min-width="180">
             <template #default="{ row }">
-              {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
+              {{ row.studentName || row.studentNo || studentLabelOf(row.studentId) }}
             </template>
           </el-table-column>
           <el-table-column label="班级" min-width="180">
             <template #default="{ row }">
-              {{ row.className || formatClass(row.classId) }}
+              {{ row.className || classLabelOf(row.classId) }}
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="120" sortable="custom">
@@ -303,7 +290,7 @@
         >
           <el-table-column label="学员" min-width="180" fixed="left">
             <template #default="{ row }">
-              {{ row.studentName || row.studentNo || formatStudent(row.studentId) }}
+              {{ row.studentName || row.studentNo || studentLabelOf(row.studentId) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -458,24 +445,22 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="报名班级" required>
-          <el-select v-model="form.classId" placeholder="选择报名班级" filterable>
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <ClassSelect
+            v-model="form.classId"
+            :institution-id="institutionId"
+            :campus-id="campusId"
+            placeholder="选择报名班级"
+            :clearable="false"
+          />
         </el-form-item>
         <el-form-item label="报名学员" required>
-          <el-select v-model="form.studentId" placeholder="选择报名学员" filterable>
-            <el-option
-              v-for="item in students"
-              :key="item.id"
-              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <StudentSelect
+            v-model="form.studentId"
+            :institution-id="institutionId"
+            :campus-id="campusId"
+            placeholder="搜索学员（姓名/学号）"
+            :clearable="false"
+          />
         </el-form-item>
         <el-form-item label="报名编号">
           <el-input v-model="form.enrollmentNo" placeholder="例如 ENR-20260608-001" />
@@ -528,14 +513,13 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="所属学员" required>
-          <el-select v-model="parentForm.studentId" placeholder="选择学员" filterable>
-            <el-option
-              v-for="item in students"
-              :key="item.id"
-              :label="item.studentName || item.studentNo || `学员 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <StudentSelect
+            v-model="parentForm.studentId"
+            :institution-id="institutionId"
+            :campus-id="campusId"
+            placeholder="搜索学员（姓名/学号）"
+            :clearable="false"
+          />
         </el-form-item>
         <el-form-item label="联系人姓名">
           <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
@@ -591,12 +575,13 @@ import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import {
   createEnrollment,
   createStudent,
   createStudentParent,
   deleteStudent,
+  fetchClassCount,
   fetchEnrollmentPage,
   fetchStudentPage,
   fetchStudentParentPage,
@@ -606,19 +591,25 @@ import {
   type StudentSummary,
 } from '@cornerstone/module-education/api/education'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import { studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
+import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import StudentSelect from './components/StudentSelect.vue'
+import ClassSelect from './components/ClassSelect.vue'
 
 const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { institutionId, campuses, terms, classes, students, loadScope } = useEducationScope()
+const { institutionId, campuses, terms, loadScope } = useEducationScope()
 
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
+/** 统计卡的班级数走服务端:班级下拉已改按需搜索,本机不再持有全量数组 */
+const classTotal = ref(0)
 
 const statsVisible = ref(false)
 
@@ -712,21 +703,6 @@ const parentForm = reactive({
   remark: '',
 })
 
-const classMap = computed(() => {
-  return new Map(
-    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
-  )
-})
-
-const studentMap = computed(() => {
-  return new Map(
-    students.value.map((item) => [
-      item.id,
-      item.studentName || item.studentNo || `学员 #${item.id}`,
-    ])
-  )
-})
-
 function todayValue() {
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60000
@@ -740,20 +716,6 @@ function trimToUndefined(value: string) {
 
 function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
-}
-
-function formatClass(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return classMap.value.get(id) || `班级 #${id}`
-}
-
-function formatStudent(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return studentMap.value.get(id) || `学员 #${id}`
 }
 
 function genderLabel(gender?: string | null) {
@@ -978,20 +940,23 @@ async function refreshScopeData() {
   if (!institutionId.value) {
     campuses.value = []
     terms.value = []
-    classes.value = []
-    students.value = []
+    classTotal.value = 0
     return
   }
 
   lookupLoading.value = true
   try {
-    await loadScope(campusId.value, termId.value)
-    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
-      classId.value = null
-    }
-    if (studentId.value && !students.value.some((item) => item.id === studentId.value)) {
-      studentId.value = null
-    }
+    const [, count] = await Promise.all([
+      loadScope(),
+      fetchClassCount({
+        institutionId: institutionId.value,
+        campusId: campusId.value,
+        termId: termId.value,
+      }),
+    ])
+    classTotal.value = count
+    // 学员下拉改成按需搜索后，这里没有全量列表可做「选中项还在不在」的比对，
+    // 清筛选由校区切换与机构切换那两处负责
   } catch (error) {
     pageError.value = toMessage(error, '范围数据加载失败')
   } finally {
@@ -1238,10 +1203,7 @@ async function initializePage() {
   pageError.value = ''
   try {
     await institutionStore.loadInstitutions()
-    if (institutionId.value) {
-      await loadScope(campusId.value, termId.value)
-    }
-    await Promise.all([loadStudents(), loadRecords()])
+    await refreshAll()
   } catch (error) {
     pageError.value = toMessage(error, '页面初始化失败')
   } finally {

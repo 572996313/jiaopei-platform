@@ -76,7 +76,7 @@
               v-for="item in institutions"
               :key="item.id"
               :label="item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`"
-              :value="item.id"
+              :value="String(item.id)"
             />
           </el-select>
         </el-form-item>
@@ -112,19 +112,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="班级">
-          <el-select
+          <ClassSelect
             v-model="form.classId"
-            placeholder="选择班级"
-            filterable
+            :institution-id="form.institutionId"
+            :campus-id="form.campusId"
             :disabled="lockScopeFields"
-          >
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="教室">
           <el-select
@@ -256,7 +249,6 @@ import {
   type ScheduleLessonPayload,
   type ScheduleLessonRecord,
   type TeacherSummary,
-  type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import {
   fetchClassrooms,
@@ -266,6 +258,7 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import type { InstitutionSummary } from '@cornerstone/core/api/tenant'
+import ClassSelect from './ClassSelect.vue'
 import {
   compactTimeRange,
   conflictTypeLabel,
@@ -304,7 +297,6 @@ const props = defineProps<{
   institutions: InstitutionSummary[]
   campuses: CampusSummary[]
   terms: TermSummary[]
-  classes: TeachingClassSummary[]
   timeSlots: TimeSlotSummary[]
   /** makeup 模式可选择的停课原课（id + 展示文案，排除自身） */
   cancelledOptions?: Array<{ id: string; label: string }>

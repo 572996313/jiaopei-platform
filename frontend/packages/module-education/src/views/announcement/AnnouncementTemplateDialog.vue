@@ -115,14 +115,11 @@
           </el-select>
         </el-form-item>
         <el-form-item label="限定班级（留空=按校区全发家长）">
-          <el-select v-model="form.classIds" multiple filterable clearable placeholder="不限班级">
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <ClassMultiSelect
+            v-model="form.classIds"
+            :institution-id="institutionStore.currentInstitutionId"
+            placeholder="不限班级"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="模板使用说明，不会带进公告正文" />
@@ -153,7 +150,7 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { fetchCampuses, type CampusSummary } from '@cornerstone/module-organization/api/organization'
-import { fetchTeachingClasses, type TeachingClassSummary } from '@cornerstone/module-education/api/education'
+import ClassMultiSelect from '../components/ClassMultiSelect.vue'
 import {
   AUDIENCE_OPTIONS,
   createAnnouncementTemplate,
@@ -181,7 +178,6 @@ const templates = ref<AnnouncementTemplate[]>([])
 const editingId = ref<string | null>(null)
 const formError = ref('')
 const campuses = ref<CampusSummary[]>([])
-const classes = ref<TeachingClassSummary[]>([])
 
 const form = reactive<AnnouncementTemplatePayload>({
   name: '',
@@ -243,20 +239,13 @@ async function loadLookups() {
   const institutionId = institutionStore.currentInstitutionId
   if (!institutionId) {
     campuses.value = []
-    classes.value = []
     return
   }
   try {
-    const [campusList, classList] = await Promise.all([
-      fetchCampuses(institutionId),
-      fetchTeachingClasses({ institutionId }),
-    ])
-    campuses.value = campusList
-    classes.value = classList
+    campuses.value = await fetchCampuses(institutionId)
   } catch {
     // 范围下拉拉不到只影响新建/编辑，模板列表照样能看，所以这里不弹错
     campuses.value = []
-    classes.value = []
   }
 }
 

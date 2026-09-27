@@ -8,6 +8,7 @@ import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.CourseEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.dto.ClassOptionView;
 import com.cornerstone.module.education.dto.TeachingClassCreateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ClassTypeMapper;
@@ -31,6 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TeachingClassServiceImpl implements TeachingClassService {
+
+    /** 下拉一次最多给多少个班：够看够选就行，再多就是白画 DOM */
+    private static final int CLASS_OPTION_LIMIT = 30;
+
+    /** 按 id 批量回查名称时的上限：一屏课次/计划涉及的班级数量级，超出的按未找到处理 */
+    private static final int CLASS_LABEL_LIMIT = 200;
 
     private final TeachingClassMapper teachingClassMapper;
     private final InstitutionMapper institutionMapper;
@@ -67,6 +74,56 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             .orderByAsc(TeachingClassEntity::getInstitutionId)
             .orderByAsc(TeachingClassEntity::getCampusId)
             .orderByAsc(TeachingClassEntity::getClassCode);
+        applyScope(wrapper, institutionId, campusId, termId);
+        return teachingClassMapper.selectList(wrapper);
+    }
+
+    @Override
+    public List<ClassOptionView> listClassOptions(Long institutionId, Long campusId, Long termId, String keyword,
+                                                  List<Long> ids) {
+        LambdaQueryWrapper<TeachingClassEntity> wrapper = new LambdaQueryWrapper<TeachingClassEntity>()
+            .select(TeachingClassEntity::getId, TeachingClassEntity::getClassCode, TeachingClassEntity::getClassName,
+                TeachingClassEntity::getCampusId, TeachingClassEntity::getTermId);
+        applyScope(wrapper, institutionId, campusId, termId);
+        List<Long> distinctIds = ids == null ? List.of()
+            : ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        String trimmedKeyword = normalize(keyword);
+        if (!distinctIds.isEmpty()) {
+            // 按 id 回查用于给表格行补名称，关键字让位，否则传了 ids 也查不到
+            wrapper.in(TeachingClassEntity::getId, distinctIds);
+        } else if (trimmedKeyword != null && !trimmedKeyword.isEmpty()) {
+            wrapper.and(w -> w
+                .like(TeachingClassEntity::getClassName, trimmedKeyword)
+                .or()
+                .like(TeachingClassEntity::getClassCode, trimmedKeyword));
+        }
+        wrapper.orderByAsc(TeachingClassEntity::getCampusId).orderByAsc(TeachingClassEntity::getClassCode);
+        wrapper.last("LIMIT " + (distinctIds.isEmpty() ? CLASS_OPTION_LIMIT : CLASS_LABEL_LIMIT));
+        return teachingClassMapper.selectList(wrapper).stream()
+            .map(item -> new ClassOptionView(item.getId(), item.getClassCode(), item.getClassName(),
+                item.getCampusId(), item.getTermId()))
+            .toList();
+    }
+
+    @Override
+    public long countClasses(Long institutionId, Long campusId, Long termId) {
+        LambdaQueryWrapper<TeachingClassEntity> wrapper = new LambdaQueryWrapper<>();
+        applyScope(wrapper, institutionId, campusId, termId);
+        Long count = teachingClassMapper.selectCount(wrapper);
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public TeachingClassEntity getClassDetail(Long id, Long institutionId) {
+        TeachingClassEntity teachingClass = requireClass(id);
+        if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
+        }
+        return teachingClass;
+    }
+
+    /** 班级查询的统一筛选口径：三个范围参数都是"传了才过滤"。 */
+    private void applyScope(LambdaQueryWrapper<TeachingClassEntity> wrapper, Long institutionId, Long campusId, Long termId) {
         if (institutionId != null) {
             wrapper.eq(TeachingClassEntity::getInstitutionId, institutionId);
         }
@@ -76,7 +133,6 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         if (termId != null) {
             wrapper.eq(TeachingClassEntity::getTermId, termId);
         }
-        return teachingClassMapper.selectList(wrapper);
     }
 
     @Override

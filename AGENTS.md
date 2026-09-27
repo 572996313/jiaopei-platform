@@ -274,6 +274,7 @@ pnpm dev:h5            # H5 调试
 - **结论：不需要维护字段白名单**（旧 `LARGE_ID_FIELDS` 白名单机制已废弃，文档旧描述作废）。新增雪花 ID 字段按 `xxxId`/`xxxIds`/`xxBy` 命名即被自动覆盖。
 - **剩余边界**：若出现**不按 Id/By 命名**的 16+ 位 Long 响应字段（或嵌套在自由 JSON 字符串里的 id），会被静默截断精度。更彻底的替代方案是后端 Jackson 全局 `Long → ToStringSerializer`（响应统一输出字符串），但那会改变所有接口响应形态、前端两端要一起回归，仅在边界字段真的出现时再评估。
 - 已排查现状：全仓库非 id 语义的 `Long` 字段均为计数/分页/时长（`count`/`total`/`page`/`durationMs` 等小数值），当前机制全覆盖，无未适配字段。
+- **小号 id 不会被转字符串，所以前端接收 id 的 prop 类型是 `string | number`**：种子数据里机构/校区的 id 是个位数（`1`），不满足"16 位以上"这条判定，运行期就是 `Number`；同一字段换到生产（雪花）又变回 `String`。因此组件 prop 要声明联合类型（`module-education` 的 `ClassScopeValue = string | number | null | undefined`）、拼请求参数时 `String(...)`；`el-select` 的 `:value` 也要写成 `String(item.id)`，否则 `v-model` 拿数字 `1` 去比字符串 `"1"` 匹配不上，下拉显示成裸数字。
 - 自查方式：改相关字段后看真实响应——字段值应为字符串形式，且前端显示 id 与数据库一致。
 
 ## Service 接口签名变更规范
@@ -369,6 +370,9 @@ pnpm dev:h5            # H5 调试
 - 路由 `router/index.ts`：`/login`、`/change-password` 公开；其余挂在 `AppLayout` 下；系统管理多 tab 复用 `SystemManagementView.vue`，靠 `meta.systemTab` 区分。
 - 路径别名 `@` → `frontend/src`（vite + tsconfig 均配置）。
 - 页面写操作按钮要按权限码显隐（与后端 `@RequiresPermission` 同一套码）；列表页优先使用 `ConfigurableCrudPage`/`ConfigurableList`（自带请求序列号守卫，切机构不竞态）。
+- **下拉框不许拉全量数组**：档案类下拉（学员/教师/班级…）条数随业务涨到几千，`el-select` 即便折叠也会把每个 `el-option` 渲染进 DOM，整页会卡数秒（实测 3583 个学员选项让 `/students` 停 10 秒）。正确形态是**服务端按需搜索**：后端加 `GET /xxx/options`，只回"下拉与回显需要的字段"（学员的是 `id/studentNo/studentName`，**不要把监护人电话一类敏感字段带进下拉载荷**）、`keyword` 模糊匹配、`.last("LIMIT 30")` 封顶（参照 `ScheduleAutoBatchServiceImpl.BATCH_LIST_LIMIT`、`/api/system/dicts/options` 的写法）；前端把 `filterable remote` 收进一个组件（`module-education` 的 `views/components/StudentSelect.vue`、`ClassSelect.vue` / `ClassMultiSelect.vue`），打开时先给一屏、输入时 300ms 防抖。**档案数组不要留在页面/范围 store 里**：`useEducationScope` 只装校区与学期，班级曾经被每一页 `loadScope()` 拉成整机构全量（279 条），现已彻底移除。
+- **按需下拉的"表格行只有 id"要有批量回查接口**：排课/考勤/完成度的行 DTO 只带 `classId`，名称不能靠"当前这屏搜索结果"命中。约定是给 options 接口加一个 `ids` 参数（`GET /education/classes/options?ids=1,2,3`，逗号分隔 → Spring 自动绑 `List<Long>`，**上限 200、传了 ids 就忽略 `keyword`**），视图在 `rows` 加载后调一次 `ensureClassLabels(institutionId, ids)` 把名称补进缓存。**不要为了显示名字去改分页/报表 DTO 加 `className` 冗余列**——那要动一堆 mapper、测试与响应结构，而名称只在几个界面出现。
+- **按需下拉的"已选项"名称必须有本地缓存兜底**：选中项不在当前这批搜索结果里时（换了关键字、弹窗从筛选栏预填、行内动作带进来的 id），`el-select` 收起后会显示成裸 ID。约定是把"见过的 id → 显示名"存进模块级 `Map`（`composables/studentLabels.ts` 的 `rememberStudentOptions`/`studentLabelOf`），组件在拉到选项时写入、宿主在拿到表格行时补写，查不到就回显 `学员 #id`（同「字典回显兜底」口径：脏数据要可见，不硬猜）。**不要把名称当 prop 一层层传**——缓存是唯一事实源，组件自己读，否则每个调用点都要记得传、漏一处就露 ID。显示形态统一带学号（`姓名（学号）`），同名学员才分得开。
 
 ### 应用外壳：横幅 + 导航栏（方案 B，2026-09-25 落地）
 

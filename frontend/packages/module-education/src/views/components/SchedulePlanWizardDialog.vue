@@ -16,19 +16,13 @@
     <div v-show="step === 0" class="plan-form" v-loading="lookupLoading">
       <el-form label-width="90px">
         <el-form-item label="班级" required>
-          <el-select
+          <ClassSelect
             v-model="formClassId"
-            placeholder="选择要批量排课的班级"
-            filterable
+            :institution-id="institutionId"
+            :campus-id="scopeCampusId"
+            placeholder="输入班级名称或编码搜索要批量排课的班级"
             @change="handleClassChange"
-          >
-            <el-option
-              v-for="item in classes"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="校区/学期">
           <span class="plan-context-text">
@@ -206,10 +200,12 @@ import {
   type SchedulePlanRecord,
   type SchedulePlanSlotItem,
   type TeacherSummary,
-  type TeachingClassSummary,
+  type ClassOption,
 } from '@cornerstone/module-education/api/education'
 import type { TermSummary, ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import ClassSelect from './ClassSelect.vue'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
+import { ensureClassKnown } from '../../composables/classLabels'
 import { compactTimeRange, normalizeTeacherIds, toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -217,7 +213,6 @@ const props = defineProps<{
   institutionId: string | null
   editPlan: SchedulePlanRecord | null
   terms: TermSummary[]
-  classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
   classrooms: ClassroomSummary[]
   timeSlots: TimeSlotSummary[]
@@ -336,17 +331,22 @@ function handleOpen() {
   formSkipDates.value = []
   formRemark.value = ''
   formSlots.value = []
-  const clazz = props.classes.find((item) => item.id === props.scopeClassId)
-  if (clazz) {
-    formCampusId.value = clazz.campusId || formCampusId.value
-    formTermId.value = clazz.termId || ''
-  }
+  void fillClassScope(formClassId.value)
 }
 
-function handleClassChange() {
-  const clazz = props.classes.find((item) => item.id === formClassId.value)
-  formCampusId.value = clazz?.campusId || props.scopeCampusId || ''
-  formTermId.value = clazz?.termId || ''
+/** 从范围栏带班进来时班级还没被搜过，按 id 补一次名称，校区与学期才有落点 */
+async function fillClassScope(classId: string) {
+  const known = await ensureClassKnown(props.institutionId, classId || null)
+  if (!known || formClassId.value !== classId) {
+    return
+  }
+  formCampusId.value = known.campusId || formCampusId.value
+  formTermId.value = known.termId || ''
+}
+
+function handleClassChange(option: ClassOption | null) {
+  formCampusId.value = option?.campusId || props.scopeCampusId || ''
+  formTermId.value = option?.termId || ''
   // 换班级后原勾选的时段可能不属于新校区，清空重选最稳妥
   formSlots.value = []
   formClassroomId.value = ''

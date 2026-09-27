@@ -51,24 +51,14 @@
             :disabled-date="disabledPast"
           />
           <span class="auto-form-label">班级</span>
-          <el-select
+          <ClassMultiSelect
             v-model="classIds"
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            clearable
-            filterable
-            :loading="classLoading"
+            :institution-id="institutionId"
+            :campus-id="formCampusId"
+            :disabled="!formCampusId"
             placeholder="不选=本校区全部有缺口的班级"
             class="auto-form-class"
-          >
-            <el-option
-              v-for="item in classOptions"
-              :key="item.id"
-              :label="item.className || item.classCode || `班级 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          />
           <el-button type="primary" :loading="previewLoading" @click="handlePreview">预览草案</el-button>
           <el-button
             :loading="previewLoading"
@@ -238,10 +228,8 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import type { CampusSummary, TermSummary } from '@cornerstone/module-organization/api/organization'
-import type { TeachingClassSummary } from '@cornerstone/module-education/api/education'
 import {
   fetchScheduleAutoBatches,
-  fetchTeachingClasses,
   previewScheduleAutoBatch,
   rollbackScheduleAutoBatch,
   runScheduleAutoBatch,
@@ -252,10 +240,13 @@ import { formatDateTime } from '@cornerstone/core/components/ConfigurableList/re
 import { TABLE_STACK_MAX_HEIGHT, TABLE_VIEWPORT_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { toMessage, weekdayLabel } from './schedule-utils'
+import type { ClassScopeValue } from '@cornerstone/module-education/composables/useClassOptions'
+import ClassMultiSelect from './ClassMultiSelect.vue'
 
 const props = defineProps<{
   modelValue: boolean
-  institutionId: string | null
+  /** 小号机构 id（种子数据里的 1）不到 16 位，大 ID 转字符串那步不会命中，运行期可能是数字 */
+  institutionId: ClassScopeValue
   campuses: CampusSummary[]
   terms: TermSummary[]
   /** 范围栏筛到的校区/学期只当**初值**：页面上那是可选筛项，弹窗的必填上下文由本表单自己承担 */
@@ -276,8 +267,6 @@ const formCampusId = ref<string | null>(null)
 const formTermId = ref<string | null>(null)
 const dateWindow = ref<[string, string]>(defaultWindow())
 const classIds = ref<string[]>([])
-const classOptions = ref<TeachingClassSummary[]>([])
-const classLoading = ref(false)
 const concentrateClassDays = ref(true)
 const preferAdjacentSlot = ref(true)
 const maxDailyLessonsPerClass = ref<number | undefined>(undefined)
@@ -316,7 +305,6 @@ function handleOpen() {
   formTermId.value = props.initialTermId || singleId(props.terms)
   classIds.value = []
   resetDraft()
-  void loadClasses()
   void loadBatches()
 }
 
@@ -324,30 +312,9 @@ function singleId(items: Array<{ id: string }>) {
   return items.length === 1 ? items[0].id : null
 }
 
-/** 班级候选只按校区取：服务端也只认校区归属，按学期筛反而会把学期留空的班级从下拉里消掉。 */
-async function loadClasses() {
-  if (!props.institutionId || !formCampusId.value) {
-    classOptions.value = []
-    return
-  }
-  classLoading.value = true
-  try {
-    classOptions.value = await fetchTeachingClasses({
-      institutionId: props.institutionId,
-      campusId: formCampusId.value,
-    })
-  } catch (error) {
-    classOptions.value = []
-    ElMessage.error(toMessage(error, '班级列表加载失败'))
-  } finally {
-    classLoading.value = false
-  }
-}
-
 /** 换校区后旧选择里的外班会被服务端拒成"不在所选校区"，直接清掉重选（草案由下面的 watch 作废）。 */
-async function handleCampusChange() {
+function handleCampusChange() {
   classIds.value = []
-  await loadClasses()
   void loadBatches()
 }
 
@@ -382,7 +349,7 @@ function payload() {
     return null
   }
   return {
-    institutionId: props.institutionId,
+    institutionId: String(props.institutionId),
     campusId: formCampusId.value,
     termId: formTermId.value,
     startDate: dateWindow.value?.[0],
@@ -452,7 +419,7 @@ async function loadBatches() {
   batchesLoading.value = true
   try {
     batches.value = await fetchScheduleAutoBatches({
-      institutionId: props.institutionId,
+      institutionId: String(props.institutionId),
       campusId: formCampusId.value,
     })
   } catch (error) {

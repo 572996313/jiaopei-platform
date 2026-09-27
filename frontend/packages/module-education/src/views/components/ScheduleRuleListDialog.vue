@@ -124,7 +124,6 @@ import {
   type SchedulePlanSlotItem,
   type ScheduleRuleRecord,
   type TeacherSummary,
-  type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import type {
   CampusSummary,
@@ -133,13 +132,13 @@ import type {
 } from '@cornerstone/module-organization/api/organization'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import SchoolCalendarPanel from './SchoolCalendarPanel.vue'
 import { toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
   modelValue: boolean
   institutionId: string | null
-  classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
   classrooms: ClassroomSummary[]
   campuses: CampusSummary[]
@@ -183,8 +182,7 @@ function formatTarget(rule: ScheduleRuleRecord) {
     return '—'
   }
   if (rule.targetType === 'class') {
-    const clazz = props.classes.find((item) => item.id === id)
-    return `班级 ${clazz?.className || clazz?.classCode || id}`
+    return `班级 ${classLabelOf(id)}`
   }
   if (rule.targetType === 'classroom') {
     const classroom = props.classrooms.find((item) => item.id === id)
@@ -248,6 +246,11 @@ async function reload() {
     })
     rules.value = result.records
     total.value = result.total
+    // 规则只有 targetType + targetId，班级对象的名字要按 id 回查
+    void ensureClassLabels(
+      props.institutionId,
+      result.records.filter((item) => item.targetType === 'class').map((item) => item.targetId)
+    )
   } catch (error) {
     rules.value = []
     total.value = 0

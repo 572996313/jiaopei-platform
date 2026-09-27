@@ -34,20 +34,14 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
+        <ClassSelect
           v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          :term-id="termId"
           placeholder="筛选班级"
-          clearable
-          filterable
           @change="handleClassChange"
-        >
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
+        />
         <span class="datebar-label">排课日期</span>
         <el-date-picker
           v-model="lessonDate"
@@ -214,7 +208,6 @@
       :institutions="institutions"
       :campuses="campuses"
       :terms="terms"
-      :classes="classes"
       :time-slots="timeSlots"
       :default-date="lessonDate"
       :format-class="formatClass"
@@ -226,7 +219,6 @@
       :institution-id="String(institutionId || '')"
       :edit-plan="planEditing"
       :terms="terms"
-      :classes="classes"
       :teachers="teachers"
       :classrooms="classrooms"
       :time-slots="timeSlots"
@@ -241,7 +233,6 @@
       ref="planListRef"
       v-model="planListVisible"
       :institution-id="String(institutionId || '')"
-      :classes="classes"
       :teachers="teachers"
       :classrooms="classrooms"
       :time-slots="timeSlots"
@@ -257,7 +248,6 @@
       ref="ruleListRef"
       v-model="ruleListVisible"
       :institution-id="String(institutionId || '')"
-      :classes="classes"
       :teachers="teachers"
       :classrooms="classrooms"
       :campuses="campuses"
@@ -272,7 +262,6 @@
       v-model="ruleEditorVisible"
       :institution-id="String(institutionId || '')"
       :edit-rule="ruleEditing"
-      :classes="classes"
       :teachers="teachers"
       :classrooms="classrooms"
       :time-slots="timeSlots"
@@ -307,6 +296,7 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -317,6 +307,7 @@ import SchedulePlanWizardDialog from './components/SchedulePlanWizardDialog.vue'
 import SchedulePlanListDialog from './components/SchedulePlanListDialog.vue'
 import ScheduleRuleListDialog from './components/ScheduleRuleListDialog.vue'
 import ScheduleRuleEditorDialog from './components/ScheduleRuleEditorDialog.vue'
+import ClassSelect from './components/ClassSelect.vue'
 import {
   compactTimeRange,
   formatTeacherIdsAs,
@@ -332,7 +323,7 @@ const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
+const { institutions, institutionId, campuses, terms, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
 
@@ -391,12 +382,6 @@ const campusMap = computed(() => {
   )
 })
 
-const classMap = computed(() => {
-  return new Map(
-    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
-  )
-})
-
 const classroomMap = computed(() => {
   return new Map(
     classrooms.value.map((item) => [
@@ -427,10 +412,7 @@ function formatCampus(id?: string | null) {
 }
 
 function formatClass(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return classMap.value.get(id) || `班级 #${id}`
+  return classLabelOf(id)
 }
 
 function formatClassroom(id?: string | null) {
@@ -495,7 +477,7 @@ function jumpToRelatedLesson(lesson: ScheduleLessonRecord) {
     return
   }
   lessonDate.value = related.lessonDate || null
-  if (related.classId && classes.value.some((item) => item.id === related.classId)) {
+  if (related.classId) {
     classId.value = related.classId
   }
   lessonPage.value = 1
@@ -533,7 +515,6 @@ async function refreshScopeData() {
   if (!institutionId.value) {
     campuses.value = []
     terms.value = []
-    classes.value = []
     teachers.value = []
     classrooms.value = []
     timeSlots.value = []
@@ -545,7 +526,7 @@ async function refreshScopeData() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(campusId.value, termId.value)
+    await loadScope()
     await loadSupportingOptions()
 
     if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
@@ -554,10 +535,7 @@ async function refreshScopeData() {
     }
     if (termId.value && !terms.value.some((item) => item.id === termId.value)) {
       termId.value = null
-      await loadScope(campusId.value, termId.value)
-    }
-    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
-      classId.value = null
+      await loadScope()
     }
   } catch (error) {
     pageError.value = toMessage(error, '范围数据加载失败')
@@ -609,6 +587,11 @@ async function refreshLessons() {
     lessons.value = lessonSort.sortField.value ? result.records : sortedLessons(result.records)
     lessonTotal.value = result.total
     void loadRelatedLessons(lessons.value)
+    // 课次视图只带 classId，班级名要按 id 回查（下拉不再持有全量班级当字典）
+    void ensureClassLabels(
+      institutionId.value,
+      lessons.value.map((item) => item.classId)
+    )
   } catch (error) {
     lessons.value = []
     lessonTotal.value = 0

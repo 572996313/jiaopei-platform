@@ -6,6 +6,7 @@ import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.web.ExternalIdParser;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
+import com.cornerstone.module.education.dto.StudentOptionView;
 import com.cornerstone.module.education.dto.StudentPageQuery;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.service.StudentService;
@@ -42,6 +43,19 @@ public class StudentController {
                                                  @RequestParam(required = false) String campusId,
                                                  @RequestParam(required = false) String keyword) {
         return ApiResponse.success("学员列表已加载", studentService.listStudents(
+            ExternalIdParser.parseOptional(institutionId, "institutionId"),
+            ExternalIdParser.parseOptional(campusId, "campusId"),
+            keyword
+        ));
+    }
+
+    @Operation(summary = "学员下拉选项", description = "按机构/校区筛选,关键字模糊匹配姓名/学号,最多返回 30 条,供表单与筛选下拉按需搜索")
+    @GetMapping("/options")
+    @RequiresPermission("education:read")
+    public ApiResponse<List<StudentOptionView>> options(@RequestParam(required = false) String institutionId,
+                                                        @RequestParam(required = false) String campusId,
+                                                        @RequestParam(required = false) String keyword) {
+        return ApiResponse.success("学员下拉选项已加载", studentService.listStudentOptions(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
             ExternalIdParser.parseOptional(campusId, "campusId"),
             keyword

@@ -34,20 +34,14 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
+        <ClassSelect
           v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          :term-id="termId"
           placeholder="筛选班级"
-          clearable
-          filterable
           @change="handleFilterChange"
-        >
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
+        />
         <span class="datebar-label">统计区间</span>
         <el-date-picker
           v-model="dateRange"
@@ -238,13 +232,14 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import ScheduleAutoFillDialog from './components/ScheduleAutoFillDialog.vue'
+import ClassSelect from './components/ClassSelect.vue'
 import { toMessage, weekdayLabel } from './components/schedule-utils'
 
 const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { campuses, terms, classes, institutionId, loadScope } = useEducationScope()
+const { campuses, terms, institutionId, loadScope } = useEducationScope()
 const router = useRouter()
 
 /** 「去补排」是写流程入口，按排课维护码收口；报表本身只要 education:read */
@@ -402,17 +397,13 @@ async function refreshScopeData() {
   if (!institutionId.value) {
     campuses.value = []
     terms.value = []
-    classes.value = []
     classId.value = null
     return
   }
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(campusId.value, termId.value)
-    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
-      classId.value = null
-    }
+    await loadScope()
   } catch (error) {
     pageError.value = toMessage(error, '范围数据加载失败')
   } finally {

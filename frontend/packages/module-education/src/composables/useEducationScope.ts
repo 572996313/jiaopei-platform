@@ -6,13 +6,14 @@ import {
   type CampusSummary,
   type TermSummary,
 } from '@cornerstone/module-organization/api/organization'
-import {
-  fetchStudents,
-  fetchTeachingClasses,
-  type StudentSummary,
-  type TeachingClassSummary,
-} from '@cornerstone/module-education/api/education'
 
+/**
+ * 页面顶部的范围筛选（机构 / 校区 / 学期）。
+ *
+ * 班级不在这里拉：它曾把整机构几百个班塞进每一页的下拉，现已改成 views/components/ClassSelect.vue
+ * 按关键字搜，名称回显走 composables/classLabels.ts。班级档案页要整条记录，那里自己调
+ * fetchTeachingClass（按 id 取单个班级）。
+ */
 export function useEducationScope() {
   const institutionStore = useInstitutionStore()
 
@@ -21,30 +22,19 @@ export function useEducationScope() {
 
   const campuses = ref<CampusSummary[]>([])
   const terms = ref<TermSummary[]>([])
-  const classes = ref<TeachingClassSummary[]>([])
-  const students = ref<StudentSummary[]>([])
 
-  async function loadScope(campusId?: string | null, termId?: string | null) {
+  async function loadScope() {
     const instId = institutionStore.currentInstitutionId
     if (!instId) {
       campuses.value = []
       terms.value = []
-      classes.value = []
-      students.value = []
       return
     }
 
-    const [campusList, termList, classList, studentList] = await Promise.all([
-      fetchCampuses(instId),
-      fetchTerms(instId),
-      fetchTeachingClasses({ institutionId: instId, campusId, termId }),
-      fetchStudents({ institutionId: instId, campusId }),
-    ])
+    const [campusList, termList] = await Promise.all([fetchCampuses(instId), fetchTerms(instId)])
 
     campuses.value = campusList
     terms.value = termList
-    classes.value = classList
-    students.value = studentList
   }
 
   return {
@@ -52,8 +42,6 @@ export function useEducationScope() {
     institutionId,
     campuses,
     terms,
-    classes,
-    students,
     loadScope,
   }
 }

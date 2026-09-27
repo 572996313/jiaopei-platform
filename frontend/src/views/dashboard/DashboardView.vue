@@ -160,9 +160,9 @@
         <ul class="panel-list">
           <li>当前机构：{{ formatInstitution(institutionId) }}</li>
           <li>当前校区：{{ formatCampus(campusId) }}</li>
-          <li>班级数量：{{ classes.length }}</li>
+          <li>班级数量：{{ classTotal }}</li>
           <li>教师数量：{{ teachers.length }}</li>
-          <li>学员数量：{{ students.length }}</li>
+          <li>学员数量：{{ studentTotal }}</li>
           <li>教室数量：{{ classrooms.length }}</li>
         </ul>
       </article>
@@ -191,8 +191,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import {
+  fetchClassCount,
   fetchDayTimetable,
   fetchLessonAttendancePage,
+  fetchStudentPage,
   fetchTeachers,
   type AttendanceLessonPage,
   type ScheduleLessonRecord,
@@ -204,6 +206,10 @@ import {
   type ClassroomSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import {
+  classLabelOf,
+  ensureClassLabels,
+} from '@cornerstone/module-education/composables/classLabels'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 
 interface QueueItem {
@@ -223,7 +229,7 @@ interface ReminderItem {
 
 const router = useRouter()
 const institutionStore = useInstitutionStore()
-const { institutions, institutionId, campuses, classes, students, loadScope } = useEducationScope()
+const { institutions, institutionId, campuses, loadScope } = useEducationScope()
 
 const campusId = ref<string | null>(null)
 const today = ref(todayValue())
@@ -231,8 +237,23 @@ const boardLoading = ref(false)
 const pageError = ref('')
 const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
+/** 学员条数按分页接口的 total 取：全量学员有数千条，只为一个数字把它们拉下来不值得 */
+const studentTotal = ref(0)
+/** 班级改成按需搜索后本机不再有全量数组，班级数量走 /education/classes/count */
+const classTotal = ref(0)
 const todayLessons = ref<ScheduleLessonRecord[]>([])
 const attendancePages = ref<Record<string, AttendanceLessonPage>>({})
+
+// 今日课表只有 classId，班级名按 id 回查补进缓存（下拉不再持有全量班级当字典）
+watch(
+  todayLessons,
+  (lessons) => {
+    void ensureClassLabels(
+      institutionId.value,
+      lessons.map((item) => item.classId)
+    )
+  }
+)
 
 const institutionMap = computed(() => {
   return new Map(
@@ -249,12 +270,6 @@ const campusMap = computed(() => {
       item.id,
       item.campusName || item.campusCode || `校区 #${item.id}`,
     ])
-  )
-})
-
-const classMap = computed(() => {
-  return new Map(
-    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
   )
 })
 
@@ -484,7 +499,7 @@ function formatClass(id?: string | null) {
   if (!id) {
     return '未分配班级'
   }
-  return classMap.value.get(id) || `班级 #${id}`
+  return classLabelOf(id)
 }
 
 function formatClassroom(id?: string | null) {
@@ -591,17 +606,29 @@ async function loadSupportingResources() {
   if (!institutionId.value) {
     teachers.value = []
     classrooms.value = []
+    studentTotal.value = 0
     return
   }
 
-  const [teacherList, classroomList] = await Promise.all([
+  const [teacherList, classroomList, studentPage, classCount] = await Promise.all([
     fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
     // 不传校区时后端返回全部教室；之前未选校区会跳过加载，导致"教室数量：0"
     fetchClassrooms(campusId.value),
+    // 学员按需搜索后本页不再持有全量列表，数量只取分页结果的 total
+    fetchStudentPage({
+      institutionId: institutionId.value,
+      campusId: campusId.value,
+      page: 1,
+      pageSize: 1,
+    }),
+    // 班级同样改成按需搜索，条数走服务端统计接口
+    fetchClassCount({ institutionId: institutionId.value, campusId: campusId.value }),
   ])
 
   teachers.value = teacherList
   classrooms.value = classroomList
+  studentTotal.value = studentPage.total
+  classTotal.value = classCount
 }
 
 async function loadAttendancePages(lessons: ScheduleLessonRecord[]) {
@@ -635,7 +662,7 @@ async function refreshBoard() {
   boardLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(campusId.value, null)
+    await loadScope()
     await loadSupportingResources()
     const lessons = sortedLessons(
       await fetchDayTimetable({
@@ -665,10 +692,10 @@ async function initializeBoard() {
     campusId.value = myPreference.campusId || null
 
     if (institutionId.value) {
-      await loadScope(campusId.value, null)
+      await loadScope()
       if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
         campusId.value = null
-        await loadScope(campusId.value, null)
+        await loadScope()
       }
       await loadSupportingResources()
       const lessons = sortedLessons(

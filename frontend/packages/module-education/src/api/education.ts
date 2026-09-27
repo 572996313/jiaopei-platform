@@ -165,6 +165,24 @@ export interface ClassStudentRecord {
   remark?: string | null
 }
 
+/** 班级学员关系分页视图,后端已回带班级与学员名称,分页列表无需再全量加载班级/学员做名称回显 */
+export interface ClassStudentViewRecord {
+  id: string
+  institutionId?: string | null
+  classId?: string | null
+  classCode?: string | null
+  className?: string | null
+  courseId?: string | null
+  classTypeId?: string | null
+  studentId?: string | null
+  studentNo?: string | null
+  studentName?: string | null
+  status?: string | null
+  joinedAt?: string | null
+  leftAt?: string | null
+  remark?: string | null
+}
+
 export interface AttendanceRecord {
   id: string
   institutionId?: string | null
@@ -511,12 +529,19 @@ export interface AttendanceLessonBatchSavePayload {
   items: AttendanceLessonBatchItemPayload[]
 }
 
-export function fetchStudents(params?: {
+/** 学员下拉选项:服务端只回一屏(30 条),关键字模糊匹配姓名/学号 */
+export interface StudentOption {
+  id: string
+  studentNo?: string | null
+  studentName?: string | null
+}
+
+export function fetchStudentOptions(params: {
   institutionId?: string | null
   campusId?: string | null
   keyword?: string | null
 }) {
-  return requestGet<StudentSummary[]>('/education/students', params ?? undefined)
+  return requestGet<StudentOption[]>('/education/students/options', params)
 }
 
 export function createStudent(payload: StudentCreatePayload) {
@@ -601,12 +626,40 @@ export function deleteTeacher(id: string) {
   return requestDelete<null>(`/education/teachers/${id}`)
 }
 
-export function fetchTeachingClasses(params?: {
+/** 班级下拉选项:服务端只回一屏(30 条),关键字模糊匹配班级名称/编码 */
+export interface ClassOption {
+  id: string
+  classCode?: string | null
+  className?: string | null
+  /** 排课弹窗按班级所属校区带出时间段,所以选项要带上它 */
+  campusId?: string | null
+  /** 排课计划弹窗预填班级所属学期 */
+  termId?: string | null
+}
+
+export function fetchClassOptions(params: {
+  institutionId?: string | null
+  campusId?: string | null
+  termId?: string | null
+  keyword?: string | null
+  /** 按 id 批量回查名称用(表格行只有 id 时补回显),传了它后端会忽略 keyword */
+  ids?: string
+}) {
+  return requestGet<ClassOption[]>('/education/classes/options', params)
+}
+
+/** 单个班级整条档案:班级主档页一次只看一个班,不必把全机构班级拉回来当字典 */
+export function fetchTeachingClass(institutionId: string, id: string) {
+  return requestGet<TeachingClassSummary>(`/education/classes/${id}`, { institutionId })
+}
+
+/** 班级条数:下拉改成按需搜索后本机没有全量数组,统计卡的"班级数"要走服务端 */
+export function fetchClassCount(params: {
   institutionId?: string | null
   campusId?: string | null
   termId?: string | null
 }) {
-  return requestGet<TeachingClassSummary[]>('/education/classes', params ?? undefined)
+  return requestGet<number>('/education/classes/count', params)
 }
 
 export function updateTeachingClass(id: string, payload: TeachingClassUpdatePayload) {
@@ -633,11 +686,23 @@ export function createEnrollment(payload: EnrollmentCreatePayload) {
   return requestPost<EnrollmentRecord>('/education/enrollments', payload)
 }
 
-export function fetchClassStudents(params?: {
+export interface ClassStudentPageParams extends PageParams {
+  institutionId?: string | null
+  campusId?: string | null
   classId?: string | null
   studentId?: string | null
-}) {
-  return requestGet<ClassStudentRecord[]>('/education/class-students', params ?? undefined)
+  status?: string | null
+}
+
+export function fetchClassStudentPage(params: ClassStudentPageParams) {
+  return requestGet<PageResult<ClassStudentViewRecord>>('/education/class-students/page', {
+    ...params,
+  })
+}
+
+/** 班级在班人数:分页表只装当前页,人数必须由服务端按整班统计 */
+export function fetchClassStudentActiveCount(institutionId: string, classId: string) {
+  return requestGet<number>('/education/class-students/active-count', { institutionId, classId })
 }
 
 export function createClassStudent(payload: ClassStudentCreatePayload) {

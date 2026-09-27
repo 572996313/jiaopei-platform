@@ -2,14 +2,18 @@ package com.cornerstone.module.education.controller;
 
 import com.cornerstone.core.auth.annotation.RequiresPermission;
 import com.cornerstone.core.common.api.ApiResponse;
+import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.web.ExternalIdParser;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
+import com.cornerstone.module.education.dto.ClassStudentPageQuery;
+import com.cornerstone.module.education.dto.ClassStudentView;
 import com.cornerstone.module.education.service.ClassStudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +42,24 @@ public class ClassStudentController {
         return ApiResponse.success("班级学员列表已加载", classStudentService.listClassStudents(
             ExternalIdParser.parseOptional(classId, "classId"),
             ExternalIdParser.parseOptional(studentId, "studentId")
+        ));
+    }
+
+    @Operation(summary = "分页获取班级学员关系", description = "按机构/校区/班级/学员/状态筛选,分页返回,已回带班级与学员名称")
+    @GetMapping("/page")
+    @RequiresPermission("education:read")
+    public ApiResponse<PageResult<ClassStudentView>> page(@Valid @ParameterObject ClassStudentPageQuery query) {
+        return ApiResponse.success("班级学员分页列表已加载", classStudentService.pageClassStudents(query));
+    }
+
+    @Operation(summary = "统计班级在班人数", description = "按机构与班级统计 status=active 的学员数,与入班容量校验同一口径")
+    @GetMapping("/active-count")
+    @RequiresPermission("education:read")
+    public ApiResponse<Integer> activeCount(@RequestParam String institutionId,
+                                            @RequestParam String classId) {
+        return ApiResponse.success("班级在班人数已加载", classStudentService.countActiveStudents(
+            ExternalIdParser.parseRequired(institutionId, "institutionId"),
+            ExternalIdParser.parseRequired(classId, "classId")
         ));
     }
 

@@ -10,6 +10,7 @@ import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentPageQuery;
+import com.cornerstone.module.education.dto.StudentOptionView;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.service.StudentService;
@@ -29,6 +30,12 @@ public class StudentServiceImpl implements StudentService {
 
     /** 学员未选状态时的回落值，与 jp_student.status 的列默认值一致 */
     private static final String DEFAULT_STUDENT_STATUS = "studying";
+
+    /**
+     * 学员下拉单次返回的条数上限：一个机构的学员可以有几千条，全量下发会让前端一次性渲染同样数量的选项，
+     * 所以下拉只给一屏，超出部分要求操作员输入关键字收窄。
+     */
+    private static final int STUDENT_OPTION_LIMIT = 30;
 
     /** 学员列表可排序字段 */
     private static final Map<String, SFunction<StudentEntity, ?>> STUDENT_SORTABLE = Map.of(
@@ -72,6 +79,30 @@ public class StudentServiceImpl implements StudentService {
         }
         applyDefaultOrder(wrapper);
         return studentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public List<StudentOptionView> listStudentOptions(Long institutionId, Long campusId, String keyword) {
+        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
+            .select(StudentEntity::getId, StudentEntity::getStudentNo, StudentEntity::getStudentName);
+        if (institutionId != null) {
+            wrapper.eq(StudentEntity::getInstitutionId, institutionId);
+        }
+        if (campusId != null) {
+            wrapper.eq(StudentEntity::getCampusId, campusId);
+        }
+        String normalizedKeyword = normalizeToNull(keyword);
+        if (normalizedKeyword != null) {
+            wrapper.and(w -> w
+                .like(StudentEntity::getStudentName, normalizedKeyword)
+                .or()
+                .like(StudentEntity::getStudentNo, normalizedKeyword));
+        }
+        applyDefaultOrder(wrapper);
+        wrapper.last("LIMIT " + STUDENT_OPTION_LIMIT);
+        return studentMapper.selectList(wrapper).stream()
+            .map(item -> new StudentOptionView(item.getId(), item.getStudentNo(), item.getStudentName()))
+            .toList();
     }
 
     @Override

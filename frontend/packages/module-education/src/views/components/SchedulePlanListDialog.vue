@@ -10,20 +10,13 @@
   >
     <div class="plan-list-toolbar">
       <el-button v-if="canManage" type="primary" @click="emit('create')">新建计划</el-button>
-      <el-select
+      <ClassSelect
         v-model="filterClassId"
+        :institution-id="institutionId"
+        :campus-id="scopeCampusId"
         placeholder="筛选班级"
-        clearable
-        filterable
         @change="reload"
-      >
-        <el-option
-          v-for="item in classes"
-          :key="item.id"
-          :label="item.className || item.classCode || `班级 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
+      />
       <el-select v-model="filterStatus" placeholder="筛选状态" clearable @change="reload">
         <el-option label="启用" value="active" />
         <el-option label="停用" value="inactive" />
@@ -123,7 +116,6 @@ import {
   type SchedulePlanRecord,
   type SchedulePlanSlotItem,
   type TeacherSummary,
-  type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
 import type {
   ClassroomSummary,
@@ -131,12 +123,13 @@ import type {
 } from '@cornerstone/module-organization/api/organization'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
+import ClassSelect from './ClassSelect.vue'
 import { formatTeacherIdsAs, toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
   modelValue: boolean
   institutionId: string | null
-  classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
   classrooms: ClassroomSummary[]
   timeSlots: TimeSlotSummary[]
@@ -249,6 +242,11 @@ async function reload() {
     })
     plans.value = result.records
     total.value = result.total
+    // 计划视图只有 classId，班级名要按 id 回查
+    void ensureClassLabels(
+      props.institutionId,
+      result.records.map((item) => item.classId)
+    )
   } catch (error) {
     plans.value = []
     total.value = 0

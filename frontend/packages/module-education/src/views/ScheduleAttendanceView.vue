@@ -34,20 +34,14 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
+        <ClassSelect
           v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          :term-id="termId"
           placeholder="筛选班级"
-          clearable
-          filterable
           @change="handleClassChange"
-        >
-          <el-option
-            v-for="item in classes"
-            :key="item.id"
-            :label="item.className || item.classCode || `班级 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
+        />
       </div>
       <div class="page-toolbar-datebar">
         <template v-if="timetableTab === 'day'">
@@ -491,7 +485,6 @@
       :institutions="institutions"
       :campuses="campuses"
       :terms="terms"
-      :classes="classes"
       :time-slots="timeSlots"
       :cancelled-options="cancelledLessonOptions"
       :format-class="formatClass"
@@ -537,10 +530,12 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
+import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import WeekTimetableGrid, { type WeekLessonAction } from './components/WeekTimetableGrid.vue'
+import ClassSelect from './components/ClassSelect.vue'
 import AttendanceDialog from './components/AttendanceDialog.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import {
@@ -575,7 +570,7 @@ const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { institutions, institutionId, campuses, terms, classes, loadScope } = useEducationScope()
+const { institutions, institutionId, campuses, terms, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
 
@@ -640,12 +635,6 @@ const campusMap = computed(() => {
   )
 })
 
-const classMap = computed(() => {
-  return new Map(
-    classes.value.map((item) => [item.id, item.className || item.classCode || `班级 #${item.id}`])
-  )
-})
-
 const classroomMap = computed(() => {
   return new Map(
     classrooms.value.map((item) => [
@@ -681,6 +670,17 @@ const lessonMap = computed(() => {
     ]).map((item) => [item.id, item])
   )
 })
+
+// 四块课表数据都只有 classId，班级名按 id 回查（下拉不再持有全量班级当字典）
+watch(
+  () => [dayLessons.value, weekLessons.value, pendingMakeupLessons.value, relatedLessonCache.value],
+  (groups) => {
+    void ensureClassLabels(
+      institutionId.value,
+      groups.flat().map((item) => item.classId)
+    )
+  }
+)
 
 const makeupLessonsByRelatedId = computed(() => {
   const map = new Map<string, ScheduleLessonRecord[]>()
@@ -982,7 +982,7 @@ async function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
   lessonDate.value = target.lessonDate || lessonDate.value
   // 目标课次可能与当前班级筛选不同，切换或清空班级，保证跳转后列表可见
   if (target.classId && target.classId !== classId.value) {
-    classId.value = classes.value.some((item) => item.id === target.classId) ? target.classId : null
+    classId.value = target.classId
   }
   refreshAll().then(() => {
     ElMessage.success(`已定位到 ${formatClass(target.classId)} 的关联课次`)
@@ -1004,10 +1004,7 @@ function formatCampus(id?: string | null) {
 }
 
 function formatClass(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return classMap.value.get(id) || `班级 #${id}`
+  return classLabelOf(id)
 }
 
 function formatClassroom(id?: string | null) {
@@ -1057,7 +1054,6 @@ async function refreshScopeData() {
   if (!institutionId.value) {
     campuses.value = []
     terms.value = []
-    classes.value = []
     teachers.value = []
     classrooms.value = []
     timeSlots.value = []
@@ -1069,7 +1065,7 @@ async function refreshScopeData() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await loadScope(campusId.value, termId.value)
+    await loadScope()
     await loadSupportingOptions()
 
     if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
@@ -1078,10 +1074,7 @@ async function refreshScopeData() {
     }
     if (termId.value && !terms.value.some((item) => item.id === termId.value)) {
       termId.value = null
-      await loadScope(campusId.value, termId.value)
-    }
-    if (classId.value && !classes.value.some((item) => item.id === classId.value)) {
-      classId.value = null
+      await loadScope()
     }
   } catch (error) {
     pageError.value = toMessage(error, '范围数据加载失败')
