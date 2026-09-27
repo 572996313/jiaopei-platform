@@ -22,7 +22,7 @@
           placeholder="筛选校区"
           clearable
           filterable
-          @change="loadClassrooms"
+          @change="handleCampusChange"
         >
           <el-option
             v-for="item in campuses"
@@ -202,7 +202,11 @@
           <div>
             <div class="panel-title">时间段列表</div>
             <div class="education-context-text">
-              当前机构：{{ formatInstitution(institutionId) }}
+              {{
+                campusId
+                  ? `当前校区：${formatCampus(campusId)}，另含机构通用时间段`
+                  : '未筛选校区：显示本机构全部时间段'
+              }}
             </div>
           </div>
         </div>
@@ -227,6 +231,9 @@
           />
           <el-table-column label="星期" width="90" prop="weekday" sortable>
             <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
+          </el-table-column>
+          <el-table-column label="适用校区" width="150" prop="campusId" sortable show-overflow-tooltip>
+            <template #default="{ row }">{{ row.campusId ? formatCampus(row.campusId) : '机构通用' }}</template>
           </el-table-column>
           <el-table-column label="时间" min-width="180" prop="startTime" sortable>
             <template #default="{ row }"
@@ -819,6 +826,22 @@ async function loadClassrooms() {
   }
 }
 
+async function loadTimeSlots() {
+  try {
+    // 与教室卡不同：教室必须挂在某个校区下，不选校区就没有内容；节次有「机构通用」这一类，
+    // 清空筛选时回落到整机构，否则通用节次在没有选中校区时无法维护
+    timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
+  } catch (error) {
+    timeSlots.value = []
+    pageError.value = toMessage(error, '时间段列表加载失败')
+  }
+}
+
+/** 校区筛选同时决定教室与时间段两张卡的内容 */
+async function handleCampusChange() {
+  await Promise.all([loadClassrooms(), loadTimeSlots()])
+}
+
 async function loadResources() {
   if (!institutionId.value) {
     campuses.value = []
@@ -831,25 +854,20 @@ async function loadResources() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    const [campusList, termList, timeSlotList] = await Promise.all([
+    const [campusList, termList] = await Promise.all([
       fetchCampuses(institutionId.value),
       fetchTerms(institutionId.value),
-      fetchTimeSlots(institutionId.value),
     ])
 
     campuses.value = campusList
     terms.value = termList
-    timeSlots.value = timeSlotList
 
     if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
       campusId.value = campusList[0]?.id || null
     }
 
-    if (campusId.value) {
-      classrooms.value = await fetchClassrooms(campusId.value)
-    } else {
-      classrooms.value = []
-    }
+    // 时间段要在校区定下来之后再取，它按校区筛
+    await Promise.all([loadClassrooms(), loadTimeSlots()])
   } catch (error) {
     pageError.value = toMessage(error, '组织资源加载失败')
   } finally {
@@ -1225,7 +1243,12 @@ async function submitTimeSlot() {
       ElMessage.success('时间段已更新')
     }
     timeSlotDialogVisible.value = false
-    timeSlots.value = await fetchTimeSlots(institutionId.value)
+    // 存到别的校区（或改成机构通用）时跟着切过去，否则刚保存的那条会被当前校区筛选挡掉
+    const savedCampusId = timeSlotForm.campusId || null
+    if (campusId.value !== savedCampusId) {
+      campusId.value = savedCampusId
+    }
+    await loadTimeSlots()
   } catch (error) {
     timeSlotFormError.value = toMessage(
       error,
@@ -1253,7 +1276,7 @@ async function confirmDeleteTimeSlot(row: TimeSlotSummary) {
   try {
     await deleteTimeSlot(row.id)
     ElMessage.success('时间段已删除')
-    timeSlots.value = await fetchTimeSlots(institutionId.value)
+    await loadTimeSlots()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除时间段失败'))
   }

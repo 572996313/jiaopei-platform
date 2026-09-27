@@ -1,5 +1,6 @@
 package com.cornerstone.module.organization;
 
+import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -131,6 +133,35 @@ class OrganizationSecondMainlineValidationTest {
         assertThrows(BusinessException.class, () -> service.createTimeSlot(1L, timeSlotRequest(60)));
 
         verify(timeSlotMapper, never()).insert(any(TimeSlotEntity.class));
+    }
+
+    /** 传别人的校区 id 就能探到它的节次安排，所以列表侧同样要校验归属 */
+    @Test
+    void listTimeSlotsRejectsCampusOfAnotherInstitution() {
+        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
+            new DictValueValidator(mock(SystemDictService.class)));
+        CampusEntity foreignCampus = new CampusEntity();
+        foreignCampus.setInstitutionId(2L);
+        when(campusMapper.selectById(99L)).thenReturn(foreignCampus);
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.listTimeSlots(1L, 1L, 99L));
+
+        assertEquals(ResultCode.FORBIDDEN, error.getResultCode());
+        verify(timeSlotMapper, never()).selectList(any());
+    }
+
+    @Test
+    void listTimeSlotsRejectsUnknownCampus() {
+        TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
+            new DictValueValidator(mock(SystemDictService.class)));
+        when(campusMapper.selectById(99L)).thenReturn(null);
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.listTimeSlots(1L, 1L, 99L));
+
+        assertEquals(ResultCode.NOT_FOUND, error.getResultCode());
+        verify(timeSlotMapper, never()).selectList(any());
     }
 
     private ClassroomCreateRequest classroomRequest(String code, String name) {

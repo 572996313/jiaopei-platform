@@ -40,14 +40,31 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     }
 
     @Override
-    public List<TimeSlotEntity> listTimeSlots(Long operatorInstitutionId, Long institutionId) {
+    public List<TimeSlotEntity> listTimeSlots(Long operatorInstitutionId, Long institutionId, Long campusId) {
         Long effectiveInstitutionId = resolveInstitutionId(operatorInstitutionId, institutionId);
         LambdaQueryWrapper<TimeSlotEntity> wrapper = new LambdaQueryWrapper<TimeSlotEntity>()
-            .eq(TimeSlotEntity::getInstitutionId, effectiveInstitutionId)
-            .orderByAsc(TimeSlotEntity::getWeekday)
+            .eq(TimeSlotEntity::getInstitutionId, effectiveInstitutionId);
+        if (campusId != null) {
+            validateCampusScope(effectiveInstitutionId, campusId);
+            // 本校区 + 机构通用（campus_id 为空），与自动排课引擎取节次的口径一致
+            wrapper.and(scope -> scope.eq(TimeSlotEntity::getCampusId, campusId)
+                .or().isNull(TimeSlotEntity::getCampusId));
+        }
+        wrapper.orderByAsc(TimeSlotEntity::getWeekday)
             .orderByAsc(TimeSlotEntity::getSortNo)
             .orderByAsc(TimeSlotEntity::getStartTime);
         return timeSlotMapper.selectList(wrapper);
+    }
+
+    /** 校区必须属于这家机构，否则传别人的校区 id 就能探到它的节次安排 */
+    private void validateCampusScope(Long institutionId, Long campusId) {
+        CampusEntity campus = campusMapper.selectById(campusId);
+        if (campus == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
+        }
+        if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的时间段数据");
+        }
     }
 
     @Override

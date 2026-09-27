@@ -174,7 +174,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
         given(classroomService.listClassrooms(any())).willReturn(List.of());
         given(termService.listTerms(any())).willReturn(List.of());
-        given(timeSlotService.listTimeSlots(any(), any())).willReturn(List.of());
+        given(timeSlotService.listTimeSlots(any(), any(), any())).willReturn(List.of());
         given(teacherService.listTeachers(any(), any())).willReturn(List.of());
         given(studentService.listStudents(any(), any(), any())).willReturn(List.of());
         given(teachingClassService.listClasses(any(), any(), any())).willReturn(List.of());
@@ -205,7 +205,13 @@ class SecondThirdMainlineApiCompatibilityWebTest {
                 .param("institutionId", "INST-001")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk());
-        verify(timeSlotService).listTimeSlots(1L, 1L);
+        verify(timeSlotService).listTimeSlots(1L, 1L, null);
+
+        mockMvc.perform(get("/api/organizations/time-slots")
+                .param("campusId", "CMP-002")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk());
+        verify(timeSlotService).listTimeSlots(1L, null, 2L);
     }
 
     @Test

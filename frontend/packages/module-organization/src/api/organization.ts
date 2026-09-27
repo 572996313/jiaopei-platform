@@ -215,11 +215,15 @@ export function fetchClassrooms(campusId?: string | null) {
   )
 }
 
-export function fetchTimeSlots(institutionId?: string | null) {
-  return requestGet<TimeSlotSummary[]>(
-    '/organizations/time-slots',
-    institutionId ? { institutionId } : undefined
-  )
+/**
+ * 时间段列表。传 campusId 时服务端只回「本校区的 + 机构通用（campus_id 为空）」两类，
+ * 与自动排课引擎取节次的口径一致；不传则回该机构全部（跨校区汇总的界面才需要）。
+ */
+export function fetchTimeSlots(institutionId?: string | null, campusId?: string | null) {
+  return requestGet<TimeSlotSummary[]>('/organizations/time-slots', {
+    institutionId: institutionId || undefined,
+    campusId: campusId || undefined
+  })
 }
 
 export function createCampus(payload: CampusCreatePayload) {

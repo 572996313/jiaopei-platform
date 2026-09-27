@@ -223,7 +223,7 @@ function campusText(id?: string | null) {
   return campus?.campusName || campus?.campusCode || `校区 #${id}`
 }
 
-function onCampusChange(value: string | null) {
+async function onCampusChange(value: string | null) {
   educationScope.setCampus(value)
   if (
     selectedTemplateId.value &&
@@ -232,6 +232,8 @@ function onCampusChange(value: string | null) {
     selectedTemplateId.value = null
     rows.value = []
   }
+  // 节次按校区取；网格里的行不动，避免换校区把未保存的编辑清掉
+  await reloadTimeSlots()
 }
 
 function onTemplateChange(id: string | null) {
@@ -276,6 +278,20 @@ function removeRow(row: SectionRow) {
   rows.value = rows.value.filter((item) => item !== row)
 }
 
+/** 只重拉节次清单（换校区、保存网格后用），按当前校区取本校区 + 机构通用 */
+async function reloadTimeSlots() {
+  if (!institutionId.value) {
+    timeSlots.value = []
+    return
+  }
+  try {
+    timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
+  } catch (error) {
+    timeSlots.value = []
+    pageError.value = error instanceof Error ? error.message : '加载节次时间失败'
+  }
+}
+
 async function refreshAll() {
   if (!institutionId.value) {
     await institutionStore.loadInstitutions()
@@ -290,7 +306,7 @@ async function refreshAll() {
     const [campusList, templateList, slotList] = await Promise.all([
       fetchCampuses(institutionId.value),
       fetchTimeSlotTemplates(institutionId.value),
-      fetchTimeSlots(institutionId.value),
+      fetchTimeSlots(institutionId.value, campusId.value),
     ])
     campuses.value = campusList
     templates.value = templateList
@@ -334,7 +350,7 @@ async function saveGrid() {
       `已保存:新增 ${result.createdCount}、更新 ${result.updatedCount}、移除 ${result.removedCount}` +
         (result.deactivatedCount > 0 ? `、停用(被排课引用) ${result.deactivatedCount}` : '')
     )
-    timeSlots.value = await fetchTimeSlots(institutionId.value)
+    await reloadTimeSlots()
   } catch (error) {
     pageError.value = error instanceof Error ? error.message : '保存节次时间失败'
   } finally {
