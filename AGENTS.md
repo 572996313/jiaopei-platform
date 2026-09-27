@@ -373,6 +373,8 @@ pnpm dev:h5            # H5 调试
 - **下拉框不许拉全量数组**：档案类下拉（学员/教师/班级…）条数随业务涨到几千，`el-select` 即便折叠也会把每个 `el-option` 渲染进 DOM，整页会卡数秒（实测 3583 个学员选项让 `/students` 停 10 秒）。正确形态是**服务端按需搜索**：后端加 `GET /xxx/options`，只回"下拉与回显需要的字段"（学员的是 `id/studentNo/studentName`，**不要把监护人电话一类敏感字段带进下拉载荷**）、`keyword` 模糊匹配、`.last("LIMIT 30")` 封顶（参照 `ScheduleAutoBatchServiceImpl.BATCH_LIST_LIMIT`、`/api/system/dicts/options` 的写法）；前端把 `filterable remote` 收进一个组件（`module-education` 的 `views/components/StudentSelect.vue`、`ClassSelect.vue` / `ClassMultiSelect.vue`），打开时先给一屏、输入时 300ms 防抖。**档案数组不要留在页面/范围 store 里**：`useEducationScope` 只装校区与学期，班级曾经被每一页 `loadScope()` 拉成整机构全量（279 条），现已彻底移除。
 - **按需下拉的"表格行只有 id"要有批量回查接口**：排课/考勤/完成度的行 DTO 只带 `classId`，名称不能靠"当前这屏搜索结果"命中。约定是给 options 接口加一个 `ids` 参数（`GET /education/classes/options?ids=1,2,3`，逗号分隔 → Spring 自动绑 `List<Long>`，**上限 200、传了 ids 就忽略 `keyword`**），视图在 `rows` 加载后调一次 `ensureClassLabels(institutionId, ids)` 把名称补进缓存。**不要为了显示名字去改分页/报表 DTO 加 `className` 冗余列**——那要动一堆 mapper、测试与响应结构，而名称只在几个界面出现。
 - **按需下拉的"已选项"名称必须有本地缓存兜底**：选中项不在当前这批搜索结果里时（换了关键字、弹窗从筛选栏预填、行内动作带进来的 id），`el-select` 收起后会显示成裸 ID。约定是把"见过的 id → 显示名"存进模块级 `Map`（`composables/studentLabels.ts` 的 `rememberStudentOptions`/`studentLabelOf`），组件在拉到选项时写入、宿主在拿到表格行时补写，查不到就回显 `学员 #id`（同「字典回显兜底」口径：脏数据要可见，不硬猜）。**不要把名称当 prop 一层层传**——缓存是唯一事实源，组件自己读，否则每个调用点都要记得传、漏一处就露 ID。显示形态统一带学号（`姓名（学号）`），同名学员才分得开。
+- **名称晚补回来时，`el-option` 的 `:key` 必须带上标签**（`:key="`${item.id}-${item.label}`"`）：Element Plus 只在选项实例增减时重算框内显示，key 只写 id 的话同一实例换了 `label` 也不会重算，按 id 补取成功后下拉仍然停在裸 ID（点开一次列表才刷回来）。`ClassSelect`/`StudentSelect`/`ClassMultiSelect` 三个组件统一这么写。
+- **档案下拉的宽度由组件自己管，不在宿主页面写**：组件根节点挂 `.archive-select`（`frontend/packages/module-education/src/views/components/`），默认 `width:100%`（弹窗表单占满整行），在 `.page-toolbar-filters` / `.table-filters` 里收成 240px。**不要退回内联 `style="width:100%"`**——内联优先级压过页面规则，历史上就是这么把班级、学员筛选挤成两行的。
 - **同一份档案数组，"管理页按校区收窄"与"别的页当 id→名称字典不能收窄"是两种用途，不要一视同仁地全传 `campusId`**。时间段是当前的例子：`GET /organizations/time-slots` 的 `campusId` 口径是**本校区 + 机构通用（`campus_id IS NULL`）**，与自动排课引擎取节次的口径一致，所以校区管理页与时间段模板页传它（961 行收成 51~90 行）。但**排课管理页与执行与课表页仍然不传**：`ScheduleRuleListDialog`/`SchedulePlanListDialog` 拿这份数组反查节次名（查不到就渲染 `时段#裸id`），`WeekTimetableGrid` 用它铺周课表的行，这两处的行可以来自任何校区，收窄会让别校区的规则/计划名字塌成裸 ID。**判据：这份数组是"只操作本校区资源的列表"还是"跨校区反查名称的字典"？后者不收窄。** 新增按校区筛的接口时，先把所有调用点按这两类分一遍再决定改不改。
 
 ### 应用外壳：横幅 + 导航栏（方案 B，2026-09-25 落地）
@@ -386,12 +388,57 @@ pnpm dev:h5            # H5 调试
 要守的口径：
 
 - **`TableFillBox` 量到的是内容卡里页签行以下那一段**（纵向占位从上到下：横幅 64 + 接缝 1 + 内容卡上外边距 14 + 页签行 28 + 页签行下间距 14 + 内容卡上内边距 14）。1440×900 实测内容区 **1294 × 729**，对比改版前的 1138 × 726：**收益全在宽度（+156px，约 5 列）**，高度基本没动——别拿"新版更高"当卖点，选这版的理由是表格能铺开。往横幅或页签行里加东西可以，**在它们下面再加一行不行**。
-- **主操作区必须免滚轮**（客户反馈：有人的鼠标滚轮是坏的，反馈很不好）。判据：把页签行以下那一段（1440×900 为 **729px**、1366×768 为 **597px**）当预算，**参数、按钮、保存入口一律排在预算内**，超出的只能是"想深挖才需要滚"的东西。三条常用杠杆：① 参数表单**标签与控件同行**、按分组横向铺开（竖排 label 一组多 20px，四组就是 80px），列头自带名字的块**不要再单开行标题**；② 矩阵/网格**行头压成单行**（名称输入框 + 编码 + 删除同行），单元格 `padding: 2px 6px`，十行从 570px 收到 330px；③ **另一件事就单独成页**，别在同屏叠第三段——"逐条查/改全部节次"与"编辑一套模板"是两个动作，拆成两页后各自都在预算内（折叠面板不算解决：展开照样逼出滚轮）。拆分后两页顶上一颗互跳按钮，跳转时把共用的 `educationScope` 校区范围带过去，落地不停在别的校区；菜单节点要**一起授权**，只勾一边就是死链。参照 `module-organization` 的 `/time-slots`（`TimeSlotTemplateView` + `TimeSlotConfigForm` + `TimeSlotGridEditor`）与 `/time-slot-list`（`TimeSlotListView`，V82）：改版前整页约 **978px**，拆完模板页 **690px**（十节次、无冲突提示），带冲突提示 **730px**，1440×900 一屏放完；1366×768 仍差约 130px，长模板那一档无解、只能少开几行节次。
+- **主操作区必须免滚轮**（客户反馈：有人的鼠标滚轮是坏的，反馈很不好）。纵向预算、页面分型与处置杠杆统一见下一节「页面纵向预算与分诊」，本页不再重复展开；本节只锁死**外壳的纵向占位**：往横幅或页签行里加东西可以，**在它们下面再加一行不行**。
 - **窄栏的二级页靠悬停浮层**（`.rail-popover`）。它必须用 `position: fixed` 且锚在 `.app-nav` 上——`.app-nav` 的 `backdrop-filter` 会创建 containing block，`fixed` 因此相对导航列定位；写成 `absolute` 会被 `overflow` 裁掉、写在全局 `fixed` 又会跟着页签跑。**纵向起点是 `--rail-pop-top`**：由 `AppLayout` 在 `mouseenter`/点击时量出被悬停那一格相对本列顶部的偏移（`trigger.rect.top - .app-nav.rect.top`，并用 `navBox.height - 180` 兜住列底），`max-height` 再用同一个变量截断，所以浮层贴着图标出现。**不要把 top 写回固定值**——早先它是列顶 `14px`，图标越靠下（如「教学资源」）浮层与图标离得越远，看起来像弹错地方。新增 rail 分组时不要动这条定位。
 - **悬停不是可达路径**：图标导航必须同时提供 `Ctrl/⌘+K` 全局搜索兜底（`layouts/NavSearchPalette.vue`，数据来自 `registerNavItems` 的授权项，含分组与父级来路，空格分词全命中即匹配）。砍掉这个兜底就等于把二级页藏进只有老手知道的悬停里。
 - 机构与账号在深色横幅上做成**浅色胶囊**（`.banner-chip`，`rgba(255,255,255,.94)`），Element Plus 的 `el-select` 塞进芯片里并把 `.el-select__wrapper` 打成透明无边框——直接在深色背景上铺 EP 输入框永远调不清对比度，别改回去。
 - 面包屑只装"来路"（分组 / 父目录），末级名已经在 `.banner-title` 上，**不重复第三遍**；顶层项自己就是组名时用 `Set` 去重（`crumbText`、`trailOf` 两处都要去重，`.rail-pop-group` 靠 `v-if` 隐藏同名组头）。
 - 横幅上的浅色文字统一走 `--banner-ink-dim`（alpha 0.8）。改浅之前先算对比度：底色取渐变里最浅的那一档 `rgb(42,81,130)` 叠加，正文要 ≥4.5。
+
+### 页面纵向预算与分诊（免滚轮口径，2026-09-27 全站实测后定稿）
+
+起因：现场客户**鼠标滚轮是坏的**，只能拖滚动条，"要滚轮才点到保存"被反馈"很不好"。所以纵向不是审美问题，是可达性问题：**全站按同一套判据分诊、同一套杠杆处置**，不许逐页吵。
+
+**自测判据（一句话）**：鼠标进这一页，不碰滚轮能不能点到"保存 / 新增 / 提交"？能 = 达标；不能 = 要改，改动按下面的杠杆顺序走。
+
+**预算（内容区 = `.app-content`，页签行以下那一段）**：
+
+| 屏幕 | 预算 | 口径 |
+| --- | --- | --- |
+| 1440×900 | **729px** | **达标线**：主操作区一律排在这里 |
+| 1366×768 | **597px** | 允许差一行：保存按钮与它上一行的参数必须可见，再往下可以拖滚动条 |
+
+**页面只有四型，一型一条标准处置**：
+
+| 型 | 长相 | 处置 | 参照 |
+| --- | --- | --- | --- |
+| **A 单主表页** | 按钮行 + 筛选 + 一张表 + 分页 | `TableFillBox` 吃满剩余，天然达标，**不再讨论** | 17 个页面已如此（教室/节次明细/教师/字典/用户…） |
+| **B 表单/设置页** | 一堆参数，一次保存 | 标签与控件同行、分组横排；字段 >12 个分两栏；保存固定在表单尾 | `/time-slots` 的 `TimeSlotConfigForm` |
+| **C 多件事堆叠页** | 主档 + 关系表 + 风险 + 另一张关系表 | **按"动作"拆页互跳**，每页一件事 | `/time-slots` ↔ `/time-slot-list`（V82） |
+| **D 只读汇总页** | 工作台、总览、日课表、报表 | **允许滚，但每个块自己封顶**（定高内滚 / 只给前 N 条 + "查看全部"），首屏那块要能做出下一步动作 | `/schedule-completeness`、`/system/permission-overview` |
+
+C 与 D 的边界判据是**"这几个块有没有非看不可的关联"**：改完主档马上要核对主讲 → 同页；只在"给某个学员打电话"时才看家长联系人 → 拆走。**不要因为"它们是同一张表的数据"就同屏**，那是后端视角。
+
+**四级杠杆（省不出预算只许往下走一级，不许反过来）**：
+
+1. **压排版**：标签同行、去掉重复行标题、矩阵行头压成单行、单元格 `padding: 2px 6px`（十行从 570 收到 330）——一般省 100~250px。
+2. **收内容**：未选上游时**整卡收成一行提示**（空白卡照样占 48~195px）、长列表只给前 N 条 + "查看全部"跳转、动态区 `max-height` 内滚——省 150~700px。
+3. **拆页互跳**：真的两件事才拆。**`el-collapse` 折叠不算解决**（展开照样逼出滚轮，用户明确退回过一次）。拆完两页顶上一颗互跳按钮，跳转把共用的 `educationScope` 校区范围带过去，落地不许停在别的校区；**菜单节点要一起授权**，只勾一边就是死链（写法见 V82：新页面节点挂读码、写码沿用既有按钮节点、`SELECT DISTINCT` 从兄弟节点带授权）。
+4. 拆完还超 → 承认装不下，把入口做成跳转，而不是让用户在长页里找按钮。
+
+**反复出现的毛病 → 统一处置**（同类一律同一改法，不要个别页先自由发挥）：
+
+| 毛病 | 出现页 | 规则 |
+| --- | --- | --- |
+| 筛选栏控件挤成两行（140px） | `/classes` `/students` `/schedule` | 根因是档案下拉组件自带 `style="width:100%"`，在筛选栏里独占一行；宽度收在组件的 `.archive-select` 上（筛选栏 240px、弹窗表单仍 100%）。筛选一行最多 4 个控件；挤成两行说明这屏混了两类筛选，次级的那个该跟着拆走 |
+| 卡片标题下又一行按钮、又一行说明 | `/classes`（三处）、`/campus` | 一屏每张卡最多 1 行标题 + 1 行动作；卡内表格的主操作按钮并进 `.education-table-head` 右侧，说明文字并进页面按钮行右侧（见「列表页与表格视图统一规范」） |
+| 依赖未选的上游、空卡照样占位 | `/classes` 班级主档 / 家长联系人 | 未选中时不渲染整卡，给一行提示，选中才铺开 |
+| 页面总高随数据量长 | `/schedule`（1414~2726）、`/dashboard`（3388） | 任何列表/明细块必须有 `max-height`，内部自己滚，页面总高不许被数据顶开 |
+| 同类并列卡竖排 | `/campus`（6 张 3606px） | 同类卡两列并排；跨类（校区学期 vs 课程班型）必须换页 |
+
+**量高探针**（内置浏览器只有 568×553 的可视面，没法真开 1440 窗口）：`evaluate_script` 注入 `.app-shell{width:1440px !important; height:900px !important} body{min-width:0 !important}`，此后 `.app-content` ≈ **1286×729**（即 1440×900 的内容区）。**别用 `html{zoom}` 放大模拟**——zoom 只放大布局盒，媒体查询仍按未缩放的 `window.innerWidth`（568）判定，于是 core 的 `@media (max-width:1280px)`（`.education-table-head` 折成竖排、`.dashboard-grid` 收成两列）与页面自己的窄屏档全部命中，量出来的总高全是"降级版式"，比真实 1440 高一截（`/classes` 曾被这个假信号量成 1140px 的两卡行）。**代价：强制宽度后媒体查询依旧按 568 判定**，所以被这些窄屏档改过版式的块要额外用 `!important` 把宽屏那档的规则原样补一遍再量（`/classes` 要补 `.education-table-head{flex-direction:row}`、`.class-profile-grid{两列 + max-height}`、`.class-profile-summary{三列}`）。另外三条陷阱：① `getBoundingClientRect()` 与 `offsetHeight` 同一坐标基准，别再叠 zoom；② `evaluate_script` 有 **15 秒超时**，一次最多跳 2~3 个路由、每页等 1000~1200ms，循环更多页就分批调用；③ 取路由用 `document.querySelector('#app').__vue_app__.config.globalProperties.$router`，`router.push()` 是 SPA 跳转（keep-alive 与探针样式都保得住），`navigate_page` 是整页重载（会话与缓存全清）。测完移除探针 style 节点。
+
+**现状基线（2026-09-27 实测，回归时对照）**：达标 19 页 = `/classrooms` `/time-slots` `/time-slot-list` `/teachers` `/scheduling` `/schedule-completeness` `/announcements` **`/classes` 240+309→729（档案两卡封顶 280）** **`/class-roster` 729** + `/system/` 的 users roles menus dicts config data-sources invitations list-configs operlogs permission-overview。超预算 5 页 = `/campus` **3606**、`/dashboard` **3388**、`/students` **1494**、`/schedule` **1414~2726**、`/system/institution` **1162**（最后这页只有一个保存，按 D 型豁免）。`/classes` 与 `/class-roster` 在 1366×768（预算 597）仍差约 130px，与时段模板页同档：一屏要放筛选 + 两卡 + 主表，砍到 597 就得把风险卡收进弹窗，暂不做。
 
 ### 外观档与配色令牌（明亮 / 夜晚 / 跟随系统）
 

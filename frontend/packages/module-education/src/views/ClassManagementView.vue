@@ -4,7 +4,7 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 整页级视图开关:按钮行放查询条件上方,统计条在其下方展开/收起 -->
+    <!-- 档案页只管"这个班是怎么搭的"：入班、退班和家长联系人在「班级名册」 -->
     <div class="table-toolbar">
       <el-button @click="statsVisible = !statsVisible">
         统计
@@ -12,13 +12,12 @@
           ><ArrowDown
         /></el-icon>
       </el-button>
-      <el-button
-        :icon="Refresh"
-        circle
-        :loading="lookupLoading || tableLoading || parentLoading"
-        @click="refreshAll"
-      />
+      <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
+      <el-button @click="goRoster">班级名册</el-button>
+      <span class="education-context-text">
+        入班、退班和家长联系人在「班级名册」；设为主讲会把原主讲降级为普通教师。
+      </span>
     </div>
 
     <div class="page-toolbar">
@@ -44,13 +43,6 @@
           placeholder="筛选班级"
           @change="loadRecords"
         />
-        <StudentSelect
-          v-model="studentId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          placeholder="搜索学员（姓名/学号）"
-          @change="handleStudentFilterChange"
-        />
       </div>
     </div>
 
@@ -67,33 +59,20 @@
       </article>
     </div>
 
-    <div class="dashboard-grid class-profile-grid">
-      <article class="panel-card">
+    <!-- 未选班级时不铺三张空卡，一行提示就够，把高度留给下面的任课教师表 -->
+    <div v-if="!currentClass" class="class-empty-hint">{{ classMissingText }}</div>
+
+    <div v-else class="dashboard-grid class-profile-grid">
+      <article class="panel-card class-profile-panel">
         <div class="education-table-head">
-          <div>
-            <div class="panel-title">班级主档</div>
-            <div class="education-context-text">
-              当前班级：{{ formatClass(classId) }} / 课程：{{
-                formatCourse(currentClass?.courseId)
-              }}
-              / 班型：{{ formatClassType(currentClass?.classTypeId) }}
-            </div>
-          </div>
+          <div class="panel-title">班级主档</div>
           <div class="table-actions">
-            <el-button link type="primary" :disabled="!currentClass" @click="openClassProfileDialog"
-              >编辑</el-button
-            >
-            <el-button link type="danger" :disabled="!currentClass" @click="confirmDeleteClass"
-              >删除</el-button
-            >
+            <el-button link type="primary" @click="openClassProfileDialog">编辑</el-button>
+            <el-button link type="danger" @click="confirmDeleteClass">删除</el-button>
           </div>
         </div>
 
-        <div v-if="!currentClass" class="education-empty">
-          请先选择一个班级，查看课程、班型、容量、主档风险和变动通知。
-        </div>
-
-        <div v-else class="class-profile-summary">
+        <div class="class-profile-summary">
           <div class="class-profile-item">
             <strong>班级编码</strong>
             <span>{{ currentClass.classCode || `班级 #${currentClass.id}` }}</span>
@@ -147,8 +126,7 @@
               <strong>班级主档风险</strong>
               <span>未绑定课程、班型、主讲或人数超容时在此提示。</span>
             </div>
-            <div v-if="!currentClass" class="education-empty">请选择班级后查看班级主档风险。</div>
-            <div v-else-if="classProfileRiskItems.length === 0" class="education-empty">
+            <div v-if="classProfileRiskItems.length === 0" class="education-empty">
               当前班级暂无主档风险。
             </div>
             <div v-else class="reminder-list">
@@ -164,10 +142,7 @@
               <strong>班级变动通知</strong>
               <span>系统生成的变动提醒，处理后自动消除。</span>
             </div>
-            <div v-if="!currentClass" class="education-empty">请选择班级后查看班级变动通知。</div>
-            <div v-else-if="noticeError" class="education-empty">
-              {{ noticeError }}
-            </div>
+            <div v-if="noticeError" class="education-empty">{{ noticeError }}</div>
             <div v-else-if="noticeLoading" class="education-context-text">
               正在加载班级变动通知...
             </div>
@@ -190,307 +165,71 @@
       </article>
     </div>
 
-    <article class="panel-card education-panel">
+    <article class="panel-card education-panel class-teacher-panel">
       <div class="education-table-head">
-        <div class="panel-title">班级学员关系</div>
+        <div class="panel-title">班级教师</div>
+        <div v-if="currentClass" class="table-actions">
+          <el-button link type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+        </div>
       </div>
 
-      <!-- 本表主操作:表格上方一行、左对齐 -->
-      <div class="table-toolbar">
-        <el-button type="primary" @click="openDialog">新增入班</el-button>
-      </div>
-
-      <TableFillBox v-slot="{ height }">
+      <TableFillBox v-if="currentClass" v-slot="{ height }">
         <el-table
-          ref="studentTableRef"
-          :data="records"
+          :data="classTeachers"
           border
           row-key="id"
           highlight-current-row
-          v-loading="tableLoading"
           :height="height"
-          :cell-class-name="studentSort.cellClass"
-          @sort-change="studentSort.onSortChange"
         >
-          <el-table-column label="班级" min-width="180" fixed="left">
+          <el-table-column label="教师" min-width="180" fixed="left">
             <template #default="{ row }">
-              {{ classLabel(row) }}
+              {{ formatTeacher(row.teacherId) }}
             </template>
           </el-table-column>
-          <el-table-column label="课程 / 班型" min-width="220">
+          <el-table-column label="角色" width="120" prop="teacherRole" sortable>
             <template #default="{ row }">
-              <div class="class-inline-meta">
-                <span>{{ formatCourse(row.courseId) }}</span>
-                <span>{{ formatClassType(row.classTypeId) }}</span>
-              </div>
+              {{ classTeacherRoleLabel(row.teacherRole) }}
             </template>
           </el-table-column>
-          <el-table-column label="学员" min-width="180">
+          <el-table-column label="主讲" width="90" prop="isPrimary" sortable>
             <template #default="{ row }">
-              {{ studentLabel(row) }}
+              {{ row.isPrimary ? '是' : '否' }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120" prop="status" sortable="custom">
+          <el-table-column prop="joinedAt" label="生效日期" width="130" sortable />
+          <el-table-column prop="leftAt" label="结束日期" width="130" sortable />
+          <el-table-column prop="status" label="状态" width="110" sortable>
             <template #default="{ row }">
-              <el-tag :type="classStudentTagType(row.status)">
-                {{ classStudentStatusLabel(row.status) }}
-              </el-tag>
+              <el-tag :type="classTeacherStatusTagType(row.status)">{{
+                classTeacherStatusLabel(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="joinedAt" label="入班日期" width="140" sortable="custom" />
-          <el-table-column prop="leftAt" label="离班日期" width="140" sortable="custom" />
-          <el-table-column
-            prop="remark"
-            label="备注"
-            min-width="220"
-            show-overflow-tooltip
-            sortable="custom"
-          />
-          <el-table-column label="操作" width="160" fixed="right">
+          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+          <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
-                <el-button link type="primary" @click="openParentPanel(row)"
-                  >联系人</el-button
+                <el-button
+                  link
+                  type="warning"
+                  :disabled="row.isPrimary"
+                  @click="promotePrimaryTeacher(row)"
+                  >设为主讲</el-button
                 >
-                <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
+                <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+                  >编辑</el-button
+                >
+                <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
               </div>
             </template>
           </el-table-column>
         </el-table>
       </TableFillBox>
 
-      <div v-if="!tableLoading && records.length === 0" class="education-empty">
-        当前筛选范围下暂无班级学员关系。
+      <div v-if="currentClass && classTeachers.length === 0" class="education-empty">
+        当前班级下暂无班级教师关系。
       </div>
-
-      <el-pagination
-        v-model:current-page="studentPage"
-        v-model:page-size="studentPageSize"
-        class="panel-pagination"
-        :total="studentTotal"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @current-change="loadStudentPage"
-        @size-change="handleStudentPageSizeChange"
-      />
     </article>
-
-    <div class="dashboard-grid class-relation-grid">
-      <article class="panel-card">
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">班级教师</div>
-            <div class="education-context-text">
-              当前班级：{{ formatClass(classId) }}，支持主讲切换、编辑和删除。
-            </div>
-          </div>
-        </div>
-
-        <div class="table-toolbar">
-          <el-button link type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
-        </div>
-
-        <TableFillBox v-slot="{ height }">
-          <el-table
-            :data="classTeachers"
-            border
-            row-key="id"
-            highlight-current-row
-            v-loading="tableLoading"
-            :height="height"
-          >
-            <el-table-column label="教师" min-width="180" fixed="left">
-              <template #default="{ row }">
-                {{ formatTeacher(row.teacherId) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="角色" width="120" prop="teacherRole" sortable>
-              <template #default="{ row }">
-                {{ classTeacherRoleLabel(row.teacherRole) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="主讲" width="90" prop="isPrimary" sortable>
-              <template #default="{ row }">
-                {{ row.isPrimary ? '是' : '否' }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="joinedAt" label="生效日期" width="130" sortable />
-            <el-table-column prop="status" label="状态" width="110" sortable>
-              <template #default="{ row }">
-                <el-tag :type="classTeacherStatusTagType(row.status)">{{
-                  classTeacherStatusLabel(row.status)
-                }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <div class="table-actions">
-                  <el-button
-                    link
-                    type="warning"
-                    :disabled="row.isPrimary"
-                    @click="promotePrimaryTeacher(row)"
-                    >设为主讲</el-button
-                  >
-                  <el-button link type="primary" @click="openTeacherDialog('edit', row)"
-                    >编辑</el-button
-                  >
-                  <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </TableFillBox>
-
-        <div v-if="!tableLoading && classTeachers.length === 0" class="education-empty">
-          当前班级下暂无班级教师关系。
-        </div>
-      </article>
-
-      <article class="panel-card">
-        <div class="education-table-head">
-          <div>
-            <div class="panel-title">家长联系人</div>
-            <div class="education-context-text">
-              当前学员：{{ formatStudent(contactStudentId) }}，支持主联系人切换、编辑和删除。
-            </div>
-          </div>
-        </div>
-
-        <div class="table-toolbar">
-          <el-button link type="primary" @click="openParentDialog('create')">新增联系人</el-button>
-        </div>
-
-        <div v-if="!contactStudentId" class="education-empty">
-          请选择学员或从班级学员表点击“联系人”，再维护家长联系人。
-        </div>
-
-        <template v-else>
-          <TableFillBox v-slot="{ height }">
-            <el-table
-              :data="studentParents"
-              border
-              row-key="id"
-              highlight-current-row
-              v-loading="parentLoading"
-              :height="height"
-            >
-              <el-table-column
-                prop="parentName"
-                label="联系人"
-                min-width="140"
-                show-overflow-tooltip
-                fixed="left"
-                sortable
-              />
-              <el-table-column label="关系" width="110" prop="relationType" sortable>
-                <template #default="{ row }">
-                  {{ parentRelationLabel(row.relationType) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="parentPhone" label="联系电话" width="150" sortable />
-              <el-table-column label="主联系人" width="100" prop="primaryContact" sortable>
-                <template #default="{ row }">
-                  {{ row.primaryContact ? '是' : '否' }}
-                </template>
-              </el-table-column>
-              <el-table-column label="紧急联系" width="100" prop="emergencyContact" sortable>
-                <template #default="{ row }">
-                  {{ row.emergencyContact ? '是' : '否' }}
-                </template>
-              </el-table-column>
-              <el-table-column label="状态" width="100" prop="status" sortable>
-                <template #default="{ row }">
-                  <el-tag :type="studentParentTagType(row.status)">{{
-                    studentParentStatusLabel(row.status)
-                  }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="220" fixed="right">
-                <template #default="{ row }">
-                  <div class="table-actions">
-                    <el-button
-                      link
-                      type="warning"
-                      :disabled="row.primaryContact"
-                      @click="promotePrimaryParent(row)"
-                      >设为主联系人</el-button
-                    >
-                    <el-button link type="primary" @click="openParentDialog('edit', row)"
-                      >编辑</el-button
-                    >
-                    <el-button link type="danger" @click="removeStudentParent(row)">删除</el-button>
-                  </div>
-                </template>
-              </el-table-column>
-            </el-table>
-          </TableFillBox>
-
-          <div v-if="!parentLoading && studentParents.length === 0" class="education-empty">
-            当前学员下暂无家长联系人。
-          </div>
-        </template>
-      </article>
-    </div>
-
-    <el-dialog v-model="dialogVisible" title="新增入班关系" width="520px">
-      <el-alert
-        v-if="formError"
-        :title="formError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="入班班级" required>
-          <ClassSelect v-model="form.classId" :institution-id="institutionId" :campus-id="campusId" />
-        </el-form-item>
-        <el-form-item label="学员" required>
-          <StudentSelect
-            v-model="form.studentId"
-            :institution-id="institutionId"
-            :campus-id="campusId"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status" placeholder="选择状态">
-            <el-option label="在班" value="active" />
-            <el-option label="停班" value="suspended" />
-            <el-option label="已离班" value="left" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="入班日期">
-          <el-date-picker
-            v-model="form.joinedAt"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="选择入班日期"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="离班日期">
-          <el-date-picker
-            v-model="form.leftAt"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="选择离班日期"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="补充关系说明" />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitClassStudent"
-          >提交入班</el-button
-        >
-      </template>
-    </el-dialog>
 
     <el-dialog
       v-model="teacherDialogVisible"
@@ -508,7 +247,11 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="所属班级" required>
-          <ClassSelect v-model="teacherForm.classId" :institution-id="institutionId" :campus-id="campusId" />
+          <ClassSelect
+            v-model="teacherForm.classId"
+            :institution-id="institutionId"
+            :campus-id="campusId"
+          />
         </el-form-item>
         <el-form-item label="教师">
           <el-select v-model="teacherForm.teacherId" placeholder="选择教师" filterable>
@@ -627,7 +370,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="主讲教师">
-          <el-select v-model="classProfileForm.teacherId" clearable filterable placeholder="选择主讲教师">
+          <el-select
+            v-model="classProfileForm.teacherId"
+            clearable
+            filterable
+            placeholder="选择主讲教师"
+          >
             <el-option
               v-for="item in teachers"
               :key="item.id"
@@ -802,74 +550,6 @@
         >
       </template>
     </el-dialog>
-
-    <el-dialog
-      v-model="parentDialogVisible"
-      :title="parentDialogMode === 'create' ? '新增家长联系人' : '编辑家长联系人'"
-      width="560px"
-    >
-      <el-alert
-        v-if="parentFormError"
-        :title="parentFormError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="所属学员" required>
-          <StudentSelect
-            v-model="parentForm.studentId"
-            :institution-id="institutionId"
-            :campus-id="campusId"
-          />
-        </el-form-item>
-        <el-form-item label="联系人姓名">
-          <el-input v-model="parentForm.parentName" placeholder="例如 学员妈妈" />
-        </el-form-item>
-        <el-form-item label="关系">
-          <DictSelect
-            v-model="parentForm.relationType"
-            type-code="parent_relation"
-            placeholder="选择关系"
-          />
-        </el-form-item>
-        <el-form-item label="联系电话">
-          <el-input v-model="parentForm.parentPhone" placeholder="填写家长手机号" />
-        </el-form-item>
-        <el-form-item label="微信号">
-          <el-input v-model="parentForm.wechatNo" placeholder="可选" />
-        </el-form-item>
-        <el-form-item label="联系人状态">
-          <el-select v-model="parentForm.status">
-            <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="主联系人">
-          <el-switch v-model="parentForm.isPrimary" />
-        </el-form-item>
-        <el-form-item label="紧急联系人">
-          <el-switch v-model="parentForm.isEmergencyContact" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input
-            v-model="parentForm.remark"
-            type="textarea"
-            :rows="3"
-            placeholder="补充联系人说明"
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="parentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="parentSubmitting" @click="submitStudentParent">
-          {{ parentDialogMode === 'create' ? '提交联系人' : '保存联系人' }}
-        </el-button>
-      </template>
-    </el-dialog>
   </section>
 </template>
 
@@ -879,52 +559,40 @@ import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
-  createClassStudent,
-  deleteClassStudent,
-  fetchClassChangeNotices,
   createClassTeacher,
-  createStudentParent,
   createTeachingClass,
   deleteClassTeacher,
-  deleteStudentParent,
   deleteTeachingClass,
+  fetchClassChangeNotices,
   fetchClassCount,
-  fetchClassStudentPage,
   fetchClassStudentActiveCount,
   fetchClassTeachers,
   fetchClassTypes,
   fetchCourses,
-  fetchStudentParents,
-  fetchTeachingClass,
   fetchTeachers,
-  type ClassChangeNoticeRecord,
-  type TeachingClassSummary,
-  type TeachingClassUpdatePayload,
+  fetchTeachingClass,
   updateClassTeacher,
   updateTeachingClass,
-  updateStudentParent,
-  type ClassStudentViewRecord,
+  type ClassChangeNoticeRecord,
   type ClassTeacherCreatePayload,
   type ClassTeacherRecord,
   type ClassTypeRecord,
   type CourseRecord,
-  type StudentParentCreatePayload,
-  type StudentParentRecord,
   type TeacherSummary,
   type TeachingClassCreatePayload,
+  type TeachingClassSummary,
+  type TeachingClassUpdatePayload,
 } from '@cornerstone/module-education/api/education'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
-import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
+import { classLabelOf, rememberClassOptions } from '@cornerstone/module-education/composables/classLabels'
 import LessonTargetFields from './components/LessonTargetFields.vue'
 import ClassSelect from './components/ClassSelect.vue'
-import StudentSelect from './components/StudentSelect.vue'
-import { rememberStudentOptions, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
-import { classLabelOf, rememberClassOptions } from '@cornerstone/module-education/composables/classLabels'
 
 interface ReminderItem {
   key: string
@@ -940,6 +608,8 @@ interface NoticeItem {
   action?: string | null
 }
 
+const route = useRoute()
+const router = useRouter()
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
@@ -950,65 +620,30 @@ const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
 
 const classId = ref<string | null>(null)
-const studentId = ref<string | null>(null)
-const activeParentStudentId = ref<string | null>(null)
 
 const statsVisible = ref(false)
 
-const records = ref<ClassStudentViewRecord[]>([])
-// 班级学员关系服务端分页:表只装当前页，在班人数另走 active-count 统计
-const studentPage = ref(1)
-const studentPageSize = ref(20)
-const studentTotal = ref(0)
+// 在班人数另走 active-count 统计：这一页不再拉名册分页
 const activeClassStudentCount = ref(0)
 /** 统计卡的"班级数"走服务端计数：本机已没有全量班级数组 */
 const classTotal = ref(0)
-const studentTableRef = ref<{ clearSort: () => void } | null>(null)
-/** 表头排序交给服务端:点表头回到第一页重查，取消排序则回到接口默认排序 */
-const studentSort = useTableSort({
-  onSorted: () => {
-    studentPage.value = 1
-    void loadStudentPage()
-  },
-  clearTableSort: () => studentTableRef.value?.clearSort(),
-})
 const classTeachers = ref<ClassTeacherRecord[]>([])
-const studentParents = ref<StudentParentRecord[]>([])
 const classChangeNotices = ref<ClassChangeNoticeRecord[]>([])
 const pageError = ref('')
 const noticeError = ref('')
-const formError = ref('')
-const dialogVisible = ref(false)
 const teacherDialogVisible = ref(false)
 const classProfileDialogVisible = ref(false)
-const parentDialogVisible = ref(false)
 const teacherDialogMode = ref<'create' | 'edit'>('create')
-const parentDialogMode = ref<'create' | 'edit'>('create')
 const editingTeacherId = ref<string | null>(null)
-const editingParentId = ref<string | null>(null)
 const lookupLoading = ref(false)
-const tableLoading = ref(false)
-const parentLoading = ref(false)
 const noticeLoading = ref(false)
-const submitting = ref(false)
 const teacherSubmitting = ref(false)
 const classProfileSubmitting = ref(false)
-const parentSubmitting = ref(false)
 const teacherFormError = ref('')
 const classProfileFormError = ref('')
-const parentFormError = ref('')
 const classCreateDialogVisible = ref(false)
 const classCreateSubmitting = ref(false)
 const classCreateFormError = ref('')
-
-const form = reactive({
-  classId: '' as string | null,
-  studentId: '' as string | null,
-  status: 'active',
-  joinedAt: todayValue(),
-  leftAt: '',
-  remark: '',
-})
 
 const teacherForm = reactive({
   classId: '' as string | null,
@@ -1054,18 +689,6 @@ const classCreateForm = reactive({
   remark: '',
 })
 
-const parentForm = reactive({
-  studentId: '' as string | null,
-  parentName: '',
-  relationType: '',
-  parentPhone: '',
-  wechatNo: '',
-  isPrimary: true,
-  isEmergencyContact: false,
-  status: 'active',
-  remark: '',
-})
-
 const teacherMap = computed(() => {
   return new Map(
     teachers.value.map((item) => [
@@ -1089,10 +712,6 @@ const classTypeMap = computed(() => {
 
 /** 班级主档只展示选中的那一个班，档案按需单条取，不再把全机构班级拉回本机当字典 */
 const currentClass = ref<TeachingClassSummary | null>(null)
-
-const contactStudentId = computed(() => {
-  return activeParentStudentId.value || studentId.value || null
-})
 
 const primaryTeacher = computed(() => {
   return classTeachers.value.find((item) => item.isPrimary) || null
@@ -1123,11 +742,20 @@ const lessonTargetLabel = computed(() => {
   return `${clazz.weeklyLessons} 节/周`
 })
 
+/** 没选中班级与"选了但档案取不到"是两回事，提示要分开说 */
+const classMissingText = computed(() => {
+  if (!classId.value) {
+    return '请先在上方选择一个班级，再看主档、风险与任课教师。'
+  }
+  return `班级 ${formatClass(classId.value)} 的主档暂时取不到，可能是已被删除或不在当前校区，请重新选择班级。`
+})
+
 const localRiskItems = computed<ReminderItem[]>(() => {
   const items: ReminderItem[] = []
+  const clazz = currentClass.value
 
-  if (currentClass.value) {
-    if (!currentClass.value.courseId) {
+  if (clazz) {
+    if (!clazz.courseId) {
       items.push({
         key: 'missing-course',
         title: '班级未绑定课程',
@@ -1135,7 +763,7 @@ const localRiskItems = computed<ReminderItem[]>(() => {
         noticeType: 'missing_course',
       })
     }
-    if (!currentClass.value.classTypeId) {
+    if (!clazz.classTypeId) {
       items.push({
         key: 'missing-class-type',
         title: '班级未绑定班型',
@@ -1152,13 +780,13 @@ const localRiskItems = computed<ReminderItem[]>(() => {
       })
     }
     if (
-      typeof currentClass.value.capacityLimit === 'number' &&
-      activeClassStudentCount.value > currentClass.value.capacityLimit
+      typeof clazz.capacityLimit === 'number' &&
+      activeClassStudentCount.value > clazz.capacityLimit
     ) {
       items.push({
         key: 'capacity-overflow',
         title: '在班人数超过容量上限',
-        text: `当前在班 ${activeClassStudentCount.value} 人，已超过容量 ${currentClass.value.capacityLimit} 人。`,
+        text: `当前在班 ${activeClassStudentCount.value} 人，已超过容量 ${clazz.capacityLimit} 人。名册页可移除多余学员。`,
       })
     }
   }
@@ -1214,21 +842,8 @@ function classChangeNoticeTitle(noticeType?: string | null) {
   }
 }
 
-/** 分页行自带班级与学员名称，不再依赖全量班级/学员列表回显 */
-function classLabel(row: ClassStudentViewRecord) {
-  return row.className || row.classCode || formatClass(row.classId)
-}
-
-function studentLabel(row: ClassStudentViewRecord) {
-  return row.studentName || row.studentNo || formatStudent(row.studentId)
-}
-
 function formatClass(id?: string | null) {
   return classLabelOf(id)
-}
-
-function formatStudent(id?: string | null) {
-  return studentLabelOf(id)
 }
 
 function formatTeacher(id?: string | null) {
@@ -1250,30 +865,6 @@ function formatClassType(id?: string | null) {
     return '未绑定班型'
   }
   return classTypeMap.value.get(id) || `班型 #${id}`
-}
-
-function classStudentStatusLabel(status?: string | null) {
-  switch (status) {
-    case 'suspended':
-      return '停班'
-    case 'left':
-      return '已离班'
-    case 'active':
-    default:
-      return '在班'
-  }
-}
-
-function classStudentTagType(status?: string | null) {
-  switch (status) {
-    case 'suspended':
-      return 'warning'
-    case 'left':
-      return 'info'
-    case 'active':
-    default:
-      return 'success'
-  }
 }
 
 function classTeacherRoleLabel(role?: string | null) {
@@ -1312,40 +903,6 @@ function teachingClassStatusLabel(status?: string | null) {
     default:
       return '规划中'
   }
-}
-
-function parentRelationLabel(value?: string | null) {
-  return dictStore.displayLabel('parent_relation', value)
-}
-
-function studentParentStatusLabel(status?: string | null) {
-  switch (status) {
-    case 'inactive':
-      return '停用'
-    case 'active':
-    default:
-      return '启用'
-  }
-}
-
-function studentParentTagType(status?: string | null) {
-  switch (status) {
-    case 'inactive':
-      return 'info'
-    case 'active':
-    default:
-      return 'success'
-  }
-}
-
-function resetForm() {
-  form.classId = classId.value
-  form.studentId = studentId.value || ''
-  form.status = 'active'
-  form.joinedAt = todayValue()
-  form.leftAt = ''
-  form.remark = ''
-  formError.value = ''
 }
 
 function resetTeacherForm() {
@@ -1399,6 +956,196 @@ function resetClassCreateForm() {
 function openClassCreateDialog() {
   resetClassCreateForm()
   classCreateDialogVisible.value = true
+}
+
+function buildTeacherPayload(): ClassTeacherCreatePayload {
+  return {
+    institutionId: institutionId.value as string,
+    classId: teacherForm.classId as string,
+    teacherId: teacherForm.teacherId,
+    teacherRole: teacherForm.teacherRole,
+    isPrimary: teacherForm.isPrimary,
+    joinedAt: teacherForm.joinedAt || null,
+    leftAt: teacherForm.leftAt || null,
+    status: trimToUndefined(teacherForm.status),
+    remark: trimToUndefined(teacherForm.remark),
+  }
+}
+
+function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUpdatePayload {
+  return {
+    institutionId: target.institutionId || (institutionId.value as string),
+    campusId: target.campusId || (campusId.value as string),
+    termId: classProfileForm.termId || null,
+    courseId: classProfileForm.courseId || null,
+    classTypeId: classProfileForm.classTypeId || null,
+    classCode: classProfileForm.classCode.trim(),
+    className: classProfileForm.className.trim(),
+    teacherId: classProfileForm.teacherId || null,
+    capacityLimit: Number.isFinite(classProfileForm.capacityLimit)
+      ? classProfileForm.capacityLimit
+      : 0,
+    // 留空即未设定：更新时显式传 null 才能清掉旧值（weeklyLessons 由后端按口径换算）
+    weeklyLessonsMode: classProfileForm.weeklyLessonsMode,
+    weeklyLessonsInput: classProfileForm.weeklyLessonsInput ?? null,
+    totalLessons: classProfileForm.totalLessons ?? null,
+    status: classProfileForm.status,
+    openedAt: target.openedAt || null,
+    remark: trimToUndefined(classProfileForm.remark),
+  }
+}
+
+async function refreshScopeData() {
+  if (!institutionId.value) {
+    campuses.value = []
+    classTotal.value = 0
+    teachers.value = []
+    courses.value = []
+    classTypes.value = []
+    return
+  }
+
+  lookupLoading.value = true
+  pageError.value = ''
+  try {
+    await loadScope()
+    const [teacherList, courseList, classTypeList, count] = await Promise.all([
+      fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
+      fetchCourses({ institutionId: institutionId.value }),
+      fetchClassTypes({ institutionId: institutionId.value }),
+      fetchClassCount({ institutionId: institutionId.value, campusId: campusId.value }),
+    ])
+    teachers.value = teacherList
+    courses.value = courseList
+    classTypes.value = classTypeList
+    classTotal.value = count
+  } catch (error) {
+    pageError.value = toMessage(error, '范围数据加载失败')
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+async function loadClassChangeNoticeRecords() {
+  if (!institutionId.value || !classId.value) {
+    classChangeNotices.value = []
+    noticeError.value = ''
+    return
+  }
+
+  noticeLoading.value = true
+  noticeError.value = ''
+  try {
+    classChangeNotices.value = await fetchClassChangeNotices({
+      institutionId: institutionId.value,
+      classId: classId.value,
+      noticeStatus: 'pending',
+    })
+  } catch (error) {
+    classChangeNotices.value = []
+    noticeError.value = toMessage(error, '班级变动通知加载失败，当前仅展示本地主档风险兜底。')
+  } finally {
+    noticeLoading.value = false
+  }
+}
+
+/** 在班人数按整班统计：这一页不拉名册，容量风险要的是全量人数 */
+async function loadActiveClassStudentCount() {
+  if (!institutionId.value || !classId.value) {
+    activeClassStudentCount.value = 0
+    return
+  }
+  try {
+    activeClassStudentCount.value = await fetchClassStudentActiveCount(
+      institutionId.value,
+      classId.value
+    )
+  } catch (error) {
+    activeClassStudentCount.value = 0
+    pageError.value = toMessage(error, '班级在班人数加载失败')
+  }
+}
+
+/** 班级教师只在选中班级时加载 */
+async function loadClassTeachers() {
+  if (!classId.value) {
+    classTeachers.value = []
+    return
+  }
+  classTeachers.value = await fetchClassTeachers({ classId: classId.value })
+}
+
+/** 选中的那个班按需取整条档案：主档卡、风险项和编辑弹窗预填都读它 */
+async function loadCurrentClass() {
+  if (!institutionId.value || !classId.value) {
+    currentClass.value = null
+    return
+  }
+  try {
+    const detail = await fetchTeachingClass(institutionId.value, classId.value)
+    currentClass.value = detail
+    rememberClassOptions([detail])
+  } catch (error) {
+    currentClass.value = null
+    pageError.value = toMessage(error, '班级主档加载失败')
+  }
+}
+
+async function loadRecords() {
+  if (!institutionId.value) {
+    activeClassStudentCount.value = 0
+    currentClass.value = null
+    classTeachers.value = []
+    classChangeNotices.value = []
+    noticeError.value = ''
+    return
+  }
+  pageError.value = ''
+  try {
+    await Promise.all([
+      loadClassTeachers(),
+      loadActiveClassStudentCount(),
+      loadCurrentClass(),
+      loadClassChangeNoticeRecords(),
+    ])
+  } catch (error) {
+    classTeachers.value = []
+    pageError.value = toMessage(error, '班级主档数据加载失败')
+  }
+}
+
+async function handleCampusChange() {
+  classId.value = null
+  await refreshScopeData()
+  await loadRecords()
+}
+
+function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
+  resetTeacherForm()
+  teacherDialogMode.value = mode
+
+  if (mode === 'edit' && row) {
+    editingTeacherId.value = row.id
+    teacherForm.teacherId = row.teacherId || ''
+    teacherForm.teacherRole = row.teacherRole || ''
+    teacherForm.isPrimary = Boolean(row.isPrimary)
+    teacherForm.joinedAt = row.joinedAt || todayValue()
+    teacherForm.leftAt = row.leftAt || ''
+    teacherForm.status = row.status || 'active'
+    teacherForm.remark = row.remark || ''
+  }
+
+  teacherDialogVisible.value = true
+}
+
+function openClassProfileDialog() {
+  if (!currentClass.value) {
+    ElMessage.warning('请先选择班级')
+    return
+  }
+
+  resetClassProfileForm(currentClass.value)
+  classProfileDialogVisible.value = true
 }
 
 function buildClassCreatePayload(): TeachingClassCreatePayload {
@@ -1484,394 +1231,6 @@ async function confirmDeleteClass() {
     await loadRecords()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除班级失败'))
-  }
-}
-
-function resetParentForm() {
-  parentForm.studentId = contactStudentId.value
-  parentForm.parentName = ''
-  parentForm.relationType = ''
-  parentForm.parentPhone = ''
-  parentForm.wechatNo = ''
-  parentForm.isPrimary = true
-  parentForm.isEmergencyContact = false
-  parentForm.status = 'active'
-  parentForm.remark = ''
-  parentFormError.value = ''
-  editingParentId.value = null
-}
-
-function buildTeacherPayload(): ClassTeacherCreatePayload {
-  return {
-    institutionId: institutionId.value as string,
-    classId: teacherForm.classId as string,
-    teacherId: teacherForm.teacherId,
-    teacherRole: teacherForm.teacherRole,
-    isPrimary: teacherForm.isPrimary,
-    joinedAt: teacherForm.joinedAt || null,
-    leftAt: teacherForm.leftAt || null,
-    status: trimToUndefined(teacherForm.status),
-    remark: trimToUndefined(teacherForm.remark),
-  }
-}
-
-function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUpdatePayload {
-  return {
-    institutionId: target.institutionId || (institutionId.value as string),
-    campusId: target.campusId || (campusId.value as string),
-    termId: classProfileForm.termId || null,
-    courseId: classProfileForm.courseId || null,
-    classTypeId: classProfileForm.classTypeId || null,
-    classCode: classProfileForm.classCode.trim(),
-    className: classProfileForm.className.trim(),
-    teacherId: classProfileForm.teacherId || null,
-    capacityLimit: Number.isFinite(classProfileForm.capacityLimit)
-      ? classProfileForm.capacityLimit
-      : 0,
-    // 留空即未设定：更新时显式传 null 才能清掉旧值（weeklyLessons 由后端按口径换算）
-    weeklyLessonsMode: classProfileForm.weeklyLessonsMode,
-    weeklyLessonsInput: classProfileForm.weeklyLessonsInput ?? null,
-    totalLessons: classProfileForm.totalLessons ?? null,
-    status: classProfileForm.status,
-    openedAt: target.openedAt || null,
-    remark: trimToUndefined(classProfileForm.remark),
-  }
-}
-
-function buildParentPayload(): StudentParentCreatePayload {
-  return {
-    institutionId: institutionId.value as string,
-    studentId: parentForm.studentId as string,
-    parentName: parentForm.parentName.trim(),
-    relationType: trimToUndefined(parentForm.relationType),
-    parentPhone: trimToUndefined(parentForm.parentPhone),
-    wechatNo: trimToUndefined(parentForm.wechatNo),
-    isPrimary: parentForm.isPrimary,
-    isEmergencyContact: parentForm.isEmergencyContact,
-    status: trimToUndefined(parentForm.status),
-    remark: trimToUndefined(parentForm.remark),
-  }
-}
-
-async function refreshScopeData() {
-  if (!institutionId.value) {
-    campuses.value = []
-    classTotal.value = 0
-    teachers.value = []
-    courses.value = []
-    classTypes.value = []
-    return
-  }
-
-  lookupLoading.value = true
-  pageError.value = ''
-  try {
-    await loadScope()
-    const [teacherList, courseList, classTypeList, count] = await Promise.all([
-      fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
-      fetchCourses({ institutionId: institutionId.value }),
-      fetchClassTypes({ institutionId: institutionId.value }),
-      fetchClassCount({ institutionId: institutionId.value, campusId: campusId.value }),
-    ])
-    teachers.value = teacherList
-    courses.value = courseList
-    classTypes.value = classTypeList
-    classTotal.value = count
-  } catch (error) {
-    pageError.value = toMessage(error, '范围数据加载失败')
-  } finally {
-    lookupLoading.value = false
-  }
-}
-
-async function loadParentRecords(targetStudentId?: string | null) {
-  if (!institutionId.value || !targetStudentId) {
-    studentParents.value = []
-    return
-  }
-
-  parentLoading.value = true
-  try {
-    studentParents.value = await fetchStudentParents({
-      institutionId: institutionId.value,
-      studentId: targetStudentId,
-    })
-  } catch (error) {
-    studentParents.value = []
-    pageError.value = toMessage(error, '家长联系人加载失败')
-  } finally {
-    parentLoading.value = false
-  }
-}
-
-async function loadClassChangeNoticeRecords() {
-  if (!institutionId.value || !classId.value) {
-    classChangeNotices.value = []
-    noticeError.value = ''
-    return
-  }
-
-  noticeLoading.value = true
-  noticeError.value = ''
-  try {
-    classChangeNotices.value = await fetchClassChangeNotices({
-      institutionId: institutionId.value,
-      classId: classId.value,
-      noticeStatus: 'pending',
-    })
-  } catch (error) {
-    classChangeNotices.value = []
-    noticeError.value = toMessage(error, '班级变动通知加载失败，当前仅展示本地主档风险兜底。')
-  } finally {
-    noticeLoading.value = false
-  }
-}
-
-/** 只拉当前页的班级学员关系，翻页与排序走这里，不回第一页 */
-async function loadStudentPage() {
-  if (!institutionId.value) {
-    records.value = []
-    studentTotal.value = 0
-    return
-  }
-  tableLoading.value = true
-  pageError.value = ''
-  try {
-    const result = await fetchClassStudentPage({
-      institutionId: institutionId.value,
-      campusId: campusId.value,
-      classId: classId.value,
-      studentId: studentId.value,
-      page: studentPage.value,
-      pageSize: studentPageSize.value,
-      ...studentSort.sortParams(),
-    })
-    records.value = result.records
-    studentTotal.value = result.total
-  } catch (error) {
-    records.value = []
-    studentTotal.value = 0
-    pageError.value = toMessage(error, '班级学员关系加载失败')
-  } finally {
-    tableLoading.value = false
-  }
-}
-
-/** 在班人数按整班统计：分页表只有当前页，不能拿它算人数 */
-async function loadActiveClassStudentCount() {
-  if (!institutionId.value || !classId.value) {
-    activeClassStudentCount.value = 0
-    return
-  }
-  try {
-    activeClassStudentCount.value = await fetchClassStudentActiveCount(
-      institutionId.value,
-      classId.value
-    )
-  } catch (error) {
-    activeClassStudentCount.value = 0
-    pageError.value = toMessage(error, '班级在班人数加载失败')
-  }
-}
-
-/** 班级教师只在选中班级时加载 */
-async function loadClassTeachers() {
-  if (!classId.value) {
-    classTeachers.value = []
-    return
-  }
-  classTeachers.value = await fetchClassTeachers({ classId: classId.value })
-}
-
-/** 筛选条件或机构范围变化：回到第一页，把学员页与随班级加载的数据一起重拉 */
-/** 选中的那个班按需取整条档案：主档卡、风险项和编辑弹窗预填都读它 */
-async function loadCurrentClass() {
-  if (!institutionId.value || !classId.value) {
-    currentClass.value = null
-    return
-  }
-  try {
-    const detail = await fetchTeachingClass(institutionId.value, classId.value)
-    currentClass.value = detail
-    rememberClassOptions([detail])
-  } catch (error) {
-    currentClass.value = null
-    pageError.value = toMessage(error, '班级主档加载失败')
-  }
-}
-
-async function loadRecords() {
-  studentPage.value = 1
-  if (!institutionId.value) {
-    records.value = []
-    studentTotal.value = 0
-    activeClassStudentCount.value = 0
-    currentClass.value = null
-    classTeachers.value = []
-    studentParents.value = []
-    classChangeNotices.value = []
-    noticeError.value = ''
-    return
-  }
-  tableLoading.value = true
-  pageError.value = ''
-  try {
-    await Promise.all([
-      loadStudentPage(),
-      loadClassTeachers(),
-      loadActiveClassStudentCount(),
-      loadCurrentClass(),
-    ])
-    await Promise.all([loadParentRecords(contactStudentId.value), loadClassChangeNoticeRecords()])
-  } catch (error) {
-    classTeachers.value = []
-    studentParents.value = []
-    classChangeNotices.value = []
-    pageError.value = toMessage(error, '班级主档数据加载失败')
-  } finally {
-    tableLoading.value = false
-  }
-}
-
-function handleStudentPageSizeChange() {
-  studentPage.value = 1
-  void loadStudentPage()
-}
-
-async function handleCampusChange() {
-  classId.value = null
-  studentId.value = null
-  activeParentStudentId.value = null
-  await refreshScopeData()
-  await loadRecords()
-}
-
-async function handleStudentFilterChange() {
-  activeParentStudentId.value = studentId.value
-  await loadRecords()
-}
-
-function openDialog() {
-  resetForm()
-  dialogVisible.value = true
-}
-
-function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
-  resetTeacherForm()
-  teacherDialogMode.value = mode
-
-  if (mode === 'edit' && row) {
-    editingTeacherId.value = row.id
-    teacherForm.teacherId = row.teacherId || ''
-    teacherForm.teacherRole = row.teacherRole || ''
-    teacherForm.isPrimary = Boolean(row.isPrimary)
-    teacherForm.joinedAt = row.joinedAt || todayValue()
-    teacherForm.leftAt = row.leftAt || ''
-    teacherForm.status = row.status || 'active'
-    teacherForm.remark = row.remark || ''
-  }
-
-  teacherDialogVisible.value = true
-}
-
-function openClassProfileDialog() {
-  if (!currentClass.value) {
-    ElMessage.warning('请先选择班级')
-    return
-  }
-
-  resetClassProfileForm(currentClass.value)
-  classProfileDialogVisible.value = true
-}
-
-/** 从分页行进入联系人面板：行上自带学员名称，先记进缓存供标题回显 */
-async function openParentPanel(row?: ClassStudentViewRecord | null) {
-  if (row?.studentId) {
-    rememberStudentOptions([
-      { id: row.studentId, studentNo: row.studentNo, studentName: row.studentName },
-    ])
-  }
-  activeParentStudentId.value = row?.studentId || studentId.value || null
-  await loadParentRecords(activeParentStudentId.value)
-}
-
-function openParentDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
-  resetParentForm()
-  parentDialogMode.value = mode
-
-  if (mode === 'edit' && row) {
-    editingParentId.value = row.id
-    parentForm.parentName = row.parentName || ''
-    parentForm.relationType = row.relationType || ''
-    parentForm.parentPhone = row.parentPhone || ''
-    parentForm.wechatNo = row.wechatNo || ''
-    parentForm.isPrimary = Boolean(row.primaryContact)
-    parentForm.isEmergencyContact = Boolean(row.emergencyContact)
-    parentForm.status = row.status || 'active'
-    parentForm.remark = row.remark || ''
-  }
-
-  parentDialogVisible.value = true
-}
-
-async function submitClassStudent() {
-  if (!institutionId.value) {
-    formError.value = '请先选择机构范围'
-    return
-  }
-  if (!form.classId) {
-    formError.value = '请选择入班班级'
-    return
-  }
-  if (!form.studentId) {
-    formError.value = '请选择学员'
-    return
-  }
-  if (form.leftAt && form.joinedAt && form.leftAt < form.joinedAt) {
-    formError.value = '离班日期不能早于入班日期'
-    return
-  }
-
-  submitting.value = true
-  formError.value = ''
-  try {
-    await createClassStudent({
-      institutionId: institutionId.value,
-      classId: form.classId,
-      studentId: form.studentId,
-      status: form.status,
-      joinedAt: form.joinedAt,
-      leftAt: form.leftAt || null,
-      remark: trimToUndefined(form.remark),
-    })
-    ElMessage.success('入班关系已新增')
-    dialogVisible.value = false
-    resetForm()
-    await loadRecords()
-  } catch (error) {
-    formError.value = toMessage(error, '新增入班失败')
-  } finally {
-    submitting.value = false
-  }
-}
-
-async function removeClassStudent(row: ClassStudentViewRecord) {
-  try {
-    await ElMessageBox.confirm(
-      `确认将 ${studentLabel(row)} 移出班级 ${classLabel(row)} 吗？`,
-      '移出班级',
-      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
-
-  try {
-    await deleteClassStudent(row.id)
-    ElMessage.success('学员已移出班级')
-    await loadRecords()
-  } catch (error) {
-    ElMessage.error(toMessage(error, '移出班级失败'))
   }
 }
 
@@ -2000,171 +1359,116 @@ async function removeClassTeacher(row: ClassTeacherRecord) {
   }
 }
 
-async function submitStudentParent() {
-  if (!institutionId.value) {
-    parentFormError.value = '请先选择机构范围'
-    return
-  }
-  if (!parentForm.studentId) {
-    parentFormError.value = '请选择所属学员'
-    return
-  }
-  if (!trimToUndefined(parentForm.parentName)) {
-    parentFormError.value = '请填写联系人姓名'
-    return
-  }
-
-  parentSubmitting.value = true
-  parentFormError.value = ''
-  try {
-    const payload = buildParentPayload()
-    if (parentDialogMode.value === 'create') {
-      await createStudentParent(payload)
-      ElMessage.success('家长联系人已新增')
-    } else if (editingParentId.value) {
-      await updateStudentParent(editingParentId.value, payload)
-      ElMessage.success('家长联系人已更新')
-    }
-    parentDialogVisible.value = false
-    resetParentForm()
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    parentFormError.value = toMessage(
-      error,
-      parentDialogMode.value === 'create' ? '新增家长联系人失败' : '更新家长联系人失败'
-    )
-  } finally {
-    parentSubmitting.value = false
-  }
-}
-
-async function promotePrimaryParent(row: StudentParentRecord) {
-  try {
-    await ElMessageBox.confirm(
-      `确定将「${row.parentName || '该联系人'}」设为主联系人吗？`,
-      '切换主联系人',
-      { type: 'warning', confirmButtonText: '设为主联系人', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
-
-  try {
-    await updateStudentParent(row.id, {
-      institutionId: institutionId.value as string,
-      studentId: row.studentId || (contactStudentId.value as string),
-      parentName: row.parentName || '',
-      relationType: trimToUndefined(row.relationType || ''),
-      parentPhone: trimToUndefined(row.parentPhone || ''),
-      wechatNo: trimToUndefined(row.wechatNo || ''),
-      isPrimary: true,
-      isEmergencyContact: Boolean(row.emergencyContact),
-      status: row.status || 'active',
-      remark: trimToUndefined(row.remark || ''),
-    })
-    ElMessage.success('已切换主联系人')
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    ElMessage.error(toMessage(error, '切换主联系人失败'))
-  }
-}
-
-async function removeStudentParent(row: StudentParentRecord) {
-  try {
-    await ElMessageBox.confirm(`确认删除 ${row.parentName || '该联系人'} 吗？`, '删除家长联系人', {
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  try {
-    await deleteStudentParent(row.id)
-    ElMessage.success('家长联系人已删除')
-    await loadParentRecords(contactStudentId.value)
-  } catch (error) {
-    ElMessage.error(toMessage(error, '删除家长联系人失败'))
-  }
-}
-
 async function refreshAll() {
   await refreshScopeData()
   await loadRecords()
 }
 
-async function initializePage() {
-  lookupLoading.value = true
-  pageError.value = ''
-  try {
-    await institutionStore.loadInstitutions()
-    if (institutionId.value) {
-      await refreshScopeData()
-    }
-    await loadRecords()
-  } catch (error) {
-    pageError.value = toMessage(error, '页面初始化失败')
-  } finally {
-    lookupLoading.value = false
-  }
+function goRoster() {
+  // 跳转把当前班级带过去，名册页落地就停在同一个班
+  router.push({
+    path: '/class-roster',
+    query: classId.value ? { classId: String(classId.value) } : {},
+  })
 }
+
+/** 名册页跳回来时带 ?classId=，缓存中的页签不会重新挂载，所以要盯着路由参数 */
+function applyRouteClassId() {
+  const value = route.query.classId
+  const next = value ? String(value) : null
+  if (next === classId.value) {
+    return
+  }
+  classId.value = next
+  void loadRecords()
+}
+
+watch(
+  () => route.query.classId,
+  () => {
+    if (route.name !== 'classes') {
+      return
+    }
+    applyRouteClassId()
+  }
+)
 
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
     campusId.value = null
     classId.value = null
-    studentId.value = null
-    activeParentStudentId.value = null
     await refreshScopeData()
     await loadRecords()
   }
 )
 
-onMounted(() => {
+onMounted(async () => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）
-  void dictStore.ensureLoaded(['teacher_role', 'parent_relation']).catch(() => undefined)
-  initializePage()
+  void dictStore.ensureLoaded(['teacher_role']).catch(() => undefined)
+  await institutionStore.loadInstitutions()
+  await refreshAll()
+  // 机构装载时上面那条 watch 会把班级清空，所以带 ?classId= 进来要等初始化完再落一次
+  applyRouteClassId()
 })
 </script>
 
 <style scoped>
-/* 两行面板各自铺满整行,不再留半行空白 */
+/* 档案两卡封顶：主档与风险再长也不把任课教师表挤出首屏，超出部分面板内部滚。
+   grid-template-rows 必须是 minmax(0,1fr)——行高默认由内容撑开，只写 max-height
+   的话卡片会顶破这一格、直接压在下面的教师表上。 */
 .class-profile-grid {
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
+  flex: 0 0 auto;
+  max-height: 280px;
+  overflow: hidden;
 }
 
-.class-relation-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  /* 视口填充:双列关系卡分食剩余高度 */
-  flex: 1 1 auto;
-  min-height: 260px;
-}
-
-.class-relation-grid > .panel-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.class-relation-grid .el-table {
-  flex: 1 1 auto;
-  min-height: 180px;
-}
-
-@media (max-width: 1280px) {
-  .class-profile-grid,
-  .class-relation-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* 风险与通知:与左侧主档等高,内容超出时面板内部滚动 */
+.class-profile-panel,
 .class-risk-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+  padding: 14px 16px;
+}
+
+.class-profile-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  overflow: auto;
+  min-height: 0;
+  align-content: start;
+}
+
+/* 字段只读不回改，标签与取值排同一行，竖排会把这张卡顶到四行以上 */
+.class-profile-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  color: var(--tint-ink);
+  background: var(--tint-bg);
+}
+
+.class-profile-item strong {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.class-profile-item strong::after {
+  content: '：';
+}
+
+.class-profile-item span {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .class-risk-scroll {
@@ -2176,37 +1480,21 @@ onMounted(() => {
   align-content: start;
 }
 
-.class-profile-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 16px;
+/* 任课教师是这一页的主表：吃掉档案卡之外的剩余高度，表体保底由 TableFillBox 兜 */
+.class-teacher-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.class-profile-item {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
+/* 未选班级时的一行提示，替代过去的三张空卡 */
+.class-empty-hint {
+  flex: 0 0 auto;
+  padding: 12px 16px;
   border-radius: 10px;
   color: var(--tint-ink);
   background: var(--tint-bg);
-}
-
-.class-profile-item strong {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.class-profile-item span {
-  word-break: break-word;
-}
-
-.class-inline-meta {
-  display: grid;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
 .reminder-list {
@@ -2260,6 +1548,13 @@ onMounted(() => {
 .reminder-meta {
   color: var(--text-strong);
   font-size: 13px;
+}
+
+@media (max-width: 1280px) {
+  .class-profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: none;
+  }
 }
 
 @media (max-width: 900px) {

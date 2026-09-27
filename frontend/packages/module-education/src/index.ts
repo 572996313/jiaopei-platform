@@ -1,6 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { AlarmClock, Avatar, Bell, Reading, User } from '@element-plus/icons-vue'
+import { AlarmClock, Avatar, Bell, Notebook, Reading, User } from '@element-plus/icons-vue'
 import {
   registerBannerActions,
   registerInvitationActions,
@@ -32,6 +32,11 @@ export const educationRoutes: RouteRecordRaw[] = [
     path: 'classes',
     name: 'classes',
     component: () => import('@cornerstone/module-education/views/ClassManagementView.vue'),
+  },
+  {
+    path: 'class-roster',
+    name: 'class-roster',
+    component: () => import('@cornerstone/module-education/views/ClassRosterView.vue'),
   },
   {
     path: 'scheduling',
@@ -107,14 +112,27 @@ registerNavItems([
   {
     key: 'classes',
     to: '/classes',
-    label: '班级学员',
-    title: '班级学员',
+    label: '班级档案',
+    title: '班级档案',
     icon: Reading,
     group: 'class',
     groupLabel: '班级与教学',
     groupOrder: 30,
     prefixes: ['/classes'],
     menuCode: 'education_classes',
+  },
+  {
+    key: 'class-roster',
+    to: '/class-roster',
+    label: '班级名册',
+    title: '班级名册',
+    icon: Notebook,
+    group: 'class',
+    groupLabel: '班级与教学',
+    groupOrder: 30,
+    prefixes: ['/class-roster'],
+    // 入班、退班与家长联系人在这一页(V83 节点):与档案页同一份读码，写码仍走按钮节点
+    menuCode: 'education_class_roster',
   },
   {
     key: 'teachers',

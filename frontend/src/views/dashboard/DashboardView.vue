@@ -447,7 +447,8 @@ const todayQueueItems = computed<QueueItem[]>(() => {
 const quickLinks = [
   { label: '日常教务中心', hint: '排课、点名、结课、日周课表', to: '/schedule' },
   { label: '报名与入班', hint: '先处理报名，再承接入班关系', to: '/students' },
-  { label: '班级学员', hint: '查看班级人数与在班状态', to: '/classes' },
+  { label: '班级名册', hint: '查看班级人数与在班状态', to: '/class-roster' },
+  { label: '班级档案', hint: '维护班级主档与任课教师', to: '/classes' },
   { label: '教师档案', hint: '维护教师基础信息和所属校区', to: '/teachers' },
 ]
 

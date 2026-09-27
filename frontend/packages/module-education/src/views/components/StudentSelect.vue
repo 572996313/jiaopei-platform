@@ -9,11 +9,18 @@
     reserve-keyword
     :remote-method="search"
     :loading="loading"
-    style="width: 100%"
+    class="archive-select"
     @update:model-value="handleInput"
     @visible-change="handleVisibleChange"
   >
-    <el-option v-for="item in visibleOptions" :key="item.id" :label="item.label" :value="item.id" />
+    <!-- 名称晚到（按 id 补取回来）时要把这条选项换成新实例：Element Plus 只在选项增减时
+         重算框内显示，key 只写 id 的话标签变了也不会重算，下拉会一直停在裸 ID。 -->
+    <el-option
+      v-for="item in visibleOptions"
+      :key="`${item.id}-${item.label}`"
+      :label="item.label"
+      :value="item.id"
+    />
   </el-select>
 </template>
 
@@ -124,3 +131,16 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<style scoped>
+/* 档案下拉默认占满整行（弹窗表单），进了筛选栏要和别的条件并排。
+   宽度收在组件里统一管，内联 style 压不过页面规则，别各页自己写。 */
+.archive-select {
+  width: 100%;
+}
+
+.page-toolbar-filters .archive-select,
+.table-filters .archive-select {
+  width: 240px;
+}
+</style>
