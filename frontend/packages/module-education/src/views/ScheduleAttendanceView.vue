@@ -168,7 +168,7 @@
               :key="lesson.id"
               type="button"
               class="daily-lesson-item"
-              :class="{ 'is-inert': !canManage }"
+              :class="{ 'is-inert': !canMark }"
               @click="openAttendanceDialog(lesson)"
             >
               <div class="daily-lesson-item-main">
@@ -196,7 +196,7 @@
           </div>
 
           <div
-            v-if="canManage && readyToCompleteLessons.length > 0"
+            v-if="canExecute && readyToCompleteLessons.length > 0"
             class="daily-center-inline-tip"
           >
             <span>已有 {{ readyToCompleteLessons.length }} 节课点名已齐，可直接结课。</span>
@@ -236,7 +236,7 @@
                 {{ formatTeacherNames(lesson.teacherIds) }}</span
               >
               <span>已停课，待安排补课</span>
-              <div v-if="canManage" class="daily-mini-item-actions">
+              <div v-if="canExecute" class="daily-mini-item-actions">
                 <el-button link type="danger" @click="openFormDialog('makeup', lesson)"
                   >安排补课</el-button
                 >
@@ -296,7 +296,7 @@
               :key="item.key"
               type="button"
               class="daily-mini-item is-button"
-              :class="{ 'is-inert': !canManage }"
+              :class="{ 'is-inert': !canMark && !canExecute }"
               @click="handleReminderClick(item.lessonId)"
             >
               <strong>{{ item.title }}</strong>
@@ -402,30 +402,40 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column v-if="canManage" label="执行动作" width="280" fixed="right">
+            <el-table-column
+              v-if="canMark || canExecute"
+              label="执行动作"
+              width="280"
+              fixed="right"
+            >
               <template #default="{ row }">
                 <el-button
+                  v-if="canMark"
                   link
                   type="success"
                   :disabled="row.lessonStatus === 'cancelled'"
                   @click="openAttendanceDialog(row)"
                   >点名</el-button
                 >
-                <el-button
-                  link
-                  type="warning"
-                  :disabled="!canCompleteLesson(row)"
-                  @click="completeLesson(row)"
-                >
-                  结课
-                </el-button>
-                <el-button link type="primary" @click="openFormDialog('reschedule', row)"
-                  >调课</el-button
-                >
-                <el-button link type="info" @click="openFormDialog('cancel', row)">停课</el-button>
-                <el-button link type="danger" @click="openFormDialog('makeup', row)"
-                  >补课</el-button
-                >
+                <template v-if="canExecute">
+                  <el-button
+                    link
+                    type="warning"
+                    :disabled="!canCompleteLesson(row)"
+                    @click="completeLesson(row)"
+                  >
+                    结课
+                  </el-button>
+                  <el-button link type="primary" @click="openFormDialog('reschedule', row)"
+                    >调课</el-button
+                  >
+                  <el-button link type="info" @click="openFormDialog('cancel', row)"
+                    >停课</el-button
+                  >
+                  <el-button link type="danger" @click="openFormDialog('makeup', row)"
+                    >补课</el-button
+                  >
+                </template>
               </template>
             </el-table-column>
           </el-table>
@@ -443,7 +453,7 @@
                 rangeModeText
               }}）；班级：{{ formatClass(classId) }}；范围：{{ formatInstitution(institutionId) }} /
               {{ formatCampus(campusId) }}。
-              <span v-if="canManage">点击空格可跳转排课管理新增。</span>
+              <span v-if="canExecute">点击空格可跳转排课管理新增。</span>
             </div>
           </div>
 
@@ -455,7 +465,8 @@
             :classrooms="classrooms"
             :teachers="teachers"
             :loading="rangeLoading"
-            :can-manage="canManage"
+            :can-mark="canMark"
+            :can-execute="canExecute"
             :format-class="formatClass"
             :format-classroom="formatClassroom"
             :format-teachers="formatTeacherNames"
@@ -568,8 +579,9 @@ const { institutions, institutionId, campuses, terms, classes, loadScope } = use
 const route = useRoute()
 const router = useRouter()
 
-/** 点名/结课/调课/停课/补课按 education:write 收口（菜单按钮节点 113「执行变更」），后端仍按权限串硬拦 */
-const canManage = computed(() => auth.hasPermission('education:write'))
+/** 点名按课次点名码收口（按钮节点 113），结课/调课/停课/补课走排课更新接口、按排课维护码收口（按钮节点 112），后端仍按权限串硬拦 */
+const canMark = computed(() => auth.hasPermission('education:attendance:write'))
+const canExecute = computed(() => auth.hasPermission('education:schedule:write'))
 
 /** 执行变更弹窗模式：调课 / 停课 / 补课，与共享弹窗组件的契约一致 */
 type ExecutionMode = 'reschedule' | 'cancel' | 'makeup'
@@ -1261,7 +1273,7 @@ function handleWeekCellClick(payload: {
 }
 
 function openFormDialog(mode: ExecutionMode, lesson: ScheduleLessonRecord) {
-  if (!canManage.value) {
+  if (!canExecute.value) {
     return
   }
   formDialogMode.value = mode
@@ -1275,7 +1287,7 @@ function handleDialogSaved(message: string) {
 }
 
 function openAttendanceDialog(lesson: ScheduleLessonRecord) {
-  if (!canManage.value) {
+  if (!canMark.value) {
     return
   }
   attendanceLessonId.value = lesson.id
@@ -1506,7 +1518,7 @@ onMounted(() => {
   text-align: left;
 }
 
-/* 只读（无 education:write）时卡片只是信息，不是执行入口 */
+/* 只读（无点名码也无排课维护码）时卡片只是信息，不是执行入口 */
 .daily-lesson-item.is-inert,
 .daily-mini-item.is-inert {
   cursor: default;

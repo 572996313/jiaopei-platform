@@ -67,14 +67,14 @@ public class AttendanceController {
 
     @Operation(summary = "创建考勤")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:attendance:manage")
     public ApiResponse<AttendanceEntity> create(@Valid @RequestBody AttendanceCreateRequest request) {
         return ApiResponse.success("考勤已创建", attendanceService.createAttendance(request));
     }
 
-    @Operation(summary = "保存课次点名")
+    @Operation(summary = "保存课次点名", description = "持考勤管理码可保存任意课次的点名;只有课次点名码时仅限本人授课的课次")
     @PostMapping("/lesson-batch")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:attendance:write")
     public ApiResponse<AttendanceLessonPageView> saveLessonAttendance(@Valid @RequestBody AttendanceLessonBatchSaveRequest request) {
         return ApiResponse.success("课次点名已保存", attendanceService.saveLessonAttendance(request));
     }

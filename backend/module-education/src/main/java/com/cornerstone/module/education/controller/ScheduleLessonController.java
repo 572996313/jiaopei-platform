@@ -75,21 +75,21 @@ public class ScheduleLessonController {
 
     @Operation(summary = "创建排课")
     @PostMapping("/lessons")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<ScheduleLessonView> create(@Valid @RequestBody ScheduleLessonRequest request) {
         return ApiResponse.success("排课已创建", scheduleLessonService.createLesson(request));
     }
 
     @Operation(summary = "更新排课")
     @PutMapping("/lessons/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<ScheduleLessonView> update(@PathVariable Long id, @Valid @RequestBody ScheduleLessonRequest request) {
         return ApiResponse.success("排课已更新", scheduleLessonService.updateLesson(id, request));
     }
 
     @Operation(summary = "删除排课")
     @DeleteMapping("/lessons/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         scheduleLessonService.deleteLesson(id);
         return ApiResponse.success("排课已删除", null);
@@ -128,7 +128,7 @@ public class ScheduleLessonController {
 
     @Operation(summary = "排课冲突检查")
     @PostMapping("/conflicts/check")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<ScheduleConflictCheckResponse> check(@Valid @RequestBody ScheduleConflictCheckRequest request) {
         return ApiResponse.success("排课冲突检查完成", scheduleLessonService.checkConflicts(request));
     }

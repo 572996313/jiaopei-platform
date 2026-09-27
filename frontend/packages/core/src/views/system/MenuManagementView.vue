@@ -131,7 +131,7 @@
               clearable
               :placeholder="
                 menuForm.menuType === 'button'
-                  ? '按钮节点必填:本操作的写码,如 education:write'
+                  ? '按钮节点必填:本操作的写码,如 system:menu:manage'
                   : menuForm.menuType === 'menu'
                     ? '页面节点填进入本页所需的读取码;接口只需登录的页面留空'
                     : '目录节点不挂权限码'

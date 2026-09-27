@@ -26,9 +26,11 @@ import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.SchedulePlanService;
+import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.SchedulePlanExpander;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -78,12 +80,15 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     private final ScheduleLessonMapper lessonMapper;
     private final ScheduleTeacherRelMapper teacherRelMapper;
     private final ScheduleRuleSupport ruleSupport;
+    private final SchoolCalendarService schoolCalendarService;
+    private final ScheduleTeacherLock teacherLock;
     private final ObjectMapper objectMapper;
 
     public SchedulePlanServiceImpl(SchedulePlanMapper planMapper, TeachingClassMapper classMapper,
                                    TeacherMapper teacherMapper, ClassroomMapper classroomMapper,
                                    TimeSlotMapper timeSlotMapper, ScheduleLessonMapper lessonMapper,
                                    ScheduleTeacherRelMapper teacherRelMapper, ScheduleRuleSupport ruleSupport,
+                                   SchoolCalendarService schoolCalendarService, ScheduleTeacherLock teacherLock,
                                    ObjectMapper objectMapper) {
         this.planMapper = planMapper;
         this.classMapper = classMapper;
@@ -93,6 +98,8 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         this.lessonMapper = lessonMapper;
         this.teacherRelMapper = teacherRelMapper;
         this.ruleSupport = ruleSupport;
+        this.schoolCalendarService = schoolCalendarService;
+        this.teacherLock = teacherLock;
         this.objectMapper = objectMapper;
     }
 
@@ -133,9 +140,13 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         ResolvedPlan resolved = resolve(request);
         List<SchedulePlanExpander.Occurrence> occurrences = expand(resolved, request);
         ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
-            request.institutionId(), List.of(request.classId()), resolved.teacherIds());
+            request.institutionId(), List.of(request.classId()), resolved.teacherIds(),
+            request.classroomId() == null ? List.of() : List.of(request.classroomId()));
         Occupancy occupancy = loadOccupancy(request.classId(), request.classroomId(), resolved.teacherIds(),
             request.startDate(), request.endDate(), null);
+        Map<LocalDate, String> closedDays = schoolCalendarService.closedDays(
+            request.institutionId(), request.campusId(), request.startDate(), request.endDate());
+        Map<LocalDate, Integer> lessonsOnClosedDay = new LinkedHashMap<>();
 
         List<SchedulePlanPreviewResponse.Item> items = new ArrayList<>();
         int conflictCount = 0;
@@ -156,12 +167,18 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
             if (skipped) {
                 skippedCount++;
             }
+            if (closedDays.containsKey(occurrence.lessonDate())) {
+                lessonsOnClosedDay.merge(occurrence.lessonDate(), 1, Integer::sum);
+            }
         }
         // 必排只提示"这份计划的每周模式没覆盖到该格子",不拦提交：逐周缺排属完成度问题,归阶段C的完成度视图
         Set<String> plannedCells = resolved.slots().stream()
             .map(slot -> ScheduleRuleSupport.cellKey(slot.weekday(), slot.timeSlotId()))
             .collect(Collectors.toSet());
-        List<String> ruleNotices = ruleSet.requiredGapMessages(plannedCells);
+        List<String> ruleNotices = new ArrayList<>(ruleSet.requiredGapMessages(plannedCells));
+        // 撞停排日同样只提示不拦：操作员认定某年国庆照常补课时可以照样提交，不必先删日历记录
+        lessonsOnClosedDay.forEach((date, count) ->
+            ruleNotices.add(date + " " + closedDays.get(date) + "，本计划有 " + count + " 节课落在这一天"));
         return new SchedulePlanPreviewResponse(items, items.size(), conflictCount, skippedCount, ruleNotices);
     }
 
@@ -193,9 +210,12 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         }
 
         Long planId = savePlan(request.planId(), planRequest, resolved);
+        // 教师占用没有唯一键可兜，先查后插之前取行锁；计划里所有课次共用同一批教师，整批锁一次即可
+        teacherLock.lock(resolved.teacherIds());
         Set<String> existingKeys = loadPlanLessonKeys(planId);
         ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
-            planRequest.institutionId(), List.of(planRequest.classId()), resolved.teacherIds());
+            planRequest.institutionId(), List.of(planRequest.classId()), resolved.teacherIds(),
+            List.of(planRequest.classroomId()));
         Occupancy occupancy = loadOccupancy(planRequest.classId(), planRequest.classroomId(), resolved.teacherIds(),
             planRequest.startDate(), planRequest.endDate(), planId);
 

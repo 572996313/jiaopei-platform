@@ -65,6 +65,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -356,10 +357,58 @@ class EducationThirdMainlineValidationTest {
         }).when(teachingClassMapper).insert(any(TeachingClassEntity.class));
 
         service.createClass(new TeachingClassCreateRequest(
-            1L, 1L, null, null, null, "C022", "主讲班", 9L, 30, 0, null, LocalDate.now(), null
+            1L, 1L, null, null, null, "C022", "主讲班", 9L, 30, null, null, null, null, 0, null, LocalDate.now(), null
         ));
 
         verify(classTeacherService).assignPrimaryTeacher(1L, 20L, 9L);
+    }
+
+    @Test
+    void lessonTargetStoresRawInputAlongsideTheConvertedWeekly() {
+        TeachingClassServiceImpl service = new TeachingClassServiceImpl(
+            teachingClassMapper,
+            institutionMapper,
+            campusMapper,
+            termMapper,
+            teacherMapper,
+            courseMapper,
+            classTypeMapper,
+            classStudentMapper,
+            classChangeNoticeService,
+            classTeacherService
+        );
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(campusMapper.selectById(1L)).thenReturn(campus());
+        doAnswer(invocation -> {
+            invocation.getArgument(0, TeachingClassEntity.class).setId(20L);
+            return 1;
+        }).when(teachingClassMapper).insert(any(TeachingClassEntity.class));
+
+        // 按月填：合同写"一个月 8 次课"，操作员不必自己折算
+        service.createClass(new TeachingClassCreateRequest(
+            1L, 1L, null, null, null, "C023", "按月班", null, 30, null, "monthly", 8, 40, 0, null,
+            LocalDate.now(), null
+        ));
+        // 只传 weeklyLessons 的老调用形态：口径按周、原值与结果同数，行为与改动前一字不差
+        service.createClass(new TeachingClassCreateRequest(
+            1L, 1L, null, null, null, "C024", "按周班", null, 30, 3, null, null, null, 0, null,
+            LocalDate.now(), null
+        ));
+
+        ArgumentCaptor<TeachingClassEntity> saved = ArgumentCaptor.forClass(TeachingClassEntity.class);
+        verify(teachingClassMapper, times(2)).insert(saved.capture());
+        TeachingClassEntity monthly = saved.getAllValues().get(0);
+        assertEquals("monthly", monthly.getWeeklyLessonsMode());
+        assertEquals(8, monthly.getWeeklyLessonsInput());
+        // 8 × 12 ÷ 52 = 1.85 → 2：完成度分母仍然只读 weekly_lessons 这一列
+        assertEquals(2, monthly.getWeeklyLessons());
+        assertEquals(40, monthly.getTotalLessons());
+
+        TeachingClassEntity weekly = saved.getAllValues().get(1);
+        assertEquals("weekly", weekly.getWeeklyLessonsMode());
+        assertEquals(3, weekly.getWeeklyLessonsInput());
+        assertEquals(3, weekly.getWeeklyLessons());
+        assertNull(weekly.getTotalLessons());
     }
 
     @Test
@@ -391,7 +440,7 @@ class EducationThirdMainlineValidationTest {
         TeachingClassEntity updated = service.updateClass(
             20L,
             new TeachingClassCreateRequest(
-                1L, 1L, null, null, null, "C020", "正式班", 9L, 30, 10, "active", LocalDate.now(), null
+                1L, 1L, null, null, null, "C020", "正式班", 9L, 30, null, null, null, null, 10, "active", LocalDate.now(), null
             )
         );
 
@@ -683,7 +732,10 @@ class EducationThirdMainlineValidationTest {
                 "C021",
                 "新班级",
                 10L,
-                24,
+                24, null,
+                null,
+                null,
+                null,
                 18,
                 "active",
                 LocalDate.now(),
@@ -833,6 +885,8 @@ class EducationThirdMainlineValidationTest {
             null,
             null,
             null,
+            null,
+            null,
             status,
             LocalDate.now(),
             null
@@ -841,7 +895,7 @@ class EducationThirdMainlineValidationTest {
 
     /** TeacherUpdateRequest 里 status 是第 8 个参数，前面的空位表示"这一列不动" */
     private TeacherUpdateRequest teacherUpdateRequest(String status) {
-        return new TeacherUpdateRequest(null, null, null, null, null, null, null, status, null, null);
+        return new TeacherUpdateRequest(null, null, null, null, null, null, null, null, null, status, null, null);
     }
 
     private StudentCreateRequest studentRequest(String studentNo, LocalDate birthday) {
@@ -872,6 +926,10 @@ class EducationThirdMainlineValidationTest {
             className,
             null,
             capacityLimit,
+            null,
+            null,
+            null,
+            null,
             currentStudents,
             null,
             LocalDate.now(),
@@ -891,6 +949,10 @@ class EducationThirdMainlineValidationTest {
             className,
             null,
             capacityLimit,
+            null,
+            null,
+            null,
+            null,
             currentStudents,
             null,
             LocalDate.now(),

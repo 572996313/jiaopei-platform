@@ -21,9 +21,10 @@
           <el-radio-group v-model="formTargetType" @change="handleTargetTypeChange">
             <el-radio-button label="class">班级</el-radio-button>
             <el-radio-button label="teacher">教师</el-radio-button>
+            <el-radio-button label="classroom">教室</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item :label="formTargetType === 'class' ? '班级' : '教师'" required>
+        <el-form-item :label="targetObjectLabel" required>
           <el-select
             v-if="formTargetType === 'class'"
             v-model="formTargetId"
@@ -39,7 +40,7 @@
             />
           </el-select>
           <el-select
-            v-else
+            v-else-if="formTargetType === 'teacher'"
             v-model="formTargetId"
             placeholder="选择要约束的教师"
             filterable
@@ -49,6 +50,20 @@
               v-for="item in teacherOptions"
               :key="item.id"
               :label="item.teacherName || item.teacherCode || `教师 #${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
+          <el-select
+            v-else
+            v-model="formTargetId"
+            placeholder="选择要约束的教室"
+            filterable
+            @change="handleTargetChange"
+          >
+            <el-option
+              v-for="item in scopedClassroomOptions"
+              :key="item.id"
+              :label="item.classroomName || item.classroomCode || `教室 #${item.id}`"
               :value="item.id"
             />
           </el-select>
@@ -113,7 +128,7 @@ import {
   type TeacherSummary,
   type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
-import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import type { ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
 import { toMessage } from './schedule-utils'
 
@@ -123,6 +138,7 @@ const props = defineProps<{
   editRule: ScheduleRuleRecord | null
   classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
+  classrooms: ClassroomSummary[]
   timeSlots: TimeSlotSummary[]
   scopeCampusId?: string | null
   lookupLoading?: boolean
@@ -161,11 +177,31 @@ const teacherOptions = computed(() => {
   return selected && !scoped.includes(selected) ? [...scoped, selected] : scoped
 })
 
+// 教室候选同样按当前校区收敛（本机构本校区的教室），编辑回显补选逻辑同上
+const scopedClassroomOptions = computed(() => {
+  const campus = props.scopeCampusId || null
+  const scoped = campus
+    ? props.classrooms.filter((item) => !item.campusId || item.campusId === campus)
+    : props.classrooms
+  const selected = props.classrooms.find((item) => item.id === formTargetId.value)
+  return selected && !scoped.includes(selected) ? [...scoped, selected] : scoped
+})
+
+const targetObjectLabel = computed(() => {
+  if (formTargetType.value === 'class') {
+    return '班级'
+  }
+  return formTargetType.value === 'teacher' ? '教师' : '教室'
+})
+
 const targetCampusId = computed(() => {
   if (formTargetType.value === 'class') {
     return props.classes.find((item) => item.id === formTargetId.value)?.campusId || null
   }
-  return props.teachers.find((item) => item.id === formTargetId.value)?.campusId || null
+  if (formTargetType.value === 'teacher') {
+    return props.teachers.find((item) => item.id === formTargetId.value)?.campusId || null
+  }
+  return props.classrooms.find((item) => item.id === formTargetId.value)?.campusId || null
 })
 
 const scopedTimeSlots = computed(() => {
@@ -221,7 +257,7 @@ function buildPayload(): ScheduleRulePayload | null {
     return null
   }
   if (!formTargetId.value) {
-    ElMessage.warning(formTargetType.value === 'class' ? '请选择班级' : '请选择教师')
+    ElMessage.warning(`请选择${targetObjectLabel.value}`)
     return null
   }
   if (formSlots.value.length === 0) {

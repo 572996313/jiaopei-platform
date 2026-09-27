@@ -57,14 +57,14 @@ public class StudentController {
 
     @Operation(summary = "创建学员")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<StudentEntity> create(@Valid @RequestBody StudentCreateRequest request) {
         return ApiResponse.success("学员已创建", studentService.createStudent(request));
     }
 
     @Operation(summary = "更新学员")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<StudentEntity> update(@PathVariable Long id,
                                              @Valid @RequestBody StudentUpdateRequest request) {
         return ApiResponse.success("学员已更新", studentService.updateStudent(id, request));
@@ -72,7 +72,7 @@ public class StudentController {
 
     @Operation(summary = "删除学员")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         studentService.deleteStudent(id);
         return ApiResponse.success("学员已删除", null);

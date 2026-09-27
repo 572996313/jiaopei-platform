@@ -19,7 +19,7 @@ public class ScheduleRuleEntity extends BaseEntity {
     @Schema(description = "规则类型(forbidden=禁排,required=必排)", allowableValues = {"forbidden", "required"})
     private String ruleType;
 
-    @Schema(description = "规则对象类型(class=班级,teacher=教师)", allowableValues = {"class", "teacher"})
+    @Schema(description = "规则对象类型(class=班级,teacher=教师,classroom=教室)", allowableValues = {"class", "teacher", "classroom"})
     private String targetType;
 
     @Schema(description = "规则对象ID(target_type=class时为班级ID,=teacher时为教师ID)")

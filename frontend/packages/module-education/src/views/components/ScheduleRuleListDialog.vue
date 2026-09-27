@@ -8,89 +8,103 @@
     @update:model-value="emit('update:modelValue', $event)"
     @open="handleOpen"
   >
-    <div class="rule-toolbar">
-      <el-button v-if="canManage" type="primary" @click="emit('create')">新增规则</el-button>
-      <el-select v-model="filterRuleType" placeholder="筛选类型" clearable @change="reload">
-        <el-option label="禁排" value="forbidden" />
-        <el-option label="必排" value="required" />
-      </el-select>
-      <el-select v-model="filterTargetType" placeholder="筛选对象" clearable @change="reload">
-        <el-option label="班级" value="class" />
-        <el-option label="教师" value="teacher" />
-      </el-select>
-      <el-select v-model="filterStatus" placeholder="筛选状态" clearable @change="reload">
-        <el-option label="启用" value="active" />
-        <el-option label="停用" value="inactive" />
-      </el-select>
-    </div>
+    <!-- 校区日历不开新路由与新菜单节点，作为本弹窗的第二个页签承载（2026-09-25 口径） -->
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="禁排/必排规则" name="rules">
+        <div class="rule-toolbar">
+          <el-button v-if="canManage" type="primary" @click="emit('create')">新增规则</el-button>
+          <el-select v-model="filterRuleType" placeholder="筛选类型" clearable @change="reload">
+            <el-option label="禁排" value="forbidden" />
+            <el-option label="必排" value="required" />
+          </el-select>
+          <el-select v-model="filterTargetType" placeholder="筛选对象" clearable @change="reload">
+            <el-option label="班级" value="class" />
+            <el-option label="教师" value="teacher" />
+            <el-option label="教室" value="classroom" />
+          </el-select>
+          <el-select v-model="filterStatus" placeholder="筛选状态" clearable @change="reload">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
+        </div>
 
-    <el-table
-      :data="rules"
-      border
-      row-key="id"
-      highlight-current-row
-      v-loading="loading"
-      max-height="440"
-      :cell-class-name="sort.cellClass"
-      @sort-change="sort.onSortChange"
-    >
-      <el-table-column label="类型" width="80" fixed="left" prop="ruleType" sortable="custom">
-        <template #default="{ row }">
-          <el-tag size="small" :type="row.ruleType === 'forbidden' ? 'danger' : 'warning'">
-            {{ row.ruleType === 'forbidden' ? '禁排' : '必排' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="对象" min-width="170" prop="targetType" sortable="custom">
-        <template #default="{ row }">{{ formatTarget(row) }}</template>
-      </el-table-column>
-      <el-table-column label="节次格子" min-width="240">
-        <template #default="{ row }">{{ formatSlots(row.slots) }}</template>
-      </el-table-column>
-      <el-table-column label="生效区间" width="200" prop="startDate" sortable="custom">
-        <template #default="{ row }">{{ formatRange(row) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="80" prop="status" sortable="custom">
-        <template #default="{ row }">
-          <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
-            {{ row.status === 'active' ? '启用' : '停用' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="批注" min-width="160" prop="remark" sortable="custom">
-        <template #default="{ row }">{{ row.remark || '—' }}</template>
-      </el-table-column>
-      <el-table-column v-if="canManage" label="操作" width="130" fixed="right">
-        <template #default="{ row }">
-          <div class="system-operation-group">
-            <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
-            <el-button
-              link
-              type="danger"
-              :loading="deletingId === row.id"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table
+          :data="rules"
+          border
+          row-key="id"
+          highlight-current-row
+          v-loading="loading"
+          max-height="440"
+          :cell-class-name="sort.cellClass"
+          @sort-change="sort.onSortChange"
+        >
+          <el-table-column label="类型" width="80" fixed="left" prop="ruleType" sortable="custom">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.ruleType === 'forbidden' ? 'danger' : 'warning'">
+                {{ row.ruleType === 'forbidden' ? '禁排' : '必排' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="对象" min-width="170" prop="targetType" sortable="custom">
+            <template #default="{ row }">{{ formatTarget(row) }}</template>
+          </el-table-column>
+          <el-table-column label="节次格子" min-width="240">
+            <template #default="{ row }">{{ formatSlots(row.slots) }}</template>
+          </el-table-column>
+          <el-table-column label="生效区间" width="200" prop="startDate" sortable="custom">
+            <template #default="{ row }">{{ formatRange(row) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="80" prop="status" sortable="custom">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
+                {{ row.status === 'active' ? '启用' : '停用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="批注" min-width="160" prop="remark" sortable="custom">
+            <template #default="{ row }">{{ row.remark || '—' }}</template>
+          </el-table-column>
+          <el-table-column v-if="canManage" label="操作" width="130" fixed="right">
+            <template #default="{ row }">
+              <div class="system-operation-group">
+                <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
+                <el-button
+                  link
+                  type="danger"
+                  :loading="deletingId === row.id"
+                  @click="handleDelete(row)"
+                >
+                  删除
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      class="panel-pagination"
-      :total="total"
-      :page-sizes="[10, 20, 50]"
-      layout="total, sizes, prev, pager, next"
-      @current-change="reload"
-      @size-change="handleSizeChange"
-    />
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          class="panel-pagination"
+          :total="total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="reload"
+          @size-change="handleSizeChange"
+        />
+      </el-tab-pane>
+
+      <el-tab-pane label="校区日历" name="calendar" :lazy="true">
+        <SchoolCalendarPanel
+          :institution-id="institutionId"
+          :campuses="campuses"
+          :active="modelValue && activeTab === 'calendar'"
+        />
+      </el-tab-pane>
+    </el-tabs>
 
     <template #footer>
       <div class="rule-list-footer">
-        <span class="rule-list-hint">
+        <span v-if="activeTab === 'rules'" class="rule-list-hint">
           禁排格子会在排课时直接拦下；必排只在周期计划预览里提示覆盖缺口，不拦提交。改规则不会回改已生成的课次。
         </span>
         <el-button @click="emit('update:modelValue', false)">关闭</el-button>
@@ -101,6 +115,7 @@
 
 <script setup lang="ts">
 // 排课规则列表：按类型/对象/状态筛选，编辑走同一个编辑器，删除只影响后续校验。
+// 「校区日历」页签共用这一个弹窗入口，避免再写一版 sys_menu 迁移。
 import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -111,9 +126,14 @@ import {
   type TeacherSummary,
   type TeachingClassSummary,
 } from '@cornerstone/module-education/api/education'
-import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
+import type {
+  CampusSummary,
+  ClassroomSummary,
+  TimeSlotSummary,
+} from '@cornerstone/module-organization/api/organization'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import SchoolCalendarPanel from './SchoolCalendarPanel.vue'
 import { toMessage, weekdayLabel } from './schedule-utils'
 
 const props = defineProps<{
@@ -121,6 +141,8 @@ const props = defineProps<{
   institutionId: string | null
   classes: TeachingClassSummary[]
   teachers: TeacherSummary[]
+  classrooms: ClassroomSummary[]
+  campuses: CampusSummary[]
   timeSlots: TimeSlotSummary[]
   scopeCampusId?: string | null
 }>()
@@ -132,10 +154,11 @@ const emit = defineEmits<{
   (event: 'changed'): void
 }>()
 
-/** 写操作按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
+/** 写操作按排课维护码收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
 const auth = useAuthStore()
-const canManage = computed(() => auth.hasPermission('education:write'))
+const canManage = computed(() => auth.hasPermission('education:schedule:write'))
 
+const activeTab = ref('rules')
 const rules = ref<ScheduleRuleRecord[]>([])
 const page = ref(1)
 const pageSize = ref(10)
@@ -163,6 +186,10 @@ function formatTarget(rule: ScheduleRuleRecord) {
     const clazz = props.classes.find((item) => item.id === id)
     return `班级 ${clazz?.className || clazz?.classCode || id}`
   }
+  if (rule.targetType === 'classroom') {
+    const classroom = props.classrooms.find((item) => item.id === id)
+    return `教室「${classroom?.classroomName || classroom?.classroomCode || id}」`
+  }
   const teacher = props.teachers.find((item) => item.id === id)
   return `教师 ${teacher?.teacherName || teacher?.teacherCode || id}`
 }
@@ -187,6 +214,7 @@ function formatRange(rule: ScheduleRuleRecord) {
 }
 
 function handleOpen() {
+  activeTab.value = 'rules'
   page.value = 1
   filterRuleType.value = null
   filterTargetType.value = null

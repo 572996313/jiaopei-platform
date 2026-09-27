@@ -1,5 +1,12 @@
 <template>
-  <el-button v-if="visible" text type="primary" size="small" :loading="loading" @click="openWxacode">
+  <el-button
+    v-if="visible"
+    text
+    type="primary"
+    size="small"
+    :loading="loading"
+    @click="openWxacode"
+  >
     小程序码
   </el-button>
 
@@ -27,8 +34,8 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 const props = defineProps<{ row: InvitationSummary }>()
 
 const auth = useAuthStore()
-// 生成小程序码消耗微信接口配额，按教务维护权限放开
-const visible = computed(() => auth.hasPermission('education:write'))
+// 生成小程序码消耗微信接口配额，与入班邀约同按班级学员维护码放开
+const visible = computed(() => auth.hasPermission('education:class:write'))
 
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -37,7 +44,9 @@ const imageUrl = ref('')
 async function openWxacode() {
   loading.value = true
   try {
-    const blob = await fetchWxacode(`/education/wechat/invitations/${encodeURIComponent(props.row.code)}/wxacode`)
+    const blob = await fetchWxacode(
+      `/education/wechat/invitations/${encodeURIComponent(props.row.code)}/wxacode`
+    )
     revokeUrl()
     imageUrl.value = URL.createObjectURL(blob)
     dialogVisible.value = true

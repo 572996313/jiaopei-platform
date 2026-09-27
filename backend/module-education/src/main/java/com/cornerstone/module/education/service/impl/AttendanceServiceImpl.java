@@ -1,13 +1,16 @@
 package com.cornerstone.module.education.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
+import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
 import com.cornerstone.module.education.dto.AttendanceCreateRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
@@ -19,8 +22,10 @@ import com.cornerstone.module.education.dto.AttendanceLessonSummaryView;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
+import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.AttendanceService;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -63,21 +68,30 @@ public class AttendanceServiceImpl implements AttendanceService {
         ATTENDANCE_STATUS_LEAVE,
         ATTENDANCE_STATUS_LATE
     );
+    // 持考勤管理码可代点任意课次；只有课次点名码的账号限本人授课课次。
+    // 权限码只回答"能不能点名"，"能点谁的课"必须由课次教师关系兜住，否则一个教师账号能点全校的名。
+    private static final String ATTENDANCE_MANAGE_PERMISSION = "education:attendance:manage";
 
     private final AttendanceMapper attendanceMapper;
     private final ClassStudentMapper classStudentMapper;
     private final TeachingClassMapper teachingClassMapper;
     private final StudentMapper studentMapper;
     private final ScheduleLessonMapper scheduleLessonMapper;
+    private final ScheduleTeacherRelMapper scheduleTeacherRelMapper;
+    private final TeacherMapper teacherMapper;
 
     public AttendanceServiceImpl(AttendanceMapper attendanceMapper, ClassStudentMapper classStudentMapper,
                                  TeachingClassMapper teachingClassMapper, StudentMapper studentMapper,
-                                 ScheduleLessonMapper scheduleLessonMapper) {
+                                 ScheduleLessonMapper scheduleLessonMapper,
+                                 ScheduleTeacherRelMapper scheduleTeacherRelMapper,
+                                 TeacherMapper teacherMapper) {
         this.attendanceMapper = attendanceMapper;
         this.classStudentMapper = classStudentMapper;
         this.teachingClassMapper = teachingClassMapper;
         this.studentMapper = studentMapper;
         this.scheduleLessonMapper = scheduleLessonMapper;
+        this.scheduleTeacherRelMapper = scheduleTeacherRelMapper;
+        this.teacherMapper = teacherMapper;
     }
 
     @Override
@@ -211,6 +225,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public AttendanceLessonPageView saveLessonAttendance(AttendanceLessonBatchSaveRequest request) {
         ScheduleLessonEntity lesson = requireAttendanceAllowedLesson(request.lessonId());
+        assertLessonMarkableByCurrentUser(lesson);
         List<ClassStudentEntity> classStudents = listActiveClassStudents(lesson.getClassId(), lesson.getLessonDate());
         Map<Long, ClassStudentEntity> classStudentMap = classStudents.stream()
             .collect(Collectors.toMap(ClassStudentEntity::getStudentId, item -> item, (left, right) -> right, LinkedHashMap::new));
@@ -373,6 +388,27 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "已停课的课次不能点名，请先安排补课或恢复排课");
         }
         return lesson;
+    }
+
+    private void assertLessonMarkableByCurrentUser(ScheduleLessonEntity lesson) {
+        if (AuthContext.hasPermission(ATTENDANCE_MANAGE_PERMISSION)) {
+            return;
+        }
+        Long userId = AuthContext.requireUser().userId();
+        TeacherEntity teacher = teacherMapper.selectOne(new LambdaQueryWrapper<TeacherEntity>()
+            .eq(TeacherEntity::getUserId, userId)
+            .eq(TeacherEntity::getInstitutionId, lesson.getInstitutionId()));
+        if (teacher == null) {
+            throw new BusinessException(ResultCode.FORBIDDEN,
+                "当前账号未绑定本机构的教师档案，无法点名；请先绑定教师档案或授予考勤管理权限");
+        }
+        Long markedCount = scheduleTeacherRelMapper.selectCount(new LambdaQueryWrapper<ScheduleTeacherRelEntity>()
+            .eq(ScheduleTeacherRelEntity::getLessonId, lesson.getId())
+            .eq(ScheduleTeacherRelEntity::getTeacherId, teacher.getId()));
+        if (markedCount == null || markedCount == 0) {
+            throw new BusinessException(ResultCode.FORBIDDEN,
+                "只能为本人授课的课次点名，本课次的授课教师里没有「" + teacher.getTeacherName() + "」");
+        }
     }
 
     private TeachingClassEntity requireClass(Long classId) {

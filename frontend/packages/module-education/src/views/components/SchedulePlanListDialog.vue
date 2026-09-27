@@ -152,9 +152,9 @@ const emit = defineEmits<{
   (event: 'changed'): void
 }>()
 
-/** 写操作按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
+/** 写操作按排课维护码收口（菜单按钮节点 112「排课维护」），后端仍按权限串硬拦 */
 const auth = useAuthStore()
-const canManage = computed(() => auth.hasPermission('education:write'))
+const canManage = computed(() => auth.hasPermission('education:schedule:write'))
 
 const plans = ref<SchedulePlanRecord[]>([])
 const page = ref(1)

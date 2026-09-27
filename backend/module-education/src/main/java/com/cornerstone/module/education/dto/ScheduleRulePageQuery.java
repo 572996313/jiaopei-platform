@@ -15,7 +15,7 @@ public class ScheduleRulePageQuery extends PageQuery {
     @Schema(description = "规则类型(forbidden=禁排,required=必排),精确匹配")
     private String ruleType;
 
-    @Schema(description = "规则对象类型(class=班级,teacher=教师),精确匹配")
+    @Schema(description = "规则对象类型(class=班级,teacher=教师,classroom=教室),精确匹配")
     private String targetType;
 
     @Schema(description = "规则对象 ID,精确匹配")

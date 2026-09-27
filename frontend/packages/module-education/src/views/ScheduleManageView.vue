@@ -259,6 +259,8 @@
       :institution-id="String(institutionId || '')"
       :classes="classes"
       :teachers="teachers"
+      :classrooms="classrooms"
+      :campuses="campuses"
       :time-slots="timeSlots"
       :scope-campus-id="campusId"
       @create="openRuleEditor(null)"
@@ -272,6 +274,7 @@
       :edit-rule="ruleEditing"
       :classes="classes"
       :teachers="teachers"
+      :classrooms="classrooms"
       :time-slots="timeSlots"
       :scope-campus-id="campusId"
       :lookup-loading="lookupLoading"
@@ -333,8 +336,8 @@ const { institutions, institutionId, campuses, terms, classes, loadScope } = use
 const route = useRoute()
 const router = useRouter()
 
-/** 写操作按钮按 education:write 收口（菜单按钮节点 112「排课维护」），后端仍用 @RequiresPermission 硬拦 */
-const canManage = computed(() => auth.hasPermission('education:write'))
+/** 写操作按钮按排课维护码收口（菜单按钮节点 112「排课维护」），后端仍用 @RequiresPermission 硬拦 */
+const canManage = computed(() => auth.hasPermission('education:schedule:write'))
 
 const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])

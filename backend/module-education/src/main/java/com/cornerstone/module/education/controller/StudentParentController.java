@@ -55,14 +55,14 @@ public class StudentParentController {
 
     @Operation(summary = "创建家长联系人")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<StudentParentEntity> create(@Valid @RequestBody StudentParentCreateRequest request) {
         return ApiResponse.success("家长联系人已创建", studentParentService.createStudentParent(request));
     }
 
     @Operation(summary = "更新家长联系人")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<StudentParentEntity> update(@PathVariable Long id,
                                                    @Valid @RequestBody StudentParentCreateRequest request) {
         return ApiResponse.success("家长联系人已更新", studentParentService.updateStudentParent(id, request));
@@ -70,7 +70,7 @@ public class StudentParentController {
 
     @Operation(summary = "删除家长联系人")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         studentParentService.deleteStudentParent(id);
         return ApiResponse.success("家长联系人已删除", null);

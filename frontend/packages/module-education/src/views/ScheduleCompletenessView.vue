@@ -65,18 +65,28 @@
 
     <article class="panel-card education-panel">
       <div class="education-context-text">
-        应排取自各班级<b>启用中的周期排课计划</b>展开（跳过日期不计），没有计划的班级不出现在此表。
-        计划只描述「哪个班、每周固定哪几个节次」，不是「每班每科每周应上几节」的课时目标，所以本表只回答计划有没有落地，不回答课时够不够。
-        手工加排、补课、调课后的课次按<b>日期与节次</b>比对：正好落在计划空格子上的，就算把那个缺口补上了；
-        落在计划之外的（改期调课、额外加课、补课另排的一格）计入「计划外」，不抵扣缺口。
+        分母来源按行区分：班级主档填了「每周应上节数」的，应排=<b>每周应上节数 × 周数</b
+        >（行内标「按课时目标」）；
+        没填的<b>仍回落到该班启用中的周期排课计划展开</b>（行内标「按计划展开」，跳过日期不计，没有计划的班级不出现在此表）——
+        同一张表里两种口径并存，比数前先看行标签。
+        手工加排、补课、调课后的课次按<b>日期与节次</b>比对：正好落在应排空格子上的，就算把那个缺口补上了；
+        落在之外的（改期调课、额外加课、补课另排的一格）计入「计划外」，不抵扣缺口。
         已停课、已结课的课次仍算已生成；它们会让出排课占用，所以同一格可能被再排一节课进去——
         完成度按格子只认一格，<b>重复排课要到「执行与课表」看撞课标记</b>。区间对齐到整周，最长 26
         周。
+        行标签下的「已上课 N/总」是<b>整班账</b>：日期已过、没停课的课次全算，计划外加的与改期补的也消耗总课时，
+        所以它会<b>大于</b>本区间格子里的「已完成」，两个数不是一回事。
+        预计结课日按<b>近四周</b>的节奏推，只到"几周以后"；比计划的结束日晚会用红字提示，
+        近四周没排过课则推算不出，不显示日期。
       </div>
 
       <div class="table-toolbar">
         <el-button :icon="Refresh" circle :loading="reportLoading" @click="loadReport" />
         <el-button @click="goScheduling">回到排课管理</el-button>
+        <el-button v-if="canManage" type="primary" @click="autoFillVisible = true">一键补排</el-button>
+        <span class="education-context-text">
+          「一键补排」按这里的缺口生成课次：只补还没上的节，教师和教室沿用该班启用中的计划。
+        </span>
       </div>
 
       <div v-if="report" class="completeness-summary">
@@ -97,12 +107,20 @@
           v-loading="reportLoading"
           :height="height"
         >
-          <el-table-column label="班级" min-width="180" fixed="left">
+          <el-table-column label="班级" min-width="230" fixed="left">
             <template #default="{ row }">
               <div class="class-cell">
                 <span>{{ row.className || `班级 #${row.classId}` }}</span>
                 <span class="class-cell-meta"
-                  >{{ formatCampus(row.campusId) }} · {{ row.planCount }} 个计划</span
+                  >{{ formatCampus(row.campusId) }} · {{ row.planCount }} 个计划 ·
+                  {{ denominatorSourceLabel(row) }}</span
+                >
+                <!-- 整班课时进度只在设了总课时的班级出现；没设的班级不占行高 -->
+                <span
+                  v-if="lessonProgress(row).text"
+                  class="class-cell-meta"
+                  :class="{ 'class-cell-meta--late': lessonProgress(row).late }"
+                  >{{ lessonProgress(row).text }}</span
                 >
               </div>
             </template>
@@ -144,8 +162,8 @@
                   >{{ row.cells[index].generated }}/{{ row.cells[index].expected }}</span
                 >
                 <span class="week-cell-extra">
-                  <template v-if="row.cells[index].gaps.length"
-                    >缺 {{ row.cells[index].gaps.length }}</template
+                  <template v-if="row.cells[index].missing"
+                    >缺 {{ row.cells[index].missing }}</template
                   >
                   <template v-else-if="row.cells[index].extra"
                     >外 {{ row.cells[index].extra }}</template
@@ -180,8 +198,24 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="gapDetailRows.length === 0" class="education-empty">这一周没有缺口。</div>
+      <div v-if="gapTargetOnly > 0" class="education-context-text">
+        还有 {{ gapTargetOnly }} 节没排上，但这一周的计划格子里没有对应空位（班级按每周课时目标统计）。
+        挑这一周的任意空闲时段加排即可。
+      </div>
+      <div v-if="gapDetailRows.length === 0" class="education-empty">
+        {{ gapTargetOnly > 0 ? '这一周没有计划内的空格子。' : '这一周没有缺口。' }}
+      </div>
     </el-dialog>
+
+    <ScheduleAutoFillDialog
+      v-model="autoFillVisible"
+      :institution-id="institutionId"
+      :campuses="campuses"
+      :terms="terms"
+      :initial-campus-id="campusId"
+      :initial-term-id="termId"
+      @changed="loadReport"
+    />
   </section>
 </template>
 
@@ -203,6 +237,7 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import ScheduleAutoFillDialog from './components/ScheduleAutoFillDialog.vue'
 import { toMessage, weekdayLabel } from './components/schedule-utils'
 
 const institutionStore = useInstitutionStore()
@@ -212,11 +247,12 @@ const { campusId, termId } = storeToRefs(scopeStore)
 const { campuses, terms, classes, institutionId, loadScope } = useEducationScope()
 const router = useRouter()
 
-/** 「去补排」是写流程入口，按 education:write 收口；报表本身只要 education:read */
-const canManage = computed(() => auth.hasPermission('education:write'))
+/** 「去补排」是写流程入口，按排课维护码收口；报表本身只要 education:read */
+const canManage = computed(() => auth.hasPermission('education:schedule:write'))
 
 const classId = ref<string | null>(null)
 const dateRange = ref<[string, string] | null>(null)
+const autoFillVisible = ref(false)
 
 const report = ref<ScheduleCompletenessResult | null>(null)
 const reportLoading = ref(false)
@@ -225,6 +261,8 @@ const pageError = ref('')
 
 const gapDetailVisible = ref(false)
 const gapDetailRows = ref<Array<ScheduleCompletenessGap & { key: string }>>([])
+/** 按课时目标统计时，缺口可能比计划空格子多：多出来的那些没有具体日期节次，只能提示数量 */
+const gapTargetOnly = ref(0)
 const gapDetailTitle = ref('')
 const gapDetailClassId = ref('')
 // 「去补排」要把缺口所在的班级/校区/学期一起带过去：排课管理的新增弹窗按 scope 取校区与学期，
@@ -249,11 +287,46 @@ function formatCampus(id?: string | null) {
   return campusMap.value.get(id) || `校区 #${id}`
 }
 
+/** 分母来源回显：weekly_target=班级课时目标，其余（含后端未带字段的存量响应）按计划展开 */
+function denominatorSourceLabel(row: ScheduleCompletenessClassRow) {
+  if (row.denominatorSource === 'weekly_target') {
+    return `按课时目标 ${row.targetLessons ?? ''} 节/周`
+  }
+  return '按计划展开'
+}
+
+/**
+ * 整班课时进度。没设总课时的班级返回空文案（不显示这一行），免得满屏「—」。
+ *
+ * <p>分子是「日期已过且没停课」的全部课次，比格子里的「已完成」宽：计划外加的课、
+ * 改期补出来的课同样消耗总课时。所以这里单独说"已上课"，不与格子口径混用。</p>
+ */
+function lessonProgress(row: ScheduleCompletenessClassRow) {
+  if (!row.totalLessons) {
+    return { text: '', late: false }
+  }
+  const held = row.heldLessons ?? 0
+  const text = `已上课 ${held}/${row.totalLessons}`
+  if (held >= row.totalLessons) {
+    return { text: `${text} · 已上满`, late: false }
+  }
+  if (!row.estimatedFinishDate) {
+    return { text: `${text} · 近四周没上课，算不出结课日`, late: false }
+  }
+  const late = Boolean(row.planEndDate && row.estimatedFinishDate > row.planEndDate)
+  return {
+    text: late
+      ? `${text} · 约 ${row.estimatedFinishDate} 上完，晚于计划`
+      : `${text} · 约 ${row.estimatedFinishDate} 上完`,
+    late,
+  }
+}
+
 function weekCellClass(cell?: ScheduleCompletenessCell) {
   if (!cell) {
     return ''
   }
-  if (cell.gaps.length > 0) {
+  if (cell.missing > 0) {
     return 'week-cell--missing'
   }
   if (cell.extra > 0) {
@@ -278,6 +351,7 @@ function openGapDetail(
     ...gap,
     key: `${gap.lessonDate}#${gap.timeSlotId}`,
   }))
+  gapTargetOnly.value = Math.max(0, cell.missing - gapDetailRows.value.length)
   gapDetailVisible.value = true
 }
 
@@ -402,6 +476,11 @@ onMounted(async () => {
 .class-cell-meta {
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+/* 按现在的节奏赶不完计划：只标红这一句，格子里的缺口数已经够醒目了 */
+.class-cell-meta--late {
+  color: var(--soft-danger-ink);
 }
 
 .summary-cell {

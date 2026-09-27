@@ -43,14 +43,14 @@ public class CourseCategoryController {
 
     @Operation(summary = "创建课程分类")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<CourseCategoryEntity> create(@Valid @RequestBody CourseCategoryCreateRequest request) {
         return ApiResponse.success("课程分类已创建", courseCategoryService.createCategory(request));
     }
 
     @Operation(summary = "更新课程分类")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<CourseCategoryEntity> update(@PathVariable Long id,
                                                     @Valid @RequestBody CourseCategoryUpdateRequest request) {
         return ApiResponse.success("课程分类已更新", courseCategoryService.updateCategory(id, request));
@@ -58,7 +58,7 @@ public class CourseCategoryController {
 
     @Operation(summary = "删除课程分类")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         courseCategoryService.deleteCategory(id);
         return ApiResponse.success("课程分类已删除", null);

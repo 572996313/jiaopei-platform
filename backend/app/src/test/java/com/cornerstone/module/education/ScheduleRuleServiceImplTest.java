@@ -19,7 +19,11 @@ import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.impl.ScheduleRuleServiceImpl;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.organization.domain.entity.CampusEntity;
+import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
+import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
@@ -60,11 +64,14 @@ class ScheduleRuleServiceImplTest {
     private final TeachingClassMapper classMapper = mock(TeachingClassMapper.class);
     private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final TimeSlotMapper timeSlotMapper = mock(TimeSlotMapper.class);
+    private final ClassroomMapper classroomMapper = mock(ClassroomMapper.class);
+    private final CampusMapper campusMapper = mock(CampusMapper.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScheduleRuleSupport ruleSupport =
-        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, objectMapper);
+        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, classroomMapper, objectMapper);
     private final ScheduleRuleServiceImpl service =
-        new ScheduleRuleServiceImpl(ruleMapper, classMapper, teacherMapper, timeSlotMapper, ruleSupport);
+        new ScheduleRuleServiceImpl(ruleMapper, classMapper, teacherMapper, timeSlotMapper,
+            classroomMapper, campusMapper, ruleSupport);
 
     @BeforeEach
     void authenticateOperator() {
@@ -264,6 +271,42 @@ class ScheduleRuleServiceImplTest {
         verify(ruleMapper, never()).deleteById(999L);
     }
 
+    @Test
+    void classroomTargetResolvesInstitutionThroughItsCampus() {
+        stubClassroomTarget(1L);
+        stubMondaySlot();
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        stubInsertReturns(904L);
+
+        assertEquals("classroom", service.createRule(new ScheduleRuleRequest(1L, "forbidden", "classroom", 200L,
+            List.of(MONDAY_SLOT), null, null, null, null)).targetType());
+    }
+
+    @Test
+    void classroomTargetRejectsRoomOfAnotherInstitution() {
+        // 教室表上没有机构列，归属只能经校区认定；校区不是本机构时这条规则不许建
+        stubClassroomTarget(2L);
+        stubMondaySlot();
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.createRule(new ScheduleRuleRequest(1L, "forbidden", "classroom", 200L,
+                List.of(MONDAY_SLOT), null, null, null, null)));
+        assertTrue(error.getMessage().contains("教室与规则的机构不一致"), error.getMessage());
+        verify(ruleMapper, never()).insert(any(ScheduleRuleEntity.class));
+    }
+
+    private void stubClassroomTarget(Long campusInstitutionId) {
+        ClassroomEntity classroom = new ClassroomEntity();
+        classroom.setId(200L);
+        classroom.setCampusId(10L);
+        classroom.setClassroomName("3号音乐教室");
+        when(classroomMapper.selectById(200L)).thenReturn(classroom);
+        CampusEntity campus = new CampusEntity();
+        campus.setId(10L);
+        campus.setInstitutionId(campusInstitutionId);
+        when(campusMapper.selectById(10L)).thenReturn(campus);
+    }
+
     private void stubInsertReturns(long id) {
         ScheduleRuleEntity[] inserted = new ScheduleRuleEntity[1];
         doAnswer(invocation -> {
@@ -313,7 +356,7 @@ class ScheduleRuleServiceImplTest {
     /** 排课服务的机构范围来自登录态，单测要把 SecurityContext 里的用户造出来（参照 AnnouncementServiceImplTest） */
     private void authenticate(Long userId, Long institutionId) {
         AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
-            Set.of("ADMIN"), Set.of("education:read", "education:write"), false, "admin");
+            Set.of("ADMIN"), Set.of("education:read", "education:schedule:write"), false, "admin");
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
     }

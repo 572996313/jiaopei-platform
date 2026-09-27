@@ -372,7 +372,8 @@ public class TeacherImportServiceImpl implements TeacherImportService {
             }
             TeacherEntity teacher = teacherService.createTeacher(new TeacherCreateRequest(
                 institutionId, plan.campusId, plan.teacherCode, plan.teacherName, plan.phone,
-                plan.gender, plan.title, plan.employmentType, plan.status, plan.hiredDate, plan.remark));
+                plan.gender, plan.title, plan.employmentType, null, null, plan.status,
+                plan.hiredDate, plan.remark));
             created++;
             views.add(new TeacherImportRowView(previewed.rowNum(), previewed.teacherCode(),
                 previewed.teacherName(), previewed.phone(), previewed.campusCode(), previewed.gender(),

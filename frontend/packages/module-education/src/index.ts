@@ -61,7 +61,12 @@ export const educationRoutes: RouteRecordRaw[] = [
  */
 registerPermissionLabels([
   { code: 'education:read', label: '教务查看', group: '教务管理' },
-  { code: 'education:write', label: '教务维护', group: '教务管理' },
+  { code: 'education:schedule:write', label: '排课维护', group: '教务管理' },
+  { code: 'education:attendance:write', label: '课次点名', group: '教务管理' },
+  { code: 'education:attendance:manage', label: '考勤管理', group: '教务管理' },
+  { code: 'education:class:write', label: '班级与学员维护', group: '教务管理' },
+  { code: 'education:profile:write', label: '师生档案维护', group: '教务管理' },
+  { code: 'education:catalog:write', label: '课程档案维护', group: '教务管理' },
   { code: 'announcement:read', label: '公告查看', group: '公告中心' },
   { code: 'announcement:write', label: '公告维护', group: '公告中心' },
   { code: 'miniapp:access', label: '小程序端访问', group: '小程序端' },

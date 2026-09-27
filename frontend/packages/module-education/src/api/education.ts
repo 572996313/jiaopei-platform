@@ -31,6 +31,10 @@ export interface TeacherSummary {
   remark?: string | null
   /** 关联登录账号ID：null = 尚未开通或未绑定账号 */
   userId?: string | null
+  /** 每周负载上限（节），null=不限；超出时排课只提示不拦 */
+  maxWeeklyLessons?: number | null
+  /** 每日负载上限（节），null=不限；超出时排课只提示不拦 */
+  maxDailyLessons?: number | null
 }
 
 export interface TeachingClassSummary {
@@ -45,6 +49,14 @@ export interface TeachingClassSummary {
   teacherId?: string | null
   capacityLimit?: number | null
   currentStudents?: number | null
+  /** 每周应上节数（课时目标）＝换算后的结果，完成度分母与补排只读这一列；null=未设定 */
+  weeklyLessons?: number | null
+  /** 课时目标的录入口径：weekly=按周填，monthly=按月填由后端换算 */
+  weeklyLessonsMode?: string | null
+  /** 课时目标的录制原值（monthly 时是每月节数），编辑弹窗回显用它，不要拿换算结果覆盖 */
+  weeklyLessonsInput?: number | null
+  /** 整班总课时（合同/教学计划的总节数），只用于课时进度，不进完成度分母 */
+  totalLessons?: number | null
   status?: string | null
   openedAt?: string | null
   remark?: string | null
@@ -259,7 +271,10 @@ export interface ScheduleConflictCheckPayload {
 export interface ScheduleConflictCheckResult {
   conflict?: boolean | null
   conflictTypes?: string[] | null
+  /** 硬冲突说明，仅 conflict=true 时有值，保存会被拦下 */
   messages?: string[] | null
+  /** 软提示（学员跨班撞课/教师超周课时或日上限/撞校区日历停排日），只提示不拦保存 */
+  notices?: string[] | null
 }
 
 export interface EnrollmentCreatePayload {
@@ -285,6 +300,10 @@ export interface TeacherCreatePayload {
   status?: string
   hiredAt?: string | null
   remark?: string
+  /** 每周负载上限（节），null/缺省=不限 */
+  maxWeeklyLessons?: number | null
+  /** 每日负载上限（节），null/缺省=不限 */
+  maxDailyLessons?: number | null
 }
 
 export interface TeacherUpdatePayload {
@@ -298,6 +317,10 @@ export interface TeacherUpdatePayload {
   status?: string
   hiredAt?: string | null
   remark?: string
+  /** 每周负载上限（节），null=清空回落为不限 */
+  maxWeeklyLessons?: number | null
+  /** 每日负载上限（节），null=清空回落为不限 */
+  maxDailyLessons?: number | null
 }
 
 export interface CourseCategoryCreatePayload {
@@ -379,6 +402,14 @@ export interface TeachingClassCreatePayload {
   className: string
   teacherId?: string | null
   capacityLimit?: number
+  /** 每周应上节数（课时目标），null/缺省=未设定；mode=monthly 时由后端换算，不用自己填 */
+  weeklyLessons?: number | null
+  /** 课时目标录入口径(weekly=按周,monthly=按月)，不传按 weekly */
+  weeklyLessonsMode?: string | null
+  /** 课时目标录制原值：weekly 时填每周节数，monthly 时填每月节数 */
+  weeklyLessonsInput?: number | null
+  /** 整班总课时（合同/教学计划的总节数），留空=不显示课时进度 */
+  totalLessons?: number | null
   status?: string
   openedAt?: string | null
   remark?: string
@@ -394,6 +425,12 @@ export interface TeachingClassUpdatePayload {
   className: string
   teacherId?: string | null
   capacityLimit?: number
+  /** 每周应上节数（课时目标），null=清空回落为未设定 */
+  weeklyLessons?: number | null
+  weeklyLessonsMode?: string | null
+  weeklyLessonsInput?: number | null
+  /** 整班总课时，null=取消设定 */
+  totalLessons?: number | null
   status?: string
   openedAt?: string | null
   remark?: string
@@ -792,6 +829,8 @@ export interface SchedulePlanPreviewResult {
   skippedCount: number
   /** 必排规则未被本计划每周模式覆盖的提示，仅提示不拦提交 */
   ruleNotices?: string[] | null
+  /** 软提示（学员跨班撞课/教师超周课时或日上限/撞校区日历停排日），只提示不拦生成 */
+  notices?: string[] | null
 }
 
 export interface SchedulePlanCommitPayload {
@@ -846,11 +885,12 @@ export function cancelSchedulePlanLessons(id: string) {
   return requestDelete<number>(`/education/schedule-plans/${id}/lessons`)
 }
 
-/** 排课规则：班级/教师在"星期×节次"网格上的禁排或必排约束，格子结构与周期排课计划的 slots 同构 */
+/** 排课规则：班级/教师/教室在"星期×节次"网格上的禁排或必排约束，格子结构与周期排课计划的 slots 同构 */
 export interface ScheduleRuleRecord {
   id: string
   institutionId?: string | null
   ruleType?: string | null
+  /** 规则对象类型(class=班级,teacher=教师,classroom=教室) */
   targetType?: string | null
   targetId?: string | null
   slots?: SchedulePlanSlotItem[] | null
@@ -899,7 +939,7 @@ export function deleteScheduleRule(id: string) {
   return requestDelete<null>(`/education/schedule-rules/${id}`)
 }
 
-/** 排课完成度：行=班级、列=自然周，应排取自该班启用中的周期排课计划展开 */
+/** 排课完成度：行=班级、列=自然周，应排优先取班级课时目标(weeklyLessons×周数)，未设目标时回落到该班启用中的排课计划展开 */
 export interface ScheduleCompletenessWeekColumn {
   index: number
   weekStart: string
@@ -918,6 +958,8 @@ export interface ScheduleCompletenessCell {
   covered: boolean
   expected: number
   generated: number
+  /** 本周缺口数；按课时目标统计时可能多于 gaps 条数（目标比计划格子多，缺口没有落点日期） */
+  missing: number
   completed: number
   cancelled: number
   extra: number
@@ -938,6 +980,18 @@ export interface ScheduleCompletenessClassRow {
   campusId?: string | null
   termId?: string | null
   planCount: number
+  /** 分母来源(weekly_target=班级课时目标,plan_expand=启用中的排课计划展开) */
+  denominatorSource?: string | null
+  /** 班级课时目标(每周应上节数)，为空时后端回落到 plan_expand 口径 */
+  targetLessons?: number | null
+  /** 整班总课时(未设定为空)；只用于课时进度，不参与应排/缺口 */
+  totalLessons?: number | null
+  /** 已上课节数：日期已过且没停课的课次全量计数，不按计划格子匹配，与格子里的「已完成」口径不同 */
+  heldLessons?: number | null
+  /** 预计结课日(按近四周节奏推算)；算不出时为空 */
+  estimatedFinishDate?: string | null
+  /** 该班启用中计划的最晚结束日，与预计结课日一比就知道按现在的节奏上不上得完 */
+  planEndDate?: string | null
   cells: ScheduleCompletenessCell[]
   summary: ScheduleCompletenessRowSummary
 }
@@ -1096,4 +1150,150 @@ export function fetchLessonAttendanceProgress(lessonIds: string[]) {
   return requestGet<LessonAttendanceProgress[]>('/education/attendance/lesson-progress', {
     lessonIds: lessonIds.join(','),
   })
+}
+
+/** 校区日历（停排日）：campusId=0 表示机构级（全校区停排），不是 null */
+export interface SchoolCalendarDayRecord {
+  id: string
+  institutionId?: string | null
+  campusId?: string | number | null
+  dayDate?: string | null
+  dayName?: string | null
+  remark?: string | null
+}
+
+export interface SchoolCalendarDayPayload {
+  institutionId: string
+  /** 0 = 机构级（全校区停排） */
+  campusId: string | number
+  dayDate: string
+  dayName: string
+  remark?: string
+}
+
+/** 按年份拉取停排日，一次返回全年数组（后端不分页） */
+export function fetchSchoolCalendar(params: { institutionId: string; year: number }) {
+  return requestGet<SchoolCalendarDayRecord[]>('/education/school-calendar', {
+    institutionId: params.institutionId,
+    year: params.year,
+  })
+}
+
+export function createSchoolCalendarDay(payload: SchoolCalendarDayPayload) {
+  return requestPost<SchoolCalendarDayRecord>('/education/school-calendar', payload)
+}
+
+export function updateSchoolCalendarDay(id: string, payload: SchoolCalendarDayPayload) {
+  return requestPut<SchoolCalendarDayRecord>(`/education/school-calendar/${id}`, payload)
+}
+
+export function deleteSchoolCalendarDay(id: string) {
+  return requestDelete<null>(`/education/school-calendar/${id}`)
+}
+
+/** 自动排课（按缺口补排）：引擎不换人也不换房，教师与教室沿用班级既有计划 */
+export interface ScheduleAutoStrategy {
+  /** 优先落在该班这一周已排过课的日子，空=是 */
+  concentrateClassDays?: boolean | null
+  /** 同一天内优先贴该班已有课次的相邻节次，空=是 */
+  preferAdjacentSlot?: boolean | null
+  /** 该班单日最多排几节（只算本批补的，留空=不限） */
+  maxDailyLessonsPerClass?: number | null
+}
+
+export interface ScheduleAutoBatchPayload {
+  institutionId: string
+  campusId: string
+  termId: string
+  startDate: string
+  endDate: string
+  /** 空数组=该校区全部有缺口的班级 */
+  classIds?: string[]
+  strategy?: ScheduleAutoStrategy
+  remark?: string
+}
+
+export interface ScheduleAutoPlacement {
+  classId: string
+  className?: string | null
+  weekNo: number
+  lessonDate: string
+  weekday?: number | null
+  timeSlotId: string
+  slotName?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  classroomId?: string | null
+  classroomName?: string | null
+  teacherIds: string[]
+  teacherNames?: string | null
+  /** plan_gap=补上计划里没展开出的格子，free_cell=计划外的空位 */
+  source?: string | null
+  /** 落停排日时的提示语，无提示为空 */
+  notice?: string | null
+}
+
+export interface ScheduleAutoFailure {
+  classId: string
+  className?: string | null
+  /** 整班没纳入时为空 */
+  weekNo?: number | null
+  reason: string
+}
+
+export interface ScheduleAutoPlanResult {
+  executed: boolean
+  batchId?: string | null
+  startDate: string
+  endDate: string
+  requestedCount: number
+  generatedCount: number
+  unscheduledCount: number
+  placements: ScheduleAutoPlacement[]
+  failures: ScheduleAutoFailure[]
+}
+
+export interface ScheduleAutoBatchRecord {
+  id: string
+  institutionId?: string | null
+  campusId?: string | null
+  termId?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  classIds?: string[] | null
+  strategy?: ScheduleAutoStrategy | null
+  requestedCount?: number | null
+  generatedCount?: number | null
+  unscheduledCount?: number | null
+  failures?: ScheduleAutoFailure[] | null
+  /** completed=已执行，rolled_back=已撤销 */
+  status?: string | null
+  rolledBackAt?: string | null
+  remark?: string | null
+  createdAt?: string | null
+}
+
+export interface ScheduleAutoRollbackResult {
+  batchId: string
+  generatedCount?: number | null
+  canceledCount: number
+  keptCount: number
+  message: string
+}
+
+export function previewScheduleAutoBatch(payload: ScheduleAutoBatchPayload) {
+  return requestPost<ScheduleAutoPlanResult>('/education/schedule-auto-batches/preview', payload)
+}
+
+export function runScheduleAutoBatch(payload: ScheduleAutoBatchPayload) {
+  return requestPost<ScheduleAutoPlanResult>('/education/schedule-auto-batches/run', payload)
+}
+
+/** 最近 20 个补排批次（后端不分页），按执行时间倒序 */
+export function fetchScheduleAutoBatches(params: { institutionId: string; campusId?: string | null }) {
+  return requestGet<ScheduleAutoBatchRecord[]>('/education/schedule-auto-batches', { ...params })
+}
+
+export function rollbackScheduleAutoBatch(id: string) {
+  return requestDelete<ScheduleAutoRollbackResult>(`/education/schedule-auto-batches/${id}`)
 }

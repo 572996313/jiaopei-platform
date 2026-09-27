@@ -49,6 +49,23 @@ public record TeachingClassCreateRequest(
     @JsonAlias({"capacity", "capacity_limit"})
     @Min(value = 0, message = "容量上限必须大于或等于0")
     Integer capacityLimit,
+    @Schema(description = "每周应上节数(自动排课与课时完成度的目标值;留空表示未设定。"
+        + "口径为 monthly 时本字段由服务端按 weeklyLessonsInput 换算，请求值不生效)")
+    @JsonAlias("weekly_lessons")
+    @Min(value = 1, message = "每周应上节数必须大于0")
+    Integer weeklyLessons,
+    @Schema(description = "每周应上节数的录入口径(weekly=按周填,monthly=按月填由系统换算;不传按 weekly)",
+        allowableValues = {"weekly", "monthly"})
+    @JsonAlias("weekly_lessons_mode")
+    String weeklyLessonsMode,
+    @Schema(description = "每周应上节数的录制原值(weekly 口径下等价于 weeklyLessons;monthly 口径下是每月节数)")
+    @JsonAlias("weekly_lessons_input")
+    @Min(value = 1, message = "课时目标原值必须大于0")
+    Integer weeklyLessonsInput,
+    @Schema(description = "整班总课时(合同/教学计划的总节数;留空表示未设定，只用于课时进度，不影响完成度分母)")
+    @JsonAlias("total_lessons")
+    @Min(value = 1, message = "整班总课时必须大于0")
+    Integer totalLessons,
     @Schema(description = "当前人数(服务端按在班学员关系统计，请求值不生效)")
     @JsonAlias("current_students")
     @Min(value = 0, message = "当前人数必须大于或等于0")

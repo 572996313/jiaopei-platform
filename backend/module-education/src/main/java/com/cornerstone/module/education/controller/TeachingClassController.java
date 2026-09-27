@@ -46,14 +46,14 @@ public class TeachingClassController {
 
     @Operation(summary = "创建班级")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<TeachingClassEntity> create(@Valid @RequestBody TeachingClassCreateRequest request) {
         return ApiResponse.success("班级已创建", teachingClassService.createClass(request));
     }
 
     @Operation(summary = "更新班级")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<TeachingClassEntity> update(@PathVariable Long id,
                                                    @Valid @RequestBody TeachingClassCreateRequest request) {
         return ApiResponse.success("班级已更新", teachingClassService.updateClass(id, request));
@@ -61,7 +61,7 @@ public class TeachingClassController {
 
     @Operation(summary = "删除班级")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         teachingClassService.deleteClass(id);
         return ApiResponse.success("班级已删除", null);

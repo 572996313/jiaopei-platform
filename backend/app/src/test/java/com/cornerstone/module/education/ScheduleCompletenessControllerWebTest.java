@@ -118,12 +118,12 @@ class ScheduleCompletenessControllerWebTest {
         List<ScheduleCompletenessResponse.WeekColumn> weeks = List.of(
             new ScheduleCompletenessResponse.WeekColumn(1, weekFrom, weekFrom.plusDays(6)),
             new ScheduleCompletenessResponse.WeekColumn(2, weekFrom.plusWeeks(1), weekFrom.plusWeeks(1).plusDays(6)));
-        ScheduleCompletenessResponse.WeekCell first = new ScheduleCompletenessResponse.WeekCell(true, 2, 2, 1, 0, 0,
+        ScheduleCompletenessResponse.WeekCell first = new ScheduleCompletenessResponse.WeekCell(true, 2, 2, 0, 1, 0, 0,
             List.of());
-        ScheduleCompletenessResponse.WeekCell second = new ScheduleCompletenessResponse.WeekCell(true, 2, 0, 0, 0, 0,
+        ScheduleCompletenessResponse.WeekCell second = new ScheduleCompletenessResponse.WeekCell(true, 2, 0, 2, 0, 0, 0,
             List.of(new ScheduleCompletenessResponse.Gap(LocalDate.of(2026, 6, 8), 1, 500L, "上1")));
         ScheduleCompletenessResponse.ClassRow row = new ScheduleCompletenessResponse.ClassRow(100L, "测试班级",
-            10L, 20L, 1, List.of(first, second),
+            10L, 20L, 1, "plan_expand", null, null, null, null, LocalDate.of(2026, 6, 14), List.of(first, second),
             new ScheduleCompletenessResponse.RowSummary(4, 2, 1, 2, 0));
         return new ScheduleCompletenessResponse(weekFrom, LocalDate.of(2026, 6, 14), weeks, List.of(row),
             new ScheduleCompletenessResponse.Summary(1, 4, 2, 1, 2, 0, 50, 25));

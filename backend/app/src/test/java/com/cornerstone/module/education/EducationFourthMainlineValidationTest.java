@@ -1,5 +1,6 @@
 package com.cornerstone.module.education;
 
+import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
@@ -21,8 +22,10 @@ import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
+import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassStudentServiceImpl;
 import com.cornerstone.module.education.service.impl.EnrollmentServiceImpl;
@@ -30,9 +33,14 @@ import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -69,8 +77,29 @@ class EducationFourthMainlineValidationTest {
     @Mock
     private ScheduleLessonMapper scheduleLessonMapper;
 
+    @Mock
+    private ScheduleTeacherRelMapper scheduleTeacherRelMapper;
+
+    @Mock
+    private TeacherMapper teacherMapper;
+
     private final SystemDictService systemDictService = mock(SystemDictService.class);
     private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
+
+    @BeforeEach
+    void authenticateAsAttendanceManager() {
+        // 点名保存现在会判数据范围，本类只验参数校验与异常映射，统一按考勤管理码登录
+        AuthenticatedUser user = new AuthenticatedUser(7L, 1L, "admin",
+            Set.of("ADMIN"), Set.of("education:read", "education:attendance:write", "education:attendance:manage"),
+            false, "admin");
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void createEnrollmentRejectsDuplicateStudentClass() {
@@ -157,7 +186,9 @@ class EducationFourthMainlineValidationTest {
             classStudentMapper,
             teachingClassMapper,
             studentMapper,
-            scheduleLessonMapper
+            scheduleLessonMapper,
+            scheduleTeacherRelMapper,
+            teacherMapper
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
         when(studentMapper.selectById(10L)).thenReturn(student());
@@ -175,7 +206,9 @@ class EducationFourthMainlineValidationTest {
             classStudentMapper,
             teachingClassMapper,
             studentMapper,
-            scheduleLessonMapper
+            scheduleLessonMapper,
+            scheduleTeacherRelMapper,
+            teacherMapper
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
         when(studentMapper.selectById(10L)).thenReturn(student());
@@ -196,7 +229,9 @@ class EducationFourthMainlineValidationTest {
             classStudentMapper,
             teachingClassMapper,
             studentMapper,
-            scheduleLessonMapper
+            scheduleLessonMapper,
+            scheduleTeacherRelMapper,
+            teacherMapper
         );
         when(scheduleLessonMapper.selectById(300L)).thenReturn(scheduleLesson());
         when(classStudentMapper.selectList(any())).thenReturn(List.of(activeClassStudent()));
@@ -218,7 +253,9 @@ class EducationFourthMainlineValidationTest {
             classStudentMapper,
             teachingClassMapper,
             studentMapper,
-            scheduleLessonMapper
+            scheduleLessonMapper,
+            scheduleTeacherRelMapper,
+            teacherMapper
         );
         ScheduleLessonEntity makeupLesson = scheduleLesson();
         makeupLesson.setLessonStatus("makeup");
@@ -245,7 +282,9 @@ class EducationFourthMainlineValidationTest {
             classStudentMapper,
             teachingClassMapper,
             studentMapper,
-            scheduleLessonMapper
+            scheduleLessonMapper,
+            scheduleTeacherRelMapper,
+            teacherMapper
         );
         ScheduleLessonEntity cancelledLesson = scheduleLesson();
         cancelledLesson.setLessonStatus("cancelled");

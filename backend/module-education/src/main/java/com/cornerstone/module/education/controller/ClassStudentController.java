@@ -43,14 +43,14 @@ public class ClassStudentController {
 
     @Operation(summary = "创建班级学员")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<ClassStudentEntity> create(@Valid @RequestBody ClassStudentCreateRequest request) {
         return ApiResponse.success("班级学员已创建", classStudentService.createClassStudent(request));
     }
 
     @Operation(summary = "删除班级学员")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classStudentService.deleteClassStudent(id);
         return ApiResponse.success("班级学员已移除", null);

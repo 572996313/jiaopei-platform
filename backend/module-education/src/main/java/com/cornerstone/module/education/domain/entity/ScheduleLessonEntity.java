@@ -35,6 +35,9 @@ public class ScheduleLessonEntity extends BaseEntity {
     @Schema(description = "来源排课计划ID(手工排课为空)")
     private Long planId;
 
+    @Schema(description = "来源自动排课批次ID(手工排课与计划展开为空,整批撤销按它删)")
+    private Long autoBatchId;
+
     @Schema(description = "上课日期")
     private LocalDate lessonDate;
 

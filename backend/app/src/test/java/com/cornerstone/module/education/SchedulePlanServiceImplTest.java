@@ -27,8 +27,10 @@ import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.impl.SchedulePlanServiceImpl;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -40,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -96,10 +99,13 @@ class SchedulePlanServiceImplTest {
         .registerModule(new JavaTimeModule())
         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final ScheduleRuleSupport ruleSupport =
-        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, objectMapper);
+        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, classroomMapper, objectMapper);
+    private final SchoolCalendarService schoolCalendarService = mock(SchoolCalendarService.class);
+    private final ScheduleTeacherLock teacherLock = mock(ScheduleTeacherLock.class);
     private final SchedulePlanServiceImpl service = new SchedulePlanServiceImpl(
         planMapper, classMapper, teacherMapper, classroomMapper,
-        timeSlotMapper, lessonMapper, teacherRelMapper, ruleSupport, objectMapper
+        timeSlotMapper, lessonMapper, teacherRelMapper, ruleSupport,
+        schoolCalendarService, teacherLock, objectMapper
     );
 
     @BeforeEach
@@ -177,6 +183,22 @@ class SchedulePlanServiceImplTest {
     }
 
     @Test
+    void previewNoticesLessonsFallingOnClosedCalendarDay() {
+        stubValidMasterData();
+        // 停排日只提示不拦：操作员认定"国庆照常补课"时可以原样提交，不必先把日历记录删掉
+        when(schoolCalendarService.closedDays(1L, 10L, START, END))
+            .thenReturn(Map.of(LocalDate.of(2026, 6, 8), "停排日「国庆节」(全校区，只提示不拦)：全校放假"));
+
+        SchedulePlanPreviewResponse response = service.preview(request(List.of()));
+
+        assertEquals(0, response.conflictCount());
+        assertEquals(1, response.ruleNotices().size(), String.valueOf(response.ruleNotices()));
+        String notice = response.ruleNotices().getFirst();
+        assertTrue(notice.contains("2026-06-08"), notice);
+        assertTrue(notice.contains("本计划有 1 节课落在这一天"), notice);
+    }
+
+    @Test
     void commitNewPlanWritesLessonsAndTeacherRelations() {
         stubValidMasterData();
         doAnswer(invocation -> {
@@ -216,6 +238,8 @@ class SchedulePlanServiceImplTest {
             assertEquals(LocalTime.of(9, 0), lesson.getStartTime());
         });
         verify(teacherRelMapper, times(2)).insert(any(ScheduleTeacherRelEntity.class));
+        // 教师占用没有唯一键可兜：出格子之前先取行锁，锁的是这批课次共用的教师
+        verify(teacherLock).lock(List.of(400L));
     }
 
     @Test
@@ -505,7 +529,7 @@ class SchedulePlanServiceImplTest {
     /** 排课服务的机构范围来自登录态，单测要把 SecurityContext 里的用户造出来（参照 AnnouncementServiceImplTest） */
     private void authenticate(Long userId, Long institutionId) {
         AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
-            Set.of("ADMIN"), Set.of("education:read", "education:write"), false, "admin");
+            Set.of("ADMIN"), Set.of("education:read", "education:schedule:write"), false, "admin");
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
     }

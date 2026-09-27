@@ -20,7 +20,11 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ScheduleRuleService;
 import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.organization.domain.entity.CampusEntity;
+import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
+import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -51,15 +55,20 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
     private final TeachingClassMapper classMapper;
     private final TeacherMapper teacherMapper;
     private final TimeSlotMapper timeSlotMapper;
+    private final ClassroomMapper classroomMapper;
+    private final CampusMapper campusMapper;
     private final ScheduleRuleSupport ruleSupport;
 
     public ScheduleRuleServiceImpl(ScheduleRuleMapper ruleMapper, TeachingClassMapper classMapper,
                                    TeacherMapper teacherMapper, TimeSlotMapper timeSlotMapper,
+                                   ClassroomMapper classroomMapper, CampusMapper campusMapper,
                                    ScheduleRuleSupport ruleSupport) {
         this.ruleMapper = ruleMapper;
         this.classMapper = classMapper;
         this.teacherMapper = teacherMapper;
         this.timeSlotMapper = timeSlotMapper;
+        this.classroomMapper = classroomMapper;
+        this.campusMapper = campusMapper;
         this.ruleSupport = ruleSupport;
     }
 
@@ -173,8 +182,19 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "教师与规则的机构不一致");
             }
             targetCampusId = teacher.getCampusId();
+        } else if (ScheduleRuleSupport.TARGET_CLASSROOM.equals(targetType)) {
+            // 教室表上没有机构列，归属只能通过它所在的校区认定
+            ClassroomEntity classroom = classroomMapper.selectById(request.targetId());
+            if (classroom == null) {
+                throw new BusinessException(ResultCode.NOT_FOUND, "教室不存在：" + request.targetId());
+            }
+            CampusEntity campus = campusMapper.selectById(classroom.getCampusId());
+            if (campus == null || !Objects.equals(campus.getInstitutionId(), request.institutionId())) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "教室与规则的机构不一致");
+            }
+            targetCampusId = classroom.getCampusId();
         } else {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "规则对象类型只能是班级或教师");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "规则对象类型只能是班级、教师或教室");
         }
 
         List<ScheduleSlotCell> slots = request.slots().stream()

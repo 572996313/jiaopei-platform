@@ -17,6 +17,7 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
 import com.cornerstone.module.education.service.ClassTeacherService;
 import com.cornerstone.module.education.service.TeachingClassService;
+import com.cornerstone.module.education.service.support.LessonTargetConverter;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
@@ -98,6 +99,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         entity.setClassName(className);
         entity.setTeacherId(request.teacherId());
         entity.setCapacityLimit(capacityLimit);
+        applyLessonTarget(entity, request);
         entity.setCurrentStudents(0);
         entity.setStatus(normalizeStatus(request.status()));
         entity.setOpenedAt(request.openedAt());
@@ -142,6 +144,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         existing.setClassName(className);
         // 主讲教师不在这里直接改列，统一交给班级教师关系回写，避免两张表口径不一致
         existing.setCapacityLimit(capacityLimit);
+        applyLessonTarget(existing, request);
         existing.setCurrentStudents(activeStudents);
         existing.setStatus(normalizeStatus(request.status()));
         existing.setOpenedAt(request.openedAt());
@@ -280,6 +283,21 @@ public class TeachingClassServiceImpl implements TeachingClassService {
 
     private int normalizeCapacityLimit(Integer capacityLimit) {
         return capacityLimit == null ? 0 : capacityLimit;
+    }
+
+    /**
+     * 写入课时目标三列：口径与原值照用户填的存，{@code weekly_lessons} 一律由换算器得出。
+     *
+     * <p>请求里的 {@code weeklyLessons} 只在"没传原值"时充当原值，让只发这一个字段的旧调用方
+     * 行为不变；口径为 monthly 时以原值换算为准，直发的 {@code weeklyLessons} 不生效。</p>
+     */
+    private void applyLessonTarget(TeachingClassEntity entity, TeachingClassCreateRequest request) {
+        String mode = LessonTargetConverter.normalizeMode(request.weeklyLessonsMode());
+        Integer input = request.weeklyLessonsInput() != null ? request.weeklyLessonsInput() : request.weeklyLessons();
+        entity.setWeeklyLessonsMode(mode);
+        entity.setWeeklyLessonsInput(input);
+        entity.setWeeklyLessons(LessonTargetConverter.toWeekly(mode, input));
+        entity.setTotalLessons(request.totalLessons());
     }
 
     private int countActiveStudents(Long classId) {

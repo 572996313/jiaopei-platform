@@ -6,20 +6,27 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleRuleEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
+import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.dto.ScheduleConflictCheckRequest;
 import com.cornerstone.module.education.dto.ScheduleLessonPageQuery;
 import com.cornerstone.module.education.dto.ScheduleLessonRequest;
+import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
+import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.impl.ScheduleLessonServiceImpl;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -62,6 +69,11 @@ class ScheduleLessonServiceImplTest {
         // 规则提示语要带出班级/教师名称，ScheduleRuleSupport 里也会按这两张表建 wrapper
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TeachingClassEntity.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TeacherEntity.class);
+        // 学员跨班撞课提示按这两张表建 wrapper
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ClassStudentEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), StudentEntity.class);
+        // 教室禁排规则的提示语要带出教室名，targetNames 会按教室表建 wrapper
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ClassroomEntity.class);
     }
 
     private final ScheduleLessonMapper lessonMapper = mock(ScheduleLessonMapper.class);
@@ -71,8 +83,12 @@ class ScheduleLessonServiceImplTest {
     private final ClassroomMapper classroomMapper = mock(ClassroomMapper.class);
     private final TimeSlotMapper timeSlotMapper = mock(TimeSlotMapper.class);
     private final ScheduleRuleMapper ruleMapper = mock(ScheduleRuleMapper.class);
-    private final ScheduleRuleSupport ruleSupport =
-        new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper, timeSlotMapper, new ObjectMapper());
+    private final ClassStudentMapper classStudentMapper = mock(ClassStudentMapper.class);
+    private final StudentMapper studentMapper = mock(StudentMapper.class);
+    private final SchoolCalendarService schoolCalendarService = mock(SchoolCalendarService.class);
+    private final ScheduleTeacherLock teacherLock = mock(ScheduleTeacherLock.class);
+    private final ScheduleRuleSupport ruleSupport = new ScheduleRuleSupport(ruleMapper, classMapper, teacherMapper,
+        timeSlotMapper, classroomMapper, new ObjectMapper());
     private final ScheduleLessonServiceImpl service = new ScheduleLessonServiceImpl(
         lessonMapper,
         teacherRelMapper,
@@ -80,7 +96,11 @@ class ScheduleLessonServiceImplTest {
         teacherMapper,
         classroomMapper,
         timeSlotMapper,
-        ruleSupport
+        classStudentMapper,
+        studentMapper,
+        schoolCalendarService,
+        ruleSupport,
+        teacherLock
     );
 
     @BeforeEach
@@ -111,9 +131,130 @@ class ScheduleLessonServiceImplTest {
 
         assertEquals(List.of(400L), service.createLesson(request()).teacherIds());
 
+        // 教师占用没有唯一键可兜，先查后插之前必须取行锁（锁在 ScheduleTeacherLock 里，这里验调用点）
+        verify(teacherLock).lock(List.of(400L));
         verify(teacherRelMapper).physicalDeleteByLessonId(900L);
         verify(teacherRelMapper).insert(any(ScheduleTeacherRelEntity.class));
     }
+
+    @Test
+    void checkConflictsWarnsTeacherOverDailyLimitWithoutBlocking() {
+        stubValidMaterial();
+        TeacherEntity teacher = teacherMapper.selectById(400L);
+        teacher.setMaxDailyLessons(1);
+        teacher.setMaxWeeklyLessons(3);
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), any(), any(), any())).thenReturn(0L);
+        // 2026-06-15 是周一，所以"当日"与"本周"两次统计的区间可区分
+        when(teacherRelMapper.countTeacherLessonsInRange(400L, LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 15), null))
+            .thenReturn(1L);
+        when(teacherRelMapper.countTeacherLessonsInRange(400L, LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 21), null))
+            .thenReturn(2L);
+        when(schoolCalendarService.closedDayNotice(1L, 2L, LocalDate.of(2026, 6, 15))).thenReturn(null);
+        when(classStudentMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        var response = service.checkConflicts(conflictRequest());
+
+        assertEquals(Boolean.FALSE, response.conflict());
+        assertTrue(response.notices().stream().anyMatch(item -> item.contains("当日已排 1 节")
+            && item.contains("超出每日上限 1")), String.valueOf(response.notices()));
+        assertTrue(response.notices().stream().noneMatch(item -> item.contains("周课时上限")),
+            "本周 2 节 + 本节 = 3 节，正好等于上限，不该提示：" + response.notices());
+    }
+
+    @Test
+    void checkConflictsWarnsStudentAlsoHasLessonInAnotherClass() {
+        stubValidMaterial();
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), any(), any(), any())).thenReturn(0L);
+        when(teacherRelMapper.countTeacherLessonsInRange(any(), any(), any(), any())).thenReturn(0L);
+        // 第一次取本班在册学员，第二次取这些学员在别班的在册关系
+        when(classStudentMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(classStudent(100L, 9001L)), List.of(classStudent(101L, 9001L)));
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(clashingLesson(930L, 101L, LocalDate.of(2026, 6, 15))));
+        when(classMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            teachingClass(100L, "测试班级"), teachingClass(101L, "音乐欣赏班")));
+        when(studentMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(student(9001L, "小明")));
+
+        var response = service.checkConflicts(conflictRequest());
+
+        assertEquals(Boolean.FALSE, response.conflict());
+        assertTrue(response.notices().stream().anyMatch(item -> item.contains("学员「小明」")
+            && item.contains("音乐欣赏班") && item.contains("只提示不拦")), String.valueOf(response.notices()));
+    }
+
+    @Test
+    void checkConflictsWarnsClosedCalendarDayWithoutBlocking() {
+        stubValidMaterial();
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), any(), any(), any())).thenReturn(0L);
+        when(teacherRelMapper.countTeacherLessonsInRange(any(), any(), any(), any())).thenReturn(0L);
+        when(classStudentMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(schoolCalendarService.closedDayNotice(1L, 2L, LocalDate.of(2026, 6, 15)))
+            .thenReturn("停排日「端午节」(全校区，只提示不拦)：全校放假");
+
+        var response = service.checkConflicts(conflictRequest());
+
+        assertEquals(Boolean.FALSE, response.conflict());
+        assertEquals(List.of("停排日「端午节」(全校区，只提示不拦)：全校放假"), response.notices());
+    }
+
+    @Test
+    void checkConflictsBlocksClassroomForbiddenRule() {
+        stubValidMaterial();
+        when(lessonMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(teacherRelMapper.countTeacherConflicts(eq(400L), any(), any(), any())).thenReturn(0L);
+        when(classStudentMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        ScheduleRuleEntity rule = forbiddenRule("排练占用");
+        rule.setTargetType("classroom");
+        rule.setTargetId(200L);
+        when(ruleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(rule));
+        ClassroomEntity room = new ClassroomEntity();
+        room.setId(200L);
+        room.setClassroomName("3号音乐教室");
+        when(classroomMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(room));
+
+        var response = service.checkConflicts(conflictRequest());
+
+        // 教室禁排与班级/教师禁排同档：硬拦，不然是让操作员自己避开一间本来锁死的房
+        assertEquals(Boolean.TRUE, response.conflict());
+        assertTrue(response.conflictTypes().contains("rule"), String.valueOf(response.conflictTypes()));
+        assertTrue(response.messages().stream().anyMatch(item -> item.contains("教室「3号音乐教室」")
+            && item.contains("排练占用")), String.valueOf(response.messages()));
+    }
+
+    private ScheduleConflictCheckRequest conflictRequest() {
+        ScheduleLessonRequest own = request();
+        return new ScheduleConflictCheckRequest(null, own.institutionId(), own.campusId(), own.termId(),
+            own.classId(), own.classroomId(), own.timeSlotId(), own.lessonDate(), own.teacherIds());
+    }
+
+    private ClassStudentEntity classStudent(Long classId, Long studentId) {
+        ClassStudentEntity entity = new ClassStudentEntity();
+        entity.setInstitutionId(1L);
+        entity.setClassId(classId);
+        entity.setStudentId(studentId);
+        entity.setStatus("active");
+        return entity;
+    }
+
+    private StudentEntity student(Long id, String name) {
+        StudentEntity entity = new StudentEntity();
+        entity.setId(id);
+        entity.setInstitutionId(1L);
+        entity.setStudentName(name);
+        return entity;
+    }
+
+    private TeachingClassEntity teachingClass(Long id, String name) {
+        TeachingClassEntity entity = new TeachingClassEntity();
+        entity.setId(id);
+        entity.setInstitutionId(1L);
+        entity.setClassName(name);
+        return entity;
+    }
+
 
     @Test
     void createLessonRejectsClassConflict() {
@@ -193,8 +334,14 @@ class ScheduleLessonServiceImplTest {
         return lesson;
     }
 
-    private ScheduleTeacherRelEntity teacherRel(Long lessonId, Long teacherId) {
-        ScheduleTeacherRelEntity relation = new ScheduleTeacherRelEntity();
+    /** 别班在同一日期同一时段已排的课次：学员跨班撞课的对照行。 */
+    private ScheduleLessonEntity clashingLesson(Long id, Long classId, LocalDate lessonDate) {
+        ScheduleLessonEntity lesson = scheduledLesson(id, lessonDate);
+        lesson.setClassId(classId);
+        return lesson;
+    }
+
+    private ScheduleTeacherRelEntity teacherRel(Long lessonId, Long teacherId) {        ScheduleTeacherRelEntity relation = new ScheduleTeacherRelEntity();
         relation.setLessonId(lessonId);
         relation.setTeacherId(teacherId);
         return relation;
@@ -719,7 +866,7 @@ class ScheduleLessonServiceImplTest {
     /** 排课服务的机构范围来自登录态，单测要把 SecurityContext 里的用户造出来（参照 AnnouncementServiceImplTest） */
     private void authenticate(Long userId, Long institutionId) {
         AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
-            Set.of("ADMIN"), Set.of("education:read", "education:write"), false, "admin");
+            Set.of("ADMIN"), Set.of("education:read", "education:schedule:write"), false, "admin");
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
     }

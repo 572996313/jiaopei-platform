@@ -216,13 +216,9 @@ const roleCrud: CrudPageOptions = {
       remark: '',
     }
   },
-  beforeSubmit: (form) => {
-    const permissionCodes = collectRolePermissionCodes(form)
-    if (permissionCodes.length === 0) {
-      return '请至少选择或输入一个权限码'
-    }
-    return null
-  },
+  // 权限码允许为空:实际权限是「预设权限码 ∪ 已勾菜单节点带的码」，V74 种下的机构管理员/教师
+  // 两个预设角色只走菜单节点授权，这里再强制填码会让它们连备注都改不了。
+  beforeSubmit: () => null,
   buildCreatePayload: (form) => ({
     roleCode: String(form.roleCode ?? '').trim(),
     roleName: String(form.roleName ?? '').trim(),

@@ -2,11 +2,14 @@ package com.cornerstone.module.education;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
+import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
+import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
 import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
@@ -14,16 +17,22 @@ import com.cornerstone.module.education.dto.AttendanceLessonPageView;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
+import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -50,6 +59,8 @@ class AttendanceServiceImplTest {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, AttendanceEntity.class);
         TableInfoHelper.initTableInfo(assistant, ClassStudentEntity.class);
+        TableInfoHelper.initTableInfo(assistant, ScheduleTeacherRelEntity.class);
+        TableInfoHelper.initTableInfo(assistant, TeacherEntity.class);
     }
 
     private final AttendanceMapper attendanceMapper = mock(AttendanceMapper.class);
@@ -57,8 +68,11 @@ class AttendanceServiceImplTest {
     private final TeachingClassMapper teachingClassMapper = mock(TeachingClassMapper.class);
     private final StudentMapper studentMapper = mock(StudentMapper.class);
     private final ScheduleLessonMapper scheduleLessonMapper = mock(ScheduleLessonMapper.class);
+    private final ScheduleTeacherRelMapper scheduleTeacherRelMapper = mock(ScheduleTeacherRelMapper.class);
+    private final TeacherMapper teacherMapper = mock(TeacherMapper.class);
     private final AttendanceServiceImpl service = new AttendanceServiceImpl(
-        attendanceMapper, classStudentMapper, teachingClassMapper, studentMapper, scheduleLessonMapper);
+        attendanceMapper, classStudentMapper, teachingClassMapper, studentMapper, scheduleLessonMapper,
+        scheduleTeacherRelMapper, teacherMapper);
 
     /** 模拟库里的考勤行：删除与查询都走这份列表，才能验到"撤销后页面不再显示该学员状态"。 */
     private final List<AttendanceEntity> storedAttendances = new ArrayList<>();
@@ -81,11 +95,81 @@ class AttendanceServiceImplTest {
         when(teachingClassMapper.selectById(CLASS_ID)).thenReturn(teachingClass);
 
         when(attendanceMapper.selectList(any())).thenAnswer(invocation -> new ArrayList<>(storedAttendances));
+        // 新建也要落进这份列表：页面视角是存完再重查一遍，insert 只当空 mock 的话「点上了几节」永远是 0
+        when(attendanceMapper.insert(any(AttendanceEntity.class))).thenAnswer(invocation -> {
+            storedAttendances.add(invocation.getArgument(0));
+            return 1;
+        });
         when(attendanceMapper.physicalDeleteById(any())).thenAnswer(invocation -> {
             Long id = invocation.getArgument(0);
             storedAttendances.removeIf(item -> item.getId().equals(id));
             return 1;
         });
+        // 存盘口径的用例只关心点名结果，统一按考勤管理码登录，把"仅限本人课次"的分支让给下面的专用例
+        authenticate(Set.of("education:read", "education:attendance:write", "education:attendance:manage"));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void teacherWithoutManagePermissionCannotMarkLessonOfOthers() {
+        authenticate(Set.of("education:read", "education:attendance:write"));
+        when(teacherMapper.selectOne(any())).thenReturn(teacher(500L, 7L, "王老师"));
+        when(scheduleTeacherRelMapper.selectCount(any())).thenReturn(0L);
+        inClassStudents(1L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.saveLessonAttendance(request(item(1L, "present"))));
+
+        assertEquals(ResultCode.FORBIDDEN, exception.getResultCode());
+        assertEquals("只能为本人授课的课次点名，本课次的授课教师里没有「王老师」", exception.getMessage());
+        verify(attendanceMapper, never()).insert(any(AttendanceEntity.class));
+    }
+
+    @Test
+    void teacherCanMarkOwnLesson() {
+        authenticate(Set.of("education:read", "education:attendance:write"));
+        when(teacherMapper.selectOne(any())).thenReturn(teacher(500L, 7L, "王老师"));
+        when(scheduleTeacherRelMapper.selectCount(any())).thenReturn(1L);
+        inClassStudents(1L);
+
+        AttendanceLessonPageView page = service.saveLessonAttendance(request(item(1L, "present")));
+
+        assertEquals(1, page.summary().markedCount());
+    }
+
+    @Test
+    void accountWithoutTeacherProfileCannotMarkEvenWithAttendanceWrite() {
+        authenticate(Set.of("education:read", "education:attendance:write"));
+        when(teacherMapper.selectOne(any())).thenReturn(null);
+        inClassStudents(1L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.saveLessonAttendance(request(item(1L, "present"))));
+
+        assertEquals(ResultCode.FORBIDDEN, exception.getResultCode());
+        assertEquals("当前账号未绑定本机构的教师档案，无法点名；请先绑定教师档案或授予考勤管理权限", exception.getMessage());
+        verify(attendanceMapper, never()).insert(any(AttendanceEntity.class));
+    }
+
+    private void authenticate(Set<String> permissions) {
+        AuthenticatedUser user = new AuthenticatedUser(7L, INSTITUTION_ID, "teacher01",
+            Set.of("TEACHER"), permissions, false, "admin");
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
+    }
+
+    private TeacherEntity teacher(Long teacherId, Long userId, String teacherName) {
+        TeacherEntity teacher = new TeacherEntity();
+        teacher.setId(teacherId);
+        teacher.setInstitutionId(INSTITUTION_ID);
+        teacher.setUserId(userId);
+        teacher.setTeacherName(teacherName);
+        teacher.setDeleted(Boolean.FALSE);
+        return teacher;
     }
 
     @Test

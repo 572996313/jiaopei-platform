@@ -24,12 +24,13 @@
       class="schedule-dialog-alert"
     />
 
+    <!-- 硬冲突（红色）与软提示（黄色）分块展示：提示不拦保存，只有冲突禁保存 -->
     <el-alert
       v-if="conflictResult?.conflict"
       :title="
         isExecutionMode ? '执行变更冲突未通过，请调整后再保存' : '冲突检查未通过，请调整后再保存'
       "
-      type="warning"
+      type="error"
       show-icon
       :closable="false"
       class="schedule-dialog-alert"
@@ -44,6 +45,19 @@
         {{ message }}
       </div>
     </div>
+
+    <el-alert
+      v-if="pendingNotices.length > 0"
+      type="warning"
+      show-icon
+      :closable="false"
+      title="以下提示不阻止保存："
+      class="schedule-dialog-alert"
+    >
+      <div v-for="(notice, index) in pendingNotices" :key="`${notice}-${index}`" class="schedule-notice-line">
+        {{ notice }}
+      </div>
+    </el-alert>
 
     <el-alert
       v-if="statusLockedHint"
@@ -217,8 +231,13 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submit">
-        {{ isExecutionMode ? '保存变更' : submittingText }}
+      <el-button
+        type="primary"
+        :loading="submitting"
+        :disabled="Boolean(conflictResult?.conflict)"
+        @click="submit"
+      >
+        {{ submitButtonText }}
       </el-button>
     </template>
   </el-dialog>
@@ -350,6 +369,20 @@ const submittingText = computed(() =>
   props.mode === 'create' ? '检查冲突并创建' : '检查冲突并保存'
 )
 
+// 软提示先展示、再放行：第一次提交只把 notices 摆出来，按钮不禁用，再点一次即保存
+const noticesAcknowledged = ref(false)
+const pendingNotices = computed(() => conflictResult.value?.notices || [])
+const submitButtonText = computed(() => {
+  // 提示已知晓：所有模式统一把按钮文案改成「继续保存」，明确第二下就落库
+  if (noticesAcknowledged.value && pendingNotices.value.length > 0 && !conflictResult.value?.conflict) {
+    return '已知晓提示，继续保存'
+  }
+  if (isExecutionMode.value) {
+    return '保存变更'
+  }
+  return submittingText.value
+})
+
 const remarkPlaceholder = computed(() => {
   switch (props.mode) {
     case 'cancel':
@@ -427,6 +460,7 @@ function resetForm() {
   form.relatedLessonId = ''
   form.remark = ''
   conflictResult.value = null
+  noticesAcknowledged.value = false
   formError.value = ''
 }
 
@@ -444,8 +478,27 @@ function fillFormFromLesson(lesson: ScheduleLessonRecord, status: string) {
   form.relatedLessonId = lesson.relatedLessonId || ''
   form.remark = lesson.remark || ''
   conflictResult.value = null
+  noticesAcknowledged.value = false
   formError.value = ''
 }
+
+// 改动参与冲突判定的任一字段后，上一次检查结果作废：提示块收起，需要重新点提交
+watch(
+  () =>
+    [
+      form.campusId,
+      form.termId,
+      form.classId,
+      form.classroomId,
+      form.timeSlotId,
+      form.lessonDate,
+      form.teacherIds.join(','),
+    ].join('|'),
+  () => {
+    conflictResult.value = null
+    noticesAcknowledged.value = false
+  }
+)
 
 watch(
   () => props.modelValue,
@@ -576,6 +629,11 @@ async function runConflictCheck() {
       : '存在排课冲突，请调整后重试'
     return false
   }
+  // 软提示不拦保存，但要先让操作员看见：第一次提交只展示 notices，再点即继续
+  if ((conflictResult.value.notices || []).length > 0 && !noticesAcknowledged.value) {
+    noticesAcknowledged.value = true
+    return false
+  }
   return true
 }
 
@@ -648,12 +706,17 @@ async function submit() {
   margin-bottom: 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: var(--soft-warn-bg);
-  color: var(--soft-warn-ink);
+  background: var(--soft-danger-bg);
+  color: var(--soft-danger-ink);
 }
 
 .schedule-conflict-item + .schedule-conflict-item {
   margin-top: 6px;
+}
+
+.schedule-notice-line {
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 @media (max-width: 900px) {

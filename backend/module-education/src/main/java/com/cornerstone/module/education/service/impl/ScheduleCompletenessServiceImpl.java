@@ -40,7 +40,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>口径说明（页面上也要写清，否则数字会被读错）：
  * <ul>
- *   <li>应排只算计划展开出来的课次，跳过日期不计；没建计划的班级不出现在报表里。</li>
+ *   <li>分母有两套：班级设了「每周应上节数」就按目标数（{@code weekly_target}），没设则回落到该班
+ *       启用中的排课计划展开（{@code plan_expand}）。两种都只算被计划区间覆盖的周，跳过日期不计，
+ *       没建计划的班级不出现在报表里。</li>
  *   <li>匹配按 {@code 日期#时段} 键而不是 planId：落在计划空格子上的手工课次就是把那一格补上了，
  *       会抵扣缺口；只有落在计划键之外的（改期调课、额外加课、补课另排的那一格）才算「计划外」。</li>
  *   <li>应排/已生成/已完成/已停课都按<b>格子</b>计数，同一格有多行只算一格，
@@ -53,9 +55,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessService {
 
+    /** 分母口径：班级设了每周应上节数 */
+    private static final String SOURCE_WEEKLY_TARGET = "weekly_target";
+    /** 分母口径：没设目标，回落到该班启用中的排课计划展开 */
+    private static final String SOURCE_PLAN_EXPAND = "plan_expand";
+
     private static final String STATUS_ACTIVE = "active";
     private static final String LESSON_COMPLETED = "completed";
     private static final String LESSON_CANCELLED = "cancelled";
+    /** 统计近期节奏的周数：只往回看四周，避开寒暑假对结课日推算的稀释 */
+    private static final int RECENT_RATE_WEEKS = 4;
     /** 统计区间上限(周),与计划展开器的 120 周上限不冲突,纯粹防止一屏放不下 */
     private static final int MAX_WEEKS = 26;
     /** 未指定任何日期与学期时的默认窗口(周) */
@@ -117,11 +126,12 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
                     .le(ScheduleLessonEntity::getLessonDate, weekTo))
             .stream().collect(Collectors.groupingBy(ScheduleLessonEntity::getClassId));
         Map<Long, String> slotNames = slotNames(plans);
+        Map<Long, Progress> progressByClass = progressFor(institutionId, classIds, classById, LocalDate.now());
 
         List<ScheduleCompletenessResponse.ClassRow> rows = new ArrayList<>();
         for (Long classId : classIds) {
             rows.add(buildRow(classId, plansFor(classId, plans), lessonsByClass.getOrDefault(classId, List.of()),
-                classById.get(classId), slotNames, weekFrom, weekCount));
+                classById.get(classId), slotNames, progressByClass.get(classId), weekFrom, weekCount));
         }
         rows.sort(Comparator.comparing((ScheduleCompletenessResponse.ClassRow row) ->
                 Objects.toString(row.className(), ""))
@@ -195,7 +205,10 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
     private ScheduleCompletenessResponse.ClassRow buildRow(Long classId, List<SchedulePlanEntity> classPlans,
                                                            List<ScheduleLessonEntity> lessons,
                                                            TeachingClassEntity clazz, Map<Long, String> slotNames,
+                                                           Progress progress,
                                                            LocalDate weekFrom, int weekCount) {
+        Integer target = clazz == null ? null : clazz.getWeeklyLessons();
+        boolean byTarget = target != null && target > 0;
         // 每个下标先放"这一周计划要上哪些格子"，再放"实际有哪些课次落在这一周"
         List<SchedulePlanExpander.Occurrence> expected = new ArrayList<>();
         Set<LocalDate> coveredWeeks = new LinkedHashSet<>();
@@ -260,26 +273,44 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
             Set<String> matchedKeys = actualKeys.stream()
                 .filter(expectedKeys::contains)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-            int generated = matchedKeys.size();
-            int completed = matchedCellCount(weekLessons, matchedKeys, LESSON_COMPLETED);
-            int cancelled = matchedCellCount(weekLessons, matchedKeys, LESSON_CANCELLED);
+            // 按课时目标统计时分子是"这周实际排了几节"，不再只认计划格子：
+            // 手工补到目标节奏上的课次同样抵缺口，否则设了目标的班永远排不满。
+            // 此时 4/3 是真实超额，与上面那条"计划口径下不许出现 4/3"不冲突。
+            Set<String> countedKeys = byTarget ? actualKeys : matchedKeys;
+            int generated = countedKeys.size();
+            int completed = matchedCellCount(weekLessons, countedKeys, LESSON_COMPLETED);
+            int cancelled = matchedCellCount(weekLessons, countedKeys, LESSON_CANCELLED);
             // 计划外仍是行数：补课一节拆两节是真占了两个课时，不存在"同一格"去重的问题
             int extra = (int) weekLessons.stream()
                 .filter(lesson -> !expectedKeys.contains(lessonKey(lesson)))
                 .count();
-            cells.add(new ScheduleCompletenessResponse.WeekCell(covered, expectedKeys.size(), generated,
+            // 设了课时目标的班按目标数算应排：计划展开只是"这个格子排上了"，目标才是"这周该上几节"。
+            // 门槛用"这一周计划有没有展开出格子"而不是 covered：单双周计划的空周、整周都被跳过的周，
+            // 日期区间照样覆盖，用 covered 判会把目标摊进这些本来一节都不排的周里，报表天天报缺。
+            int weekExpected = byTarget ? (weekOccurrences.isEmpty() ? 0 : target) : expectedKeys.size();
+            int weekMissing = Math.max(0, weekExpected - generated);
+            cells.add(new ScheduleCompletenessResponse.WeekCell(covered, weekExpected, generated, weekMissing,
                 completed, cancelled, extra, gaps));
-            totalExpected += expectedKeys.size();
+            totalExpected += weekExpected;
             totalGenerated += generated;
             totalCompleted += completed;
-            totalMissing += gaps.size();
+            totalMissing += weekMissing;
             totalExtra += extra;
         }
+        LocalDate planEndDate = classPlans.stream().map(SchedulePlanEntity::getEndDate)
+            .filter(Objects::nonNull).max(LocalDate::compareTo).orElse(null);
         return new ScheduleCompletenessResponse.ClassRow(classId,
             clazz == null ? "班级#" + classId : clazz.getClassName(),
             clazz == null ? null : clazz.getCampusId(),
             clazz == null ? null : clazz.getTermId(),
-            classPlans.size(), cells,
+            classPlans.size(),
+            byTarget ? SOURCE_WEEKLY_TARGET : SOURCE_PLAN_EXPAND,
+            byTarget ? target : null,
+            progress == null ? null : progress.total(),
+            progress == null ? null : progress.held(),
+            progress == null ? null : progress.estimatedFinishDate(),
+            planEndDate,
+            cells,
             new ScheduleCompletenessResponse.RowSummary(totalExpected, totalGenerated, totalCompleted,
                 totalMissing, totalExtra));
     }
@@ -301,6 +332,75 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
     private static List<SchedulePlanEntity> plansFor(Long classId, List<SchedulePlanEntity> plans) {
         return plans.stream().filter(plan -> Objects.equals(plan.getClassId(), classId)).toList();
     }
+
+    // ------------------------------------------------------------------ 课时进度
+
+    /**
+     * 一班的课时进度：总课时目标、已上节数、按近期节奏推算的预计结课日。
+     * 只在班级设了「整班总课时」时才建，没设的行不给进度，免得页面上出现 0/0。
+     */
+    private record Progress(int total, int held, LocalDate estimatedFinishDate) {
+    }
+
+    /**
+     * 批量取课时进度。
+     *
+     * <p>口径与格子里的「已完成」不同，这里是<b>全量</b>：日期已过、且没被停掉的课次一律算已上，
+     * 不去比对计划格子。因为进度回答的是"这一班总共上掉几节了"，计划外加的课、
+     * 改期补出来的课都真实消耗总课时；而格子里的「已完成」回答"这一格上完了没"。
+     *
+     * <p>不按统计窗口取数：窗口是操作员选的（常常只看本学期这几周），进度却是整班账，
+     * 必须从开班看到现在。
+     *
+     * <p>预计结课日按<b>近四周</b>的节奏推算，只精确到"几周以后"。取近四周而不是开班至今，
+     * 是为了让寒暑假、整段停课不稀释节奏——用全期均值会把结课日算得明显偏晚，而假期之后本来就要重排。
+     * 近四周没上过课就算不出节奏，返回空让前端显示"暂无近期上课记录"，
+     * 而不是给一个看起来很准、其实凭空推算的日期。
+     */
+    private Map<Long, Progress> progressFor(Long institutionId, List<Long> classIds,
+                                            Map<Long, TeachingClassEntity> classById, LocalDate today) {
+        List<Long> targets = classIds.stream()
+            .map(classById::get)
+            .filter(Objects::nonNull)
+            .filter(clazz -> clazz.getTotalLessons() != null && clazz.getTotalLessons() > 0)
+            .map(TeachingClassEntity::getId)
+            .toList();
+        if (targets.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<ScheduleLessonEntity>> byClass = lessonMapper.selectList(
+                new LambdaQueryWrapper<ScheduleLessonEntity>()
+                    .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
+                    .in(ScheduleLessonEntity::getClassId, targets)
+                    .lt(ScheduleLessonEntity::getLessonDate, today))
+            .stream()
+            .filter(lesson -> !LESSON_CANCELLED.equalsIgnoreCase(lesson.getLessonStatus()))
+            .collect(Collectors.groupingBy(ScheduleLessonEntity::getClassId));
+        LocalDate recentFrom = today.minusWeeks(RECENT_RATE_WEEKS);
+        Map<Long, Progress> result = new LinkedHashMap<>();
+        for (Long classId : targets) {
+            List<ScheduleLessonEntity> held = byClass.getOrDefault(classId, List.of());
+            int total = classById.get(classId).getTotalLessons();
+            long recent = held.stream().filter(lesson -> !lesson.getLessonDate().isBefore(recentFrom)).count();
+            result.put(classId, new Progress(total, held.size(),
+                estimatedFinishDate(total, held.size(), recent, today)));
+        }
+        return result;
+    }
+
+    /** 剩余节数 ÷ 近期每周均节数 = 还要几周，向上取整；已上满或没有近期节奏可依时返回 null。 */
+    private static LocalDate estimatedFinishDate(int total, int held, long recentHeld, LocalDate today) {
+        int remaining = total - held;
+        if (remaining <= 0) {
+            return null;
+        }
+        double weeklyRate = (double) recentHeld / RECENT_RATE_WEEKS;
+        if (weeklyRate <= 0) {
+            return null;
+        }
+        return today.plusWeeks((long) Math.ceil(remaining / weeklyRate));
+    }
+
 
     // ------------------------------------------------------------------ 取数与转换
 

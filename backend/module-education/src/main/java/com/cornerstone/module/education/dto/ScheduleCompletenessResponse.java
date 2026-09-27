@@ -7,10 +7,17 @@ import java.util.List;
 /**
  * 排课完成度报表：行=班级，列=自然周，格子给出「应排/已排/已上/缺口」。
  *
- * <p>应排（分母）一律来自该班启用中的排课计划展开，不是课时目标——系统里没有「班级应上多少课」的独立口径，
- * 计划就是操作员认定的应排。因此没建计划的班级不会出现在报表里。
+ * <p>分母有两套口径，按行标注在 {@code denominatorSource}：
+ * <ul>
+ *   <li>{@code weekly_target} — 班级设了「每周应上节数」({@code jp_class.weekly_lessons})，
+ *       应排 = 该值 × 覆盖周数。这是自动排课要对齐的目标，与有没有建计划无关。</li>
+ *   <li>{@code plan_expand} — 没设目标时回落到"该班启用中的排课计划展开"，即操作员认定的应排。</li>
+ * </ul>
+ * 两种口径都只统计被计划区间覆盖的周（没建计划的班级与没排到的周仍不出数），
+ * 因此同一张表里可能两种分母并存，比数之前先看行上的口径标签。缺口明细(gaps)始终来自计划展开：
+ * 按目标计数时，目标比计划格子多出来的那部分只知道缺几节、说不出缺在哪个格子。
  */
-@Schema(description = "排课完成度报表响应(行=班级,列=自然周,应排取自启用中的排课计划)")
+@Schema(description = "排课完成度报表响应(行=班级,列=自然周,分母=班级课时目标,未设目标时回落计划展开)")
 public record ScheduleCompletenessResponse(
     @Schema(description = "统计区间内对齐后的起始周一")
     LocalDate weekFrom,
@@ -46,6 +53,21 @@ public record ScheduleCompletenessResponse(
         Long termId,
         @Schema(description = "参与统计的启用中计划数")
         int planCount,
+        @Schema(description = "分母口径(weekly_target=按班级每周应上节数,plan_expand=按计划展开)",
+                allowableValues = {"weekly_target", "plan_expand"})
+        String denominatorSource,
+        @Schema(description = "每周应上节数(班级课时目标;未设定时为 null,此时分母走计划展开)")
+        Integer targetLessons,
+        @Schema(description = "整班总课时(班级未设时为空;只用于课时进度,不参与应排/缺口计算)",
+                example = "40")
+        Integer totalLessons,
+        @Schema(description = "已上课节数(上课日期早于今天且未停课的全部课次。不按计划格子匹配,"
+            + "与格子里的「已完成」口径不同：计划外加的课、补课另排的那一格这里算、格子里不算)")
+        Integer heldLessons,
+        @Schema(description = "预计结课日(按近四周实际每周上课节数推算剩余节数要几周,只到周粒度;算不出时为空)")
+        LocalDate estimatedFinishDate,
+        @Schema(description = "该班启用中排课计划的最晚结束日期(与预计结课日对比才知道按现在的节奏上不上得完)")
+        LocalDate planEndDate,
         @Schema(description = "与 weeks 等长的格子列表")
         List<WeekCell> cells,
         @Schema(description = "该行合计")
@@ -61,13 +83,15 @@ public record ScheduleCompletenessResponse(
         int expected,
         @Schema(description = "已生成课节数(含已停课;按计划键匹配)")
         int generated,
+        @Schema(description = "本周缺口数(应排-已生成,不小于0;按课时目标统计时可能多于 gaps 条数)")
+        int missing,
         @Schema(description = "已完成课节数")
         int completed,
         @Schema(description = "已停课课节数")
         int cancelled,
         @Schema(description = "计划外课节数(手工加排、补课等落在计划键之外)")
         int extra,
-        @Schema(description = "缺口明细:应排但没有生成课次的日期与节次")
+        @Schema(description = "缺口明细:计划里有但没有生成课次的日期与节次(按课时目标统计时可能少于 missing)")
         List<Gap> gaps
     ) {
     }

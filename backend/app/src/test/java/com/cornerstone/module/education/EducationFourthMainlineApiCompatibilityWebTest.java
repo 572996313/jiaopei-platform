@@ -305,7 +305,7 @@ class EducationFourthMainlineApiCompatibilityWebTest {
             List.of()
         ));
         given(scheduleLessonService.checkConflicts(any())).willReturn(
-            new ScheduleConflictCheckResponse(false, List.of(), List.of())
+            new ScheduleConflictCheckResponse(false, List.of(), List.of(), List.of())
         );
 
         mockMvc.perform(post("/api/education/schedules/lessons")

@@ -16,8 +16,8 @@ public record ScheduleRuleRequest(
             allowableValues = {"forbidden", "required"})
     @NotNull(message = "规则类型不能为空")
     @Size(max = 16, message = "规则类型长度不能超过16个字符") String ruleType,
-    @Schema(description = "规则对象类型(class=班级,teacher=教师)", requiredMode = Schema.RequiredMode.REQUIRED,
-            allowableValues = {"class", "teacher"})
+    @Schema(description = "规则对象类型(class=班级,teacher=教师,classroom=教室)", requiredMode = Schema.RequiredMode.REQUIRED,
+            allowableValues = {"class", "teacher", "classroom"})
     @NotNull(message = "规则对象类型不能为空")
     @Size(max = 16, message = "规则对象类型长度不能超过16个字符") String targetType,
     @Schema(description = "规则对象ID", requiredMode = Schema.RequiredMode.REQUIRED)

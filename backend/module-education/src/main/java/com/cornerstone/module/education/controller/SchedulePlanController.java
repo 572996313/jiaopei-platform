@@ -50,14 +50,14 @@ public class SchedulePlanController {
 
     @Operation(summary = "排课计划展开预览", description = "按每周节次模式与起止日期展开课次草案,逐条标记冲突与跳过日期,不落库")
     @PostMapping("/preview")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<SchedulePlanPreviewResponse> preview(@Valid @RequestBody SchedulePlanRequest request) {
         return ApiResponse.success("排课计划预览已生成", schedulePlanService.preview(request));
     }
 
     @Operation(summary = "提交排课计划生成课次", description = "保存计划并按勾选课次生成;计划ID为空则新建,已生成的键自动跳过(幂等补排)")
     @PostMapping("/commit")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<SchedulePlanCommitResponse> commit(@Valid @RequestBody SchedulePlanCommitRequest request) {
         SchedulePlanCommitResponse response = schedulePlanService.commit(request);
         return ApiResponse.success("排课计划已提交,生成课次 " + response.createdCount() + " 条", response);
@@ -65,14 +65,14 @@ public class SchedulePlanController {
 
     @Operation(summary = "更新排课计划", description = "仅更新计划定义(含启停),不回改已生成课次")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<SchedulePlanView> update(@PathVariable Long id, @Valid @RequestBody SchedulePlanRequest request) {
         return ApiResponse.success("排课计划已更新", schedulePlanService.updatePlan(id, request));
     }
 
     @Operation(summary = "删除排课计划", description = "仅删除计划本身,已生成课次不受影响")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         schedulePlanService.deletePlan(id);
         return ApiResponse.success("排课计划已删除", null);
@@ -80,7 +80,7 @@ public class SchedulePlanController {
 
     @Operation(summary = "撤销计划未上课次", description = "软删该计划生成且日期不早于今天的已排课/已调课课次,返回撤销条数")
     @DeleteMapping("/{id}/lessons")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<Integer> cancelLessons(@PathVariable Long id) {
         int cancelled = schedulePlanService.cancelPlanLessons(id);
         return ApiResponse.success("已撤销 " + cancelled + " 条未上课次", cancelled);

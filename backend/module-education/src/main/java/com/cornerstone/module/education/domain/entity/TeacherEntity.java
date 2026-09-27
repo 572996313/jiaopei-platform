@@ -1,5 +1,7 @@
 package com.cornerstone.module.education.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cornerstone.core.common.model.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,6 +41,14 @@ public class TeacherEntity extends BaseEntity {
 
     @Schema(description = "用工类型字典(employment_type:full_time=全职,part_time=兼职,contract=外聘)", allowableValues = {"full_time", "part_time", "contract"})
     private String employmentType;
+
+    @Schema(description = "周课时上限(排课时超出只提示不拦,空=不限)")
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)   // 编辑时留空即取消上限；updateById 默认忽略 null
+    private Integer maxWeeklyLessons;
+
+    @Schema(description = "每日授课节数上限(排课时超出只提示不拦,空=不限)")
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Integer maxDailyLessons;
 
     @Schema(description = "教师状态字典(teacher_status:active=在职,suspended=暂停,left=离职)", allowableValues = {"active", "suspended", "left"})
     private String status;

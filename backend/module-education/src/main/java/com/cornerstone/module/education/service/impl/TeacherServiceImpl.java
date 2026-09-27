@@ -233,6 +233,8 @@ public class TeacherServiceImpl implements TeacherService {
         entity.setTitle(normalizeToNull(request.title()));
         String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
         entity.setEmploymentType(employmentType == null ? DEFAULT_EMPLOYMENT_TYPE : employmentType);
+        entity.setMaxWeeklyLessons(request.maxWeeklyLessons());
+        entity.setMaxDailyLessons(request.maxDailyLessons());
         String teacherStatus = dictValueValidator.validate("teacher_status", "教师状态", request.status());
         entity.setStatus(teacherStatus == null ? DEFAULT_TEACHER_STATUS : teacherStatus);
         entity.setHiredAt(request.hiredAt());
@@ -278,6 +280,8 @@ public class TeacherServiceImpl implements TeacherService {
         existing.setTitle(normalizeToNull(request.title()));
         String employmentType = dictValueValidator.validate("employment_type", "用工类型", request.employmentType());
         existing.setEmploymentType(employmentType == null ? existing.getEmploymentType() : employmentType);
+        existing.setMaxWeeklyLessons(request.maxWeeklyLessons());
+        existing.setMaxDailyLessons(request.maxDailyLessons());
         String status = dictValueValidator.validate("teacher_status", "教师状态", request.status());
         existing.setStatus(status == null ? existing.getStatus() : status);
         existing.setHiredAt(request.hiredAt());

@@ -7,8 +7,10 @@ import com.cornerstone.core.common.model.PageSortSupport;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
+import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
 import com.cornerstone.module.education.dto.ScheduleConflictCheckRequest;
@@ -16,13 +18,17 @@ import com.cornerstone.module.education.dto.ScheduleConflictCheckResponse;
 import com.cornerstone.module.education.dto.ScheduleLessonPageQuery;
 import com.cornerstone.module.education.dto.ScheduleLessonRequest;
 import com.cornerstone.module.education.dto.ScheduleLessonView;
+import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
+import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.ScheduleLessonService;
 import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -62,6 +68,10 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private static final String CANCELLED_MAKEUP = "cancelled_makeup";
     /** 跨机构访问被拒时的提示对象名：「无权访问其他机构的排课课次」 */
     private static final String SUBJECT = "排课课次";
+    /** 入班关系里只有 active 算在册：预占(reserved)、已退班(quit)不参与学员跨班撞课判定 */
+    private static final String CLASS_STUDENT_ACTIVE = "active";
+    /** 学员跨班提示最多列出几个人：整班撞课时提示块会占满屏幕，多出来的用一行汇总 */
+    private static final int NOTICE_STUDENT_LIMIT = 5;
 
     private final ScheduleLessonMapper lessonMapper;
     private final ScheduleTeacherRelMapper teacherRelMapper;
@@ -69,19 +79,29 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private final TeacherMapper teacherMapper;
     private final ClassroomMapper classroomMapper;
     private final TimeSlotMapper timeSlotMapper;
+    private final ClassStudentMapper classStudentMapper;
+    private final StudentMapper studentMapper;
+    private final SchoolCalendarService schoolCalendarService;
     private final ScheduleRuleSupport ruleSupport;
+    private final ScheduleTeacherLock teacherLock;
 
     public ScheduleLessonServiceImpl(ScheduleLessonMapper lessonMapper, ScheduleTeacherRelMapper teacherRelMapper,
                                      TeachingClassMapper classMapper, TeacherMapper teacherMapper,
                                      ClassroomMapper classroomMapper, TimeSlotMapper timeSlotMapper,
-                                     ScheduleRuleSupport ruleSupport) {
+                                     ClassStudentMapper classStudentMapper, StudentMapper studentMapper,
+                                     SchoolCalendarService schoolCalendarService, ScheduleRuleSupport ruleSupport,
+                                     ScheduleTeacherLock teacherLock) {
         this.lessonMapper = lessonMapper;
         this.teacherRelMapper = teacherRelMapper;
         this.classMapper = classMapper;
         this.teacherMapper = teacherMapper;
         this.classroomMapper = classroomMapper;
         this.timeSlotMapper = timeSlotMapper;
+        this.classStudentMapper = classStudentMapper;
+        this.studentMapper = studentMapper;
+        this.schoolCalendarService = schoolCalendarService;
         this.ruleSupport = ruleSupport;
+        this.teacherLock = teacherLock;
     }
 
     @Override
@@ -164,6 +184,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     @Transactional
     public ScheduleLessonView createLesson(ScheduleLessonRequest request) {
         ScheduleMaterial material = validateMaterial(request, null);
+        teacherLock.lock(request.teacherIds());
         assertNoConflicts(request, null);
         ScheduleLessonEntity entity = toEntity(request, material);
         entity.setDeleted(Boolean.FALSE);
@@ -181,6 +202,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     public ScheduleLessonView updateLesson(Long id, ScheduleLessonRequest request) {
         requireLesson(id);
         ScheduleMaterial material = validateMaterial(request, id);
+        teacherLock.lock(request.teacherIds());
         assertNoConflicts(request, id);
         assertMakeupSourceIntact(id, defaultStatus(request.lessonStatus()));
         ScheduleLessonEntity entity = toEntity(request, material);
@@ -404,12 +426,14 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
                 messages.add("教师「" + teacherLabel(teacherId) + "」在此时段已被占用");
             }
         }
+        List<String> notices = new ArrayList<>();
         // 禁排规则与占用同层判定：撞上了既不让单独排课，也不让在冲突检查里被忽略
         // 例外：改一节课时班级/日期/时段/教师都没动，就不拿规则回头拦它——课次可以早于规则建立，
         // 那种冲突是历史事实，操作员要能改个备注、换个教室把它挪出窗口，而不是整节保存不了
         if (checkRules) {
             List<String> ruleMessages = ruleSupport.loadRuleSet(request.institutionId(),
-                    List.of(request.classId()), List.copyOf(distinctTeacherIds(request.teacherIds())))
+                    List.of(request.classId()), List.copyOf(distinctTeacherIds(request.teacherIds())),
+                    request.classroomId() == null ? List.of() : List.of(request.classroomId()))
                 .forbiddenMessages(request.lessonDate(), request.lessonDate().getDayOfWeek().getValue(),
                     request.timeSlotId());
             if (!ruleMessages.isEmpty()) {
@@ -417,7 +441,151 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
                 messages.addAll(ruleMessages);
             }
         }
-        return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages);
+        String closedNotice = schoolCalendarService.closedDayNotice(request.institutionId(),
+            request.campusId(), request.lessonDate());
+        if (closedNotice != null) {
+            notices.add(closedNotice);
+        }
+        notices.addAll(teacherLoadNotices(request, excludeLessonId));
+        notices.addAll(studentClashNotices(request));
+        return new ScheduleConflictCheckResponse(!types.isEmpty(), types, messages, notices);
+    }
+
+    /**
+     * 教师课时上限的提醒：把这一节算进去才判，超了也只提示不拦。
+     * 加班课、临时加课在本行业是常态，硬拦等于逼操作员先把上限改大再改回来。
+     */
+    private List<String> teacherLoadNotices(ScheduleLessonRequest request, Long excludeLessonId) {
+        List<String> notices = new ArrayList<>();
+        if (request.lessonDate() == null) {
+            return notices;
+        }
+        LocalDate date = request.lessonDate();
+        LocalDate weekStart = date.minusDays(date.getDayOfWeek().getValue() - 1L);
+        LocalDate weekEnd = weekStart.plusDays(6);
+        for (Long teacherId : distinctTeacherIds(request.teacherIds())) {
+            TeacherEntity teacher = teacherMapper.selectById(teacherId);
+            if (teacher == null) {
+                continue;
+            }
+            String label = teacherDisplayName(teacher, teacherId);
+            if (teacher.getMaxDailyLessons() != null) {
+                long scheduled = countTeacherLessons(teacherId, date, date, excludeLessonId);
+                if (scheduled + 1 > teacher.getMaxDailyLessons()) {
+                    notices.add("教师「" + label + "」当日已排 " + scheduled + " 节，本节排入将达 "
+                        + (scheduled + 1) + " 节，超出每日上限 " + teacher.getMaxDailyLessons() + "（只提示不拦）");
+                }
+            }
+            if (teacher.getMaxWeeklyLessons() != null) {
+                long scheduled = countTeacherLessons(teacherId, weekStart, weekEnd, excludeLessonId);
+                if (scheduled + 1 > teacher.getMaxWeeklyLessons()) {
+                    notices.add("教师「" + label + "」本周已排 " + scheduled + " 节，本节排入将达 "
+                        + (scheduled + 1) + " 节，超出周课时上限 " + teacher.getMaxWeeklyLessons() + "（只提示不拦）");
+                }
+            }
+        }
+        return notices;
+    }
+
+    private long countTeacherLessons(Long teacherId, LocalDate start, LocalDate end, Long excludeLessonId) {
+        Long count = teacherRelMapper.countTeacherLessonsInRange(teacherId, start, end, excludeLessonId);
+        return count == null ? 0L : count;
+    }
+
+    /**
+     * 学员跨班撞课：本班学员在同一日期同一时段还挂着别班的课。
+     * 只提示不拦——插班试听、临时借读、串班上课都是真场景，硬拦会把正常操作挡死。
+     */
+    private List<String> studentClashNotices(ScheduleLessonRequest request) {
+        if (request.classId() == null || request.lessonDate() == null || request.timeSlotId() == null) {
+            return List.of();
+        }
+        List<Long> studentIds = classStudentMapper.selectList(new LambdaQueryWrapper<ClassStudentEntity>()
+                .select(ClassStudentEntity::getStudentId)
+                .eq(ClassStudentEntity::getClassId, request.classId())
+                .eq(ClassStudentEntity::getStatus, CLASS_STUDENT_ACTIVE))
+            .stream().map(ClassStudentEntity::getStudentId).filter(Objects::nonNull).distinct().toList();
+        if (studentIds.isEmpty()) {
+            return List.of();
+        }
+        List<ClassStudentEntity> otherEnrollments = classStudentMapper.selectList(
+            new LambdaQueryWrapper<ClassStudentEntity>()
+                .select(ClassStudentEntity::getStudentId, ClassStudentEntity::getClassId)
+                .in(ClassStudentEntity::getStudentId, studentIds)
+                .eq(ClassStudentEntity::getStatus, CLASS_STUDENT_ACTIVE)
+                .ne(ClassStudentEntity::getClassId, request.classId()));
+        if (otherEnrollments.isEmpty()) {
+            return List.of();
+        }
+        List<Long> otherClassIds = otherEnrollments.stream().map(ClassStudentEntity::getClassId)
+            .filter(Objects::nonNull).distinct().toList();
+        Set<Long> clashingClassIds = new HashSet<>(lessonMapper.selectList(
+                new LambdaQueryWrapper<ScheduleLessonEntity>()
+                    .select(ScheduleLessonEntity::getClassId)
+                    .eq(ScheduleLessonEntity::getInstitutionId, request.institutionId())
+                    .in(ScheduleLessonEntity::getClassId, otherClassIds)
+                    .eq(ScheduleLessonEntity::getLessonDate, request.lessonDate())
+                    .eq(ScheduleLessonEntity::getTimeSlotId, request.timeSlotId())
+                    .in(ScheduleLessonEntity::getLessonStatus, SCHEDULED, RESCHEDULED, MAKEUP))
+            .stream().map(ScheduleLessonEntity::getClassId).filter(Objects::nonNull).toList());
+        if (clashingClassIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<Long>> classesByStudent = otherEnrollments.stream()
+            .filter(item -> clashingClassIds.contains(item.getClassId()))
+            .collect(java.util.stream.Collectors.groupingBy(ClassStudentEntity::getStudentId,
+                java.util.stream.Collectors.mapping(ClassStudentEntity::getClassId,
+                    java.util.stream.Collectors.toList())));
+        if (classesByStudent.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> classNames = classNames(clashingClassIds);
+        Map<Long, String> studentNames = studentNames(classesByStudent.keySet());
+        List<String> notices = new ArrayList<>();
+        classesByStudent.entrySet().stream().limit(NOTICE_STUDENT_LIMIT).forEach(entry -> {
+            String students = studentNames.getOrDefault(entry.getKey(), "#" + entry.getKey());
+            String classes = entry.getValue().stream().distinct()
+                .map(classId -> "「" + classNames.getOrDefault(classId, "#" + classId) + "」")
+                .collect(java.util.stream.Collectors.joining("、"));
+            notices.add("学员「" + students + "」同时段在" + classes + "还有课（只提示不拦）");
+        });
+        if (classesByStudent.size() > NOTICE_STUDENT_LIMIT) {
+            notices.add("另有 " + (classesByStudent.size() - NOTICE_STUDENT_LIMIT) + " 名学员同时段在他班有课（只提示不拦）");
+        }
+        return notices;
+    }
+
+    private Map<Long, String> classNames(Set<Long> classIds) {
+        if (classIds.isEmpty()) {
+            return Map.of();
+        }
+        return classMapper.selectList(new LambdaQueryWrapper<TeachingClassEntity>()
+                .select(TeachingClassEntity::getId, TeachingClassEntity::getClassName, TeachingClassEntity::getClassCode)
+                .in(TeachingClassEntity::getId, classIds))
+            .stream().collect(java.util.stream.Collectors.toMap(TeachingClassEntity::getId,
+                item -> item.getClassName() == null || item.getClassName().isBlank()
+                    ? Objects.toString(item.getClassCode(), "#" + item.getId()) : item.getClassName()));
+    }
+
+    private Map<Long, String> studentNames(Set<Long> studentIds) {
+        if (studentIds.isEmpty()) {
+            return Map.of();
+        }
+        return studentMapper.selectList(new LambdaQueryWrapper<StudentEntity>()
+                .select(StudentEntity::getId, StudentEntity::getStudentName)
+                .in(StudentEntity::getId, studentIds))
+            .stream().filter(item -> item.getStudentName() != null && !item.getStudentName().isBlank())
+            .collect(java.util.stream.Collectors.toMap(StudentEntity::getId, StudentEntity::getStudentName,
+                (first, second) -> first));
+    }
+
+    /** 教师显示名：提示语里不出现 19 位雪花 ID。 */
+    private String teacherDisplayName(TeacherEntity teacher, Long teacherId) {
+        if (teacher.getTeacherName() != null && !teacher.getTeacherName().isBlank()) {
+            return teacher.getTeacherName();
+        }
+        return teacher.getTeacherCode() == null || teacher.getTeacherCode().isBlank()
+            ? "#" + teacherId : teacher.getTeacherCode();
     }
 
     /** 冲突说明里的教师身份：19 位雪花 ID 操作员认不出来，报姓名、其次编号，都查不到才退回 ID。 */
@@ -551,13 +719,15 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         ScheduleRuleSupport.RuleSet ruleSet = ruleSupport.loadRuleSet(
             entities.getFirst().getInstitutionId(),
             entities.stream().map(ScheduleLessonEntity::getClassId).filter(Objects::nonNull).distinct().toList(),
-            teacherIds);
+            teacherIds,
+            entities.stream().map(ScheduleLessonEntity::getClassroomId).filter(Objects::nonNull).distinct().toList());
         if (ruleSet.rules().isEmpty()) {
             return Map.of();
         }
         Map<Long, List<String>> messages = new java.util.LinkedHashMap<>();
         for (ScheduleLessonEntity entity : entities) {
-            List<String> hits = ruleSet.scopedTo(entity.getClassId(), teacherIdsByLesson.get(entity.getId()))
+            List<String> hits = ruleSet.scopedTo(entity.getClassId(), teacherIdsByLesson.get(entity.getId()),
+                    entity.getClassroomId())
                 .forbiddenMessages(entity.getLessonDate(), entity.getLessonWeekday(), entity.getTimeSlotId());
             if (!hits.isEmpty()) {
                 messages.put(entity.getId(), hits);

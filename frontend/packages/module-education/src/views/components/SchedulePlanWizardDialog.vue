@@ -121,6 +121,18 @@
       >
         <div v-for="notice in ruleNotices" :key="notice" class="plan-notice-line">{{ notice }}</div>
       </el-alert>
+      <!-- 软提示与红色冲突行分块：只提示，不拦「生成课次」 -->
+      <el-alert
+        v-if="previewNotices.length > 0"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="以下提示不阻止生成："
+      >
+        <div v-for="notice in previewNotices" :key="notice" class="plan-notice-line">
+          {{ notice }}
+        </div>
+      </el-alert>
       <el-table :data="previewItems" border row-key="key" max-height="420">
         <el-table-column width="46" align="center">
           <template #header>
@@ -243,6 +255,7 @@ const formSlots = ref<SchedulePlanSlotItem[]>([])
 const previewItems = ref<PreviewRow[]>([])
 const checkedKeys = ref(new Set<string>())
 const ruleNotices = ref<string[]>([])
+const previewNotices = ref<string[]>([])
 
 function formatTerm(id?: string | null) {
   if (!id) {
@@ -296,6 +309,7 @@ function handleOpen() {
   previewItems.value = []
   checkedKeys.value = new Set()
   ruleNotices.value = []
+  previewNotices.value = []
   const plan = props.editPlan
   if (plan) {
     formClassId.value = plan.classId || ''
@@ -397,6 +411,7 @@ async function handlePreview() {
   try {
     const result = await previewSchedulePlan(payload)
     ruleNotices.value = result.ruleNotices || []
+    previewNotices.value = result.notices || []
     previewItems.value = result.items.map((item) => ({
       ...item,
       key: `${item.lessonDate}#${item.timeSlotId}`,

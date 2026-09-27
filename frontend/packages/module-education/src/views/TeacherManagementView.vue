@@ -216,6 +216,25 @@
             style="width: 100%"
           />
         </el-form-item>
+        <el-form-item label="每周负载上限（节）">
+          <el-input-number
+            v-model="form.maxWeeklyLessons"
+            :min="1"
+            :step="1"
+            placeholder="不限"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="每日负载上限（节）">
+          <el-input-number
+            v-model="form.maxDailyLessons"
+            :min="1"
+            :step="1"
+            placeholder="不限"
+            style="width: 100%"
+          />
+          <div class="education-context-text">留空表示不限；超出时排课只提示不拦。</div>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="补充教师说明" />
         </el-form-item>
@@ -286,8 +305,8 @@ const teacherSort = useTableSort({
 
 const statsVisible = ref(false)
 
-// 导入与匹配账号都会写库，与后端 @RequiresPermission("education:write") 同一口径
-const canManage = computed(() => auth.hasPermission('education:write'))
+// 导入与匹配账号都会写库，与后端 @RequiresPermission("education:profile:write") 同一口径
+const canManage = computed(() => auth.hasPermission('education:profile:write'))
 const importVisible = ref(false)
 const linkVisible = ref(false)
 const exporting = ref(false)
@@ -309,6 +328,9 @@ const form = reactive({
   employmentType: '',
   status: '',
   hiredAt: '',
+  // 负载上限：null = 不限，只在编辑/详情里维护，列表不加列
+  maxWeeklyLessons: null as number | null,
+  maxDailyLessons: null as number | null,
   remark: '',
 })
 
@@ -362,6 +384,8 @@ function resetForm() {
   form.employmentType = ''
   form.status = ''
   form.hiredAt = ''
+  form.maxWeeklyLessons = null
+  form.maxDailyLessons = null
   form.remark = ''
   formError.value = ''
 }
@@ -459,6 +483,8 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
     form.employmentType = row.employmentType ?? ''
     form.status = row.status ?? ''
     form.hiredAt = row.hiredAt ?? ''
+    form.maxWeeklyLessons = row.maxWeeklyLessons ?? null
+    form.maxDailyLessons = row.maxDailyLessons ?? null
     form.remark = row.remark ?? ''
   } else {
     editingTeacherId.value = null
@@ -499,6 +525,8 @@ async function submitTeacher() {
         employmentType: form.employmentType,
         status: form.status,
         hiredAt: form.hiredAt || null,
+        maxWeeklyLessons: form.maxWeeklyLessons ?? null,
+        maxDailyLessons: form.maxDailyLessons ?? null,
         remark: trimToUndefined(form.remark),
       })
       ElMessage.success('教师已新增')
@@ -511,6 +539,9 @@ async function submitTeacher() {
         employmentType: form.employmentType,
         status: form.status,
         hiredAt: form.hiredAt || null,
+        // 留空即不限：更新时显式传 null 才能清掉旧值
+        maxWeeklyLessons: form.maxWeeklyLessons ?? null,
+        maxDailyLessons: form.maxDailyLessons ?? null,
         remark: trimToUndefined(form.remark),
       })
       ElMessage.success('教师已更新')

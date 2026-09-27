@@ -10,6 +10,25 @@ import org.apache.ibatis.annotations.Update;
 public interface TeacherMapper extends BaseMapper<TeacherEntity> {
 
     /**
+     * 排课写入前锁住本次涉及的教师档案行。
+     *
+     * <p>班级与教室占用有 V72 的生成列唯一键兜底，教师占用要跨 schedule_teacher_rel 与课次两张表、
+     * 建不了等价约束，于是按「先查后插必须有兜底」的显式锁这一支：并发第二个事务会在这里排队，
+     * 等第一个提交后再读占用，重复占用才判得出来。ORDER BY id 不是给看数据的，是让多方同时排课时
+     * 的加锁顺序一致，避免互相占着对方要的行而死锁。只能在校验与写入同一事务里调用。</p>
+     */
+    @Select("""
+        <script>
+        SELECT id FROM jp_teacher
+        WHERE id IN
+        <foreach collection="teacherIds" item="teacherId" open="(" separator="," close=")">#{teacherId}</foreach>
+        ORDER BY id
+        FOR UPDATE
+        </script>
+        """)
+    List<Long> lockByIdsForUpdate(@Param("teacherIds") List<Long> teacherIds);
+
+    /**
      * 按机构取全部档案，**含已软删行**，只取导入判重需要的列。
      *
      * <p>必须绕过 {@code @TableLogic} 的 deleted=0 过滤：uk_jp_teacher_code 与 uk_jp_teacher_phone

@@ -42,7 +42,7 @@ public class TeacherImportController {
     @Operation(summary = "下载教师档案导入模板",
         description = "返回 xlsx 模板：第一个工作表是要填的数据页，第二个工作表是填写说明；"
             + "性别/用工类型下拉取系统字典当前启用条目")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     @GetMapping("/template")
     public ResponseEntity<byte[]> template() {
         byte[] workbook = teacherImportService.buildTemplate();
@@ -58,7 +58,7 @@ public class TeacherImportController {
         description = "解析 xlsx 并逐行校验（必填项、手机号格式与本机构占用、校区编码是否存在、"
             + "性别/用工类型是否为字典启用值、入职日期格式），返回逐行结果与错误原因，不写入任何数据。"
             + "归属机构不接参数，一律取当前登录账号所在机构")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     @PostMapping("/preview")
     public TeacherImportResult preview(
         @Parameter(description = "填写完成的导入文件，仅支持 xlsx，内容须在第一个工作表")
@@ -70,7 +70,7 @@ public class TeacherImportController {
         description = "再次解析校验，任一行不通过则整批拒绝；通过后在当前登录账号所属机构下建档。"
             + "本接口不创建登录账号，账号请到「系统设置 → 用户管理 → 批量导入账号」开，"
             + "再回教师页用「匹配账号」绑定")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:profile:write")
     @PostMapping("/commit")
     public TeacherImportResult commit(
         @Parameter(description = "填写完成的导入文件，仅支持 xlsx，内容须在第一个工作表")

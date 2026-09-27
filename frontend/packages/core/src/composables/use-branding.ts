@@ -27,6 +27,14 @@ function text(field: BrandField) {
   return loaded.value ? `未配置(${CONFIG_KEY[field]})` : ''
 }
 
+/**
+ * 浏览器标签标题与横幅同源：未配置或拉不到时同样显示维护提示，
+ * 不回落 index.html 里那个构建期名字——那正是"改完参数标签还挂着旧名"的由来。
+ */
+function applyDocumentTitle() {
+  document.title = text('name')
+}
+
 export function useBranding() {
   return {
     brandName: computed(() => text('name')),
@@ -57,6 +65,7 @@ function loadBranding() {
       })
       .finally(() => {
         loaded.value = true
+        applyDocumentTitle()
       })
   }
   return inflight

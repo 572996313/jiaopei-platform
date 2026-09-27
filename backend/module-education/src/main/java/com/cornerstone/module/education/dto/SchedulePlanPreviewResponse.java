@@ -15,7 +15,7 @@ public record SchedulePlanPreviewResponse(
     int conflictCount,
     @Schema(description = "被跳过日期命中的草案数")
     int skippedCount,
-    @Schema(description = "必排规则提示(本计划的每周模式没覆盖到的必排格子,仅提示不拦提交)")
+    @Schema(description = "提示列表(必排规则没覆盖到的格子、落在校区日历停排日的课次;仅提示不拦提交)")
     List<String> ruleNotices
 ) {
     @Schema(description = "课次草案条目")

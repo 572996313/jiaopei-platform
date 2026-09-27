@@ -10,7 +10,9 @@ import com.cornerstone.module.education.dto.ScheduleSlotCell;
 import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
+import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,7 +30,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * 排课规则的读取与匹配：把"班级/教师在星期×节次网格上的禁排、必排约束"翻译成排课校验能直接用的结论。
+ * 排课规则的读取与匹配：把"班级/教师/教室在星期×节次网格上的禁排、必排约束"翻译成排课校验能直接用的结论。
  *
  * <p>格子键与 jp_schedule_plan.slots_json 同构（星期+时段ID），规则不绑学期：jp_time_slot 挂在机构+校区、
  * 不随学期重建，所以按时段ID绑定可以跨学期沿用；生效区间为空表示不限日期。
@@ -40,6 +42,7 @@ public class ScheduleRuleSupport {
     public static final String RULE_REQUIRED = "required";
     public static final String TARGET_CLASS = "class";
     public static final String TARGET_TEACHER = "teacher";
+    public static final String TARGET_CLASSROOM = "classroom";
     public static final String STATUS_ACTIVE = "active";
     public static final String STATUS_INACTIVE = "inactive";
 
@@ -49,23 +52,27 @@ public class ScheduleRuleSupport {
     private final TeachingClassMapper classMapper;
     private final TeacherMapper teacherMapper;
     private final TimeSlotMapper timeSlotMapper;
+    private final ClassroomMapper classroomMapper;
     private final ObjectMapper objectMapper;
 
     public ScheduleRuleSupport(ScheduleRuleMapper ruleMapper, TeachingClassMapper classMapper,
                                TeacherMapper teacherMapper, TimeSlotMapper timeSlotMapper,
-                               ObjectMapper objectMapper) {
+                               ClassroomMapper classroomMapper, ObjectMapper objectMapper) {
         this.ruleMapper = ruleMapper;
         this.classMapper = classMapper;
         this.teacherMapper = teacherMapper;
         this.timeSlotMapper = timeSlotMapper;
+        this.classroomMapper = classroomMapper;
         this.objectMapper = objectMapper;
     }
 
     /**
-     * 一次取齐班级及其教师身上启用中的规则，供整批课次在内存里反复比对（批量展开逐条查库是 N+1）。
+     * 一次取齐班级、其教师与教室身上启用中的规则，供整批课次在内存里反复比对（批量展开逐条查库是 N+1）。
      * 班级可以是一批（整张课表跨多个班），比对到具体课次时再用 {@link RuleSet#scopedTo} 收窄归属。
+     * 教室传进来是为了自动选室：这间房哪天哪节不对外，必须和班级、教师同一层被看见。
      */
-    public RuleSet loadRuleSet(Long institutionId, Collection<Long> classIds, List<Long> teacherIds) {
+    public RuleSet loadRuleSet(Long institutionId, Collection<Long> classIds, List<Long> teacherIds,
+                               Collection<Long> classroomIds) {
         List<Long> ids = classIds == null ? List.of() : classIds.stream().filter(Objects::nonNull).distinct().toList();
         List<ScheduleRuleEntity> entities = ids.isEmpty()
             ? new ArrayList<>()
@@ -77,6 +84,14 @@ public class ScheduleRuleSupport {
             entities.addAll(ruleMapper.selectList(activeScope(institutionId)
                 .eq(ScheduleRuleEntity::getTargetType, TARGET_TEACHER)
                 .in(ScheduleRuleEntity::getTargetId, teacherIdList)));
+        }
+        List<Long> classroomIdList = classroomIds == null
+            ? List.of()
+            : classroomIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (!classroomIdList.isEmpty()) {
+            entities.addAll(ruleMapper.selectList(activeScope(institutionId)
+                .eq(ScheduleRuleEntity::getTargetType, TARGET_CLASSROOM)
+                .in(ScheduleRuleEntity::getTargetId, classroomIdList)));
         }
         List<Rule> rules = entities.stream()
             .map(entity -> new Rule(entity.getRuleType(), entity.getTargetType(), entity.getTargetId(),
@@ -108,7 +123,7 @@ public class ScheduleRuleSupport {
     }
 
     /**
-     * 规则对象（班级/教师）的中文名，键为 {@code targetType#targetId}。
+     * 规则对象（班级/教师/教室）的中文名，键为 {@code targetType#targetId}。
      * 提示语要给操作员看，19 位雪花 ID 等于没说，所以只在确实命中规则时才查名称。
      */
     private Map<String, String> targetNames(List<Rule> rules) {
@@ -119,6 +134,11 @@ public class ScheduleRuleSupport {
             .toList();
         List<Long> teacherIds = rules.stream()
             .filter(rule -> TARGET_TEACHER.equals(rule.targetType()))
+            .map(Rule::targetId)
+            .distinct()
+            .toList();
+        List<Long> classroomIds = rules.stream()
+            .filter(rule -> TARGET_CLASSROOM.equals(rule.targetType()))
             .map(Rule::targetId)
             .distinct()
             .toList();
@@ -136,6 +156,13 @@ public class ScheduleRuleSupport {
                     .in(TeacherEntity::getId, teacherIds))
                 .forEach(item -> names.put(TARGET_TEACHER + "#" + item.getId(),
                     displayName(item.getTeacherName(), item.getTeacherCode(), item.getId())));
+        }
+        if (!classroomIds.isEmpty()) {
+            classroomMapper.selectList(new LambdaQueryWrapper<ClassroomEntity>()
+                    .select(ClassroomEntity::getId, ClassroomEntity::getClassroomName, ClassroomEntity::getClassroomCode)
+                    .in(ClassroomEntity::getId, classroomIds))
+                .forEach(item -> names.put(TARGET_CLASSROOM + "#" + item.getId(),
+                    displayName(item.getClassroomName(), item.getClassroomCode(), item.getId())));
         }
         return names;
     }
@@ -177,17 +204,20 @@ public class ScheduleRuleSupport {
     public record RuleSet(List<Rule> rules, Map<Long, String> slotNames, Map<String, String> targetNames) {
 
         /**
-         * 收窄到"管得着这一节课"的规则：班级规则要匹配本课次的班级，教师规则要命中本课次的某一位授课教师。
+         * 收窄到"管得着这一节课"的规则：班级规则要匹配本课次的班级，教室规则要匹配本课次的教室，
+         * 教师规则要命中本课次的某一位授课教师。
          * 整张课表一次取规则落到具体课次时才分得清是谁被禁排，不然会把同事的禁排算到这节课头上。
          */
-        public RuleSet scopedTo(Long classId, Collection<Long> teacherIds) {
+        public RuleSet scopedTo(Long classId, Collection<Long> teacherIds, Long classroomId) {
             List<Long> ids = teacherIds == null
                 ? List.of()
                 : teacherIds.stream().filter(Objects::nonNull).distinct().toList();
             List<Rule> scoped = rules.stream()
-                .filter(rule -> TARGET_CLASS.equals(rule.targetType())
-                    ? Objects.equals(rule.targetId(), classId)
-                    : ids.contains(rule.targetId()))
+                .filter(rule -> switch (rule.targetType()) {
+                    case TARGET_CLASS -> Objects.equals(rule.targetId(), classId);
+                    case TARGET_CLASSROOM -> Objects.equals(rule.targetId(), classroomId);
+                    default -> ids.contains(rule.targetId());
+                })
                 .toList();
             return scoped.size() == rules.size() ? this : new RuleSet(scoped, slotNames, targetNames);
         }
@@ -232,7 +262,11 @@ public class ScheduleRuleSupport {
 
         /** 规则对象的中文标签；名称查不到（对象已删）时退回 ID，至少还能定位到那条规则。 */
         private String targetLabel(Rule rule) {
-            String kind = TARGET_CLASS.equals(rule.targetType()) ? "班级" : "教师";
+            String kind = switch (rule.targetType()) {
+                case TARGET_CLASS -> "班级";
+                case TARGET_CLASSROOM -> "教室";
+                default -> "教师";
+            };
             String name = targetNames.get(rule.targetType() + "#" + rule.targetId());
             return (name == null || name.isBlank() ? kind + rule.targetId() : kind + "「" + name + "」") + " ";
         }

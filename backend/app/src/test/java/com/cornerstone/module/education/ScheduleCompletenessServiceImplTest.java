@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -248,9 +249,152 @@ class ScheduleCompletenessServiceImplTest {
         assertEquals(12, response.weeks().size());
     }
 
+    @Test
+    void weeklyTargetOverridesPlanExpansionAsDenominator() {
+        // 班级目标每周 3 节，计划每周只铺了 2 个格子：分母按目标算，缺口才不会被"计划本身排少了"掩盖
+        stubMasterData(plan(null), 3);
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            lesson(WEEK_ONE, 500L, "scheduled"),
+            lesson(WEEK_ONE.plusDays(1), 501L, "completed"),
+            lesson(WEEK_ONE.plusDays(2), 502L, "scheduled"),
+            lesson(WEEK_TWO, 500L, "scheduled")
+        ));
+
+        ScheduleCompletenessResponse response = service.report(1L, query(WEEK_ONE, RANGE_END));
+        ScheduleCompletenessResponse.ClassRow row = response.classes().getFirst();
+
+        assertEquals("weekly_target", row.denominatorSource());
+        assertEquals(3, row.targetLessons().intValue());
+        assertEquals(3, row.cells().getFirst().expected());
+        assertEquals(3, row.cells().getFirst().generated());
+        assertEquals(0, row.cells().getFirst().missing());
+        // 6/3 落在计划格子之外：按目标统计时它补上了缺口，但仍要单独露出"计划外"这一格
+        assertEquals(1, row.cells().getFirst().extra());
+        assertEquals(3, row.cells().get(1).expected());
+        assertEquals(1, row.cells().get(1).generated());
+        assertEquals(2, row.cells().get(1).missing());
+        assertEquals(6, row.summary().expected());
+        assertEquals(4, row.summary().generated());
+        assertEquals(2, row.summary().missing());
+        assertEquals(67, response.summary().generatedPercent());
+        assertEquals(17, response.summary().completedPercent());
+    }
+
+    @Test
+    void weeklyTargetIgnoresWeeksThePlanDoesNotExpand() {
+        // 单周计划只在第一周展开格子：第二周是"计划本来不上课"，不能按目标算成缺 3 节
+        stubMasterData(plan(null, SchedulePlanExpander.ODD_WEEK), 3);
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        List<ScheduleCompletenessResponse.WeekCell> cells =
+            service.report(1L, query(WEEK_ONE, RANGE_END)).classes().getFirst().cells();
+
+        assertEquals(3, cells.get(0).expected());
+        assertEquals(3, cells.get(0).missing());
+        assertEquals(0, cells.get(1).expected());
+        assertEquals(0, cells.get(1).missing());
+        // covered 仍按计划日期区间判定，语义不变：它说的是"计划排没排到这一周"，不是"该不该上课"
+        assertTrue(cells.get(1).covered());
+    }
+
+    @Test
+    void planExpansionRemainsTheDenominatorWithoutTarget() {
+        stubMasterData(plan(null), 0);
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        ScheduleCompletenessResponse.ClassRow row =
+            service.report(1L, query(WEEK_ONE, RANGE_END)).classes().getFirst();
+
+        // 0 与 NULL 都算"没设定目标"：按目标统计会变成每周 0 节，报表全绿但一节课没排
+        assertEquals("plan_expand", row.denominatorSource());
+        assertNull(row.targetLessons());
+        assertEquals(2, row.cells().getFirst().expected());
+    }
+
+    // ------------------------------------------------------------------ 课时进度
+
+    @Test
+    void totalLessonsProgressCountsEveryPastNonCancelledLesson() {
+        LocalDate today = LocalDate.now();
+        stubMasterData(plan(null), null, 10);
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            lesson(today.minusDays(10), 500L, "scheduled"),
+            lesson(today.minusDays(3), 501L, "completed"),
+            // 停掉的那节没上课，不消耗总课时
+            lesson(today.minusDays(1), 502L, "cancelled")
+            // 排在今天之后的课次不进分子，那由查询上的 lt(lessonDate, today) 拦掉，不在内存里再判一遍
+        ));
+
+        ScheduleCompletenessResponse.ClassRow row =
+            service.report(1L, query(WEEK_ONE, RANGE_END)).classes().getFirst();
+
+        assertEquals(10, row.totalLessons());
+        assertEquals(2, row.heldLessons());
+        // 近两周各上了一节 → 一周 0.5 节；剩 8 节要 16 周
+        assertEquals(today.plusWeeks(16), row.estimatedFinishDate());
+        // 计划最晚结束日直接给出来，操作员拿它和预计结课日一比就知道按现在的节奏上不上得完
+        assertEquals(RANGE_END, row.planEndDate());
+    }
+
+    @Test
+    void progressIsNullWithoutTotalLessonsAndWithoutRecentRate() {
+        LocalDate today = LocalDate.now();
+        stubMasterData(plan(null), null, 10);
+        // 近四周没上过课（假期、刚开班）：算不出节奏，宁可空着也不给一个凭空推算的日期
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            lesson(today.minusDays(90), 500L, "completed")
+        ));
+
+        ScheduleCompletenessResponse.ClassRow row =
+            service.report(1L, query(WEEK_ONE, RANGE_END)).classes().getFirst();
+
+        assertEquals(10, row.totalLessons());
+        assertEquals(1, row.heldLessons());
+        assertNull(row.estimatedFinishDate());
+
+        // 没设总课时的班级整组进度为空，页面上不会出现 0/0
+        stubMasterData(plan(null), null, null);
+        ScheduleCompletenessResponse.ClassRow unset =
+            service.report(1L, query(WEEK_ONE, RANGE_END)).classes().getFirst();
+        assertNull(unset.totalLessons());
+        assertNull(unset.heldLessons());
+        assertNull(unset.estimatedFinishDate());
+    }
+
+    @Test
+    void progressDoesNotTouchTheDenominator() {
+        LocalDate today = LocalDate.now();
+        stubMasterData(plan(null), 3, 1);
+        when(lessonMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+            lesson(today.minusDays(2), 500L, "completed"),
+            lesson(today.minusDays(9), 501L, "completed")
+        ));
+
+        ScheduleCompletenessResponse response = service.report(1L, query(WEEK_ONE, RANGE_END));
+        ScheduleCompletenessResponse.ClassRow row = response.classes().getFirst();
+
+        // 总课时已经上超了（1 节的目标上了 2 节）：进度照实说，但应排/缺口一律不变，
+        // 分母只有「每周应上节数」一个来源，这是整套补排逻辑的前提
+        assertEquals(1, row.totalLessons());
+        assertEquals(2, row.heldLessons());
+        assertNull(row.estimatedFinishDate());
+        assertEquals("weekly_target", row.denominatorSource());
+        assertEquals(3, row.targetLessons());
+        assertEquals(6, row.summary().expected());
+    }
+
     // ------------------------------------------------------------------ 夹具
 
     private void stubMasterData(SchedulePlanEntity plan) {
+        stubMasterData(plan, null, null);
+    }
+
+    private void stubMasterData(SchedulePlanEntity plan, Integer weeklyLessons) {
+        stubMasterData(plan, weeklyLessons, null);
+    }
+
+    /** weeklyLessons 非空即"按课时目标统计"，分母不再是计划展开的格子数；totalLessons 只喂课时进度。 */
+    private void stubMasterData(SchedulePlanEntity plan, Integer weeklyLessons, Integer totalLessons) {
         when(planMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(plan));
 
         TeachingClassEntity clazz = new TeachingClassEntity();
@@ -259,6 +403,8 @@ class ScheduleCompletenessServiceImplTest {
         clazz.setCampusId(10L);
         clazz.setTermId(20L);
         clazz.setClassName("测试班级");
+        clazz.setWeeklyLessons(weeklyLessons);
+        clazz.setTotalLessons(totalLessons);
         when(classMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(clazz));
 
         when(timeSlotMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(

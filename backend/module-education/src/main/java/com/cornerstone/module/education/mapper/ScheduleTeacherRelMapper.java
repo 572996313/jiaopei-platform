@@ -30,6 +30,26 @@ public interface ScheduleTeacherRelMapper extends BaseMapper<ScheduleTeacherRelE
                                @Param("timeSlotId") Long timeSlotId,
                                @Param("excludeLessonId") Long excludeLessonId);
 
+    /**
+     * 该教师在一段日期区间内已占用的课节数，用于「周课时上限 / 每日授课节数上限」的提示。
+     * 占用口径与 {@link #countTeacherConflicts} 一致：只算已排课/已调课/已补课，停课的不再占老师的时间。
+     */
+    @Select("""
+        SELECT COUNT(DISTINCT rel.lesson_id)
+        FROM schedule_teacher_rel rel
+        JOIN schedule_lesson lesson ON lesson.id = rel.lesson_id
+        WHERE rel.teacher_id = #{teacherId}
+          AND lesson.lesson_date BETWEEN #{startDate} AND #{endDate}
+          AND lesson.lesson_status IN ('scheduled', 'rescheduled', 'makeup')
+          AND lesson.deleted = 0
+          AND rel.deleted = 0
+          AND (#{excludeLessonId} IS NULL OR lesson.id <> #{excludeLessonId})
+        """)
+    Long countTeacherLessonsInRange(@Param("teacherId") Long teacherId,
+                                    @Param("startDate") LocalDate startDate,
+                                    @Param("endDate") LocalDate endDate,
+                                    @Param("excludeLessonId") Long excludeLessonId);
+
     @Select("""
         <script>
         SELECT DISTINCT rel.lesson_id

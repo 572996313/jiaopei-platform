@@ -45,23 +45,23 @@ public class ScheduleRuleController {
         return ApiResponse.success("排课规则详情已加载", scheduleRuleService.getRule(id));
     }
 
-    @Operation(summary = "新增排课规则", description = "为班级或教师登记星期×节次的禁排/必排约束")
+    @Operation(summary = "新增排课规则", description = "为班级、教师或教室登记星期×节次的禁排/必排约束")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<ScheduleRuleView> create(@Valid @RequestBody ScheduleRuleRequest request) {
         return ApiResponse.success("排课规则已新增", scheduleRuleService.createRule(request));
     }
 
     @Operation(summary = "更新排课规则", description = "整体覆盖规则定义(含启停),不回改已生成课次")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<ScheduleRuleView> update(@PathVariable Long id, @Valid @RequestBody ScheduleRuleRequest request) {
         return ApiResponse.success("排课规则已更新", scheduleRuleService.updateRule(id, request));
     }
 
     @Operation(summary = "删除排课规则")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:schedule:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         scheduleRuleService.deleteRule(id);
         return ApiResponse.success("排课规则已删除", null);

@@ -54,7 +54,7 @@ public class EnrollmentController {
 
     @Operation(summary = "创建报名")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     public ApiResponse<EnrollmentEntity> create(@Valid @RequestBody EnrollmentCreateRequest request) {
         return ApiResponse.success("报名已创建", enrollmentService.createEnrollment(request));
     }

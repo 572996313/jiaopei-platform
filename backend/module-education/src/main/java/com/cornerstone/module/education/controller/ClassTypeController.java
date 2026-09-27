@@ -43,14 +43,14 @@ public class ClassTypeController {
 
     @Operation(summary = "创建班型")
     @PostMapping
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<ClassTypeEntity> create(@Valid @RequestBody ClassTypeCreateRequest request) {
         return ApiResponse.success("班型已创建", classTypeService.createClassType(request));
     }
 
     @Operation(summary = "更新班型")
     @PutMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<ClassTypeEntity> update(@PathVariable Long id,
                                                @Valid @RequestBody ClassTypeUpdateRequest request) {
         return ApiResponse.success("班型已更新", classTypeService.updateClassType(id, request));
@@ -58,7 +58,7 @@ public class ClassTypeController {
 
     @Operation(summary = "删除班型")
     @DeleteMapping("/{id}")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:catalog:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classTypeService.deleteClassType(id);
         return ApiResponse.success("班型已删除", null);

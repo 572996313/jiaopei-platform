@@ -43,7 +43,7 @@ miniapp/src/
 | `V27__wechat_self_register.sql` | `password_hash` 改可空、`register_source` 来源列、预置 `MINIAPP_STUDENT`/`MINIAPP_PARENT` 两个角色 |
 | `POST /api/auth/wechat/login` | code 换 openid;已注册签发 JWT,未注册返回 `registered=false` |
 | `POST /api/auth/wechat/register` | 自助注册:选身份(学生/家长)+昵称自动建档、分配角色并签发 JWT;重复注册幂等。携带 `invitationCode` 时走邀请码注册:机构/角色由邀请码固定(仅限学生/家长两个小程序角色,其余返回 403),无需选身份 |
-| `GET /api/education/wechat/invitations/{code}/wxacode` | 管理端生成邀请码小程序码(PNG,scene 携带凭证编码,服务端缓存 30 天;权限 `education:write`) |
+| `GET /api/education/wechat/invitations/{code}/wxacode` | 管理端生成邀请码小程序码(PNG,scene 携带凭证编码,服务端缓存 30 天;权限 `education:class:write`) |
 | `pages/register/index` | 注册页支持扫小程序码直达:启动参数 `scene` 携带邀请码,自动预检后进入邀请注册模式(显示机构与角色、免选身份) |
 | `POST /api/auth/wechat/deregister` | 账号注销:删除当前微信注册的账号(含身份角色与绑定),令牌立即失效;注销后同一微信重新登录为未注册状态,可重新注册 |
 | `UserAccessTokenService` | 从 `AuthApplicationServiceImpl` 抽出的统一令牌签发组件,账号密码登录与微信登录共用 |

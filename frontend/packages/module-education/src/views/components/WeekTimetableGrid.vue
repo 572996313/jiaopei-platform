@@ -67,8 +67,8 @@
             v-for="day in row.days"
             :key="`${row.key}-${day.date}`"
             class="week-grid-cell is-slot-cell"
-            :class="{ 'is-dimmed': day.dimmed, 'is-readonly': !canManage }"
-            :title="canManage ? cellTitle(row, day) : undefined"
+            :class="{ 'is-dimmed': day.dimmed, 'is-readonly': !canExecute }"
+            :title="canExecute ? cellTitle(row, day) : undefined"
             @click="emitCellClick(day.date, row)"
           >
             <div v-if="!row.isTimeRow" class="week-grid-date" :class="{ 'is-dimmed': day.dimmed }">
@@ -129,8 +129,9 @@
                   <div v-if="conflictText(lesson)" class="week-grid-pop-conflict">
                     {{ conflictText(lesson) }}
                   </div>
-                  <div v-if="canManage" class="week-grid-pop-actions">
+                  <div v-if="canMark || canExecute" class="week-grid-pop-actions">
                     <el-button
+                      v-if="canMark"
                       size="small"
                       link
                       type="success"
@@ -139,31 +140,41 @@
                     >
                       点名
                     </el-button>
-                    <el-button
-                      size="small"
-                      link
-                      type="warning"
-                      :disabled="!canComplete(lesson)"
-                      @click="emitAction('complete', lesson)"
-                    >
-                      结课
-                    </el-button>
-                    <el-button
-                      size="small"
-                      link
-                      type="primary"
-                      @click="emitAction('reschedule', lesson)"
-                      >调课</el-button
-                    >
-                    <el-button size="small" link type="info" @click="emitAction('cancel', lesson)"
-                      >停课</el-button
-                    >
-                    <el-button size="small" link type="danger" @click="emitAction('makeup', lesson)"
-                      >补课</el-button
-                    >
-                    <el-button size="small" link type="primary" @click="emitAction('edit', lesson)"
-                      >编辑</el-button
-                    >
+                    <template v-if="canExecute">
+                      <el-button
+                        size="small"
+                        link
+                        type="warning"
+                        :disabled="!canComplete(lesson)"
+                        @click="emitAction('complete', lesson)"
+                      >
+                        结课
+                      </el-button>
+                      <el-button
+                        size="small"
+                        link
+                        type="primary"
+                        @click="emitAction('reschedule', lesson)"
+                        >调课</el-button
+                      >
+                      <el-button size="small" link type="info" @click="emitAction('cancel', lesson)"
+                        >停课</el-button
+                      >
+                      <el-button
+                        size="small"
+                        link
+                        type="danger"
+                        @click="emitAction('makeup', lesson)"
+                        >补课</el-button
+                      >
+                      <el-button
+                        size="small"
+                        link
+                        type="primary"
+                        @click="emitAction('edit', lesson)"
+                        >编辑</el-button
+                      >
+                    </template>
                   </div>
                 </div>
               </el-popover>
@@ -236,8 +247,10 @@ const props = defineProps<{
   classrooms: ClassroomSummary[]
   teachers: TeacherSummary[]
   loading?: boolean
-  /** 无 education:write 时格子不再是新增入口，课次弹层也不给执行动作 */
-  canManage: boolean
+  /** 无课次点名码时弹层不给「点名」按钮（点名只写考勤，且后端限定本人授课课次） */
+  canMark: boolean
+  /** 无排课维护码时格子不再是新增入口，弹层也不给结课/调课/停课/补课/编辑 */
+  canExecute: boolean
   formatClass: (id?: string | null) => string
   formatClassroom: (id?: string | null) => string
   formatTeachers: (ids?: Array<string | number> | null) => string
@@ -531,7 +544,7 @@ function emitAction(type: WeekLessonActionType, lesson: ScheduleLessonRecord) {
 }
 
 function emitCellClick(date: string, row: GridRow) {
-  if (!props.canManage) {
+  if (!props.canExecute) {
     return
   }
   const classroomId =

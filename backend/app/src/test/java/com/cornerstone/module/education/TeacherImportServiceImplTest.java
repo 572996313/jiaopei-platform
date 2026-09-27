@@ -485,7 +485,7 @@ class TeacherImportServiceImplTest {
 
     private void authenticate(Long orgId) {
         AuthenticatedUser user = new AuthenticatedUser(1L, orgId, "admin",
-            Set.of("EDU"), Set.of("education:write"), false, null);
+            Set.of("EDU"), Set.of("education:profile:write"), false, null);
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(user, "token", List.of()));
     }

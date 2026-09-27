@@ -129,6 +129,15 @@
             <span>{{ currentClass.capacityLimit ?? '-' }} / {{ activeClassStudentCount }}</span>
           </div>
           <div class="class-profile-item">
+            <strong>课时目标</strong>
+            <!-- 留空=未设定，显示为空而不是 0 -->
+            <span>{{ lessonTargetLabel }}</span>
+          </div>
+          <div class="class-profile-item">
+            <strong>整班总课时</strong>
+            <span>{{ currentClass.totalLessons ?? '' }}</span>
+          </div>
+          <div class="class-profile-item">
             <strong>主讲教师</strong>
             <span>{{ primaryTeacherLabel }}</span>
           </div>
@@ -656,6 +665,11 @@
             style="width: 100%"
           />
         </el-form-item>
+        <LessonTargetFields
+          v-model:mode="classProfileForm.weeklyLessonsMode"
+          v-model:input="classProfileForm.weeklyLessonsInput"
+          v-model:total="classProfileForm.totalLessons"
+        />
         <el-form-item label="班级状态">
           <el-select v-model="classProfileForm.status">
             <el-option label="规划中" value="planning" />
@@ -770,6 +784,11 @@
             style="width: 100%"
           />
         </el-form-item>
+        <LessonTargetFields
+          v-model:mode="classCreateForm.weeklyLessonsMode"
+          v-model:input="classCreateForm.weeklyLessonsInput"
+          v-model:total="classCreateForm.totalLessons"
+        />
         <el-form-item label="班级状态">
           <el-select v-model="classCreateForm.status">
             <el-option label="规划中" value="planning" />
@@ -923,6 +942,7 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import LessonTargetFields from './components/LessonTargetFields.vue'
 
 interface ReminderItem {
   key: string
@@ -1015,6 +1035,10 @@ const classProfileForm = reactive({
   classTypeId: '',
   teacherId: '' as string | null,
   capacityLimit: 0,
+  // 课时目标：口径 + 原值 + 整班总课时。换算结果由后端算，表单不再存 weeklyLessons
+  weeklyLessonsMode: 'weekly',
+  weeklyLessonsInput: null as number | null,
+  totalLessons: null as number | null,
   status: 'planning',
   remark: '',
 })
@@ -1028,6 +1052,9 @@ const classCreateForm = reactive({
   classTypeId: '',
   teacherId: '',
   capacityLimit: 0,
+  weeklyLessonsMode: 'weekly',
+  weeklyLessonsInput: null as number | null,
+  totalLessons: null as number | null,
   status: 'planning',
   openedAt: '',
   remark: '',
@@ -1116,6 +1143,18 @@ const primaryTeacherLabel = computed(() => {
     return '未设置主讲教师'
   }
   return formatTeacher(teacherId)
+})
+
+/** 班级详情里的课时目标：按哪个口径填的就按哪个口径说，换算结果括在后面 */
+const lessonTargetLabel = computed(() => {
+  const clazz = currentClass.value
+  if (!clazz?.weeklyLessons) {
+    return ''
+  }
+  if (clazz.weeklyLessonsMode === 'monthly' && clazz.weeklyLessonsInput) {
+    return `${clazz.weeklyLessonsInput} 节/月（≈每周 ${clazz.weeklyLessons} 节）`
+  }
+  return `${clazz.weeklyLessons} 节/周`
 })
 
 const localRiskItems = computed<ReminderItem[]>(() => {
@@ -1397,6 +1436,9 @@ function resetClassProfileForm(target?: TeachingClassSummary | null) {
   classProfileForm.classTypeId = target?.classTypeId ?? ''
   classProfileForm.teacherId = target?.teacherId ?? ''
   classProfileForm.capacityLimit = target?.capacityLimit ?? 0
+  classProfileForm.weeklyLessonsMode = target?.weeklyLessonsMode ?? 'weekly'
+  classProfileForm.weeklyLessonsInput = target?.weeklyLessonsInput ?? null
+  classProfileForm.totalLessons = target?.totalLessons ?? null
   classProfileForm.status = target?.status ?? 'planning'
   classProfileForm.remark = target?.remark ?? ''
   classProfileFormError.value = ''
@@ -1411,6 +1453,9 @@ function resetClassCreateForm() {
   classCreateForm.classTypeId = ''
   classCreateForm.teacherId = ''
   classCreateForm.capacityLimit = 0
+  classCreateForm.weeklyLessonsMode = 'weekly'
+  classCreateForm.weeklyLessonsInput = null
+  classCreateForm.totalLessons = null
   classCreateForm.status = 'planning'
   classCreateForm.openedAt = ''
   classCreateForm.remark = ''
@@ -1435,6 +1480,9 @@ function buildClassCreatePayload(): TeachingClassCreatePayload {
     capacityLimit: Number.isFinite(classCreateForm.capacityLimit)
       ? classCreateForm.capacityLimit
       : 0,
+    weeklyLessonsMode: classCreateForm.weeklyLessonsMode,
+    weeklyLessonsInput: classCreateForm.weeklyLessonsInput ?? null,
+    totalLessons: classCreateForm.totalLessons ?? null,
     status: classCreateForm.status || 'planning',
     openedAt: classCreateForm.openedAt || null,
     remark: trimToUndefined(classCreateForm.remark),
@@ -1546,6 +1594,10 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
     capacityLimit: Number.isFinite(classProfileForm.capacityLimit)
       ? classProfileForm.capacityLimit
       : 0,
+    // 留空即未设定：更新时显式传 null 才能清掉旧值（weeklyLessons 由后端按口径换算）
+    weeklyLessonsMode: classProfileForm.weeklyLessonsMode,
+    weeklyLessonsInput: classProfileForm.weeklyLessonsInput ?? null,
+    totalLessons: classProfileForm.totalLessons ?? null,
     status: classProfileForm.status,
     openedAt: target.openedAt || null,
     remark: trimToUndefined(classProfileForm.remark),

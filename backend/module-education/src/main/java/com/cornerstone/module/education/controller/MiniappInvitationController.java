@@ -27,7 +27,7 @@ public class MiniappInvitationController {
 
     @Operation(summary = "生成邀请码小程序码",
         description = "按邀请码生成直达小程序注册页的太阳码(PNG),扫码后 scene 携带凭证编码自动预检;同一凭证结果固定,服务端缓存30天")
-    @RequiresPermission("education:write")
+    @RequiresPermission("education:class:write")
     @GetMapping(value = "/{code}/wxacode", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> wxacode(@PathVariable String code) {
         byte[] png = miniappQrcodeService.createInviteWxacode(code);
