@@ -20,31 +20,23 @@
       </span>
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleCampusChange"
-        >
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <ClassSelect
-          v-model="classId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          placeholder="筛选班级"
-          @change="loadRecords"
+    <!-- 统一筛选栏:校区/班级都不再自动触发,点「查询」才加载选中班级的档案 -->
+    <FilterBar :loading="lookupLoading" @query="applyFilters" @reset="resetFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
         />
-      </div>
-    </div>
+      </el-select>
+      <ClassSelect
+        v-model="classId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        placeholder="筛选班级"
+      />
+    </FilterBar>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
@@ -174,13 +166,7 @@
       </div>
 
       <TableFillBox v-if="currentClass" v-slot="{ height }">
-        <el-table
-          :data="classTeachers"
-          border
-          row-key="id"
-          highlight-current-row
-          :height="height"
-        >
+        <el-table :data="classTeachers" border row-key="id" highlight-current-row :height="height">
           <el-table-column label="教师" min-width="180" fixed="left">
             <template #default="{ row }">
               {{ formatTeacher(row.teacherId) }}
@@ -319,7 +305,8 @@
       <div class="education-dialog-context">
         <div><strong>班级：</strong>{{ formatClass(classId) }}</div>
         <div>
-          <strong>主讲：</strong>{{ primaryTeacherLabel }}（改主讲会同步班级教师关系，原主讲降级为普通教师）
+          <strong>主讲：</strong
+          >{{ primaryTeacherLabel }}（改主讲会同步班级教师关系，原主讲降级为普通教师）
         </div>
       </div>
 
@@ -556,6 +543,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -590,7 +578,10 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
-import { classLabelOf, rememberClassOptions } from '@cornerstone/module-education/composables/classLabels'
+import {
+  classLabelOf,
+  rememberClassOptions,
+} from '@cornerstone/module-education/composables/classLabels'
 import LessonTargetFields from './components/LessonTargetFields.vue'
 import ClassSelect from './components/ClassSelect.vue'
 
@@ -1114,10 +1105,17 @@ async function loadRecords() {
   }
 }
 
-async function handleCampusChange() {
-  classId.value = null
+/** 点「查询」才应用:不清已选班级(与旧"换校区即清空"不同,草稿要等按钮才生效) */
+async function applyFilters() {
   await refreshScopeData()
   await loadRecords()
+}
+
+/** 重置 = 取消校区与班级筛选,回到未选班级的档案总览 */
+async function resetFilters() {
+  campusId.value = null
+  classId.value = null
+  await applyFilters()
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {

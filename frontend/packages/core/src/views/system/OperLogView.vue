@@ -1,32 +1,24 @@
 <template>
   <section class="education-page">
     <article class="panel-card education-panel">
-      <div class="table-toolbar">
-        <el-button :loading="loading" @click="handleSearch">刷新</el-button>
-        <div class="education-context-text">
-          请求参数中的手机号、身份证、银行卡等敏感信息已脱敏展示。
-        </div>
-      </div>
-
-      <el-form :inline="true" class="operlog-filter-form" @submit.prevent>
-        <el-form-item label="操作人">
+      <!-- 统一筛选栏:说明在右,筛选控件 + 展开 + 查询/重置一行,点按钮才触发查询(原「刷新」与「查询」同义,已合并) -->
+      <FilterBar :loading="loading" @query="handleSearch" @reset="handleReset">
+        <template #extra>
+          <div class="education-context-text">手机号、身份证、银行卡等敏感信息已脱敏展示。</div>
+        </template>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">操作人</span>
           <el-input
             v-model="query.username"
             placeholder="账号"
             clearable
             style="width: 160px"
             @keyup.enter="handleSearch"
-            @clear="handleSearch"
           />
-        </el-form-item>
-        <el-form-item label="操作类型">
-          <el-select
-            v-model="query.actionType"
-            placeholder="全部"
-            clearable
-            style="width: 140px"
-            @change="handleSearch"
-          >
+        </span>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">操作类型</span>
+          <el-select v-model="query.actionType" placeholder="全部" clearable style="width: 140px">
             <el-option
               v-for="item in actionTypeOptions"
               :key="item.value"
@@ -34,15 +26,10 @@
               :value="item.value"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item label="端口">
-          <el-select
-            v-model="query.portal"
-            placeholder="全部"
-            clearable
-            style="width: 140px"
-            @change="handleSearch"
-          >
+        </span>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">端口</span>
+          <el-select v-model="query.portal" placeholder="全部" clearable style="width: 140px">
             <el-option
               v-for="item in portalOptions"
               :key="item.value"
@@ -50,30 +37,26 @@
               :value="item.value"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select
-            v-model="query.success"
-            placeholder="全部"
-            clearable
-            style="width: 120px"
-            @change="handleSearch"
-          >
+        </span>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">状态</span>
+          <el-select v-model="query.success" placeholder="全部" clearable style="width: 120px">
             <el-option label="成功" :value="true" />
             <el-option label="失败" :value="false" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="操作名称">
+        </span>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">操作名称</span>
           <el-input
             v-model="query.operation"
             placeholder="模糊匹配操作名"
             clearable
             style="width: 180px"
             @keyup.enter="handleSearch"
-            @clear="handleSearch"
           />
-        </el-form-item>
-        <el-form-item label="时间范围">
+        </span>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">时间范围</span>
           <el-date-picker
             v-model="timeRange"
             type="datetimerange"
@@ -81,16 +64,10 @@
             start-placeholder="开始时间"
             end-placeholder="结束时间"
             value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 360px"
             :clearable="true"
-            @change="handleSearch"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleSearch">查询</el-button>
-          <el-button :disabled="loading" @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
+        </span>
+      </FilterBar>
 
       <TableFillBox v-slot="{ height }">
         <el-table
@@ -151,7 +128,13 @@
             show-overflow-tooltip
             sortable="custom"
           />
-          <el-table-column prop="durationMs" label="耗时(ms)" width="90" align="right" sortable="custom" />
+          <el-table-column
+            prop="durationMs"
+            label="耗时(ms)"
+            width="90"
+            align="right"
+            sortable="custom"
+          />
           <el-table-column prop="success" label="状态" width="80" sortable="custom">
             <template #default="{ row }">
               <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{
@@ -218,6 +201,7 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { onMounted, reactive, ref } from 'vue'
 import type { OperLogSummary } from '@cornerstone/core/api/system'
@@ -357,9 +341,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.operlog-filter-form {
-  margin-bottom: 12px;
-}
 .operlog-pagination {
   margin-top: 16px;
   display: flex;

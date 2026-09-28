@@ -47,9 +47,7 @@
   --press-bg: rgba(20, 33, 61, 0.12);
   --surface: rgba(255, 255, 255, 0.92);
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-panel:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 8px 24px rgba(20, 33, 61, 0.07);
+  --shadow-panel: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(20, 33, 61, 0.07);
   --elev-shadow: 0 6px 18px rgba(20, 33, 61, 0.16);
   --pop-shadow: 0 26px 56px -24px rgba(20, 33, 61, 0.4);
   --mask: rgba(20, 33, 61, 0.34);
@@ -936,6 +934,59 @@ body {
   width: 150px;
 }
 
+/* 统一筛选栏(FilterBar 组件):控件宽度在这里收口,页面不再各写内联 style。
+   关键字输入框保留各页自己的宽度类,这里不写通用 el-input 规则去压它。
+   范围选择器(el-date-editor--daterange/--datetimerange)要装下两端日期,给到 340px。
+   横向工具栏(.page-toolbar / .table-toolbar)里要撑满剩余宽度,好让「查询/重置」靠右;
+   纵向容器(.configurable-list / .education-panel)里不能写 flex-grow,
+   否则 grow 会作用在纵轴上,把筛选栏自己拉成 176px 高。 */
+.page-toolbar > .filter-bar,
+.table-toolbar > .filter-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-bar-filters .el-select {
+  width: 180px;
+}
+
+/* 档案下拉(ClassSelect/StudentSelect 等)在筛选栏里固定 240px,压过上面的通用 180px */
+.filter-bar-filters .archive-select {
+  width: 240px;
+}
+
+.filter-bar-filters .el-date-editor {
+  width: 150px;
+}
+
+.filter-bar-filters .el-date-editor.el-date-editor--daterange,
+.filter-bar-filters .el-date-editor.el-date-editor--datetimerange {
+  width: 340px;
+}
+
+/* 标题 + 控件并排算「一个」筛选控件:FilterBar 按默认插槽的顶层节点数判定是否折叠,
+   所以带标题的一组必须包在同一个元素里,否则标题会被多算成一个条件。 */
+.filter-bar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.filter-bar-group-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* 右侧说明文字可以被压缩换行,但不许把左侧筛选控件挤窄:
+   说明是次要信息,先让位给它自己折行。 */
+.filter-bar-tail > .education-context-text {
+  flex: 0 1 auto;
+  min-width: 180px;
+  text-align: right;
+}
+
 .page-toolbar-actions {
   display: flex;
   align-items: center;
@@ -999,7 +1050,7 @@ body {
 .education-panel > .education-table-head,
 .education-panel > .el-pagination,
 .configurable-list-toolbar,
-.configurable-list-query,
+.configurable-list > .filter-bar,
 .configurable-list-pagination {
   flex-shrink: 0;
 }
@@ -2540,9 +2591,7 @@ html.dark {
   --press-bg: rgba(160, 195, 235, 0.18);
   --surface: rgba(24, 34, 50, 0.9);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-panel:
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45);
   --elev-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   --pop-shadow: 0 26px 56px -24px rgba(0, 0, 0, 0.8);
   --mask: rgba(4, 8, 14, 0.62);

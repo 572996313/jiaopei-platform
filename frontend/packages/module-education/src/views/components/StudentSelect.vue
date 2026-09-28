@@ -26,8 +26,15 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
-import { fetchStudentOptions, type StudentOption } from '@cornerstone/module-education/api/education'
-import { rememberStudentOptions, studentLabelOf, studentOptionLabel } from '@cornerstone/module-education/composables/studentLabels'
+import {
+  fetchStudentOptions,
+  type StudentOption,
+} from '@cornerstone/module-education/api/education'
+import {
+  rememberStudentOptions,
+  studentLabelOf,
+  studentOptionLabel,
+} from '@cornerstone/module-education/composables/studentLabels'
 
 const props = withDefaults(
   defineProps<{
@@ -140,7 +147,8 @@ onUnmounted(() => {
 }
 
 .page-toolbar-filters .archive-select,
-.table-filters .archive-select {
+.table-filters .archive-select,
+.filter-bar .archive-select {
   width: 240px;
 }
 </style>

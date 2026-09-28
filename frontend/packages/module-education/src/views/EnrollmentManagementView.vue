@@ -14,41 +14,38 @@
       </span>
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="termId" placeholder="筛选学期" clearable filterable @change="handleTermChange">
-          <el-option
-            v-for="item in terms"
-            :key="item.id"
-            :label="item.termName || item.termCode || `学期 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <ClassSelect
-          v-model="classId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          :term-id="termId"
-          placeholder="筛选班级"
-          @change="loadRecords"
+    <!-- 统一筛选栏:四个条件都不再自动触发,点「查询」才按当前组合重查报名 -->
+    <FilterBar :loading="tableLoading" @query="applyFilters" @reset="resetFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
         />
-        <StudentSelect
-          v-model="studentId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          placeholder="搜索学员（姓名/学号）"
-          @change="loadRecords"
+      </el-select>
+      <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
+        <el-option
+          v-for="item in terms"
+          :key="item.id"
+          :label="item.termName || item.termCode || `学期 #${item.id}`"
+          :value="item.id"
         />
-      </div>
-    </div>
+      </el-select>
+      <ClassSelect
+        v-model="classId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        :term-id="termId"
+        placeholder="筛选班级"
+      />
+      <StudentSelect
+        v-model="studentId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        placeholder="搜索学员（姓名/学号）"
+      />
+    </FilterBar>
 
     <article class="panel-card education-panel enrollment-panel">
       <TableFillBox v-slot="{ height }">
@@ -194,13 +191,17 @@ import { storeToRefs } from 'pinia'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
-import { rememberStudentOptions, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
+import {
+  rememberStudentOptions,
+  studentLabelOf,
+} from '@cornerstone/module-education/composables/studentLabels'
 import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
 import ClassSelect from './components/ClassSelect.vue'
 import StudentSelect from './components/StudentSelect.vue'
@@ -337,7 +338,11 @@ async function loadEnrollments() {
     rememberStudentOptions(
       result.records
         .filter((row) => row.studentId)
-        .map((row) => ({ id: row.studentId as string, studentNo: row.studentNo, studentName: row.studentName }))
+        .map((row) => ({
+          id: row.studentId as string,
+          studentNo: row.studentNo,
+          studentName: row.studentName,
+        }))
     )
   } catch (error) {
     records.value = []
@@ -376,17 +381,19 @@ async function refreshAll() {
   await loadEnrollments()
 }
 
-async function handleCampusChange() {
-  classId.value = null
-  studentId.value = null
+/** 点「查询」才应用:保留已选班级/学员草稿,重拉范围数据后按当前组合查报名 */
+async function applyFilters() {
   await refreshScopeData()
   await loadRecords()
 }
 
-async function handleTermChange() {
+/** 重置 = 清空校区/学期/班级/学员筛选并重查 */
+async function resetFilters() {
+  campusId.value = null
+  termId.value = null
   classId.value = null
-  await refreshScopeData()
-  await loadRecords()
+  studentId.value = null
+  await applyFilters()
 }
 
 function openDialog() {

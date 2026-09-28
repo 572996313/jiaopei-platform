@@ -114,24 +114,21 @@
     </div>
 
     <article class="panel-card education-panel course-main-panel">
-      <div class="education-table-head">
-        <div class="panel-title">课程列表</div>
-        <div class="table-actions">
-          <el-button v-if="canManage" link type="primary" @click="openCourseDialog('create')"
+      <!-- 统一筛选栏:新增按钮在左、关键字 + 查询/重置一行,点按钮才重查 -->
+      <FilterBar :loading="tableLoading" @query="searchCourses" @reset="resetCourseFilters">
+        <template #extra>
+          <el-button v-if="canManage" type="primary" @click="openCourseDialog('create')"
             >新增课程</el-button
           >
-        </div>
-      </div>
-      <div class="table-filters">
+        </template>
         <el-input
           v-model="courseKeyword"
           placeholder="编码/名称/学科"
           clearable
           class="panel-search-input"
           @keyup.enter="searchCourses"
-          @clear="searchCourses"
         />
-      </div>
+      </FilterBar>
       <TableFillBox v-slot="{ height }">
         <el-table
           ref="courseTableRef"
@@ -343,6 +340,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
@@ -542,6 +540,12 @@ async function loadCourses() {
 function searchCourses() {
   coursePage.value = 1
   return loadCourses()
+}
+
+/** 重置 = 清空关键字后重查 */
+function resetCourseFilters() {
+  courseKeyword.value = ''
+  void searchCourses()
 }
 
 function handleCourseSizeChange() {

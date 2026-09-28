@@ -20,32 +20,24 @@
       />
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="searchTeachers"
-        >
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-input
-          v-model="teacherKeyword"
-          placeholder="编码/姓名/手机号"
-          clearable
-          class="toolbar-search-input"
-          @keyup.enter="searchTeachers"
-          @clear="searchTeachers"
+    <!-- 统一筛选栏:校区/关键字都不再自动触发,点「查询」才按当前条件重查 -->
+    <FilterBar :loading="tableLoading" @query="searchTeachers" @reset="resetTeacherFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
         />
-      </div>
-    </div>
+      </el-select>
+      <el-input
+        v-model="teacherKeyword"
+        placeholder="编码/姓名/手机号"
+        clearable
+        class="toolbar-search-input"
+        @keyup.enter="searchTeachers"
+      />
+    </FilterBar>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
@@ -256,6 +248,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import TeacherAccountLinkDialog from '@cornerstone/module-education/views/components/TeacherAccountLinkDialog.vue'
 import TeacherImportDialog from '@cornerstone/module-education/views/components/TeacherImportDialog.vue'
 import { ArrowDown, Download, Link, Refresh, Upload } from '@element-plus/icons-vue'
@@ -445,6 +438,13 @@ async function loadTeachers() {
 function searchTeachers() {
   teacherPage.value = 1
   return loadTeachers()
+}
+
+/** 重置 = 清空校区与关键字后重查 */
+function resetTeacherFilters() {
+  campusId.value = null
+  teacherKeyword.value = ''
+  void searchTeachers()
 }
 
 function handleTeacherSizeChange() {

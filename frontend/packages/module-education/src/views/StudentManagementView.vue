@@ -14,32 +14,24 @@
       </span>
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleCampusChange"
-        >
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-input
-          v-model="keyword"
-          placeholder="学号/姓名"
-          clearable
-          class="panel-search-input"
-          @keyup.enter="searchStudents"
-          @clear="searchStudents"
+    <!-- 统一筛选栏:点「查询」才按校区+关键字重查,不再选中即触发 -->
+    <FilterBar :loading="tableLoading" @query="handleCampusChange" @reset="resetStudentFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
         />
-      </div>
-    </div>
+      </el-select>
+      <el-input
+        v-model="keyword"
+        placeholder="学号/姓名"
+        clearable
+        class="panel-search-input"
+        @keyup.enter="searchStudents"
+      />
+    </FilterBar>
 
     <article class="panel-card education-panel student-panel">
       <TableFillBox v-slot="{ height }">
@@ -225,6 +217,7 @@ import { storeToRefs } from 'pinia'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -443,18 +436,14 @@ async function confirmDeleteStudent(row: StudentSummary) {
 
 /** 行上点「联系人」：把这一行的学员名称记进缓存，抽屉标题才不显示裸 ID */
 function openParentDrawer(row: StudentSummary) {
-  rememberStudentOptions([
-    { id: row.id, studentNo: row.studentNo, studentName: row.studentName },
-  ])
+  rememberStudentOptions([{ id: row.id, studentNo: row.studentNo, studentName: row.studentName }])
   contactStudentId.value = row.id
   parentDrawerVisible.value = true
 }
 
 /** 行上「报名」跳过去看这个孩子报过哪些班，把学员带过去当筛选条件 */
 function goStudentEnrollments(row: StudentSummary) {
-  rememberStudentOptions([
-    { id: row.id, studentNo: row.studentNo, studentName: row.studentName },
-  ])
+  rememberStudentOptions([{ id: row.id, studentNo: row.studentNo, studentName: row.studentName }])
   router.push({ path: '/enrollments', query: { studentId: String(row.id) } })
 }
 
@@ -529,6 +518,13 @@ async function handleCampusChange() {
   page.value = 1
   await refreshScopeData()
   await loadStudents()
+}
+
+/** 重置 = 清空校区与关键字后重查 */
+async function resetStudentFilters() {
+  campusId.value = null
+  keyword.value = ''
+  await handleCampusChange()
 }
 
 watch(

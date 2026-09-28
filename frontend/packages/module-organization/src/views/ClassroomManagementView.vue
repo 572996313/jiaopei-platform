@@ -9,30 +9,25 @@
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <!-- 教室必须挂在某个校区下,没有"全部校区"这一档 -->
-        <el-select
-          v-model="campusId"
-          placeholder="选择校区"
-          filterable
-          @change="loadClassrooms"
-        >
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-    </div>
+    <!-- 统一筛选栏:换校区不再自动触发,点「查询」才按新校区拉教室 -->
+    <FilterBar :loading="tableLoading" @query="loadClassrooms" @reset="resetToDefaultCampus">
+      <!-- 教室必须挂在某个校区下,没有"全部校区"这一档 -->
+      <el-select v-model="campusId" placeholder="选择校区" filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+    </FilterBar>
 
     <article class="panel-card education-panel">
       <div class="table-toolbar">
         <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
         <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId)
+          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
+            formatCampus(campusId)
           }}；教室编码与名称在同一校区内唯一
         </div>
       </div>
@@ -46,7 +41,13 @@
           :height="height"
           v-loading="tableLoading"
         >
-          <el-table-column prop="classroomCode" label="教室编码" width="150" fixed="left" sortable />
+          <el-table-column
+            prop="classroomCode"
+            label="教室编码"
+            width="150"
+            fixed="left"
+            sortable
+          />
           <el-table-column
             prop="classroomName"
             label="教室名称"
@@ -153,6 +154,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -398,6 +400,12 @@ async function loadCampuses() {
 
 async function refreshAll() {
   await loadCampuses()
+}
+
+/** 教室没有"全部校区"档,重置 = 回到第一个校区并重查 */
+function resetToDefaultCampus() {
+  campusId.value = campuses.value[0]?.id || null
+  void loadClassrooms()
 }
 
 async function initializePage() {

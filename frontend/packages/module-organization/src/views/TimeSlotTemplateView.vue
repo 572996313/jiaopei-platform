@@ -4,44 +4,42 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="loading">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="onCampusChange">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select
-          v-model="selectedTemplateId"
-          placeholder="选择时段模板"
-          filterable
-          :no-data-text="filteredTemplates.length ? '暂无模板' : '当前范围暂无模板'"
-          style="width: 240px"
-          @change="onTemplateChange"
-        >
-          <el-option
-            v-for="item in filteredTemplates"
-            :key="item.id"
-            :label="item.templateName"
-            :value="item.id"
-          >
-            <span>{{ item.templateName }}</span>
-            <span class="ts-option-campus">{{ campusText(item.campusId) }}</span>
-          </el-option>
-        </el-select>
-      </div>
-      <div class="page-toolbar-actions">
+    <!-- 统一筛选栏:校区/模板都不再自动触发,点「查询」才切范围并载入所选模板 -->
+    <FilterBar :loading="loading" @query="applyFilters" @reset="resetFilters">
+      <template #extra>
         <el-button v-if="canWrite" type="primary" @click="openCreateDialog">新建模板</el-button>
         <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate"
           >删除模板</el-button
         >
         <el-button @click="goTimeSlotList">节次明细</el-button>
         <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
-      </div>
-    </div>
+      </template>
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+      <el-select
+        v-model="selectedTemplateId"
+        placeholder="选择时段模板"
+        filterable
+        :no-data-text="filteredTemplates.length ? '暂无模板' : '当前范围暂无模板'"
+        style="width: 240px"
+      >
+        <el-option
+          v-for="item in filteredTemplates"
+          :key="item.id"
+          :label="item.templateName"
+          :value="item.id"
+        >
+          <span>{{ item.templateName }}</span>
+          <span class="ts-option-campus">{{ campusText(item.campusId) }}</span>
+        </el-option>
+      </el-select>
+    </FilterBar>
 
     <div v-if="!selectedTemplate" class="panel-card ts-empty-panel">
       <el-empty description="请选择时段模板,或新建一个时段模板开始编辑" />
@@ -148,6 +146,7 @@ import {
   type TimeSlotTemplateSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import TimeSlotConfigForm from './components/TimeSlotConfigForm.vue'
@@ -226,6 +225,20 @@ function onTemplateChange(id: string | null) {
     return
   }
   loadTemplateIntoEditor(selectedTemplate.value)
+}
+
+/** 点「查询」才应用:先切校区范围重拉节次,再把选中的模板载入编辑器 */
+async function applyFilters() {
+  await onCampusChange()
+  onTemplateChange(selectedTemplateId.value)
+}
+
+/** 重置 = 取消校区筛选(看机构全部模板)并退出当前模板 */
+async function resetFilters() {
+  campusId.value = null
+  selectedTemplateId.value = null
+  await onCampusChange()
+  rows.value = []
 }
 
 /** 选中模板后:回填参数;已有展开结果则还原网格,否则按参数生成 */

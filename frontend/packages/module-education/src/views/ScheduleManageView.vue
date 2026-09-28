@@ -4,15 +4,10 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;排课日期是看哪一天的导航,保持选中即切换 -->
     <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleScopeChange"
-        >
+      <FilterBar :loading="lessonsLoading" @query="applyFilters" @reset="resetFilters">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -20,13 +15,7 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
-          v-model="termId"
-          placeholder="筛选学期"
-          clearable
-          filterable
-          @change="handleScopeChange"
-        >
+        <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -40,8 +29,9 @@
           :campus-id="campusId"
           :term-id="termId"
           placeholder="筛选班级"
-          @change="handleClassChange"
         />
+      </FilterBar>
+      <div class="page-toolbar-datebar">
         <span class="datebar-label">排课日期</span>
         <el-date-picker
           v-model="lessonDate"
@@ -296,12 +286,16 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
-import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
+import {
+  classLabelOf,
+  ensureClassLabels,
+} from '@cornerstone/module-education/composables/classLabels'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import SchedulePlanWizardDialog from './components/SchedulePlanWizardDialog.vue'
 import SchedulePlanListDialog from './components/SchedulePlanListDialog.vue'
@@ -606,16 +600,25 @@ function handleLessonSizeChange() {
   return refreshLessons()
 }
 
-async function handleScopeChange() {
-  classId.value = null
+/** 上一次「查询」实际生效的校区:只有校区真变了才清掉已选班级草稿 */
+const lastAppliedCampus = ref<string | null>(null)
+
+async function applyFilters() {
+  if (campusId.value !== lastAppliedCampus.value) {
+    classId.value = null
+  }
   lessonPage.value = 1
   await refreshScopeData()
+  lastAppliedCampus.value = campusId.value
   await refreshLessons()
 }
 
-async function handleClassChange() {
-  lessonPage.value = 1
-  await refreshLessons()
+/** 重置 = 取消校区/学期/班级筛选并生效 */
+async function resetFilters() {
+  campusId.value = null
+  termId.value = null
+  classId.value = null
+  await applyFilters()
 }
 
 function openCreateDialog() {

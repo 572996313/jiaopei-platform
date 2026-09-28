@@ -12,38 +12,24 @@
         >
       </div>
 
-      <!-- 本表查询条件:贴着表格,排在主操作按钮下方 -->
-      <div class="table-filters">
+      <!-- 本表查询条件:统一筛选栏形态,查询/重置固定右侧,点按钮才触发 -->
+      <FilterBar :loading="loading" @query="reload(1)" @reset="resetFilters">
         <el-input
           v-model="query.keyword"
           placeholder="凭证码 / 备注"
           clearable
           style="width: 220px"
           @keyup.enter="reload(1)"
-          @clear="reload(1)"
         />
-        <el-select
-          v-model="query.kind"
-          placeholder="类型"
-          clearable
-          style="width: 140px"
-          @change="reload(1)"
-        >
+        <el-select v-model="query.kind" placeholder="类型" clearable style="width: 140px">
           <el-option label="邀请码" value="INVITE" />
           <el-option label="激活码" value="ACTIVATE" />
         </el-select>
-        <el-select
-          v-model="query.status"
-          placeholder="状态"
-          clearable
-          style="width: 140px"
-          @change="reload(1)"
-        >
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
           <el-option label="启用" value="active" />
           <el-option label="停用" value="disabled" />
         </el-select>
-        <el-button @click="reload(1)">查询</el-button>
-      </div>
+      </FilterBar>
 
       <TableFillBox v-slot="{ height }">
         <el-table
@@ -57,7 +43,13 @@
           :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
-          <el-table-column prop="code" label="凭证码" min-width="170" fixed="left" sortable="custom">
+          <el-table-column
+            prop="code"
+            label="凭证码"
+            min-width="170"
+            fixed="left"
+            sortable="custom"
+          >
             <template #default="{ row }">
               <code class="invitation-code">{{ row.code }}</code>
               <el-button text type="primary" size="small" @click="copyCode(row.code)"
@@ -248,6 +240,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { formatDateTime } from '@cornerstone/core/components/ConfigurableList/renderers'
 import {
@@ -284,6 +277,14 @@ const query = reactive({
   page: 1,
   pageSize: 20,
 })
+
+/** 重置只清查询条件并回到第一页,分页大小保留 */
+function resetFilters() {
+  query.keyword = ''
+  query.kind = ''
+  query.status = ''
+  void reload(1)
+}
 
 const tableRef = ref<{ clearSort: () => void } | null>(null)
 const sort = useTableSort({

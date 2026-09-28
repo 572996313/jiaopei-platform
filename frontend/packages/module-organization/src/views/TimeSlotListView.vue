@@ -9,22 +9,21 @@
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="loading">
-        <!-- 不选校区 = 本机构全部节次;选了 = 本校区 + 机构通用（服务端按 campusId 收窄） -->
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="loadTimeSlots">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-      <div class="page-toolbar-actions">
+    <!-- 统一筛选栏:校区选择不再自动触发,点「查询」才按新校区拉节次 -->
+    <FilterBar :loading="loading" @query="loadTimeSlots" @reset="resetAndLoad">
+      <template #extra>
         <el-button @click="goTemplates">时段模板</el-button>
-      </div>
-    </div>
+      </template>
+      <!-- 不选校区 = 本机构全部节次;选了 = 本校区 + 机构通用（服务端按 campusId 收窄） -->
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+    </FilterBar>
 
     <article class="panel-card education-panel">
       <div class="table-toolbar">
@@ -128,7 +127,11 @@
         <el-form-item label="节次编码"><el-input v-model="timeSlotForm.slotCode" /></el-form-item>
         <el-form-item label="节次名称"><el-input v-model="timeSlotForm.slotName" /></el-form-item>
         <el-form-item label="节次类型">
-          <DictSelect v-model="timeSlotForm.slotType" type-code="slot_type" placeholder="选择类型" />
+          <DictSelect
+            v-model="timeSlotForm.slotType"
+            type-code="slot_type"
+            placeholder="选择类型"
+          />
         </el-form-item>
         <el-form-item label="星期">
           <el-select v-model="timeSlotForm.weekday">
@@ -187,6 +190,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -261,6 +265,12 @@ async function loadTimeSlots() {
   } finally {
     loading.value = false
   }
+}
+
+/** 重置 = 取消校区筛选看本机构全部节次 */
+function resetAndLoad() {
+  campusId.value = null
+  void loadTimeSlots()
 }
 
 async function refreshAll() {

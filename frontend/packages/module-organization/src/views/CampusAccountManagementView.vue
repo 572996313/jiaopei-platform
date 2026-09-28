@@ -13,19 +13,18 @@
       </span>
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <!-- 偏好按校区成组维护,没有"全部校区"这一档;范围与教室、节次页共用同一个 store -->
-        <el-select v-model="campusId" placeholder="选择校区" filterable @change="reloadBoth">
-          <el-option
-            v-for="item in campuses"
-            :key="`${item.id}-${item.campusName || item.campusCode}`"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-      </div>
-    </div>
+    <!-- 统一筛选栏:换校区不再自动触发,点「查询」才按新校区重拉偏好与候选 -->
+    <FilterBar :loading="lookupLoading" @query="reloadBoth" @reset="resetToDefaultCampus">
+      <!-- 偏好按校区成组维护,没有"全部校区"这一档;范围与教室、节次页共用同一个 store -->
+      <el-select v-model="campusId" placeholder="选择校区" filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="`${item.id}-${item.campusName || item.campusCode}`"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+    </FilterBar>
 
     <article class="panel-card education-panel">
       <div class="table-toolbar">
@@ -101,6 +100,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { fetchSystemUserPage, type SystemUserSummary } from '@cornerstone/core/api/system'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -193,6 +193,12 @@ async function loadCandidates() {
 async function reloadBoth() {
   await loadPreferences()
   await loadCandidates()
+}
+
+/** 没有"全部校区"档,重置 = 回到第一个校区并重查 */
+function resetToDefaultCampus() {
+  campusId.value = campuses.value[0]?.id || null
+  void reloadBoth()
 }
 
 async function loadCampuses() {

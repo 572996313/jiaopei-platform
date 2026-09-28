@@ -14,32 +14,29 @@
       </span>
     </div>
 
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="false">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable @change="handleCampusChange">
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <ClassSelect
-          v-model="classId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          placeholder="筛选班级"
-          @change="loadRecords"
+    <!-- 统一筛选栏:校区/班级/学员都不再自动触发,点「查询」才按当前条件重拉名册 -->
+    <FilterBar :loading="tableLoading" @query="applyFilters" @reset="resetFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
         />
-        <StudentSelect
-          v-model="studentId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          placeholder="搜索学员（姓名/学号）"
-          @change="handleStudentFilterChange"
-        />
-      </div>
-    </div>
+      </el-select>
+      <ClassSelect
+        v-model="classId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        placeholder="筛选班级"
+      />
+      <StudentSelect
+        v-model="studentId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        placeholder="搜索学员（姓名/学号）"
+      />
+    </FilterBar>
 
     <article class="panel-card education-panel roster-panel">
       <TableFillBox v-slot="{ height }">
@@ -81,7 +78,13 @@
           </el-table-column>
           <el-table-column prop="joinedAt" label="入班日期" width="140" sortable="custom" />
           <el-table-column prop="leftAt" label="离班日期" width="140" sortable="custom" />
-          <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip sortable="custom" />
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="220"
+            show-overflow-tooltip
+            sortable="custom"
+          />
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
@@ -188,11 +191,15 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
-import { rememberStudentOptions, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
+import {
+  rememberStudentOptions,
+  studentLabelOf,
+} from '@cornerstone/module-education/composables/studentLabels'
 import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
 import ClassSelect from './components/ClassSelect.vue'
 import StudentSelect from './components/StudentSelect.vue'
@@ -397,17 +404,20 @@ function handleRosterPageSizeChange() {
   void loadRosterPage()
 }
 
-async function handleCampusChange() {
-  classId.value = null
-  studentId.value = null
-  contactStudentId.value = null
-  parentDrawerVisible.value = false
+/** 点「查询」才应用:保留已选的班级/学员草稿,重拉范围数据后按当前条件查名册 */
+async function applyFilters() {
   await refreshLookups()
   await loadRecords()
 }
 
-async function handleStudentFilterChange() {
-  await loadRecords()
+/** 重置 = 清空校区/班级/学员筛选并重查 */
+async function resetFilters() {
+  campusId.value = null
+  classId.value = null
+  studentId.value = null
+  contactStudentId.value = null
+  parentDrawerVisible.value = false
+  await applyFilters()
 }
 
 function openDialog() {
@@ -425,7 +435,6 @@ function openParentDrawer(row?: ClassStudentViewRecord | null) {
   contactStudentId.value = row?.studentId || studentId.value || null
   parentDrawerVisible.value = true
 }
-
 
 async function submitClassStudent() {
   if (!institutionId.value) {
@@ -487,9 +496,6 @@ async function removeClassStudent(row: ClassStudentViewRecord) {
     ElMessage.error(toMessage(error, '移出班级失败'))
   }
 }
-
-
-
 
 async function refreshAll() {
   loading.value = true

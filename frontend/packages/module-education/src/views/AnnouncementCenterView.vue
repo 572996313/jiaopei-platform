@@ -8,19 +8,19 @@
       <div class="education-context-text">
         公告是<b>人工撰写、按范围广播</b>的单向通知，与系统自动产生的课次变动提示不是一回事。
         <b>发布后正文冻结</b>：要改内容请撤回后另建一条，已发布与已撤回的记录都不再变动。
-        <b>阅读进度的分母在发布时冻结</b>（= 当时解析出的接收人数），之后教师离职、学员退班都不会改分母，
+        <b>阅读进度的分母在发布时冻结</b>（=
+        当时解析出的接收人数），之后教师离职、学员退班都不会改分母，
         所以"未读"里可能包含已经收不到消息的人。撤回只让接收端立刻看不见，接收记录仍然留着。
       </div>
 
-      <!-- 本表主操作:表格上方一行、左对齐,排在查询条件上面 -->
-      <div class="table-toolbar">
-        <el-button v-if="canWrite" type="primary" @click="openForm()">新建公告</el-button>
-        <el-button @click="templateVisible = true">模板维护</el-button>
-        <el-button :icon="Refresh" circle :loading="loading" @click="loadAnnouncements" />
-      </div>
-
-      <div class="table-filters">
-        <el-select v-model="filters.status" placeholder="状态" clearable style="width: 140px" @change="search">
+      <!-- 统一筛选栏:主操作在左,状态/类型/对象/关键字 + 查询/重置一行,点按钮才重查 -->
+      <FilterBar :loading="loading" @query="search" @reset="resetFilters">
+        <template #extra>
+          <el-button v-if="canWrite" type="primary" @click="openForm()">新建公告</el-button>
+          <el-button @click="templateVisible = true">模板维护</el-button>
+          <el-button :icon="Refresh" circle :loading="loading" @click="loadAnnouncements" />
+        </template>
+        <el-select v-model="filters.status" placeholder="状态" clearable style="width: 140px">
           <el-option
             v-for="item in ANNOUNCEMENT_STATUS_OPTIONS"
             :key="item.value"
@@ -34,14 +34,12 @@
           placeholder="公告类型"
           clearable
           style="width: 180px"
-          @change="search"
         />
         <el-select
           v-model="filters.audienceCode"
           placeholder="接收对象"
           clearable
           style="width: 150px"
-          @change="search"
         >
           <el-option
             v-for="item in AUDIENCE_OPTIONS"
@@ -56,9 +54,8 @@
           clearable
           style="width: 220px"
           @keyup.enter="search"
-          @clear="search"
         />
-      </div>
+      </FilterBar>
 
       <TableFillBox v-slot="{ height }">
         <el-table
@@ -72,7 +69,14 @@
           :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
-          <el-table-column prop="title" label="标题" min-width="240" fixed="left" show-overflow-tooltip sortable="custom">
+          <el-table-column
+            prop="title"
+            label="标题"
+            min-width="240"
+            fixed="left"
+            show-overflow-tooltip
+            sortable="custom"
+          >
             <template #default="{ row }">
               <el-tag v-if="row.top" type="danger" size="small" class="ann-top-tag">置顶</el-tag>
               <span>{{ row.title }}</span>
@@ -103,7 +107,9 @@
           </el-table-column>
           <el-table-column prop="publishedAt" label="发布 / 撤回" min-width="170" sortable="custom">
             <template #default="{ row }">
-              <div v-if="row.publishedAt">{{ row.publishedByName || '—' }} · {{ formatTime(row.publishedAt) }}</div>
+              <div v-if="row.publishedAt">
+                {{ row.publishedByName || '—' }} · {{ formatTime(row.publishedAt) }}
+              </div>
               <div v-if="row.recalledAt" class="ann-muted">
                 撤回 {{ row.recalledByName || '—' }} · {{ formatTime(row.recalledAt) }}
               </div>
@@ -165,15 +171,31 @@
 
         <el-form label-position="top" class="education-form">
           <el-form-item label="套用模板">
-            <el-select v-model="templateId" clearable filterable placeholder="不套用，从零写" @change="applyTemplate">
-              <el-option v-for="item in templates" :key="item.id" :label="item.name" :value="item.id" />
+            <el-select
+              v-model="templateId"
+              clearable
+              filterable
+              placeholder="不套用，从零写"
+              @change="applyTemplate"
+            >
+              <el-option
+                v-for="item in templates"
+                :key="item.id"
+                :label="item.name"
+                :value="item.id"
+              />
             </el-select>
             <div class="ann-field-hint">
               套用只把模板的标题、正文与范围预填进下面这张表单，套完照样能改；模板备注不会带进公告。
             </div>
           </el-form-item>
           <el-form-item label="公告标题" required>
-            <el-input v-model="form.title" maxlength="120" show-word-limit placeholder="例如：国庆放假安排" />
+            <el-input
+              v-model="form.title"
+              maxlength="120"
+              show-word-limit
+              placeholder="例如：国庆放假安排"
+            />
           </el-form-item>
           <el-form-item label="公告类型" required>
             <DictSelect
@@ -209,7 +231,12 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item v-if="form.campusScope === 'part'" label="指定校区">
-            <el-select v-model="form.campusIds" multiple filterable placeholder="选择一个或多个校区">
+            <el-select
+              v-model="form.campusIds"
+              multiple
+              filterable
+              placeholder="选择一个或多个校区"
+            >
               <el-option
                 v-for="item in campuses"
                 :key="item.id"
@@ -226,7 +253,12 @@
             />
           </el-form-item>
           <el-form-item label="备注">
-            <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="只在管理端可见" />
+            <el-input
+              v-model="form.remark"
+              type="textarea"
+              :rows="2"
+              placeholder="只在管理端可见"
+            />
           </el-form-item>
           <el-form-item label="置顶">
             <el-switch v-model="form.top" />
@@ -237,12 +269,15 @@
         <div class="ann-preview">
           <div class="ann-preview-head">
             <span>预计触达</span>
-            <el-button size="small" :loading="previewing" @click="runPreview">按当前范围试算</el-button>
+            <el-button size="small" :loading="previewing" @click="runPreview"
+              >按当前范围试算</el-button
+            >
           </div>
           <div v-if="preview" class="ann-preview-body">
             <div class="ann-preview-total">{{ preview.total }} 人</div>
             <div class="ann-preview-split">
-              教师 {{ preview.teacherCount }} · 家长 {{ preview.parentCount }} · 全部账号 {{ preview.accountCount }}
+              教师 {{ preview.teacherCount }} · 家长 {{ preview.parentCount }} · 全部账号
+              {{ preview.accountCount }}
             </div>
             <ul v-if="preview.notices.length" class="ann-preview-notices">
               <li v-for="item in preview.notices" :key="item">{{ item }}</li>
@@ -273,15 +308,25 @@
         </div>
         <p class="ann-detail-content">{{ detail.content }}</p>
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="接收人数（分母）">{{ detail.receiverTotal ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="接收人数（分母）">{{
+            detail.receiverTotal ?? 0
+          }}</el-descriptions-item>
           <el-descriptions-item label="已读人数">{{ detail.readCount ?? 0 }}</el-descriptions-item>
           <el-descriptions-item label="发布">
-            {{ detail.publishedAt ? `${detail.publishedByName || '—'} · ${formatTime(detail.publishedAt)}` : '未发布' }}
+            {{
+              detail.publishedAt
+                ? `${detail.publishedByName || '—'} · ${formatTime(detail.publishedAt)}`
+                : '未发布'
+            }}
           </el-descriptions-item>
           <el-descriptions-item v-if="detail.recalledAt" label="撤回">
-            {{ `${detail.recalledByName || '—'} · ${formatTime(detail.recalledAt)} · ${detail.recallReason || '未填原因'}` }}
+            {{
+              `${detail.recalledByName || '—'} · ${formatTime(detail.recalledAt)} · ${detail.recallReason || '未填原因'}`
+            }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="detail.remark" label="备注">{{ detail.remark }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.remark" label="备注">{{
+            detail.remark
+          }}</el-descriptions-item>
         </el-descriptions>
       </div>
       <template #footer>
@@ -308,6 +353,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import AnnouncementTemplateDialog from '@cornerstone/module-education/views/announcement/AnnouncementTemplateDialog.vue'
@@ -315,7 +361,10 @@ import AnnouncementWxacodeDialog from '@cornerstone/module-education/views/annou
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import { fetchCampuses, type CampusSummary } from '@cornerstone/module-organization/api/organization'
+import {
+  fetchCampuses,
+  type CampusSummary,
+} from '@cornerstone/module-organization/api/organization'
 import ClassMultiSelect from './components/ClassMultiSelect.vue'
 import {
   ANNOUNCEMENT_STATUS_OPTIONS,
@@ -412,14 +461,14 @@ function statusTag(value?: string | null) {
 }
 
 function audienceText(values: string[]) {
-  return values.map((value) => AUDIENCE_OPTIONS.find((item) => item.value === value)?.label ?? value).join('、')
+  return values
+    .map((value) => AUDIENCE_OPTIONS.find((item) => item.value === value)?.label ?? value)
+    .join('、')
 }
 
 function scopeText(row: AnnouncementRecord) {
   const parts: string[] = []
-  parts.push(
-    row.campusScope === 'part' ? `${row.campusIds?.length ?? 0} 个校区` : '全校区'
-  )
+  parts.push(row.campusScope === 'part' ? `${row.campusIds?.length ?? 0} 个校区` : '全校区')
   if (row.classIds?.length) {
     parts.push(`${row.classIds.length} 个班级`)
   }
@@ -454,6 +503,15 @@ async function loadAnnouncements() {
 function search() {
   page.value = 1
   return loadAnnouncements()
+}
+
+/** 重置 = 清空四个筛选条件后重查 */
+function resetFilters() {
+  filters.status = ''
+  filters.typeCode = ''
+  filters.audienceCode = ''
+  filters.keyword = ''
+  void search()
 }
 
 async function loadLookups() {

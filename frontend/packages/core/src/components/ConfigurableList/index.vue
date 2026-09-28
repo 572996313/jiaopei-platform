@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { requestGet } from '@cornerstone/core/api/request'
 import type { PageResult } from '@cornerstone/core/api/common'
 import type { ListConfigSummary } from '@cornerstone/core/api/system'
@@ -355,13 +356,15 @@ defineExpose({
         <div v-if="note" class="education-context-text">{{ note }}</div>
       </div>
 
-      <el-form
+      <!-- 查询区并入统一筛选栏(FilterBar):控件在左、查询/重置固定右侧,超过 4 个条件收起可展开 -->
+      <FilterBar
         v-if="config.queryFields && config.queryFields.length"
-        :inline="true"
-        class="configurable-list-query"
-        @submit.prevent
+        :loading="loading"
+        @query="search"
+        @reset="resetQuery"
       >
-        <el-form-item v-for="field in config.queryFields" :key="field.field" :label="field.label">
+        <span v-for="field in config.queryFields" :key="field.field" class="filter-bar-group">
+          <span class="filter-bar-group-label">{{ field.label }}</span>
           <el-input
             v-if="!field.type || field.type === 'input'"
             v-model="queryModel[field.field]"
@@ -399,12 +402,8 @@ defineExpose({
             class="configurable-list-control"
             :placeholder="field.placeholder || '选择日期'"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="search">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+        </span>
+      </FilterBar>
 
       <TableFillBox v-slot="{ height }">
         <el-table
@@ -524,14 +523,6 @@ defineExpose({
   justify-content: flex-start;
   gap: 10px;
   margin-bottom: 4px;
-}
-
-.configurable-list-query {
-  margin-bottom: 4px;
-}
-
-.configurable-list-query :deep(.el-form-item) {
-  margin-bottom: 12px;
 }
 
 .configurable-list-control {

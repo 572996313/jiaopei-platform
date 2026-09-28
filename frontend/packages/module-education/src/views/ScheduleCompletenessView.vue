@@ -5,14 +5,8 @@
     </article>
 
     <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleFilterChange"
-        >
+      <FilterBar :loading="reportLoading" @query="applyFilters" @reset="resetFilters">
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -20,13 +14,7 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
-          v-model="termId"
-          placeholder="筛选学期"
-          clearable
-          filterable
-          @change="handleFilterChange"
-        >
+        <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -40,21 +28,20 @@
           :campus-id="campusId"
           :term-id="termId"
           placeholder="筛选班级"
-          @change="handleFilterChange"
         />
-        <span class="datebar-label">统计区间</span>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          value-format="YYYY-MM-DD"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="截止日期"
-          clearable
-          @change="handleFilterChange"
-        />
-        <el-button type="primary" :loading="reportLoading" @click="loadReport">查询</el-button>
-      </div>
+        <span class="filter-bar-group">
+          <span class="filter-bar-group-label">统计区间</span>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="截止日期"
+            clearable
+          />
+        </span>
+      </FilterBar>
     </div>
 
     <article class="panel-card education-panel">
@@ -67,8 +54,8 @@
         落在之外的（改期调课、额外加课、补课另排的一格）计入「计划外」，不抵扣缺口。
         已停课、已结课的课次仍算已生成；它们会让出排课占用，所以同一格可能被再排一节课进去——
         完成度按格子只认一格，<b>重复排课要到「执行与课表」看撞课标记</b>。区间对齐到整周，最长 26
-        周。
-        行标签下的「已上课 N/总」是<b>整班账</b>：日期已过、没停课的课次全算，计划外加的与改期补的也消耗总课时，
+        周。 行标签下的「已上课
+        N/总」是<b>整班账</b>：日期已过、没停课的课次全算，计划外加的与改期补的也消耗总课时，
         所以它会<b>大于</b>本区间格子里的「已完成」，两个数不是一回事。
         预计结课日按<b>近四周</b>的节奏推，只到"几周以后"；比计划的结束日晚会用红字提示，
         近四周没排过课则推算不出，不显示日期。
@@ -77,7 +64,9 @@
       <div class="table-toolbar">
         <el-button :icon="Refresh" circle :loading="reportLoading" @click="loadReport" />
         <el-button @click="goScheduling">回到排课管理</el-button>
-        <el-button v-if="canManage" type="primary" @click="autoFillVisible = true">一键补排</el-button>
+        <el-button v-if="canManage" type="primary" @click="autoFillVisible = true"
+          >一键补排</el-button
+        >
         <span class="education-context-text">
           「一键补排」按这里的缺口生成课次：只补还没上的节，教师和教室沿用该班启用中的计划。
         </span>
@@ -193,7 +182,8 @@
         </el-table-column>
       </el-table>
       <div v-if="gapTargetOnly > 0" class="education-context-text">
-        还有 {{ gapTargetOnly }} 节没排上，但这一周的计划格子里没有对应空位（班级按每周课时目标统计）。
+        还有
+        {{ gapTargetOnly }} 节没排上，但这一周的计划格子里没有对应空位（班级按每周课时目标统计）。
         挑这一周的任意空闲时段加排即可。
       </div>
       <div v-if="gapDetailRows.length === 0" class="education-empty">
@@ -231,6 +221,7 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import ScheduleAutoFillDialog from './components/ScheduleAutoFillDialog.vue'
 import ClassSelect from './components/ClassSelect.vue'
 import { toMessage, weekdayLabel } from './components/schedule-utils'
@@ -411,9 +402,18 @@ async function refreshScopeData() {
   }
 }
 
-async function handleFilterChange() {
+async function applyFilters() {
   await refreshScopeData()
   await loadReport()
+}
+
+/** 重置 = 取消校区/学期/班级/统计区间筛选并生效 */
+async function resetFilters() {
+  campusId.value = null
+  termId.value = null
+  classId.value = null
+  dateRange.value = null
+  await applyFilters()
 }
 
 watch(
@@ -444,12 +444,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.datebar-label {
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
 .completeness-summary {
   display: flex;
   flex-wrap: wrap;

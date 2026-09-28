@@ -5,14 +5,13 @@
     </article>
 
     <div class="page-toolbar">
-      <div class="page-toolbar-filters" v-loading="lookupLoading">
-        <el-select
-          v-model="campusId"
-          placeholder="筛选校区"
-          clearable
-          filterable
-          @change="handleCampusChange"
-        >
+      <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
+      <FilterBar
+        :loading="lookupLoading || dayLoading || rangeLoading"
+        @query="applyFilters"
+        @reset="resetFilters"
+      >
+        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
           <el-option
             v-for="item in campuses"
             :key="item.id"
@@ -20,13 +19,7 @@
             :value="item.id"
           />
         </el-select>
-        <el-select
-          v-model="termId"
-          placeholder="筛选学期"
-          clearable
-          filterable
-          @change="handleTermChange"
-        >
+        <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
           <el-option
             v-for="item in terms"
             :key="item.id"
@@ -40,9 +33,8 @@
           :campus-id="campusId"
           :term-id="termId"
           placeholder="筛选班级"
-          @change="handleClassChange"
         />
-      </div>
+      </FilterBar>
       <div class="page-toolbar-datebar">
         <template v-if="timetableTab === 'day'">
           <span class="datebar-label">日课表</span>
@@ -530,11 +522,15 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
-import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
+import {
+  classLabelOf,
+  ensureClassLabels,
+} from '@cornerstone/module-education/composables/classLabels'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import WeekTimetableGrid, { type WeekLessonAction } from './components/WeekTimetableGrid.vue'
+import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import ClassSelect from './components/ClassSelect.vue'
 import AttendanceDialog from './components/AttendanceDialog.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
@@ -1170,21 +1166,25 @@ async function refreshAll() {
   await Promise.all([refreshDayTimetable(), refreshRangeTimetable(), refreshPendingMakeupLessons()])
 }
 
-async function handleCampusChange() {
-  classId.value = null
+/** 上一次「查询」实际生效的校区:只有校区真变了才清掉已选班级草稿 */
+const lastAppliedCampus = ref<string | null>(null)
+
+async function applyFilters() {
+  if (campusId.value !== lastAppliedCampus.value) {
+    classId.value = null
+  }
   await refreshScopeData()
+  lastAppliedCampus.value = campusId.value
+  // 课表请求已带 classId（服务端过滤，客户端过滤兜底），筛选变化后需整体重拉
   await refreshAll()
 }
 
-async function handleTermChange() {
+/** 重置 = 取消校区/学期/班级筛选并生效 */
+async function resetFilters() {
+  campusId.value = null
+  termId.value = null
   classId.value = null
-  await refreshScopeData()
-  await refreshAll()
-}
-
-async function handleClassChange() {
-  // 课表请求已带 classId（服务端过滤，客户端过滤兜底），班级变化后需整体重拉
-  await refreshAll()
+  await applyFilters()
 }
 
 async function shiftDay(delta: number) {

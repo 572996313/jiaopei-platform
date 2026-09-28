@@ -27,8 +27,16 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import type { ClassOption } from '@cornerstone/module-education/api/education'
-import { classKnownOf, classLabelOf, classOptionLabel, ensureClassKnown } from '@cornerstone/module-education/composables/classLabels'
-import { useClassOptions, type ClassScopeValue } from '@cornerstone/module-education/composables/useClassOptions'
+import {
+  classKnownOf,
+  classLabelOf,
+  classOptionLabel,
+  ensureClassKnown,
+} from '@cornerstone/module-education/composables/classLabels'
+import {
+  useClassOptions,
+  type ClassScopeValue,
+} from '@cornerstone/module-education/composables/useClassOptions'
 
 const props = withDefaults(
   defineProps<{
@@ -103,7 +111,8 @@ watch(
 }
 
 .page-toolbar-filters .archive-select,
-.table-filters .archive-select {
+.table-filters .archive-select,
+.filter-bar .archive-select {
   width: 240px;
 }
 </style>
