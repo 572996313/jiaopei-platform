@@ -14,30 +14,42 @@
       <el-button @click="goTimeSlotList">节次明细</el-button>
     </div>
 
-    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛模板;点「查询」才把所选模板载入编辑器 -->
-    <FilterBar :loading="loading" @query="applyFilters" @reset="resetFilters">
-      <el-select
-        v-model="selectedTemplateId"
-        placeholder="选择时段模板"
-        filterable
-        :no-data-text="filteredTemplates.length ? '暂无模板' : '当前范围暂无模板'"
-        style="width: 240px"
-      >
-        <el-option
-          v-for="item in filteredTemplates"
-          :key="item.id"
-          :label="item.templateName"
-          :value="item.id"
+    <!-- 这颗下拉不是筛选条件,是"选要编辑的那一个模板",选中即把参数与节次载入下方编辑器,
+         所以不放进 FilterBar(那里的口径是点「查询」才生效,会让人以为模板下面是空的)。
+         本页唯一的筛选条件是校区范围,它在横幅那颗芯片上改,这里只按它过滤模板清单并回显。 -->
+    <div class="table-toolbar">
+      <span class="filter-bar-group">
+        <span class="filter-bar-group-label">时段模板</span>
+        <el-select
+          v-model="selectedTemplateId"
+          placeholder="选择时段模板"
+          filterable
+          clearable
+          :no-data-text="filteredTemplates.length ? '暂无模板' : '当前范围暂无模板'"
+          style="width: 240px"
+          @change="onTemplateChange"
         >
-          <span>{{ item.templateName }}</span>
-          <span class="ts-option-campus">{{ campusText(item.campusId) }}</span>
-        </el-option>
-      </el-select>
-    </FilterBar>
-
-    <div v-if="!selectedTemplate" class="panel-card ts-empty-panel">
-      <el-empty description="请选择时段模板,或新建一个时段模板开始编辑" />
+          <el-option
+            v-for="item in filteredTemplates"
+            :key="item.id"
+            :label="item.templateName"
+            :value="item.id"
+          >
+            <span>{{ item.templateName }}</span>
+            <span class="ts-option-campus">{{ campusText(item.campusId) }}</span>
+          </el-option>
+        </el-select>
+      </span>
+      <span class="education-context-text">
+        当前范围：{{
+          campusId ? educationScope.campusName(campusId) : '全部校区'
+        }}；模板按校区分开维护，范围在顶部横幅的校区芯片上改。
+      </span>
     </div>
+
+    <article v-if="!selectedTemplate" class="panel-card ts-need-pick">
+      在上方选一个时段模板即可编辑它的节次时间；没有合适的模板请点「新建模板」。
+    </article>
 
     <article v-else class="panel-card">
       <div class="table-toolbar">
@@ -52,9 +64,14 @@
         >
           保存
         </el-button>
-        <div class="education-context-text">
-          当前模板:{{ selectedTemplate.templateName }};网格 {{ rows.length }} 个节次 ×
-          {{ config.weekdays.length }} 天
+        <!-- 模板名上面的下拉已经显示过,这里只说网格:已存的是还原出来的,没存过的是草稿,不保存不入库 -->
+        <div class="education-context-text" v-if="savedSlotCount > 0">
+          网格 {{ rows.length }} 个节次 ×
+          {{ config.weekdays.length }} 天（该模板已存过节次，改动点「保存」生效）
+        </div>
+        <div class="education-context-text" v-else>
+          该模板还没存过节次，下面是按参数生成的节次表（{{ rows.length }} 个 ×
+          {{ config.weekdays.length }} 天），点「保存」才会写入
         </div>
       </div>
 
@@ -139,7 +156,6 @@ import {
   type TimeSlotTemplateSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
-import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import TimeSlotConfigForm from './components/TimeSlotConfigForm.vue'
@@ -201,6 +217,16 @@ function goTimeSlotList() {
   router.push('/time-slot-list')
 }
 
+/** 当前所选模板已保存的节次条数（按星期拆开计数），删除/清空确认与网格说明都用它 */
+const savedSlotCount = computed(() => {
+  const id = selectedTemplateId.value
+  if (!id) {
+    return 0
+  }
+  return timeSlots.value.filter((slot) => slot.templateId && String(slot.templateId) === String(id))
+    .length
+})
+
 function onTemplateChange(id: string | null) {
   if (!id) {
     rows.value = []
@@ -209,26 +235,15 @@ function onTemplateChange(id: string | null) {
   loadTemplateIntoEditor(selectedTemplate.value)
 }
 
-/** 点「查询」只按当前范围重拉节次，再把选中的模板载入编辑器（范围本身在横幅改） */
-async function applyFilters() {
-  await reloadTimeSlots()
-  onTemplateChange(selectedTemplateId.value)
-}
-
-/** 重置 = 退出当前模板，取消本页的模板筛选 */
-async function resetFilters() {
-  selectedTemplateId.value = null
-  rows.value = []
-  await reloadTimeSlots()
-}
-
 /** 选中模板后:回填参数;已有展开结果则还原网格,否则按参数生成 */
 function loadTemplateIntoEditor(template: TimeSlotTemplateSummary | null) {
   if (!template) {
     return
   }
   config.value = asTimeSlotConfig(template.config)
-  const owned = timeSlots.value.filter((slot) => slot.templateId === template.id)
+  const owned = timeSlots.value.filter(
+    (slot) => slot.templateId && String(slot.templateId) === String(template.id)
+  )
   rows.value = owned.length > 0 ? buildRowsFromSlots(owned) : generateRowsFromConfig(config.value)
 }
 
@@ -291,6 +306,9 @@ async function refreshAll() {
     ) {
       selectedTemplateId.value = null
       rows.value = []
+    } else if (selectedTemplateId.value) {
+      // 选中模板还在:按刚拉到的节次重载编辑器,否则点刷新只是清单变了、网格还是旧的
+      loadTemplateIntoEditor(selectedTemplate.value)
     }
   } catch (error) {
     pageError.value = toMessage(error, '加载时段模板失败')
@@ -334,15 +352,12 @@ async function saveGrid() {
 
 /** 清空确认:没有存量节次时直接放行(否则这句提示没有内容可对) */
 async function confirmClearSlots() {
-  const ownedCount = timeSlots.value.filter(
-    (item) => item.templateId && String(item.templateId) === String(selectedTemplateId.value)
-  ).length
-  if (ownedCount === 0) {
+  if (savedSlotCount.value === 0) {
     return true
   }
   try {
     await ElMessageBox.confirm(
-      `网格中一个时间都没有,保存会删除该模板下的 ${ownedCount} 个节次；已被排课引用的节次只停用并转为手工维护,不会消失。`,
+      `网格中一个时间都没有,保存会删除该模板下的 ${savedSlotCount.value} 个节次；已被排课引用的节次只停用并转为手工维护,不会消失。`,
       '确认清空节次',
       { type: 'warning', confirmButtonText: '清空并保存', cancelButtonText: '取消' }
     )
@@ -401,14 +416,11 @@ async function confirmDeleteTemplate() {
   if (!template) {
     return
   }
-  const ownedCount = timeSlots.value.filter(
-    (slot) => slot.templateId && String(slot.templateId) === String(template.id)
-  ).length
   try {
     await ElMessageBox.confirm(
-      ownedCount > 0
-        ? `确定删除时段模板「${template.templateName}」吗？模板下 ${ownedCount} 个节次会一并删除；` +
-          '已被排课引用的节次只停用并转为手工维护，不会消失。'
+      savedSlotCount.value > 0
+        ? `确定删除时段模板「${template.templateName}」吗？模板下 ${savedSlotCount.value} 个节次会一并删除；` +
+            '已被排课引用的节次只停用并转为手工维护，不会消失。'
         : `确定删除时段模板「${template.templateName}」吗？`,
       '删除确认',
       { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
@@ -446,8 +458,11 @@ onMounted(() => {
   gap: 12px;
 }
 
-.ts-empty-panel {
-  padding: 40px 0;
+/* 未选模板时只给一行指引,不铺空卡（el-empty 那一块白占 130px 高却没任何信息） */
+.ts-need-pick {
+  padding: 18px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 /* 一张卡里两个区块的分隔标题:参数与网格是先后两步,不写清容易以为网格是独立设置 */
