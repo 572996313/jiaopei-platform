@@ -4,8 +4,14 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 整页级视图开关:按钮行放查询条件上方,统计条在其下方展开/收起 -->
+    <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行在它下面;「统计」是整页视图开关,也在这一行 -->
     <div class="table-toolbar">
+      <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+      <el-button v-if="canManage" :icon="Upload" @click="importVisible = true">
+        导入档案
+      </el-button>
+      <el-button :icon="Download" :loading="exporting" @click="handleExport">导出</el-button>
+      <el-button v-if="canManage" :icon="Link" @click="linkVisible = true">匹配账号</el-button>
       <el-button @click="statsVisible = !statsVisible">
         统计
         <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
@@ -18,6 +24,9 @@
         :loading="lookupLoading || tableLoading"
         @click="refreshAll"
       />
+      <div class="education-context-text">
+        当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
+      </div>
     </div>
 
     <!-- 统一筛选栏:校区/关键字都不再自动触发,点「查询」才按当前条件重查 -->
@@ -55,19 +64,6 @@
     </div>
 
     <article class="panel-card education-panel">
-      <!-- 本表主操作:表格上方一行、左对齐;当前范围回显靠同一行右侧,不再单独占一行 -->
-      <div class="table-toolbar">
-        <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
-        <el-button v-if="canManage" :icon="Upload" @click="importVisible = true">
-          导入档案
-        </el-button>
-        <el-button :icon="Download" :loading="exporting" @click="handleExport">导出</el-button>
-        <el-button v-if="canManage" :icon="Link" @click="linkVisible = true">匹配账号</el-button>
-        <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
-        </div>
-      </div>
-
       <TableFillBox v-slot="{ height }">
         <el-table
           ref="teacherTableRef"

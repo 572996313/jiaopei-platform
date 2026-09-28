@@ -4,16 +4,22 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 整页级开关:刷新这一张表 -->
+    <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行在它下面 -->
     <div class="table-toolbar">
+      <el-button type="primary" @click="openTimeSlotDialog('create')">新增节次</el-button>
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
+      <el-button @click="goTemplates">时段模板</el-button>
+      <div class="education-context-text">
+        {{
+          campusId
+            ? `当前校区：${formatCampus(campusId)}，另含机构通用节次`
+            : '未筛选校区：显示本机构全部节次'
+        }}
+      </div>
     </div>
 
     <!-- 统一筛选栏:校区选择不再自动触发,点「查询」才按新校区拉节次 -->
     <FilterBar :loading="loading" @query="loadTimeSlots" @reset="resetAndLoad">
-      <template #extra>
-        <el-button @click="goTemplates">时段模板</el-button>
-      </template>
       <!-- 不选校区 = 本机构全部节次;选了 = 本校区 + 机构通用（服务端按 campusId 收窄） -->
       <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
         <el-option
@@ -26,17 +32,6 @@
     </FilterBar>
 
     <article class="panel-card education-panel">
-      <div class="table-toolbar">
-        <el-button type="primary" @click="openTimeSlotDialog('create')">新增节次</el-button>
-        <div class="education-context-text">
-          {{
-            campusId
-              ? `当前校区：${formatCampus(campusId)}，另含机构通用节次`
-              : '未筛选校区：显示本机构全部节次'
-          }}
-        </div>
-      </div>
-
       <TableFillBox v-slot="{ height }">
         <el-table
           :data="timeSlots"

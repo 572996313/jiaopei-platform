@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { requestGet } from '@cornerstone/core/api/request'
@@ -342,9 +342,10 @@ defineExpose({
     <template v-else-if="config">
       <!--
         主操作按钮:放查询条件上方,条件与表格贴着看(与其余列表页同口径)。
-        说明(note)与按钮同一行靠右,不再单独占一行;没有按钮时这一行只剩说明。
+        说明(note)与按钮同一行靠右,不再单独占一行;没有按钮时这一行只剩刷新与说明。
+        圆形刷新是分隔位:本页动作(新增/编辑/导入)在它左边,会跳走的入口在它右边。
       -->
-      <div v-if="toolbarActions.length || note" class="table-toolbar configurable-list-toolbar">
+      <div class="table-toolbar configurable-list-toolbar">
         <el-button
           v-for="action in toolbarActions"
           :key="action.action"
@@ -353,6 +354,7 @@ defineExpose({
         >
           {{ action.label }}
         </el-button>
+        <el-button :icon="Refresh" circle :loading="loading" @click="fetchPage" />
         <div v-if="note" class="education-context-text">{{ note }}</div>
       </div>
 

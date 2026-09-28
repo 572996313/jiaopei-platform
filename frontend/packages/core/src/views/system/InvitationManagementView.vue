@@ -10,6 +10,7 @@
         <el-button v-if="permissions.canManageInvitations" type="primary" @click="openInviteDialog"
           >创建邀请码</el-button
         >
+        <el-button :icon="Refresh" circle :loading="loading" @click="reload()" />
       </div>
 
       <!-- 本表查询条件:统一筛选栏形态,查询/重置固定右侧,点按钮才触发 -->
@@ -239,6 +240,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'

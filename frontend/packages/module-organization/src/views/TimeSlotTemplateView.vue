@@ -4,16 +4,18 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 主操作行:模板的新建/删除与刷新靠左,会跳走的入口放刷新右边 -->
+    <div class="table-toolbar">
+      <el-button v-if="canWrite" type="primary" @click="openCreateDialog">新建模板</el-button>
+      <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate"
+        >删除模板</el-button
+      >
+      <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
+      <el-button @click="goTimeSlotList">节次明细</el-button>
+    </div>
+
     <!-- 统一筛选栏:校区/模板都不再自动触发,点「查询」才切范围并载入所选模板 -->
     <FilterBar :loading="loading" @query="applyFilters" @reset="resetFilters">
-      <template #extra>
-        <el-button v-if="canWrite" type="primary" @click="openCreateDialog">新建模板</el-button>
-        <el-button v-if="canWrite && selectedTemplate" @click="confirmDeleteTemplate"
-          >删除模板</el-button
-        >
-        <el-button @click="goTimeSlotList">节次明细</el-button>
-        <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
-      </template>
       <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
         <el-option
           v-for="item in campuses"

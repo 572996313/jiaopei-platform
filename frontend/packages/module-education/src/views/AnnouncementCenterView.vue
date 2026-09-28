@@ -5,21 +5,22 @@
     </article>
 
     <article class="panel-card education-panel">
-      <div class="education-context-text">
-        公告是<b>人工撰写、按范围广播</b>的单向通知，与系统自动产生的课次变动提示不是一回事。
-        <b>发布后正文冻结</b>：要改内容请撤回后另建一条，已发布与已撤回的记录都不再变动。
-        <b>阅读进度的分母在发布时冻结</b>（=
-        当时解析出的接收人数），之后教师离职、学员退班都不会改分母，
-        所以"未读"里可能包含已经收不到消息的人。撤回只让接收端立刻看不见，接收记录仍然留着。
+      <!-- 主操作按钮行:按钮靠左、整段口径收成问号靠右,不再单独占一行 -->
+      <div class="table-toolbar">
+        <el-button v-if="canWrite" type="primary" @click="openForm()">新建公告</el-button>
+        <el-button @click="templateVisible = true">模板维护</el-button>
+        <el-button :icon="Refresh" circle :loading="loading" @click="loadAnnouncements" />
+        <NoteHint label="公告口径">
+          公告是<b>人工撰写、按范围广播</b>的单向通知，与系统自动产生的课次变动提示不是一回事。
+          <b>发布后正文冻结</b>：要改内容请撤回后另建一条，已发布与已撤回的记录都不再变动。
+          <b>阅读进度的分母在发布时冻结</b>（=
+          当时解析出的接收人数），之后教师离职、学员退班都不会改分母，
+          所以"未读"里可能包含已经收不到消息的人。撤回只让接收端立刻看不见，接收记录仍然留着。
+        </NoteHint>
       </div>
 
-      <!-- 统一筛选栏:主操作在左,状态/类型/对象/关键字 + 查询/重置一行,点按钮才重查 -->
+      <!-- 统一筛选栏:状态/类型/对象/关键字 + 查询/重置一行,点按钮才重查 -->
       <FilterBar :loading="loading" @query="search" @reset="resetFilters">
-        <template #extra>
-          <el-button v-if="canWrite" type="primary" @click="openForm()">新建公告</el-button>
-          <el-button @click="templateVisible = true">模板维护</el-button>
-          <el-button :icon="Refresh" circle :loading="loading" @click="loadAnnouncements" />
-        </template>
         <el-select v-model="filters.status" placeholder="状态" clearable style="width: 140px">
           <el-option
             v-for="item in ANNOUNCEMENT_STATUS_OPTIONS"
@@ -354,6 +355,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
+import NoteHint from '@cornerstone/core/components/NoteHint.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import AnnouncementTemplateDialog from '@cornerstone/module-education/views/announcement/AnnouncementTemplateDialog.vue'

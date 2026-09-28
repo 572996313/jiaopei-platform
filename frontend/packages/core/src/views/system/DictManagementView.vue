@@ -18,6 +18,12 @@
               @click="openCreateDictTypeDialog"
               >新增类型</el-button
             >
+            <el-button
+              :icon="Refresh"
+              circle
+              :loading="dictTypesLoading"
+              @click="reloadDictTypes()"
+            />
           </div>
           <TableFillBox v-slot="{ height }">
             <el-table
@@ -82,6 +88,13 @@
               @click="openCreateDictItemDialog"
               >新增条目</el-button
             >
+            <el-button
+              :icon="Refresh"
+              circle
+              :loading="dictItemsLoading"
+              :disabled="!selectedDictTypeCode"
+              @click="loadDictItems(selectedDictTypeCode)"
+            />
             <div class="education-context-text">
               当前类型:{{ selectedDictTypeCode || '未选择' }}
             </div>
@@ -251,6 +264,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import {
   createSystemDictItem,

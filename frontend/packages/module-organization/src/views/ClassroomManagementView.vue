@@ -4,9 +4,15 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 整页级开关:本页只有一张主表,没有统计条,这行留刷新 -->
+    <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行在它下面 -->
     <div class="table-toolbar">
+      <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
+      <div class="education-context-text">
+        当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
+          formatCampus(campusId)
+        }}；教室编码与名称在同一校区内唯一
+      </div>
     </div>
 
     <!-- 统一筛选栏:换校区不再自动触发,点「查询」才按新校区拉教室 -->
@@ -23,15 +29,6 @@
     </FilterBar>
 
     <article class="panel-card education-panel">
-      <div class="table-toolbar">
-        <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
-        <div class="education-context-text">
-          当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
-            formatCampus(campusId)
-          }}；教室编码与名称在同一校区内唯一
-        </div>
-      </div>
-
       <TableFillBox v-slot="{ height }">
         <el-table
           :data="classrooms"

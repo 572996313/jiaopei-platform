@@ -4,6 +4,25 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行与排课日期导航在它下面 -->
+    <div class="table-toolbar">
+      <el-button v-if="canManage" type="primary" @click="openCreateDialog">新增排课</el-button>
+      <el-button @click="planListVisible = true">周期计划</el-button>
+      <el-button @click="ruleListVisible = true">排课规则</el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || lessonsLoading"
+        @click="refreshLessons"
+      />
+      <el-button @click="goTimetable">查看课表</el-button>
+      <div class="education-context-text">
+        校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
+          lessonDate || '全部'
+        }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
+      </div>
+    </div>
+
     <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;排课日期是看哪一天的导航,保持选中即切换 -->
     <div class="page-toolbar">
       <FilterBar :loading="lessonsLoading" @query="applyFilters" @reset="resetFilters">
@@ -46,25 +65,6 @@
     </div>
 
     <article class="panel-card education-panel">
-      <!-- 主操作按钮统一放在表格上方一行、左对齐;当前范围回显放同一行右侧 -->
-      <div class="table-toolbar">
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || lessonsLoading"
-          @click="refreshLessons"
-        />
-        <el-button @click="goTimetable">查看课表</el-button>
-        <el-button @click="planListVisible = true">周期计划</el-button>
-        <el-button @click="ruleListVisible = true">排课规则</el-button>
-        <el-button v-if="canManage" type="primary" @click="openCreateDialog">新增排课</el-button>
-        <div class="education-context-text">
-          校区：{{ formatCampus(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
-            lessonDate || '全部'
-          }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
-        </div>
-      </div>
-
       <TableFillBox v-slot="{ height }">
         <el-table
           :data="lessons"

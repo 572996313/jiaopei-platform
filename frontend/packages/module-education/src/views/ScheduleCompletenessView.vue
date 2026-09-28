@@ -4,48 +4,17 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <div class="page-toolbar">
-      <FilterBar :loading="reportLoading" @query="applyFilters" @reset="resetFilters">
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
-          <el-option
-            v-for="item in terms"
-            :key="item.id"
-            :label="item.termName || item.termCode || `学期 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
-        <ClassSelect
-          v-model="classId"
-          :institution-id="institutionId"
-          :campus-id="campusId"
-          :term-id="termId"
-          placeholder="筛选班级"
-        />
-        <span class="filter-bar-group">
-          <span class="filter-bar-group-label">统计区间</span>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            value-format="YYYY-MM-DD"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="截止日期"
-            clearable
-          />
-        </span>
-      </FilterBar>
-    </div>
-
-    <article class="panel-card education-panel">
-      <div class="education-context-text">
+    <!-- 主操作行:按钮靠左、补排说明靠右,整段统计口径收成问号 -->
+    <div class="table-toolbar">
+      <el-button v-if="canManage" type="primary" @click="autoFillVisible = true"
+        >一键补排</el-button
+      >
+      <el-button :icon="Refresh" circle :loading="reportLoading" @click="loadReport" />
+      <el-button @click="goScheduling">回到排课管理</el-button>
+      <span class="education-context-text">
+        「一键补排」按这里的缺口生成课次：只补还没上的节，教师和教室沿用该班启用中的计划。
+      </span>
+      <NoteHint label="统计口径" :width="520">
         分母来源按行区分：班级主档填了「每周应上节数」的，应排=<b>每周应上节数 × 周数</b
         >（行内标「按课时目标」）；
         没填的<b>仍回落到该班启用中的周期排课计划展开</b>（行内标「按计划展开」，跳过日期不计，没有计划的班级不出现在此表）——
@@ -59,19 +28,48 @@
         所以它会<b>大于</b>本区间格子里的「已完成」，两个数不是一回事。
         预计结课日按<b>近四周</b>的节奏推，只到"几周以后"；比计划的结束日晚会用红字提示，
         近四周没排过课则推算不出，不显示日期。
-      </div>
+      </NoteHint>
+    </div>
 
-      <div class="table-toolbar">
-        <el-button :icon="Refresh" circle :loading="reportLoading" @click="loadReport" />
-        <el-button @click="goScheduling">回到排课管理</el-button>
-        <el-button v-if="canManage" type="primary" @click="autoFillVisible = true"
-          >一键补排</el-button
-        >
-        <span class="education-context-text">
-          「一键补排」按这里的缺口生成课次：只补还没上的节，教师和教室沿用该班启用中的计划。
-        </span>
-      </div>
+    <FilterBar :loading="reportLoading" @query="applyFilters" @reset="resetFilters">
+      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
+        <el-option
+          v-for="item in campuses"
+          :key="item.id"
+          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+      <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
+        <el-option
+          v-for="item in terms"
+          :key="item.id"
+          :label="item.termName || item.termCode || `学期 #${item.id}`"
+          :value="item.id"
+        />
+      </el-select>
+      <ClassSelect
+        v-model="classId"
+        :institution-id="institutionId"
+        :campus-id="campusId"
+        :term-id="termId"
+        placeholder="筛选班级"
+      />
+      <span class="filter-bar-group">
+        <span class="filter-bar-group-label">统计区间</span>
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="截止日期"
+          clearable
+        />
+      </span>
+    </FilterBar>
 
+    <article class="panel-card education-panel">
       <div v-if="report" class="completeness-summary">
         <span>班级 {{ report.summary.classCount }}</span>
         <span>应排 {{ report.summary.expected }}</span>
@@ -222,6 +220,7 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
+import NoteHint from '@cornerstone/core/components/NoteHint.vue'
 import ScheduleAutoFillDialog from './components/ScheduleAutoFillDialog.vue'
 import ClassSelect from './components/ClassSelect.vue'
 import { toMessage, weekdayLabel } from './components/schedule-utils'

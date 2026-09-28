@@ -917,23 +917,6 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-.page-toolbar-filters {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 10px;
-  min-width: 0;
-}
-
-.page-toolbar-filters .el-select {
-  width: 180px;
-}
-
-.page-toolbar-filters .el-date-editor {
-  width: 150px;
-}
-
 /* 统一筛选栏(FilterBar 组件):控件宽度在这里收口,页面不再各写内联 style。
    关键字输入框保留各页自己的宽度类,这里不写通用 el-input 规则去压它。
    范围选择器(el-date-editor--daterange/--datetimerange)要装下两端日期,给到 340px。
@@ -985,13 +968,6 @@ body {
   flex: 0 1 auto;
   min-width: 180px;
   text-align: right;
-}
-
-.page-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
 }
 
 .stats-toggle-icon {
@@ -1168,11 +1144,28 @@ body {
   text-align: right;
 }
 
+/*
+ * 卡内表头:标题与按钮一律靠左成组、说明靠右。全站按钮不许出现在行右端
+ * (与 .table-toolbar 同口径),所以这里不再 space-between。
+ */
 .education-table-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.education-table-head > .education-context-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+}
+
+/* 问号说明:自己不收窄,始终贴到行右端 */
+.table-toolbar > .note-hint,
+.education-table-head > .note-hint {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /* 卡片内单行搜索框的宽度 */
@@ -2712,6 +2705,18 @@ html.dark .app-shell .el-button--primary:not(.is-plain):not(.is-text):not(.is-li
   .education-table-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  /* 竖排时说明不再靠右,跟着标题左对齐 */
+  .education-table-head > .education-context-text {
+    flex: 0 1 auto;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .table-toolbar > .note-hint,
+  .education-table-head > .note-hint {
+    margin-left: 0;
   }
 
   .system-summary-grid,

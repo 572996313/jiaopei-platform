@@ -13,6 +13,7 @@
             @click="openCreateListConfigDialog"
             >新增配置</el-button
           >
+          <el-button :icon="Refresh" circle :loading="listConfigLoading" @click="loadListConfigs" />
           <div class="education-context-text">配置改完保存即生效,不需要发版。</div>
         </div>
 
@@ -396,6 +397,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import {
   createListConfig,

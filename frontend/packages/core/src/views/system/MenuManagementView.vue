@@ -9,6 +9,7 @@
           <el-button v-if="permissions.canManageMenus" type="primary" @click="openCreateMenuDialog"
             >新增菜单</el-button
           >
+          <el-button :icon="Refresh" circle :loading="menuTreeLoading" @click="loadMenuTree" />
           <div class="education-context-text">
             权限码按节点性质分配:页面节点挂进入本页所需的读取码,按钮节点只挂写操作码,目录节点不挂码。
             在角色管理的「分配菜单」里勾选页面即可读、勾选按钮即可写。
@@ -225,6 +226,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import {
   createSystemMenu,

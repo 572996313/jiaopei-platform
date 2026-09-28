@@ -1,14 +1,11 @@
 <template>
   <section class="education-page">
-    <div class="page-toolbar">
-      <div class="page-toolbar-filters">
-        <span class="education-context-text"
-          >先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。</span
-        >
-      </div>
-      <div class="page-toolbar-actions">
-        <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
-        <el-button type="primary" @click="goToSchedule()">进入日常教务中心</el-button>
+    <!-- 本页动作靠左、圆形刷新居中作分隔、会跳走的入口在它右边、说明靠右 -->
+    <div class="table-toolbar">
+      <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
+      <el-button type="primary" @click="goToSchedule()">进入日常教务中心</el-button>
+      <div class="education-context-text">
+        先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。
       </div>
     </div>
 
@@ -245,15 +242,12 @@ const todayLessons = ref<ScheduleLessonRecord[]>([])
 const attendancePages = ref<Record<string, AttendanceLessonPage>>({})
 
 // 今日课表只有 classId，班级名按 id 回查补进缓存（下拉不再持有全量班级当字典）
-watch(
-  todayLessons,
-  (lessons) => {
-    void ensureClassLabels(
-      institutionId.value,
-      lessons.map((item) => item.classId)
-    )
-  }
-)
+watch(todayLessons, (lessons) => {
+  void ensureClassLabels(
+    institutionId.value,
+    lessons.map((item) => item.classId)
+  )
+})
 
 const institutionMap = computed(() => {
   return new Map(

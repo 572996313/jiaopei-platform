@@ -4,15 +4,8 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 这一页只管课程本身与两张配套小档案：班级怎么搭去「班级档案」，教室节次去「教学资源」 -->
-    <div class="table-toolbar">
-      <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
-      <span class="education-context-text">
-        课程是班级主档与排课的前置档案；分类与班型只列常用列，备注等其余字段在编辑弹窗里看。
-      </span>
-    </div>
-
-    <!-- 两张同类小档案并排、各自封顶：它们再长也不把下面的课程主表挤出首屏 -->
+    <!-- 两张同类小档案并排、各自封顶：它们再长也不把下面的课程主表挤出首屏。
+         这一页只管课程本身与两张配套小档案：班级怎么搭去「班级档案」，教室节次去「教学资源」 -->
     <div class="course-aux-grid">
       <article class="panel-card resource-card course-aux-card">
         <div class="education-table-head">
@@ -114,13 +107,21 @@
     </div>
 
     <article class="panel-card education-panel course-main-panel">
-      <!-- 统一筛选栏:新增按钮在左、关键字 + 查询/重置一行,点按钮才重查 -->
-      <FilterBar :loading="tableLoading" @query="searchCourses" @reset="resetCourseFilters">
-        <template #extra>
+      <!-- 主表标题与主操作同一行、靠左,页面说明靠右;筛选行在它下面 -->
+      <div class="education-table-head">
+        <div class="panel-title">课程列表</div>
+        <div class="table-actions">
           <el-button v-if="canManage" type="primary" @click="openCourseDialog('create')"
             >新增课程</el-button
           >
-        </template>
+        </div>
+        <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
+        <div class="education-context-text">
+          课程是班级主档与排课的前置档案；分类与班型只列常用列，备注等其余字段在编辑弹窗里看。
+        </div>
+      </div>
+      <!-- 统一筛选栏:关键字 + 查询/重置一行,点按钮才重查 -->
+      <FilterBar :loading="tableLoading" @query="searchCourses" @reset="resetCourseFilters">
         <el-input
           v-model="courseKeyword"
           placeholder="编码/名称/学科"

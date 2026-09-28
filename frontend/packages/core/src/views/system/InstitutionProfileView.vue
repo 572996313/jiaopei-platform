@@ -2,9 +2,6 @@
   <section class="education-page">
     <article class="panel-card education-panel">
       <div class="table-toolbar">
-        <el-button :loading="institutionLoading" @click="loadCurrentInstitutionProfile"
-          >刷新机构资料</el-button
-        >
         <el-button
           v-if="permissions.canWriteInstitution"
           type="primary"
@@ -12,6 +9,12 @@
           @click="submitInstitutionProfile"
           >保存机构资料</el-button
         >
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="institutionLoading"
+          @click="loadCurrentInstitutionProfile"
+        />
         <div class="education-context-text">机构 ID 与机构编码只读,不提供多机构切换。</div>
       </div>
 
@@ -127,6 +130,7 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { fetchCurrentInstitution, updateCurrentInstitution } from '@cornerstone/core/api/system'
 import type { CurrentInstitutionProfile } from '@cornerstone/core/api/system'

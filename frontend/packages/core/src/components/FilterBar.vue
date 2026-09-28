@@ -32,6 +32,9 @@ import { ArrowDown } from '@element-plus/icons-vue'
  * 触发口径:只有点按钮才发事件,控件本身不许 @change 自动查询(输入框回车除外)。
  * 控件超过 collapse-at 个时默认收起(限一行),点「展开(N)」铺开。
  *
+ * 页面主操作按钮不在这条线上:它们属于上方的 .table-toolbar(按钮靠左、说明靠右),
+ * 本栏只有 .education-context-text 这类短句说明在整屏没有按钮时才用 #extra 挂右侧。
+ *
  * 筛选控件直接写在默认插槽里,一个控件 = 一个子节点;控件数即折叠判据。
  * 需要"标题 + 控件"并排时(统计区间、配置化的字段名),两者必须包在同一个元素里
  * (如 <span class="filter-bar-group">),否则标题会被当成一个控件多算一次。

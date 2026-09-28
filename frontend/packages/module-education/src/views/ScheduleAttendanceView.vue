@@ -4,8 +4,29 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
+    <!-- 主操作行:按钮一律靠左、当前范围回显靠右,筛选行与日期导航在它下面 -->
+    <div class="table-toolbar">
+      <el-button @click="jumpToToday">回到今天</el-button>
+      <el-button @click="statsVisible = !statsVisible">
+        统计
+        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
+          ><ArrowDown
+        /></el-icon>
+      </el-button>
+      <el-button
+        :icon="Refresh"
+        circle
+        :loading="lookupLoading || dayLoading || rangeLoading"
+        @click="refreshAll"
+      />
+      <el-button type="primary" @click="goToScheduling">去排课管理</el-button>
+      <div class="education-context-text">
+        本页只做点名、结课、停课、补课；改排课计划与新增课次请前往「排课管理」。
+      </div>
+    </div>
+
+    <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
     <div class="page-toolbar">
-      <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
       <FilterBar
         :loading="lookupLoading || dayLoading || rangeLoading"
         @query="applyFilters"
@@ -70,22 +91,6 @@
           <el-button @click="goThisPeriod">{{ rangeModeLabel }}</el-button>
           <span class="datebar-hint">{{ timetableRangeLabel }}</span>
         </template>
-      </div>
-      <div class="page-toolbar-actions">
-        <el-button @click="statsVisible = !statsVisible">
-          统计
-          <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-            ><ArrowDown
-          /></el-icon>
-        </el-button>
-        <el-button
-          :icon="Refresh"
-          circle
-          :loading="lookupLoading || dayLoading || rangeLoading"
-          @click="refreshAll"
-        />
-        <el-button @click="jumpToToday">回到今天</el-button>
-        <el-button type="primary" @click="goToScheduling">去排课管理</el-button>
       </div>
     </div>
 

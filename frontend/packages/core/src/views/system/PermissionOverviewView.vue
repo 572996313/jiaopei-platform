@@ -1,7 +1,7 @@
 <template>
   <section class="education-page permission-overview">
     <div class="table-toolbar">
-      <el-button :loading="loading" @click="loadAll">刷新</el-button>
+      <el-button :icon="Refresh" circle :loading="loading" @click="loadAll" />
       <div class="education-context-text">
         权限码来自后端 @RequiresPermission 注解扫描,这里把它与受控接口、持有角色、菜单节点、列表按钮的关系一次看全。
         数据实时聚合,页面只读;要改授权去「角色管理-分配菜单」或「菜单管理」。
@@ -222,6 +222,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   fetchPermissionOverview,

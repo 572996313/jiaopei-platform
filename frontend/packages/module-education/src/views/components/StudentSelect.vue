@@ -146,8 +146,6 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.page-toolbar-filters .archive-select,
-.table-filters .archive-select,
 .filter-bar .archive-select {
   width: 240px;
 }

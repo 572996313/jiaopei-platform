@@ -13,6 +13,7 @@
             @click="openCreateDialog"
             >新增数据源</el-button
           >
+          <el-button :icon="Refresh" circle :loading="dataSourceLoading" @click="loadDataSources" />
           <div class="education-context-text">页面下拉选项的接口与字段映射在此维护。</div>
         </div>
 
@@ -242,6 +243,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import {
   createDataSource,
   deleteDataSource,
