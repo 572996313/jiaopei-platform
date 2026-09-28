@@ -1,6 +1,7 @@
 package com.cornerstone.module.organization.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,13 +121,22 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
     }
 
     @Override
+    @Transactional
     public void deleteTemplate(Long operatorInstitutionId, Long id) {
         requireTemplate(operatorInstitutionId, id);
-        Long slotCount = timeSlotMapper.selectCount(new LambdaQueryWrapper<TimeSlotEntity>()
+        // 删模板就是不要这套节次,一并处理,不再要求"先去网格里逐个移除节次才能删模板"
+        List<TimeSlotEntity> ownedRows = timeSlotMapper.selectList(new LambdaQueryWrapper<TimeSlotEntity>()
             .eq(TimeSlotEntity::getTemplateId, id));
-        if (slotCount != null && slotCount > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该模板下还有 " + slotCount + " 条时间段,请先在网格编辑器中移除后再删除模板");
+        for (TimeSlotEntity row : ownedRows) {
+            if (timeSlotMapper.countLessonRefs(row.getId()) > 0) {
+                // 有课次引用(含已软删的课次,行还在、外键照旧指向本节次)的行删不掉,改为停用并断开来源,留在节次明细里由人工处置
+                timeSlotMapper.update(null, new LambdaUpdateWrapper<TimeSlotEntity>()
+                    .eq(TimeSlotEntity::getId, row.getId())
+                    .set(TimeSlotEntity::getStatus, "inactive")
+                    .set(TimeSlotEntity::getTemplateId, null));
+            } else {
+                timeSlotMapper.deletePhysically(row.getId());
+            }
         }
         templateMapper.deletePhysically(id);
     }

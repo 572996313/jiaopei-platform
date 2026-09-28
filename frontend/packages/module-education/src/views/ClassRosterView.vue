@@ -33,7 +33,6 @@
       <StudentSelect
         v-model="studentId"
         :institution-id="institutionId"
-        :campus-id="campusId"
         placeholder="搜索学员（姓名/学号）"
       />
     </FilterBar>
@@ -131,11 +130,7 @@
           />
         </el-form-item>
         <el-form-item label="学员" required>
-          <StudentSelect
-            v-model="form.studentId"
-            :institution-id="institutionId"
-            :campus-id="campusId"
-          />
+          <StudentSelect v-model="form.studentId" :institution-id="institutionId" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">

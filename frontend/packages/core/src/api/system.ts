@@ -748,3 +748,57 @@ export function fetchDataSourceDefinitions(codes: string[]) {
     codes: unique,
   })
 }
+
+// ==================== 编号规则 ====================
+
+/**
+ * 编号规则清单的一行：一条代码里登记的资源 + 它当前的生效格式。
+ *
+ * 清单以代码登记为准（不是以表里的行为准），所以没配置过的资源也会出现：
+ * `configured=false` 时展示的是登记默认值，`previewCode` 为空。
+ */
+export interface CodeRuleSummary {
+  id?: string | null
+  resourceCode: string
+  label: string
+  configured: boolean
+  enabled: boolean
+  prefix: string
+  /** 段间分隔符,空串=各段直接相连(是有语义的取值,不是"未填") */
+  separator: string
+  /** 日期段格式,空串=不带日期段、序号全局累加 */
+  datePattern: string
+  serialLength: number
+  defaultPrefix: string
+  defaultSeparator: string
+  defaultDatePattern: string
+  defaultSerialLength: number
+  previewCode?: string | null
+  remark?: string | null
+}
+
+export interface CodeRuleUpdatePayload {
+  enabled: boolean
+  prefix: string
+  separator: string
+  datePattern: string
+  serialLength: number
+  remark?: string | null
+}
+
+export function fetchCodeRules() {
+  return requestGet<CodeRuleSummary[]>('/system/code-rules')
+}
+
+/** 按资源码 upsert:没有新增/删除,资源清单由代码登记决定 */
+export function updateCodeRule(resourceCode: string, payload: CodeRuleUpdatePayload) {
+  return requestPut<CodeRuleSummary>(
+    `/system/code-rules/${encodeURIComponent(resourceCode)}`,
+    payload
+  )
+}
+
+/** 新增页那颗「生成」按钮:只需登录、不拦权限码,只回一个建议号不落库 */
+export function nextCodeNumber(resourceCode: string) {
+  return requestGet<string>('/system/code-rules/next', { resource: resourceCode })
+}

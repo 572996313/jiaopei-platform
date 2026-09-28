@@ -160,9 +160,6 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
         }
-        if (student.getCampusId() != null && !Objects.equals(student.getCampusId(), teachingClass.getCampusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
-        }
         if (request.leftAt() != null && request.joinedAt() != null && request.leftAt().isBefore(request.joinedAt())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "离开日期不能早于加入日期");
         }

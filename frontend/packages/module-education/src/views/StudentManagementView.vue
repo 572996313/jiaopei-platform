@@ -14,16 +14,8 @@
       </span>
     </div>
 
-    <!-- 统一筛选栏:点「查询」才按校区+关键字重查,不再选中即触发 -->
-    <FilterBar :loading="tableLoading" @query="handleCampusChange" @reset="resetStudentFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
+    <!-- 统一筛选栏:点「查询」才按关键字重查,不再选中即触发 -->
+    <FilterBar :loading="tableLoading" @query="searchStudents" @reset="resetStudentFilters">
       <el-input
         v-model="keyword"
         placeholder="学号/姓名"
@@ -139,16 +131,6 @@
         <el-form-item label="姓名" required>
           <el-input v-model="studentForm.studentName" placeholder="学员真实姓名" />
         </el-form-item>
-        <el-form-item label="校区">
-          <el-select v-model="studentForm.campusId" placeholder="选择校区" clearable filterable>
-            <el-option
-              v-for="item in campuses"
-              :key="item.id"
-              :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="性别">
           <DictSelect v-model="studentForm.gender" type-code="gender" placeholder="选择性别" />
         </el-form-item>
@@ -213,8 +195,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { storeToRefs } from 'pinia'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -222,8 +203,6 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
-import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
-import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { rememberStudentOptions } from '@cornerstone/module-education/composables/studentLabels'
 import StudentParentDrawer from './components/StudentParentDrawer.vue'
 import {
@@ -237,9 +216,7 @@ import {
 const router = useRouter()
 const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
-const scopeStore = useEducationScopeStore()
-const { campusId } = storeToRefs(scopeStore)
-const { institutionId, campuses, loadScope } = useEducationScope()
+const institutionId = computed(() => institutionStore.currentInstitutionId)
 
 const pagedStudents = ref<StudentSummary[]>([])
 const page = ref(1)
@@ -267,7 +244,6 @@ const parentDrawerVisible = ref(false)
 const contactStudentId = ref<string | null>(null)
 
 const studentForm = reactive({
-  campusId: '' as string | null,
   studentNo: '',
   studentName: '',
   gender: '',
@@ -318,7 +294,6 @@ function studentStatusTagType(status?: string | null) {
 }
 
 function resetStudentForm() {
-  studentForm.campusId = campusId.value
   studentForm.studentNo = ''
   studentForm.studentName = ''
   studentForm.gender = ''
@@ -335,7 +310,6 @@ function openStudentDialog(mode: 'create' | 'edit', row?: StudentSummary) {
   studentDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingStudentId.value = row.id
-    studentForm.campusId = row.campusId ?? null
     studentForm.studentNo = row.studentNo ?? ''
     studentForm.studentName = row.studentName ?? ''
     studentForm.gender = row.gender ?? ''
@@ -373,7 +347,6 @@ async function submitStudent() {
     if (studentDialogMode.value === 'create') {
       await createStudent({
         institutionId: institutionId.value,
-        campusId: studentForm.campusId || null,
         studentNo: studentForm.studentNo.trim(),
         studentName: studentForm.studentName.trim(),
         gender: trimToUndefined(studentForm.gender),
@@ -387,7 +360,6 @@ async function submitStudent() {
       ElMessage.success('学员已新增')
     } else if (editingStudentId.value) {
       await updateStudent(editingStudentId.value, {
-        campusId: studentForm.campusId || null,
         studentNo: studentForm.studentNo.trim(),
         studentName: studentForm.studentName.trim(),
         gender: trimToUndefined(studentForm.gender),
@@ -462,7 +434,6 @@ async function loadStudents() {
   try {
     const result = await fetchStudentPage({
       institutionId: institutionId.value,
-      campusId: campusId.value,
       keyword: trimToUndefined(keyword.value),
       page: page.value,
       pageSize: pageSize.value,
@@ -497,45 +468,23 @@ function handleSizeChange() {
   return loadStudents()
 }
 
-async function refreshScopeData() {
-  if (!institutionId.value) {
-    campuses.value = []
-    return
-  }
-  try {
-    await loadScope()
-  } catch (error) {
-    pageError.value = toMessage(error, '范围数据加载失败')
-  }
-}
-
 async function refreshAll() {
-  await refreshScopeData()
   await loadStudents()
 }
 
-async function handleCampusChange() {
-  page.value = 1
-  await refreshScopeData()
-  await loadStudents()
-}
-
-/** 重置 = 清空校区与关键字后重查 */
+/** 重置 = 清空关键字后重查 */
 async function resetStudentFilters() {
-  campusId.value = null
   keyword.value = ''
-  await handleCampusChange()
+  await searchStudents()
 }
 
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
     keyword.value = ''
     page.value = 1
     contactStudentId.value = null
     parentDrawerVisible.value = false
-    await refreshScopeData()
     await loadStudents()
   }
 )

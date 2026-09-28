@@ -159,7 +159,7 @@
           <li>当前校区：{{ formatCampus(campusId) }}</li>
           <li>班级数量：{{ classTotal }}</li>
           <li>教师数量：{{ teachers.length }}</li>
-          <li>学员数量：{{ studentTotal }}</li>
+          <li>学员数量（全机构）：{{ studentTotal }}</li>
           <li>教室数量：{{ classrooms.length }}</li>
         </ul>
       </article>
@@ -610,10 +610,10 @@ async function loadSupportingResources() {
     fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
     // 不传校区时后端返回全部教室；之前未选校区会跳过加载，导致"教室数量：0"
     fetchClassrooms(campusId.value),
-    // 学员按需搜索后本页不再持有全量列表，数量只取分页结果的 total
+    // 学员按需搜索后本页不再持有全量列表，数量只取分页结果的 total。
+    // 学员档案是机构级（校区由班级推导），所以这一条不随校区收窄，标签上写明
     fetchStudentPage({
       institutionId: institutionId.value,
-      campusId: campusId.value,
       page: 1,
       pageSize: 1,
     }),

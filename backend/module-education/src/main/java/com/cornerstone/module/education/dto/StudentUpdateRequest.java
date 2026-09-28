@@ -8,10 +8,6 @@ import java.time.LocalDate;
 
 @Schema(description = "学员更新请求")
 public record StudentUpdateRequest(
-    @Schema(description = "校区ID")
-    @JsonAlias("campus_id")
-    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
-    Long campusId,
     @Schema(description = "学员编号")
     @JsonAlias({"code", "student_code"})
     String studentNo,

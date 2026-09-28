@@ -16,9 +16,6 @@ public class StudentEntity extends BaseEntity {
     @Schema(description = "机构ID(多租户隔离)")
     private Long institutionId;
 
-    @Schema(description = "校区ID")
-    private Long campusId;
-
     @Schema(description = "归属用户ID(学生端账号绑定自己时写入,一个账号唯一归属一个档案)")
     private Long userId;
 

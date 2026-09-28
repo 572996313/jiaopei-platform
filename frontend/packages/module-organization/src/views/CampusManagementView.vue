@@ -17,9 +17,9 @@
       <article class="panel-card resource-card campus-card">
         <div class="education-table-head">
           <div class="panel-title">校区列表</div>
-          <div class="table-actions">
-            <el-button link type="primary" @click="openCampusDialog('create')">新增校区</el-button>
-          </div>
+        </div>
+        <div class="table-toolbar">
+          <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
         </div>
         <TableFillBox v-slot="{ height }">
           <el-table :data="campuses" border row-key="id" highlight-current-row :height="height">
@@ -65,9 +65,9 @@
       <article class="panel-card resource-card campus-card">
         <div class="education-table-head">
           <div class="panel-title">学期列表</div>
-          <div class="table-actions">
-            <el-button link type="primary" @click="openTermDialog('create')">新增学期</el-button>
-          </div>
+        </div>
+        <div class="table-toolbar">
+          <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
         </div>
         <TableFillBox v-slot="{ height }">
           <el-table :data="terms" border row-key="id" highlight-current-row :height="height">

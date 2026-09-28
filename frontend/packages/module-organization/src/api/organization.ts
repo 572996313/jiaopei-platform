@@ -274,6 +274,39 @@ export function deleteTimeSlot(id: string) {
   return requestDelete<null>(`/organizations/time-slots/${id}`)
 }
 
+/**
+ * 引用某节次的课次。数据归排课域，所以接口挂在 /education/** 下（本文件按 HTTP 路径调用，不 import 教务包）。
+ * deleted=true 的那些是「已删除的课次」：课表页一行都不显示，却以外键指着本节次，是节次删不掉的常见原因。
+ */
+export interface TimeSlotLessonRef {
+  lessonId: string
+  lessonDate?: string | null
+  lessonWeekday?: number | null
+  startTime?: string | null
+  endTime?: string | null
+  classId?: string | null
+  className?: string | null
+  lessonStatus?: string | null
+  deleted?: boolean
+}
+
+export interface TimeSlotLessonCleanupResult {
+  purgedCount: number
+  skippedCount: number
+  remainingLiveRefCount: number
+}
+
+export function fetchTimeSlotLessonRefs(timeSlotId: string) {
+  return requestGet<TimeSlotLessonRef[]>('/education/time-slot-lessons', { timeSlotId })
+}
+
+/** 只物理清理已删除的课次；requestDelete 不接 params，所以查询串自己拼（id 来自列表数据） */
+export function purgeTimeSlotLessonTombstones(timeSlotId: string) {
+  return requestDelete<TimeSlotLessonCleanupResult>(
+    `/education/time-slot-lessons/tombstones?timeSlotId=${encodeURIComponent(timeSlotId)}`
+  )
+}
+
 /** 单一时段类型的节次参数(节数/时长/课间/首节开始时间) */
 export interface TimeSlotSectionConfig {
   count: number

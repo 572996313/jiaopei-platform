@@ -41,7 +41,6 @@ const props = withDefaults(
     modelValue?: string | null
     /** 机构 id：小号机构（如种子数据里的 1）不到 16 位，大 ID 转字符串那步不会命中，运行期可能是数字 */
     institutionId?: string | number | null
-    campusId?: string | number | null
     placeholder?: string
     clearable?: boolean
     disabled?: boolean
@@ -49,7 +48,6 @@ const props = withDefaults(
   {
     modelValue: null,
     institutionId: null,
-    campusId: null,
     placeholder: '输入姓名或学号搜索学员',
     clearable: true,
     disabled: false,
@@ -91,7 +89,6 @@ async function load(keyword: string | null) {
   try {
     const list = await fetchStudentOptions({
       institutionId: String(props.institutionId),
-      campusId: props.campusId == null ? null : String(props.campusId),
       keyword,
     })
     options.value = list

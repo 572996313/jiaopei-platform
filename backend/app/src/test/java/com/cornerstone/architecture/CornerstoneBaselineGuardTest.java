@@ -37,11 +37,12 @@ class CornerstoneBaselineGuardTest {
 
     private static final String SCHEMA_SCRIPT = "/cornerstone/migration/V100__cornerstone_core_schema.sql";
     private static final String INVITATION_SCRIPT = "/cornerstone/migration/V103__add_sys_auth_invitation.sql";
+    private static final String CODE_RULE_SCRIPT = "/cornerstone/migration/V108__create_sys_code_rule.sql";
     private static final String SEED_SCRIPT = "/cornerstone/migration/V101__cornerstone_core_seed.sql";
     private static final String AUDIT_SCRIPT = "/cornerstone/audit-migration/V100__cornerstone_oper_log.sql";
 
     /** 基线结构脚本清单：V100 之后的底座增量表结构一律追加到这里，各守护自动覆盖。 */
-    private static final List<String> SCHEMA_SCRIPTS = List.of(SCHEMA_SCRIPT, INVITATION_SCRIPT);
+    private static final List<String> SCHEMA_SCRIPTS = List.of(SCHEMA_SCRIPT, INVITATION_SCRIPT, CODE_RULE_SCRIPT);
 
     @Test
     void flywayLocationsMustBindTheYamlListForm() {
@@ -66,6 +67,7 @@ class CornerstoneBaselineGuardTest {
         // 下游拿到的是 core 的 jar，不是源码：从 classpath 读得到才说明 resources 真的打进了产物。
         assertThat(read(SCHEMA_SCRIPT)).as("core jar 必须自带底座结构脚本").contains("CREATE TABLE");
         assertThat(read(INVITATION_SCRIPT)).as("core jar 必须自带注册凭证增量结构脚本").contains("CREATE TABLE");
+        assertThat(read(CODE_RULE_SCRIPT)).as("core jar 必须自带编号规则增量结构脚本").contains("CREATE TABLE");
         assertThat(read(SEED_SCRIPT)).as("core jar 必须自带底座种子脚本").contains("INSERT INTO");
         assertThat(read(AUDIT_SCRIPT)).as("core jar 必须自带日志库结构脚本").contains("CREATE TABLE");
     }

@@ -201,8 +201,18 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     public void deleteTimeSlot(Long operatorInstitutionId, Long id) {
         requireTimeSlot(operatorInstitutionId, id);
         // 唯一键含 deleted,软删残留会永久占用编码/名称;被引用行无法物理删除(外键),引导改用停用
-        if (timeSlotMapper.countLessonRefs(id) > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该时间段已被排课引用,无法删除,请改为停用");
+        long refCount = timeSlotMapper.countLessonRefs(id);
+        if (refCount > 0) {
+            long liveCount = timeSlotMapper.countLiveLessonRefs(id);
+            if (liveCount == 0) {
+                // 只剩已删除课次留下的墓碑引用:这些课次任何课表页都不显示,操作员在界面上找不到,所以要指明清理入口
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    "该时间段只被 " + refCount + " 个已删除的课次引用,点「查看引用」清理后即可删除");
+            }
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "该时间段被 " + refCount + " 个课次引用"
+                    + (refCount > liveCount ? "(其中 " + (refCount - liveCount) + " 个是已删除的课次)" : "")
+                    + ",无法删除,请改为停用");
         }
         timeSlotMapper.deletePhysically(id);
     }

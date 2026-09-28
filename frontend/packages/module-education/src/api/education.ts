@@ -4,7 +4,6 @@ import type { PageParams, PageResult } from '@cornerstone/core/api/common'
 export interface StudentSummary {
   id: string
   institutionId?: string | null
-  campusId?: string | null
   studentNo?: string | null
   studentName?: string | null
   gender?: string | null
@@ -481,7 +480,6 @@ export interface StudentParentCreatePayload {
 
 export interface StudentCreatePayload {
   institutionId: string
-  campusId?: string | null
   studentNo: string
   studentName: string
   gender?: string
@@ -494,7 +492,6 @@ export interface StudentCreatePayload {
 }
 
 export interface StudentUpdatePayload {
-  campusId?: string | null
   studentNo?: string
   studentName?: string
   gender?: string
@@ -538,7 +535,6 @@ export interface StudentOption {
 
 export function fetchStudentOptions(params: {
   institutionId?: string | null
-  campusId?: string | null
   keyword?: string | null
 }) {
   return requestGet<StudentOption[]>('/education/students/options', params)
@@ -1149,7 +1145,6 @@ export function fetchStudentParentPage(params: StudentParentPageParams) {
 
 export interface StudentPageParams extends PageParams {
   institutionId?: string | null
-  campusId?: string | null
   keyword?: string | null
   status?: string | null
 }

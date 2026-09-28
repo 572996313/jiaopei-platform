@@ -330,12 +330,12 @@ async function saveGrid() {
     return
   }
   const slots = rowsToApplySlots(rows.value)
-  if (slots.length === 0) {
-    ElMessage.warning('网格中没有任何已排时间,无法保存')
-    return
-  }
   if (conflicts.value.size > 0) {
     ElMessage.error('存在时间重叠的节次,请先调整')
+    return
+  }
+  // 网格空着保存 = 清空本模板的全部节次,是不可逆动作,先确认;本来就没节次时只是在存参数,不用拦
+  if (slots.length === 0 && !(await confirmClearSlots())) {
     return
   }
   saving.value = true
@@ -355,6 +355,26 @@ async function saveGrid() {
   } finally {
     saving.value = false
   }
+}
+
+/** 清空确认:没有存量节次时直接放行(否则这句提示没有内容可对) */
+async function confirmClearSlots() {
+  const ownedCount = timeSlots.value.filter(
+    (item) => item.templateId && String(item.templateId) === String(selectedTemplateId.value)
+  ).length
+  if (ownedCount === 0) {
+    return true
+  }
+  try {
+    await ElMessageBox.confirm(
+      `网格中一个时间都没有,保存会删除该模板下的 ${ownedCount} 个节次；已被排课引用的节次只停用并转为手工维护,不会消失。`,
+      '确认清空节次',
+      { type: 'warning', confirmButtonText: '清空并保存', cancelButtonText: '取消' }
+    )
+  } catch {
+    return false
+  }
+  return true
 }
 
 // ---- 新建模板 ----
@@ -406,9 +426,15 @@ async function confirmDeleteTemplate() {
   if (!template) {
     return
   }
+  const ownedCount = timeSlots.value.filter(
+    (slot) => slot.templateId && String(slot.templateId) === String(template.id)
+  ).length
   try {
     await ElMessageBox.confirm(
-      `确定删除时段模板「${template.templateName}」吗?模板下仍有时间段时需先在网格中移除。`,
+      ownedCount > 0
+        ? `确定删除时段模板「${template.templateName}」吗？模板下 ${ownedCount} 个节次会一并删除；` +
+          '已被排课引用的节次只停用并转为手工维护，不会消失。'
+        : `确定删除时段模板「${template.templateName}」吗？`,
       '删除确认',
       { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
@@ -417,10 +443,11 @@ async function confirmDeleteTemplate() {
   }
   try {
     await deleteTimeSlotTemplate(template.id)
-    ElMessage.success('时段模板已删除')
+    ElMessage.success('时段模板及其节次已删除')
     selectedTemplateId.value = null
     rows.value = []
     templates.value = await fetchTimeSlotTemplates(institutionId.value)
+    await reloadTimeSlots()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除时段模板失败'))
   }

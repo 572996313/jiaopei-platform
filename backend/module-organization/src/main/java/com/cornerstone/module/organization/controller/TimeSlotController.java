@@ -63,7 +63,9 @@ public class TimeSlotController {
             timeSlotService.updateTimeSlot(AuthContext.requireUser().orgId(), id, request));
     }
 
-    @Operation(summary = "删除时间段", description = "未被排课引用时物理删除;已被引用请改为停用")
+    @Operation(summary = "删除时间段",
+        description = "未被排课引用时物理删除;被引用时拒绝并在提示里给出引用数与其中已删除课次的数量,"
+            + "只剩已删除课次引用时可到「查看引用」清理后再删,否则请改为停用")
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {

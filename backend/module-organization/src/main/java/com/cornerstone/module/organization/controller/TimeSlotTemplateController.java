@@ -64,7 +64,8 @@ public class TimeSlotTemplateController {
             timeSlotTemplateService.updateTemplate(AuthContext.requireUser().orgId(), id, request));
     }
 
-    @Operation(summary = "删除时段模板", description = "模板下仍有时间段时禁止删除,请先在网格编辑器中移除")
+    @Operation(summary = "删除时段模板",
+        description = "级联处理模板下的节次:未被排课引用的物理删除,被引用的改为停用并断开来源")
     @DeleteMapping("/{id}")
     @RequiresPermission("organization:write")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -72,7 +73,7 @@ public class TimeSlotTemplateController {
         return ApiResponse.success("时段模板已删除", null);
     }
 
-    @Operation(summary = "套用时段模板", description = "把网格编辑器确认的节次批量展开保存:按(星期,编码)匹配复用已有时间段,新增则插入,移除且未被排课引用则删除,被引用则停用")
+    @Operation(summary = "套用时段模板", description = "把网格编辑器确认的节次批量展开保存:按(星期,编码)匹配复用已有时间段,新增则插入,移除且未被排课引用则删除,被引用则停用;slots 传空数组即清空该模板下的全部节次")
     @PostMapping("/{id}/apply")
     @RequiresPermission("organization:write")
     public ApiResponse<TimeSlotApplyResponse> apply(@PathVariable Long id,

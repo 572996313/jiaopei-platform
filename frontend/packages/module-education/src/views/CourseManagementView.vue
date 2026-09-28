@@ -4,107 +4,50 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 两张同类小档案并排、各自封顶：它们再长也不把下面的课程主表挤出首屏。
-         这一页只管课程本身与两张配套小档案：班级怎么搭去「班级档案」，教室节次去「教学资源」 -->
-    <div class="course-aux-grid">
-      <article class="panel-card resource-card course-aux-card">
-        <div class="education-table-head">
-          <div class="panel-title">课程分类</div>
-          <div class="table-actions">
-            <el-button
-              v-if="canManage"
-              link
-              type="primary"
-              @click="openCourseCategoryDialog('create')"
-              >新增分类</el-button
-            >
-          </div>
+    <!-- 课程分类是课程的从属档案，跟着课程同屏；班型与课程无关（建班级时才选），已独立成「班型档案」页。
+         它只列常用列并封顶三行，再长也不把下面的课程主表挤出首屏。 -->
+    <article class="panel-card resource-card course-category-card">
+      <div class="education-table-head">
+        <div class="panel-title">课程分类</div>
+        <div class="table-actions">
+          <el-button v-if="canManage" type="primary" @click="openCourseCategoryDialog('create')"
+            >新增分类</el-button
+          >
         </div>
-        <!-- 分类/班型是全量小表,排序走 Element Plus 本地比较,不发请求 -->
-        <el-table
-          :data="courseCategories"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="AUX_TABLE_MAX_HEIGHT"
-        >
-          <el-table-column prop="categoryCode" label="分类编码" width="120" fixed="left" sortable />
-          <el-table-column
-            prop="categoryName"
-            label="分类名称"
-            min-width="140"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column label="状态" width="90" prop="status" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                enabledStatusLabel(row.status)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="sortOrder" label="排序" width="70" align="right" sortable />
-          <el-table-column v-if="canManage" label="操作" width="110" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)"
-                >编辑</el-button
-              >
-              <el-button link type="danger" @click="confirmDeleteCourseCategory(row)"
-                >删除</el-button
-              >
-            </template>
-          </el-table-column>
-        </el-table>
-      </article>
-
-      <article class="panel-card resource-card course-aux-card">
-        <div class="education-table-head">
-          <div class="panel-title">班型列表</div>
-          <div class="table-actions">
-            <el-button v-if="canManage" link type="primary" @click="openClassTypeDialog('create')"
-              >新增班型</el-button
+      </div>
+      <!-- 分类是全量小表,排序走 Element Plus 本地比较,不发请求 -->
+      <el-table
+        :data="courseCategories"
+        border
+        row-key="id"
+        highlight-current-row
+        :max-height="AUX_TABLE_MAX_HEIGHT"
+      >
+        <el-table-column prop="categoryCode" label="分类编码" width="150" fixed="left" sortable />
+        <el-table-column
+          prop="categoryName"
+          label="分类名称"
+          min-width="200"
+          show-overflow-tooltip
+          sortable
+        />
+        <el-table-column label="状态" width="100" prop="status" sortable>
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)">{{ enabledStatusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sortOrder" label="排序" width="90" align="right" sortable />
+        <el-table-column prop="remark" label="备注" min-width="240" show-overflow-tooltip />
+        <el-table-column v-if="canManage" label="操作" width="110" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openCourseCategoryDialog('edit', row)"
+              >编辑</el-button
             >
-          </div>
-        </div>
-        <el-table
-          :data="classTypes"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="AUX_TABLE_MAX_HEIGHT"
-        >
-          <el-table-column prop="typeCode" label="班型编码" width="120" fixed="left" sortable />
-          <el-table-column
-            prop="typeName"
-            label="班型名称"
-            min-width="130"
-            show-overflow-tooltip
-            sortable
-          />
-          <!-- 最少/最多合成一列：两列并排在这张半宽卡里放不下,而这两个数总是一起看 -->
-          <el-table-column label="人数区间" width="110" align="right" sortable>
-            <template #default="{ row }"
-              >{{ row.minStudents ?? '-' }} ~ {{ row.maxStudents ?? '-' }}</template
-            >
-          </el-table-column>
-          <el-table-column label="状态" width="90" prop="status" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{
-                enabledStatusLabel(row.status)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column v-if="canManage" label="操作" width="110" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openClassTypeDialog('edit', row)"
-                >编辑</el-button
-              >
-              <el-button link type="danger" @click="confirmDeleteClassType(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </article>
-    </div>
+            <el-button link type="danger" @click="confirmDeleteCourseCategory(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </article>
 
     <article class="panel-card education-panel course-main-panel">
       <!-- 主表标题与主操作同一行、靠左,页面说明靠右;筛选行在它下面 -->
@@ -116,8 +59,9 @@
           >
         </div>
         <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
+        <el-button @click="goClassTypes">班型档案</el-button>
         <div class="education-context-text">
-          课程是班级主档与排课的前置档案；分类与班型只列常用列，备注等其余字段在编辑弹窗里看。
+          课程是班级主档与排课的前置档案；分类只列常用列，备注等其余字段在编辑弹窗里看。
         </div>
       </div>
       <!-- 统一筛选栏:关键字 + 查询/重置一行,点按钮才重查 -->
@@ -290,55 +234,13 @@
         }}</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog
-      v-model="classTypeDialogVisible"
-      :title="classTypeDialogMode === 'create' ? '新增班型' : '编辑班型'"
-      width="560px"
-    >
-      <el-alert
-        v-if="classTypeFormError"
-        :title="classTypeFormError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="education-alert"
-      />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="班型编码"><el-input v-model="classTypeForm.typeCode" /></el-form-item>
-        <el-form-item label="班型名称"><el-input v-model="classTypeForm.typeName" /></el-form-item>
-        <el-form-item label="授课方式"
-          ><DictSelect v-model="classTypeForm.teachingMethod" type-code="teaching_method"
-        /></el-form-item>
-        <el-form-item label="最少人数"
-          ><el-input-number v-model="classTypeForm.minStudents" :min="0" style="width: 100%"
-        /></el-form-item>
-        <el-form-item label="最多人数"
-          ><el-input-number v-model="classTypeForm.maxStudents" :min="0" style="width: 100%"
-        /></el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="classTypeForm.status">
-            <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="备注"
-          ><el-input v-model="classTypeForm.remark" type="textarea" :rows="2"
-        /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="classTypeDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="classTypeSubmitting" @click="submitClassType">{{
-          classTypeDialogMode === 'create' ? '提交班型' : '保存修改'
-        }}</el-button>
-      </template>
-    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -349,23 +251,19 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { tableViewportHeight } from '@cornerstone/core/utils/table-view'
 import {
-  createClassType,
   createCourse,
   createCourseCategory,
-  deleteClassType,
   deleteCourse,
   deleteCourseCategory,
-  fetchClassTypes,
   fetchCourseCategories,
   fetchCoursePage,
-  updateClassType,
   updateCourse,
   updateCourseCategory,
-  type ClassTypeRecord,
   type CourseCategoryRecord,
   type CourseRecord,
 } from '@cornerstone/module-education/api/education'
 
+const router = useRouter()
 const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
 const auth = useAuthStore()
@@ -375,16 +273,16 @@ const institutionId = computed(() => institutionStore.currentInstitutionId)
 const canManage = computed(() => auth.hasPermission('education:catalog:write'))
 
 /**
- * 分类/班型两张卡各给三行（表头 38 + 3×36 = 146）。
- * 这个数字不是随手取的：整页 729 里按钮行 32 + 两处间距 36 + 课程卡固定部分 201 已经占掉 269，
- * 两张卡加到四行（265）就只剩 195 给主表，低于 TableFillBox 的 200 保底，整页会顶出 734。
- * 这两张是小体量档案，十几条时表体自己滚，改完点卡头上的「新增」始终免滚轮。
+ * 分类卡给三行（表头 38 + 3×36 = 146，整卡 229）。
+ * 这个数字不是随手取的：整页 729 里卡头 43 + 卡内间距 12 + 表体 146 + 卡片内边距 28 = 229，
+ * 再加与主表之间的 18 间距，主表只剩 480；加到四行（表体 182）主表就掉到 444，
+ * 课程分页的 10 条更放不下。分类是小体量档案，十几条时表体自己滚，
+ * 改完点卡头上的「新增」始终免滚轮。
  */
 const AUX_TABLE_MAX_HEIGHT = tableViewportHeight(3)
 
 const courseCategories = ref<CourseCategoryRecord[]>([])
 const courses = ref<CourseRecord[]>([])
-const classTypes = ref<ClassTypeRecord[]>([])
 const lookupLoading = ref(false)
 const tableLoading = ref(false)
 const pageError = ref('')
@@ -407,23 +305,18 @@ const courseSort = useTableSort({
 
 const courseCategoryDialogVisible = ref(false)
 const courseDialogVisible = ref(false)
-const classTypeDialogVisible = ref(false)
 
 const courseCategoryDialogMode = ref<'create' | 'edit'>('create')
 const courseDialogMode = ref<'create' | 'edit'>('create')
-const classTypeDialogMode = ref<'create' | 'edit'>('create')
 
 const editingCourseCategoryId = ref<string | null>(null)
 const editingCourseId = ref<string | null>(null)
-const editingClassTypeId = ref<string | null>(null)
 
 const courseCategorySubmitting = ref(false)
 const courseSubmitting = ref(false)
-const classTypeSubmitting = ref(false)
 
 const courseCategoryFormError = ref('')
 const courseFormError = ref('')
-const classTypeFormError = ref('')
 
 const courseCategoryForm = reactive({
   categoryCode: '',
@@ -439,16 +332,6 @@ const courseForm = reactive({
   courseName: '',
   subjectName: '',
   teachingMethod: '',
-  status: 'active',
-  remark: '',
-})
-
-const classTypeForm = reactive({
-  typeCode: '',
-  typeName: '',
-  teachingMethod: '',
-  minStudents: 1,
-  maxStudents: 12,
   status: 'active',
   remark: '',
 })
@@ -498,17 +381,6 @@ function resetCourseForm() {
   courseForm.status = 'active'
   courseForm.remark = ''
   courseFormError.value = ''
-}
-
-function resetClassTypeForm() {
-  classTypeForm.typeCode = ''
-  classTypeForm.typeName = ''
-  classTypeForm.teachingMethod = ''
-  classTypeForm.minStudents = 1
-  classTypeForm.maxStudents = 12
-  classTypeForm.status = 'active'
-  classTypeForm.remark = ''
-  classTypeFormError.value = ''
 }
 
 async function loadCourses() {
@@ -588,25 +460,6 @@ function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
   }
   courseFormError.value = ''
   courseDialogVisible.value = true
-}
-
-function openClassTypeDialog(mode: 'create' | 'edit', row?: ClassTypeRecord) {
-  classTypeDialogMode.value = mode
-  if (mode === 'edit' && row) {
-    editingClassTypeId.value = row.id
-    classTypeForm.typeCode = row.typeCode ?? ''
-    classTypeForm.typeName = row.typeName ?? ''
-    classTypeForm.teachingMethod = row.teachingMethod ?? ''
-    classTypeForm.minStudents = row.minStudents ?? 1
-    classTypeForm.maxStudents = row.maxStudents ?? 12
-    classTypeForm.status = row.status ?? 'active'
-    classTypeForm.remark = row.remark ?? ''
-  } else {
-    editingClassTypeId.value = null
-    resetClassTypeForm()
-  }
-  classTypeFormError.value = ''
-  classTypeDialogVisible.value = true
 }
 
 async function submitCourseCategory() {
@@ -750,77 +603,6 @@ async function confirmDeleteCourse(row: CourseRecord) {
   }
 }
 
-async function submitClassType() {
-  if (!institutionId.value) {
-    classTypeFormError.value = '请先选择机构范围'
-    return
-  }
-  if (!trimToUndefined(classTypeForm.typeCode) || !trimToUndefined(classTypeForm.typeName)) {
-    classTypeFormError.value = '请完整填写班型编码和名称'
-    return
-  }
-  classTypeSubmitting.value = true
-  classTypeFormError.value = ''
-  try {
-    if (classTypeDialogMode.value === 'create') {
-      await createClassType({
-        institutionId: institutionId.value,
-        typeCode: classTypeForm.typeCode.trim(),
-        typeName: classTypeForm.typeName.trim(),
-        teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
-        minStudents: classTypeForm.minStudents,
-        maxStudents: classTypeForm.maxStudents,
-        status: classTypeForm.status,
-        remark: trimToUndefined(classTypeForm.remark),
-      })
-      ElMessage.success('班型已新增')
-    } else if (editingClassTypeId.value) {
-      await updateClassType(editingClassTypeId.value, {
-        typeCode: classTypeForm.typeCode.trim(),
-        typeName: classTypeForm.typeName.trim(),
-        teachingMethod: trimToUndefined(classTypeForm.teachingMethod),
-        minStudents: classTypeForm.minStudents,
-        maxStudents: classTypeForm.maxStudents,
-        status: classTypeForm.status,
-        remark: trimToUndefined(classTypeForm.remark),
-      })
-      ElMessage.success('班型已更新')
-    }
-    classTypeDialogVisible.value = false
-    classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
-  } catch (error) {
-    classTypeFormError.value = toMessage(
-      error,
-      classTypeDialogMode.value === 'create' ? '新增班型失败' : '更新班型失败'
-    )
-  } finally {
-    classTypeSubmitting.value = false
-  }
-}
-
-async function confirmDeleteClassType(row: ClassTypeRecord) {
-  try {
-    await ElMessageBox.confirm(
-      `确定删除班型「${row.typeName || row.typeCode || row.id}」吗？`,
-      '删除确认',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      }
-    )
-  } catch {
-    return
-  }
-  try {
-    await deleteClassType(row.id)
-    ElMessage.success('班型已删除')
-    classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
-  } catch (error) {
-    ElMessage.error(toMessage(error, '删除班型失败'))
-  }
-}
-
 async function loadCourseCategories() {
   if (!institutionId.value) {
     courseCategories.value = []
@@ -834,29 +616,20 @@ async function loadCourseCategories() {
   }
 }
 
-async function loadClassTypes() {
-  if (!institutionId.value) {
-    classTypes.value = []
-    return
-  }
-  try {
-    classTypes.value = await fetchClassTypes({ institutionId: institutionId.value })
-  } catch (error) {
-    classTypes.value = []
-    ElMessage.error(toMessage(error, '班型加载失败'))
-  }
-}
-
 async function refreshAll() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    await Promise.all([loadCourseCategories(), loadCourses(), loadClassTypes()])
+    await Promise.all([loadCourseCategories(), loadCourses()])
   } catch (error) {
     pageError.value = toMessage(error, '课程档案加载失败')
   } finally {
     lookupLoading.value = false
   }
+}
+
+function goClassTypes() {
+  void router.push('/class-types')
 }
 
 watch(institutionId, async () => {
@@ -874,34 +647,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 两张小档案卡并排。整行不给 max-height：表体已按三行封顶，卡片高度只由内容决定
+/* 分类卡整行铺开、不给 max-height：表体已按三行封顶，卡片高度只由内容决定
    （43 卡头 + 12 卡内间距 + 146 表体 + 28 内边距 = 229），剩下的都是课程主表的。
-   grid-template-rows 仍要 minmax(0,1fr)：默认行高由内容撑开，两张卡一高一矮时矮的那张
-   会被拉伸到行的上限、把下面的主表顶下去。 */
-.course-aux-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr);
-  gap: 18px;
-  align-items: stretch;
-  flex: 0 0 auto;
-}
-
-.course-aux-card {
+   flex:0 0 auto 是必需的：.education-page 是纵向 flex，主表靠 TableFillBox 自量高度，
+   这一卡若不固定，会被 flex 拉伸、把主表顶下去。 */
+.course-category-card {
   min-height: 0;
   overflow: hidden;
   gap: 12px;
   padding: 14px 16px;
+  flex: 0 0 auto;
 }
 
-/* 课程是这一页的主表：吃掉两张小卡之外的剩余高度 */
+/* 课程是这一页的主表：吃掉分类卡之外的剩余高度 */
 .course-main-panel {
   min-height: 240px;
-}
-
-@media (max-width: 1280px) {
-  .course-aux-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>

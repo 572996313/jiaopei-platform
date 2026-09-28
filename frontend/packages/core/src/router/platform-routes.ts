@@ -95,6 +95,11 @@ export const platformChildRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/system/InvitationManagementView.vue'),
   },
   {
+    path: 'system/code-rules',
+    name: 'system-code-rules',
+    component: () => import('@cornerstone/core/views/system/CodeRuleManagementView.vue'),
+  },
+  {
     path: 'system/operlogs',
     name: 'system-operlogs',
     component: () => import('@cornerstone/core/views/system/OperLogView.vue'),

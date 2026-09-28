@@ -10,13 +10,13 @@ import java.util.List;
 
 public interface StudentService {
 
-    List<StudentEntity> listStudents(Long institutionId, Long campusId, String keyword);
+    List<StudentEntity> listStudents(Long institutionId, String keyword);
 
     /**
      * 学员下拉选项:关键字模糊匹配姓名/学号,最多返回 OPTION_LIMIT 条。
      * 全量学员可达数千条,下拉一次性渲染会把页面卡住,所以只按需取一屏。
      */
-    List<StudentOptionView> listStudentOptions(Long institutionId, Long campusId, String keyword);
+    List<StudentOptionView> listStudentOptions(Long institutionId, String keyword);
 
     PageResult<StudentEntity> pageStudents(StudentPageQuery query);
 

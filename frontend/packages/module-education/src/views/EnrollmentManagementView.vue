@@ -42,7 +42,6 @@
       <StudentSelect
         v-model="studentId"
         :institution-id="institutionId"
-        :campus-id="campusId"
         placeholder="搜索学员（姓名/学号）"
       />
     </FilterBar>
@@ -138,7 +137,6 @@
           <StudentSelect
             v-model="form.studentId"
             :institution-id="institutionId"
-            :campus-id="campusId"
             placeholder="搜索学员（姓名/学号）"
             :clearable="false"
           />

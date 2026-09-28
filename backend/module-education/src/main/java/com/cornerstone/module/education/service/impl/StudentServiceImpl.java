@@ -15,8 +15,6 @@ import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.service.StudentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
-import com.cornerstone.module.organization.domain.entity.CampusEntity;
-import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
@@ -51,25 +49,20 @@ public class StudentServiceImpl implements StudentService {
 
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
-    private final CampusMapper campusMapper;
     private final DictValueValidator dictValueValidator;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
-                              CampusMapper campusMapper, DictValueValidator dictValueValidator) {
+                              DictValueValidator dictValueValidator) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
-        this.campusMapper = campusMapper;
         this.dictValueValidator = dictValueValidator;
     }
 
     @Override
-    public List<StudentEntity> listStudents(Long institutionId, Long campusId, String keyword) {
+    public List<StudentEntity> listStudents(Long institutionId, String keyword) {
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
         if (institutionId != null) {
             wrapper.eq(StudentEntity::getInstitutionId, institutionId);
-        }
-        if (campusId != null) {
-            wrapper.eq(StudentEntity::getCampusId, campusId);
         }
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w
@@ -82,14 +75,11 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public List<StudentOptionView> listStudentOptions(Long institutionId, Long campusId, String keyword) {
+    public List<StudentOptionView> listStudentOptions(Long institutionId, String keyword) {
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
             .select(StudentEntity::getId, StudentEntity::getStudentNo, StudentEntity::getStudentName);
         if (institutionId != null) {
             wrapper.eq(StudentEntity::getInstitutionId, institutionId);
-        }
-        if (campusId != null) {
-            wrapper.eq(StudentEntity::getCampusId, campusId);
         }
         String normalizedKeyword = normalizeToNull(keyword);
         if (normalizedKeyword != null) {
@@ -110,9 +100,6 @@ public class StudentServiceImpl implements StudentService {
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getInstitutionId() != null) {
             wrapper.eq(StudentEntity::getInstitutionId, query.getInstitutionId());
-        }
-        if (query.getCampusId() != null) {
-            wrapper.eq(StudentEntity::getCampusId, query.getCampusId());
         }
         String keyword = normalize(query.getKeyword());
         if (keyword != null && !keyword.isBlank()) {
@@ -136,16 +123,12 @@ public class StudentServiceImpl implements StudentService {
     /** 列表与分页共用默认排序 */
     private void applyDefaultOrder(LambdaQueryWrapper<StudentEntity> wrapper) {
         wrapper.orderByAsc(StudentEntity::getInstitutionId)
-            .orderByAsc(StudentEntity::getCampusId)
             .orderByAsc(StudentEntity::getStudentNo);
     }
 
     @Override
     public StudentEntity createStudent(StudentCreateRequest request) {
         requireInstitution(request.institutionId());
-        if (request.campusId() != null) {
-            requireCampusInInstitution(request.campusId(), request.institutionId());
-        }
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
@@ -158,7 +141,6 @@ public class StudentServiceImpl implements StudentService {
 
         StudentEntity entity = new StudentEntity();
         entity.setInstitutionId(request.institutionId());
-        entity.setCampusId(request.campusId());
         entity.setStudentNo(studentNo);
         entity.setStudentName(normalize(request.studentName()));
         entity.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
@@ -181,9 +163,6 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public StudentEntity updateStudent(Long id, StudentUpdateRequest request) {
         StudentEntity existing = requireStudent(id);
-        if (request.campusId() != null) {
-            requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
-        }
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
@@ -201,7 +180,6 @@ public class StudentServiceImpl implements StudentService {
         if (request.studentName() != null && !request.studentName().isBlank()) {
             existing.setStudentName(normalize(request.studentName()));
         }
-        existing.setCampusId(request.campusId());
         existing.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
         existing.setBirthday(request.birthday());
         existing.setGuardianName(normalizeToNull(request.guardianName()));
@@ -235,16 +213,6 @@ public class StudentServiceImpl implements StudentService {
     private void requireInstitution(Long institutionId) {
         if (institutionMapper.selectById(institutionId) == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + institutionId);
-        }
-    }
-
-    private void requireCampusInInstitution(Long campusId, Long institutionId) {
-        CampusEntity campus = campusMapper.selectById(campusId);
-        if (campus == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
-        }
-        if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
         }
     }
 

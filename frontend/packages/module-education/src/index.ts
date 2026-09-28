@@ -1,6 +1,15 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { AlarmClock, Avatar, Bell, Files, Notebook, Reading, User } from '@element-plus/icons-vue'
+import {
+  AlarmClock,
+  Avatar,
+  Bell,
+  Files,
+  Grid,
+  Notebook,
+  Reading,
+  User,
+} from '@element-plus/icons-vue'
 import {
   registerBannerActions,
   registerInvitationActions,
@@ -24,6 +33,11 @@ export const educationRoutes: RouteRecordRaw[] = [
     path: 'courses',
     name: 'courses',
     component: () => import('@cornerstone/module-education/views/CourseManagementView.vue'),
+  },
+  {
+    path: 'class-types',
+    name: 'class-types',
+    component: () => import('@cornerstone/module-education/views/ClassTypeManagementView.vue'),
   },
   {
     path: 'students',
@@ -164,8 +178,22 @@ registerNavItems([
     groupLabel: '档案中心',
     groupOrder: 40,
     prefixes: ['/courses'],
-    // 原「校区与学期」页里的三张教务卡片独立成页(V85):课程为主表，分类与班型封顶并排
+    // 原「校区与学期」页里的三张教务卡片独立成页(V85):课程为主表，分类封顶同屏；
+    // 班型与课程无关(V87 已拆到「班型档案」)
     menuCode: 'education_courses',
+  },
+  {
+    key: 'class-types',
+    to: '/class-types',
+    label: '班型档案',
+    title: '班型档案',
+    icon: Grid,
+    group: 'archive',
+    groupLabel: '档案中心',
+    groupOrder: 40,
+    prefixes: ['/class-types'],
+    // 班型是建班级时才选的档案，与课程零交集，V87 从课程页的辅助卡拆成独立页
+    menuCode: 'education_class_types',
   },
   {
     key: 'teachers',

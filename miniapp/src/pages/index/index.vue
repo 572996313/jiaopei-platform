@@ -3,8 +3,12 @@ import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { fetchUnreadCount } from '@/api/announcement'
+import { useBranding } from '@/composables/use-branding'
 
 const authStore = useAuthStore()
+// 名称与登录页同源(系统参数 brand.name);分享/扫码直达时没经过登录页,这里补发一次
+const { brandName, loadBranding } = useBranding()
+loadBranding()
 
 const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '',
@@ -51,7 +55,7 @@ function openFeature(path: string) {
   <view class="home-page">
     <view class="greeting">
       <text class="greet-line">你好,{{ displayName || '同学家长' }}</text>
-      <text class="sub-line">欢迎来到教培学堂</text>
+      <text class="sub-line">欢迎来到{{ brandName }}</text>
     </view>
 
     <view class="section-title">常用服务</view>

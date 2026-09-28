@@ -142,11 +142,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     public EnrollmentEntity createEnrollment(EnrollmentCreateRequest request) {
         requireInstitution(request.institutionId());
-        StudentEntity student = requireStudentInInstitution(request.studentId(), request.institutionId());
-        TeachingClassEntity teachingClass = requireClassInInstitution(request.classId(), request.institutionId());
-        if (student.getCampusId() != null && !Objects.equals(student.getCampusId(), teachingClass.getCampusId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学员校区与班级校区不一致");
-        }
+        requireStudentInInstitution(request.studentId(), request.institutionId());
+        requireClassInInstitution(request.classId(), request.institutionId());
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }

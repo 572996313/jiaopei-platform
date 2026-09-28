@@ -204,7 +204,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsDuplicateStudentNo() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, dictValueValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectCount(any())).thenReturn(1L);
 
@@ -215,7 +215,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsFutureBirthday() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, campusMapper, dictValueValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createStudent(studentRequest("S002", LocalDate.now().plusDays(1))));
@@ -901,7 +901,6 @@ class EducationThirdMainlineValidationTest {
     private StudentCreateRequest studentRequest(String studentNo, LocalDate birthday) {
         return new StudentCreateRequest(
             1L,
-            null,
             studentNo,
             "李同学",
             null,
@@ -984,7 +983,6 @@ class EducationThirdMainlineValidationTest {
         StudentEntity student = new StudentEntity();
         student.setId(10L);
         student.setInstitutionId(1L);
-        student.setCampusId(1L);
         return student;
     }
 

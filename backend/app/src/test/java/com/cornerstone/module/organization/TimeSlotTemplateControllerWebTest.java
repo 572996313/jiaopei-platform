@@ -107,14 +107,32 @@ class TimeSlotTemplateControllerWebTest {
     }
 
     @Test
-    void applyRejectsEmptySlots() throws Exception {
+    void applyAcceptsEmptySlotsAsClearAll() throws Exception {
+        given(permissionService.hasPermission(any(), anyString())).willReturn(true);
+        given(timeSlotTemplateService.applyTemplate(any(), any(), any())).willReturn(
+            new TimeSlotApplyResponse(0, 0, 2, 1, List.of()));
+
+        // 网格清空后保存是合法意图:空数组表示删除该模板下的全部节次,不再判 400
+        mockMvc.perform(post("/api/organizations/time-slot-templates/10/apply")
+                .header("Authorization", "Bearer stub-access-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"slots": []}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.removedCount").value(2))
+            .andExpect(jsonPath("$.data.deactivatedCount").value(1));
+    }
+
+    @Test
+    void applyRejectsMissingSlots() throws Exception {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
 
         mockMvc.perform(post("/api/organizations/time-slot-templates/10/apply")
                 .header("Authorization", "Bearer stub-access-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"slots": []}
+                    {}
                     """))
             .andExpect(status().isBadRequest());
     }

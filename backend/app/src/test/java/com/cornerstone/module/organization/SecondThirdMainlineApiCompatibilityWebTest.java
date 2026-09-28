@@ -176,7 +176,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
         given(termService.listTerms(any())).willReturn(List.of());
         given(timeSlotService.listTimeSlots(any(), any(), any())).willReturn(List.of());
         given(teacherService.listTeachers(any(), any())).willReturn(List.of());
-        given(studentService.listStudents(any(), any(), any())).willReturn(List.of());
+        given(studentService.listStudents(any(), any())).willReturn(List.of());
         given(teachingClassService.listClasses(any(), any(), any())).willReturn(List.of());
         given(courseCategoryService.listCategories(any())).willReturn(List.of());
         given(courseService.listCourses(any(), any())).willReturn(List.of());
@@ -225,10 +225,9 @@ class SecondThirdMainlineApiCompatibilityWebTest {
 
         mockMvc.perform(get("/api/education/students")
                 .param("institutionId", "INST-001")
-                .param("campusId", "CMP-001")
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk());
-        verify(studentService).listStudents(1L, 1L, null);
+        verify(studentService).listStudents(1L, null);
 
         mockMvc.perform(get("/api/education/classes")
                 .param("institutionId", "INST-001")

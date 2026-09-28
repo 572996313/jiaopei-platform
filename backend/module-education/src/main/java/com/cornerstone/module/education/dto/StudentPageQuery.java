@@ -12,9 +12,6 @@ public class StudentPageQuery extends PageQuery {
     @Schema(description = "机构 ID,精确匹配")
     private Long institutionId;
 
-    @Schema(description = "校区 ID,精确匹配")
-    private Long campusId;
-
     @Schema(description = "关键字,模糊匹配学号/姓名")
     private String keyword;
 
@@ -28,14 +25,6 @@ public class StudentPageQuery extends PageQuery {
 
     public void setInstitutionId(Long institutionId) {
         this.institutionId = institutionId;
-    }
-
-    public Long getCampusId() {
-        return campusId;
-    }
-
-    public void setCampusId(Long campusId) {
-        this.campusId = campusId;
     }
 
     public String getKeyword() {

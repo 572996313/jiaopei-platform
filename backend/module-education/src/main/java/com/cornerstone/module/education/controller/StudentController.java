@@ -40,29 +40,25 @@ public class StudentController {
     @GetMapping
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentEntity>> list(@RequestParam(required = false) String institutionId,
-                                                 @RequestParam(required = false) String campusId,
                                                  @RequestParam(required = false) String keyword) {
         return ApiResponse.success("学员列表已加载", studentService.listStudents(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
-            ExternalIdParser.parseOptional(campusId, "campusId"),
             keyword
         ));
     }
 
-    @Operation(summary = "学员下拉选项", description = "按机构/校区筛选,关键字模糊匹配姓名/学号,最多返回 30 条,供表单与筛选下拉按需搜索")
+    @Operation(summary = "学员下拉选项", description = "按机构筛选,关键字模糊匹配姓名/学号,最多返回 30 条,供表单与筛选下拉按需搜索")
     @GetMapping("/options")
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentOptionView>> options(@RequestParam(required = false) String institutionId,
-                                                        @RequestParam(required = false) String campusId,
                                                         @RequestParam(required = false) String keyword) {
         return ApiResponse.success("学员下拉选项已加载", studentService.listStudentOptions(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
-            ExternalIdParser.parseOptional(campusId, "campusId"),
             keyword
         ));
     }
 
-    @Operation(summary = "学员分页列表", description = "按机构/校区筛选,关键字模糊匹配学号/姓名,分页返回")
+    @Operation(summary = "学员分页列表", description = "按机构筛选,关键字模糊匹配学号/姓名,分页返回")
     @GetMapping("/page")
     @RequiresPermission("education:read")
     public ApiResponse<PageResult<StudentEntity>> page(@Valid @ParameterObject StudentPageQuery query) {

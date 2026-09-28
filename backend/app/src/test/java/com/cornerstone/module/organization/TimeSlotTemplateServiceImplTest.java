@@ -1,5 +1,7 @@
 package com.cornerstone.module.organization;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
@@ -17,6 +19,8 @@ import com.cornerstone.module.organization.service.impl.TimeSlotTemplateServiceI
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.time.LocalTime;
 import java.util.List;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +30,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,6 +40,12 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TimeSlotTemplateServiceImplTest {
+
+    @BeforeAll
+    static void initEntityTableInfo() {
+        // 单测环境没有 MyBatis 启动流程，手动注册实体元数据，删除模板时的停用 wrapper 才能解析出列名
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), TimeSlotEntity.class);
+    }
 
     @Mock
     private TimeSlotTemplateMapper templateMapper;
@@ -146,6 +158,29 @@ class TimeSlotTemplateServiceImplTest {
     }
 
     @Test
+    void applyWithEmptySlotsClearsEveryOwnedRow() {
+        // 网格里一个时间都没排 = 清空该模板的全部节次，这是合法意图，不再被"列表不能为空"挡在门外
+        when(templateMapper.selectById(10L)).thenReturn(template(10L, 1L));
+        TimeSlotEntity unreferenced = slotRow(101L, 1, "AM1", "上1", LocalTime.of(7, 55), LocalTime.of(8, 40));
+        TimeSlotEntity referenced = slotRow(102L, 1, "AM2", "上2", LocalTime.of(8, 50), LocalTime.of(9, 35));
+        when(timeSlotMapper.selectList(any())).thenReturn(List.of(unreferenced, referenced), List.of(), List.of());
+        when(timeSlotMapper.countLessonRefs(101L)).thenReturn(0L);
+        when(timeSlotMapper.countLessonRefs(102L)).thenReturn(1L);
+
+        TimeSlotApplyResponse response = service().applyTemplate(1L, 10L, new TimeSlotApplyRequest(null, List.of()));
+
+        assertEquals(0, response.createdCount());
+        assertEquals(1, response.removedCount());
+        assertEquals(1, response.deactivatedCount());
+        assertTrue(response.slots().isEmpty());
+        verify(timeSlotMapper).deletePhysically(101L);
+        ArgumentCaptor<TimeSlotEntity> updated = ArgumentCaptor.forClass(TimeSlotEntity.class);
+        verify(timeSlotMapper).updateById(updated.capture());
+        assertEquals(102L, updated.getValue().getId());
+        assertEquals("inactive", updated.getValue().getStatus());
+    }
+
+    @Test
     void applyRejectsOverlappingSlotsOnSameWeekday() {
         when(templateMapper.selectById(10L)).thenReturn(template(10L, 1L));
         TimeSlotApplyRequest request = new TimeSlotApplyRequest(null, List.of(
@@ -189,12 +224,42 @@ class TimeSlotTemplateServiceImplTest {
     }
 
     @Test
-    void deleteTemplateRejectsWhenSlotsStillExist() {
+    void deleteTemplateRemovesUnreferencedSlotsAndDetachesReferencedOnes() {
         when(templateMapper.selectById(10L)).thenReturn(template(10L, 1L));
-        when(timeSlotMapper.selectCount(any())).thenReturn(5L);
+        TimeSlotEntity free = slotRow(101L, 1, "AM9", "上9", LocalTime.of(15, 0), LocalTime.of(15, 45));
+        TimeSlotEntity used = slotRow(102L, 1, "AM8", "上8", LocalTime.of(16, 0), LocalTime.of(16, 45));
+        when(timeSlotMapper.selectList(any())).thenReturn(List.of(free, used));
+        when(timeSlotMapper.countLessonRefs(101L)).thenReturn(0L);
+        when(timeSlotMapper.countLessonRefs(102L)).thenReturn(2L);
 
-        assertThrows(BusinessException.class, () -> service().deleteTemplate(1L, 10L));
+        service().deleteTemplate(1L, 10L);
 
+        verify(timeSlotMapper).deletePhysically(101L);
+        // 被课次引用的行只能停用+断开来源;updateById 会忽略 null,必须走 UpdateWrapper.set
+        verify(timeSlotMapper).update(isNull(), any());
+        verify(timeSlotMapper, never()).updateById(any(TimeSlotEntity.class));
+        verify(templateMapper).deletePhysically(10L);
+    }
+
+    @Test
+    void deleteTemplateWithoutSlotsOnlyRemovesTheTemplate() {
+        when(templateMapper.selectById(10L)).thenReturn(template(10L, 1L));
+        when(timeSlotMapper.selectList(any())).thenReturn(List.of());
+
+        service().deleteTemplate(1L, 10L);
+
+        verify(timeSlotMapper, never()).deletePhysically(any());
+        verify(templateMapper).deletePhysically(10L);
+    }
+
+    @Test
+    void deleteTemplateOfAnotherInstitutionIsRejected() {
+        when(templateMapper.selectById(10L)).thenReturn(template(10L, 2L));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service().deleteTemplate(1L, 10L));
+
+        assertEquals(ResultCode.FORBIDDEN, exception.getResultCode());
         verify(templateMapper, never()).deletePhysically(10L);
     }
 }

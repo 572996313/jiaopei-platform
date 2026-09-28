@@ -2,6 +2,7 @@
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { isApiError } from '@/utils/request'
+import { takePendingRoute } from '@/utils/auth-session'
 import { useAuthStore } from '@/stores/auth'
 import { precheckInvitation, type InvitationPrecheckView, type MiniappRole } from '@/api/auth'
 

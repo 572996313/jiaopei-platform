@@ -13,4 +13,11 @@ public interface AttendanceMapper extends BaseMapper<AttendanceEntity> {
      */
     @Delete("DELETE FROM jp_attendance WHERE id = #{id}")
     int physicalDeleteById(@Param("id") Long id);
+
+    /**
+     * 清理墓碑课次时一并删掉它的考勤行(课次都没了,点名记录没有任何界面能再读到,却以外键指着课次)。
+     * 只能对已删除的课次调用,由调用方保证。
+     */
+    @Delete("DELETE FROM jp_attendance WHERE lesson_id = #{lessonId}")
+    int physicalDeleteByLessonId(@Param("lessonId") Long lessonId);
 }

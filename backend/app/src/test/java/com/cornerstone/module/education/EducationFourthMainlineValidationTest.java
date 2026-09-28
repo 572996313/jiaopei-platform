@@ -311,7 +311,6 @@ class EducationFourthMainlineValidationTest {
         StudentEntity student = new StudentEntity();
         student.setId(10L);
         student.setInstitutionId(1L);
-        student.setCampusId(2L);
         return student;
     }
 
