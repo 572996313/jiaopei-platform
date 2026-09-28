@@ -4,138 +4,104 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 整页级视图开关:按钮行放查询条件上方,统计条在其下方展开/收起 -->
+    <!-- 本页只留机构级两张档案：账号默认校区在「校区默认账号」，教室在「教室管理」，节次在「时段模板」 -->
     <div class="table-toolbar">
-      <el-button @click="statsVisible = !statsVisible">
-        统计
-        <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
-          ><ArrowDown
-        /></el-icon>
-      </el-button>
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
+      <el-button @click="goCampusAccounts">校区默认账号</el-button>
+      <span class="education-context-text">
+        校区决定教室与时间段的归属；学期是排课的周期维度，班级可以不挂学期。
+      </span>
     </div>
 
-    <div v-show="statsVisible" class="dashboard-grid campus-stat-grid">
-      <article class="stat-card">
-        <div class="stat-label">校区数量</div>
-        <div class="stat-value">{{ campuses.length }}</div>
-        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">学期数量</div>
-        <div class="stat-value">{{ terms.length }}</div>
-        <div class="stat-hint">当前机构：{{ formatInstitution(institutionId) }}</div>
-      </article>
-    </div>
-
-    <!-- 本页只留机构级资源：校区/学期/账号默认校区。教室按校区在「教室管理」，节次在「节次与时间模板」 -->
-    <div class="resource-grid">
-      <article class="panel-card resource-card">
-        <div class="resource-head">
-          <div>
-            <div class="panel-title">校区列表</div>
-            <div class="education-context-text">
-              当前机构：{{ formatInstitution(institutionId) }}
-            </div>
+    <div class="campus-grid">
+      <article class="panel-card resource-card campus-card">
+        <div class="education-table-head">
+          <div class="panel-title">校区列表</div>
+          <div class="table-actions">
+            <el-button link type="primary" @click="openCampusDialog('create')">新增校区</el-button>
           </div>
         </div>
-        <!-- 本卡片自身的主操作:表格上方一行、左对齐(整页级开关在上面那行) -->
-        <div class="table-toolbar">
-          <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
-        </div>
-        <el-table
-          :data="campuses"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="TABLE_STACK_MAX_HEIGHT"
-        >
-          <el-table-column prop="campusCode" label="校区编码" width="150" fixed="left" sortable />
-          <el-table-column
-            prop="campusName"
-            label="校区名称"
-            min-width="180"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column prop="campusType" label="校区类型" width="120" sortable>
-            <template #default="{ row }">{{ campusTypeLabel(row.campusType) }}</template>
-          </el-table-column>
-          <el-table-column prop="principalName" label="负责人" width="120" sortable />
-          <el-table-column prop="phone" label="联系电话" width="150" sortable />
-          <el-table-column
-            prop="address"
-            label="地址"
-            min-width="220"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column prop="status" label="状态" width="120" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ campusStatusLabel(row.status) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openCampusDialog('edit', row)">编辑</el-button>
-              <el-button link type="danger" @click="confirmDeleteCampus(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <TableFillBox v-slot="{ height }">
+          <el-table :data="campuses" border row-key="id" highlight-current-row :height="height">
+            <el-table-column prop="campusCode" label="校区编码" width="150" fixed="left" sortable />
+            <el-table-column
+              prop="campusName"
+              label="校区名称"
+              min-width="180"
+              show-overflow-tooltip
+              sortable
+            />
+            <el-table-column prop="campusType" label="校区类型" width="120" sortable>
+              <template #default="{ row }">{{ campusTypeLabel(row.campusType) }}</template>
+            </el-table-column>
+            <el-table-column prop="principalName" label="负责人" width="120" sortable />
+            <el-table-column prop="phone" label="联系电话" width="150" sortable />
+            <el-table-column
+              prop="address"
+              label="地址"
+              min-width="220"
+              show-overflow-tooltip
+              sortable
+            />
+            <el-table-column prop="status" label="状态" width="120" sortable>
+              <template #default="{ row }">
+                <el-tag :type="statusTagType(row.status)">{{
+                  campusStatusLabel(row.status)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openCampusDialog('edit', row)"
+                  >编辑</el-button
+                >
+                <el-button link type="danger" @click="confirmDeleteCampus(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
       </article>
 
-      <article class="panel-card resource-card">
-        <div class="resource-head">
-          <div>
-            <div class="panel-title">学期列表</div>
-            <div class="education-context-text">
-              当前机构：{{ formatInstitution(institutionId) }}
-            </div>
+      <article class="panel-card resource-card campus-card">
+        <div class="education-table-head">
+          <div class="panel-title">学期列表</div>
+          <div class="table-actions">
+            <el-button link type="primary" @click="openTermDialog('create')">新增学期</el-button>
           </div>
         </div>
-        <div class="table-toolbar">
-          <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
-        </div>
-        <el-table
-          :data="terms"
-          border
-          row-key="id"
-          highlight-current-row
-          :max-height="TABLE_STACK_MAX_HEIGHT"
-        >
-          <el-table-column prop="termCode" label="学期编码" width="150" fixed="left" sortable />
-          <el-table-column
-            prop="termName"
-            label="学期名称"
-            min-width="180"
-            show-overflow-tooltip
-            sortable
-          />
-          <el-table-column prop="academicYear" label="学年" width="120" sortable />
-          <el-table-column label="学季" width="120" prop="season" sortable>
-            <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
-          </el-table-column>
-          <el-table-column label="起止日期" min-width="220" prop="startDate" sortable>
-            <template #default="{ row }"
-              >{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template
-            >
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="120" sortable>
-            <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">{{ termStatusLabel(row.status) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openTermDialog('edit', row)">编辑</el-button>
-              <el-button link type="danger" @click="confirmDeleteTerm(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <TableFillBox v-slot="{ height }">
+          <el-table :data="terms" border row-key="id" highlight-current-row :height="height">
+            <el-table-column prop="termCode" label="学期编码" width="150" fixed="left" sortable />
+            <el-table-column
+              prop="termName"
+              label="学期名称"
+              min-width="180"
+              show-overflow-tooltip
+              sortable
+            />
+            <el-table-column prop="academicYear" label="学年" width="120" sortable />
+            <el-table-column label="学季" width="120" prop="season" sortable>
+              <template #default="{ row }">{{ seasonLabel(row.season) }}</template>
+            </el-table-column>
+            <el-table-column label="起止日期" min-width="220" prop="startDate" sortable>
+              <template #default="{ row }"
+                >{{ row.startDate || '-' }} 至 {{ row.endDate || '-' }}</template
+              >
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="120" sortable>
+              <template #default="{ row }">
+                <el-tag :type="statusTagType(row.status)">{{ termStatusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openTermDialog('edit', row)">编辑</el-button>
+                <el-button link type="danger" @click="confirmDeleteTerm(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </TableFillBox>
       </article>
-
-      <!-- 账号默认校区偏好：底座用户表已无该列，由本模块按校区维护（校区在卡片内选） -->
-      <CampusDefaultAccountCard :campuses="campuses" />
     </div>
 
     <el-dialog
@@ -249,10 +215,10 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
-import { ArrowDown, Refresh } from '@element-plus/icons-vue'
-import { storeToRefs } from 'pinia'
+import { Refresh } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import {
   createCampus,
   createTerm,
@@ -265,25 +231,16 @@ import {
   type CampusSummary,
   type TermSummary,
 } from '@cornerstone/module-organization/api/organization'
-import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
-import CampusDefaultAccountCard from '@cornerstone/module-organization/views/campus/CampusDefaultAccountCard.vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 
+const router = useRouter()
 const institutionStore = useInstitutionStore()
-const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
 const institutionId = computed(() => institutionStore.currentInstitutionId)
-/**
- * 本页不再按校区筛选内容，但「校区默认账号」卡与教室/节次页共用同一个校区范围，
- * 加载完校区后要把它兜成一个有效值，避免切页时带着上一个机构留下的死 id。
- */
-const { campusId } = storeToRefs(scopeStore)
 const campuses = ref<CampusSummary[]>([])
 const terms = ref<TermSummary[]>([])
-
-const statsVisible = ref(false)
 
 const pageError = ref('')
 const lookupLoading = ref(false)
@@ -331,10 +288,6 @@ function toMessage(error: unknown, fallback: string) {
 function trimToUndefined(value: string) {
   const normalized = value.trim()
   return normalized ? normalized : undefined
-}
-
-function formatInstitution(id?: string | null) {
-  return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')
 }
 
 function campusTypeLabel(value?: string | null) {
@@ -421,10 +374,6 @@ async function loadResources() {
 
     campuses.value = campusList
     terms.value = termList
-
-    if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
-      campusId.value = campusList[0]?.id || null
-    }
   } catch (error) {
     pageError.value = toMessage(error, '组织资源加载失败')
   } finally {
@@ -543,9 +492,6 @@ async function confirmDeleteCampus(row: CampusSummary) {
   try {
     await deleteCampus(row.id)
     ElMessage.success('校区已删除')
-    if (campusId.value === row.id) {
-      campusId.value = null
-    }
     await loadResources()
   } catch (error) {
     ElMessage.error(toMessage(error, '删除校区失败'))
@@ -636,6 +582,11 @@ async function confirmDeleteTerm(row: TermSummary) {
   }
 }
 
+function goCampusAccounts() {
+  // 两张页共用同一个校区范围 store，跳过去落地就在同一个校区，不用带参数
+  router.push('/campus-accounts')
+}
+
 async function refreshAll() {
   await loadResources()
 }
@@ -656,7 +607,6 @@ async function initializePage() {
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
     await loadResources()
   }
 )
@@ -667,3 +617,30 @@ onMounted(() => {
   initializePage()
 })
 </script>
+
+<style scoped>
+/* 两张同类卡并排、等高吃满页签行以下那一段。
+   不走 core 的 .resource-grid：那条规则把末张卡整行铺开（grid-column:1/-1）、
+   又给表体钉了 398px 的十行保底，两张卡照它排反而装不进 729。
+   grid-template-rows 必须是 minmax(0,1fr)：默认行高由内容撑开，TableFillBox 就量不到剩余空间。 */
+.campus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.campus-card {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .campus-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>

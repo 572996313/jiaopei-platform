@@ -13,12 +13,18 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
  * 所以壳工程装配清单必须引到本文件（只挂路由不引入口 = 扩展点不生效）。
  */
 
-/** 组织模块路由：校区与学期 / 教室 / 时段模板 / 节次明细 */
+/** 组织模块路由：校区与学期 / 校区默认账号 / 教室 / 时段模板 / 节次明细 */
 export const organizationRoutes: RouteRecordRaw[] = [
   {
     path: 'campus',
     name: 'campus',
     component: () => import('@cornerstone/module-organization/views/CampusManagementView.vue'),
+  },
+  {
+    path: 'campus-accounts',
+    name: 'campus-accounts',
+    component: () =>
+      import('@cornerstone/module-organization/views/CampusAccountManagementView.vue'),
   },
   {
     path: 'classrooms',
@@ -60,8 +66,8 @@ registerNavItems([
     group: 'archive',
     groupLabel: '档案中心',
     groupOrder: 40,
-    prefixes: ['/campus', '/classrooms', '/time-slots', '/time-slot-list'],
-    // 目录与四张页面（校区与学期 / 教室管理 / 时段模板 / 节次明细）的名称、顺序、图标都在 sys_menu(V81/V82)
+    prefixes: ['/campus', '/campus-accounts', '/classrooms', '/time-slots', '/time-slot-list'],
+    // 目录与五张页面（校区与学期 / 校区默认账号 / 教室管理 / 时段模板 / 节次明细）的名称、顺序、图标都在 sys_menu(V81/V82/V86)
     menuCatalogCode: 'organization_teaching_resources',
   },
 ])
