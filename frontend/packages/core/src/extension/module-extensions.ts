@@ -6,11 +6,12 @@ import type { PermissionLabelItem } from '@cornerstone/core/constants/permission
 /**
  * 底座 ↔ 业务模块的扩展点注册表。
  *
- * 提供八类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
+ * 提供九类扩展点：列表单元格渲染器（业务列的回显）、权限码中文名（业务域「查看/维护」标签与分组）、
  * 侧边栏导航项（业务模块自己的页面入口）、品牌文案（壳工程登记本项目产物名）、
  * 机构切换广播（清业务筛选范围）、页面插槽（业务往别的模块页面里注入内容块）、
  * 注册凭证行操作（业务把端能力按钮注入凭证页操作列，如小程序码）、
- * 横幅右侧动作（业务把全局入口注入顶栏，如公告铃铛）。
+ * 横幅右侧动作（业务把全局入口注入顶栏，如公告铃铛）、
+ * 横幅范围芯片（业务把跟着机构走的工作范围注入顶栏，如校区范围）。
  * 底座页面会需要业务维度的数据，但底座包不允许 import 业务包，否则换行业时拆不干净。做法与后端的"事件 + SPI"一致：
  * 业务模块在自己入口调用 register*／on* 登记实现，底座只按名字查表调用；
  * 模块未装配（清单里没挂）时查不到实现，底座按空数据降级而不是报错。
@@ -264,4 +265,33 @@ export function registerBannerActions(items: BannerActionDefinition[]) {
 /** 底座现算要渲染的业务动作（登记晚于外壳加载也要出现，所以不取快照） */
 export function contributedBannerActions(): BannerActionDefinition[] {
   return bannerActionContributions
+}
+
+/**
+ * 横幅上的范围芯片：校区这类"跟着机构走、不属于任何一个页面"的工作范围。
+ * 与 BannerAction 的区别只在落点——芯片排在机构芯片左侧，读起来是「机构 / 校区」一组，
+ * 铃铛一类动作仍留在最左。底座不认识"校区"这个概念，组件按扩展点注入，
+ * 自己取数、自己管状态；未装配业务模块时那一段直接不渲染。
+ */
+export interface BannerChipDefinition {
+  key: string
+  /** 机构芯片左侧自左向右顺序，未传取 100 */
+  order?: number
+  component: Component
+}
+
+const bannerChipContributions: BannerChipDefinition[] = []
+
+export function registerBannerChips(items: BannerChipDefinition[]) {
+  for (const item of items) {
+    if (!bannerChipContributions.some((existing) => existing.key === item.key)) {
+      bannerChipContributions.push(item)
+      bannerChipContributions.sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
+    }
+  }
+}
+
+/** 底座现算要渲染的业务范围芯片（同上，不取快照） */
+export function contributedBannerChips(): BannerChipDefinition[] {
+  return bannerChipContributions
 }

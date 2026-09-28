@@ -120,6 +120,27 @@ public class CodeRuleServiceImpl implements CodeRuleService {
         return buildNextCode(spec, format);
     }
 
+    @Override
+    public List<String> listEnabledResourceCodes() {
+        // 只报"登记过且已启用"的：规则行能留着但资源可能已不再登记（模块没装配、资源被改名），
+        // 那种情况下按钮亮着、点下去必报"未登记的编码资源"，比不显示更糟。
+        return codeRuleMapper
+            .selectList(new LambdaQueryWrapper<CodeRuleEntity>()
+                .eq(CodeRuleEntity::getEnabled, Boolean.TRUE))
+            .stream()
+            .map(CodeRuleEntity::getResourceCode)
+            .filter(registry.all()::containsKey)
+            .sorted()
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public String autoCodeIfEnabled(String resourceCode) {
+        CodeRuleSpec spec = registry.require(resourceCode);
+        EffectiveFormat format = effectiveFormat(spec, findRuleRow(resourceCode));
+        return format.enabled() ? buildNextCode(spec, format) : null;
+    }
+
     /** 拼号段前缀 → 取该段最大同号 → 续排，候选号被占（含墓碑）就继续 +1。 */
     private String buildNextCode(CodeRuleSpec spec, EffectiveFormat format) {
         String segment = CodePattern.segment(format.prefix(), format.separator(),

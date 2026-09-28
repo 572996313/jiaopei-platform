@@ -1,7 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { defineAsyncComponent } from 'vue'
 import { OfficeBuilding } from '@element-plus/icons-vue'
 import {
   onInstitutionReset,
+  registerBannerChips,
   registerNavItems,
   registerPermissionLabels,
 } from '@cornerstone/core/extension/module-extensions'
@@ -76,3 +78,18 @@ registerNavItems([
 onInstitutionReset(() => {
   useEducationScopeStore().reset()
 })
+
+/**
+ * 横幅上的校区范围芯片：底座不认识"校区"这个概念，组件按 registerBannerChips 注入机构芯片右侧。
+ * 它同时是 campusId 的初值来源（进系统/换机构时 initScope 落账号默认校区），
+ * 所以业务模块没装配时页面一律按"全部校区"跑，不会拿不到范围。
+ */
+registerBannerChips([
+  {
+    key: 'organization-campus-scope',
+    order: 100,
+    component: defineAsyncComponent(
+      () => import('@cornerstone/module-organization/views/components/CampusScopeChip.vue')
+    ),
+  },
+])

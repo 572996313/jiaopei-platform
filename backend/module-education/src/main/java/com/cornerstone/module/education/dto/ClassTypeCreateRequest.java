@@ -15,9 +15,9 @@ public record ClassTypeCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "机构ID不能为空")
     Long institutionId,
-    @Schema(description = "类型编码", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "类型编码(可留空,留空时按编号规则自动生成)")
     @JsonAlias({"code", "type_code"})
-    @NotBlank(message = "班级类型编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String typeCode,
     @Schema(description = "类型名称(如 一对一/小班/大班)", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "type_name"})

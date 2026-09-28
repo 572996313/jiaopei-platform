@@ -21,7 +21,8 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "首页"
+				"navigationBarTitleText": "首页",
+				"enablePullDownRefresh": true
 			}
 		},
 		{
@@ -34,6 +35,12 @@
 			"path": "pages/timetable/index",
 			"style": {
 				"navigationBarTitleText": "课程表"
+			}
+		},
+		{
+			"path": "pages/classmates/index",
+			"style": {
+				"navigationBarTitleText": "我的同学"
 			}
 		},
 		{

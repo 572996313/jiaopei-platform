@@ -157,9 +157,13 @@
         class="education-alert"
       />
       <el-form label-position="top" class="education-form">
-        <el-form-item label="分类编码"
-          ><el-input v-model="courseCategoryForm.categoryCode"
-        /></el-form-item>
+        <el-form-item label="分类编码">
+          <CodeInput
+            v-model="courseCategoryForm.categoryCode"
+            resource="course_category"
+            :mode="courseCategoryDialogMode"
+          />
+        </el-form-item>
         <el-form-item label="分类名称"
           ><el-input v-model="courseCategoryForm.categoryName"
         /></el-form-item>
@@ -211,7 +215,9 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="课程编码"><el-input v-model="courseForm.courseCode" /></el-form-item>
+        <el-form-item label="课程编码">
+          <CodeInput v-model="courseForm.courseCode" resource="course" :mode="courseDialogMode" />
+        </el-form-item>
         <el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item>
         <el-form-item label="学科"><el-input v-model="courseForm.subjectName" /></el-form-item>
         <el-form-item label="授课方式"
@@ -245,6 +251,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'

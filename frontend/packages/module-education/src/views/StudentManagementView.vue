@@ -126,7 +126,12 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="学号" required>
-          <el-input v-model="studentForm.studentNo" placeholder="例如 STU-20260902-001" />
+          <CodeInput
+            v-model="studentForm.studentNo"
+            resource="student"
+            :mode="studentDialogMode"
+            placeholder="例如 STU-20260902-001"
+          />
         </el-form-item>
         <el-form-item label="姓名" required>
           <el-input v-model="studentForm.studentName" placeholder="学员真实姓名" />
@@ -200,6 +205,7 @@ import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'

@@ -3,6 +3,7 @@ package com.cornerstone.core.tenant.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.dto.CurrentInstitutionUpdateRequest;
 import com.cornerstone.core.tenant.dto.CurrentInstitutionView;
@@ -19,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class InstitutionServiceImpl implements InstitutionService {
 
     private final InstitutionMapper institutionMapper;
+    private final CodeRuleService codeRuleService;
 
-    public InstitutionServiceImpl(InstitutionMapper institutionMapper) {
+    public InstitutionServiceImpl(InstitutionMapper institutionMapper, CodeRuleService codeRuleService) {
         this.institutionMapper = institutionMapper;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -32,7 +35,8 @@ public class InstitutionServiceImpl implements InstitutionService {
 
     @Override
     public InstitutionEntity createInstitution(InstitutionCreateRequest request) {
-        String orgCode = normalize(request.orgCode());
+        // 留空即由编号规则补号（未启用规则时 resolveForCreate 仍报"机构编码不能为空"）
+        String orgCode = codeRuleService.resolveForCreate("institution", request.orgCode());
         String orgName = normalize(request.orgName());
         assertUniqueOrgCode(orgCode);
         assertUniqueOrgName(orgName);

@@ -11,6 +11,7 @@ import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.organization.service.impl.CampusServiceImpl;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.service.impl.InstitutionServiceImpl;
+import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +36,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createInstitutionRejectsDuplicateOrgCode() {
-        InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper);
+        InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectCount(any())).thenReturn(1L);
 
         assertThrows(BusinessException.class, () -> service.createInstitution(institutionRequest("ORG001", "测试机构")));
@@ -45,7 +46,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createInstitutionRejectsDuplicateOrgName() {
-        InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper);
+        InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectCount(any())).thenReturn(0L, 1L);
 
         assertThrows(BusinessException.class, () -> service.createInstitution(institutionRequest("ORG002", "测试机构")));
@@ -55,7 +56,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createCampusRejectsDuplicateCampusCodeWithinInstitution() {
-        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
+        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectCount(any())).thenReturn(1L);
 
@@ -66,7 +67,7 @@ class OrganizationDuplicateValidationTest {
 
     @Test
     void createCampusRejectsDuplicateCampusNameWithinInstitution() {
-        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
+        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectCount(any())).thenReturn(0L, 1L);
 

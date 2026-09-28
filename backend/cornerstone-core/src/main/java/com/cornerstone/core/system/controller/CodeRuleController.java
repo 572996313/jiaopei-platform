@@ -25,9 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>读写共用一个权限码 {@code system:code-rule:manage}（与数据源配置同口径：一码覆盖整页，
  * 页面节点与写权限等价），所以维护页只挂一条按钮节点即可。</p>
  *
- * <p>{@code GET /next} 刻意不设权限码、只需登录：它是每个主数据新增页上那颗"生成"按钮，
+ * <p>{@code GET /next} 与 {@code GET /enabled} 刻意不设权限码、只需登录：它们服务的是每个主数据新增页上那颗"生成"按钮，
  * 教师也要能给自己填编码，挂上 system 前缀等于逼机构管理员去勾一个他不一定有的系统页。
- * 它只回一个尚未占用的建议号，不读出任何一行数据。</p>
+ * 前者只回一个尚未占用的建议号，后者只回一串资源码，都不读出任何一行数据。</p>
  */
 @RestController
 @RequestMapping("/api/system/code-rules")
@@ -54,6 +54,12 @@ public class CodeRuleController {
     public ApiResponse<CodeRuleView> update(@PathVariable String resourceCode,
                                             @Valid @RequestBody CodeRuleUpdateRequest request) {
         return ApiResponse.success("编号规则已保存", codeRuleService.updateRule(resourceCode, request));
+    }
+
+    @GetMapping("/enabled")
+    @Operation(summary = "获取已启用编号方法的资源", description = "新增页据此决定是否显示取号入口,只需登录")
+    public ApiResponse<List<String>> enabled() {
+        return ApiResponse.success("编号规则已加载", codeRuleService.listEnabledResourceCodes());
     }
 
     @GetMapping("/next")

@@ -21,6 +21,7 @@ import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -63,15 +64,17 @@ public class TeacherServiceImpl implements TeacherService {
     private final CampusMapper campusMapper;
     private final UserAccountMapper userAccountMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public TeacherServiceImpl(TeacherMapper teacherMapper, InstitutionMapper institutionMapper,
                               CampusMapper campusMapper, UserAccountMapper userAccountMapper,
-                              DictValueValidator dictValueValidator) {
+                              DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.teacherMapper = teacherMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
         this.userAccountMapper = userAccountMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -215,7 +218,7 @@ public class TeacherServiceImpl implements TeacherService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入职日期不能晚于当前日期");
         }
 
-        String teacherCode = normalize(request.teacherCode());
+        String teacherCode = codeRuleService.resolveForCreate("teacher", request.teacherCode());
         String teacherName = normalize(request.teacherName());
         String phone = normalizeToNull(request.phone());
         assertUniqueTeacherCode(request.institutionId(), teacherCode, null);

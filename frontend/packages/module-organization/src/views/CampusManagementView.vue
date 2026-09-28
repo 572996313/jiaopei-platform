@@ -118,7 +118,9 @@
         class="education-alert"
       />
       <el-form label-position="top" class="education-form">
-        <el-form-item label="校区编码"><el-input v-model="campusForm.campusCode" /></el-form-item>
+        <el-form-item label="校区编码">
+          <CodeInput v-model="campusForm.campusCode" resource="campus" :mode="campusDialogMode" />
+        </el-form-item>
         <el-form-item label="校区名称"><el-input v-model="campusForm.campusName" /></el-form-item>
         <el-form-item label="校区类型">
           <DictSelect
@@ -169,7 +171,9 @@
         class="education-alert"
       />
       <el-form label-position="top" class="education-form">
-        <el-form-item label="学期编码"><el-input v-model="termForm.termCode" /></el-form-item>
+        <el-form-item label="学期编码">
+          <CodeInput v-model="termForm.termCode" resource="term" :mode="termDialogMode" />
+        </el-form-item>
         <el-form-item label="学期名称"><el-input v-model="termForm.termName" /></el-form-item>
         <el-form-item label="学年"
           ><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027"
@@ -233,11 +237,14 @@ import {
 } from '@cornerstone/module-organization/api/organization'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 
 const router = useRouter()
 const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
+const scopeStore = useEducationScopeStore()
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const campuses = ref<CampusSummary[]>([])
 const terms = ref<TermSummary[]>([])
@@ -374,6 +381,13 @@ async function loadResources() {
 
     campuses.value = campusList
     terms.value = termList
+    // 本页是校区的维护入口：新增/改名/停用后把全站那一份校区清单一起刷掉，
+    // 横幅那颗范围芯片与其余页面的名称回显才不会停在旧列表
+    await scopeStore.loadCampuses(institutionId.value, true)
+    // 删掉的正好是当前范围：收在「全部校区」，不然各页都在筛一个已经不存在的校区
+    if (scopeStore.campusId && !campusList.some((item) => item.id === scopeStore.campusId)) {
+      scopeStore.setCampus(null)
+    }
   } catch (error) {
     pageError.value = toMessage(error, '组织资源加载失败')
   } finally {

@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public record CampusCreateRequest(
     @NotNull(message = "机构ID不能为空")
     Long institutionId,
-    @NotBlank(message = "校区编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String campusCode,
     @NotBlank(message = "校区名称不能为空")
     String campusName,

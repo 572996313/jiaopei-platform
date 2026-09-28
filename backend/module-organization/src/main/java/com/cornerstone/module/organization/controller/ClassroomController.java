@@ -1,6 +1,7 @@
 package com.cornerstone.module.organization.controller;
 
 import com.cornerstone.core.auth.annotation.RequiresPermission;
+import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.web.ExternalIdParser;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
@@ -36,7 +37,9 @@ public class ClassroomController {
     @GetMapping
     @RequiresPermission("organization:read")
     public ApiResponse<List<ClassroomEntity>> list(@RequestParam(required = false) String campusId) {
-        return ApiResponse.success("教室列表已加载", classroomService.listClassrooms(ExternalIdParser.parseOptional(campusId, "campusId")));
+        // 机构只认登录态：不传 campusId 时按本机构全部校区汇总，绝不允许拿它读别家的教室
+        return ApiResponse.success("教室列表已加载", classroomService.listClassrooms(
+            AuthContext.requireUser().orgId(), ExternalIdParser.parseOptional(campusId, "campusId")));
     }
 
     @Operation(summary = "创建教室")

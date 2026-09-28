@@ -15,9 +15,9 @@ public record StudentCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "机构ID不能为空")
     Long institutionId,
-    @Schema(description = "学员编号", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "学员编号(留空时按编号规则自动生成)")
     @JsonAlias({"code", "student_code"})
-    @NotBlank(message = "学号不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String studentNo,
     @Schema(description = "学员姓名", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "student_name"})

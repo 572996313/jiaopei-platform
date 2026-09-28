@@ -185,6 +185,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import {
@@ -199,9 +200,9 @@ import {
 } from '@cornerstone/module-education/api/education'
 import {
   fetchClassrooms,
-  fetchMyCampusPreference,
   type ClassroomSummary,
 } from '@cornerstone/module-organization/api/organization'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import {
   classLabelOf,
@@ -226,9 +227,11 @@ interface ReminderItem {
 
 const router = useRouter()
 const institutionStore = useInstitutionStore()
+/** 与组织/教务各页共用同一份校区范围，默认值是当前账号在本机构设的默认校区 */
+const scopeStore = useEducationScopeStore()
+const { campusId } = storeToRefs(scopeStore)
 const { institutions, institutionId, campuses, loadScope } = useEducationScope()
 
-const campusId = ref<string | null>(null)
 const today = ref(todayValue())
 const boardLoading = ref(false)
 const pageError = ref('')
@@ -658,6 +661,8 @@ async function refreshBoard() {
   boardLoading.value = true
   pageError.value = ''
   try {
+    // 校区范围由横幅芯片初始化；这里 await 一次，保证首屏那趟查询按已落定的范围取数
+    await scopeStore.initScope(institutionId.value)
     await loadScope()
     await loadSupportingResources()
     const lessons = sortedLessons(
@@ -678,37 +683,16 @@ async function refreshBoard() {
   }
 }
 
+/** 首进只做「拉机构清单」，取数与 refreshBoard 同一条路，范围初始化也在里面 */
 async function initializeBoard() {
-  boardLoading.value = true
   pageError.value = ''
   try {
     await institutionStore.loadInstitutions()
-    // 默认校区已不是底座用户属性，改由组织模块的偏好接口提供
-    const myPreference = await fetchMyCampusPreference()
-    campusId.value = myPreference.campusId || null
-
-    if (institutionId.value) {
-      await loadScope()
-      if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
-        campusId.value = null
-        await loadScope()
-      }
-      await loadSupportingResources()
-      const lessons = sortedLessons(
-        await fetchDayTimetable({
-          institutionId: institutionId.value,
-          campusId: campusId.value,
-          lessonDate: today.value,
-        })
-      )
-      todayLessons.value = lessons
-      await loadAttendancePages(lessons)
-    }
   } catch (error) {
     pageError.value = error instanceof Error && error.message ? error.message : '工作台初始化失败'
-  } finally {
-    boardLoading.value = false
+    return
   }
+  await refreshBoard()
 }
 
 onMounted(() => {
@@ -718,7 +702,7 @@ onMounted(() => {
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 换机构时 store 的 reset() 已清空范围，refreshBoard 里的 initScope 会在新机构上重新落一次
     await refreshBoard()
   }
 )

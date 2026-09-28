@@ -9,6 +9,7 @@ import com.cornerstone.module.organization.dto.ClassroomCreateRequest;
 import com.cornerstone.module.organization.dto.ClassroomUpdateRequest;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.ClassroomService;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.math.BigDecimal;
@@ -23,21 +24,33 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final ClassroomMapper classroomMapper;
     private final CampusMapper campusMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public ClassroomServiceImpl(ClassroomMapper classroomMapper, CampusMapper campusMapper,
-                                DictValueValidator dictValueValidator) {
+                                DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.classroomMapper = classroomMapper;
         this.campusMapper = campusMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
-    public List<ClassroomEntity> listClassrooms(Long campusId) {
+    public List<ClassroomEntity> listClassrooms(Long operatorInstitutionId, Long campusId) {
+        List<Long> campusIds = listInstitutionCampusIds(operatorInstitutionId);
         LambdaQueryWrapper<ClassroomEntity> wrapper = new LambdaQueryWrapper<ClassroomEntity>()
             .orderByAsc(ClassroomEntity::getCampusId)
             .orderByAsc(ClassroomEntity::getClassroomCode);
         if (campusId != null) {
+            // 传了别家的校区 id 就什么都别回，而不是把别家的教室列出来
+            if (!campusIds.contains(campusId)) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的教室数据");
+            }
             wrapper.eq(ClassroomEntity::getCampusId, campusId);
+        } else if (!campusIds.isEmpty()) {
+            // 不传校区 = 本机构全部校区的汇总；本机构还没建校区就没有教室可列
+            wrapper.in(ClassroomEntity::getCampusId, campusIds);
+        } else {
+            return List.of();
         }
         return classroomMapper.selectList(wrapper);
     }
@@ -48,7 +61,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         if (campus == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
         }
-        String classroomCode = normalize(request.classroomCode());
+        String classroomCode = codeRuleService.resolveForCreate("classroom", request.classroomCode());
         String classroomName = normalize(request.classroomName());
         assertUniqueClassroomCode(request.campusId(), classroomCode, null);
         assertUniqueClassroomName(request.campusId(), classroomName, null);
@@ -177,6 +190,18 @@ public class ClassroomServiceImpl implements ClassroomService {
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室名称已存在：" + campusId);
         }
+    }
+
+    private List<Long> listInstitutionCampusIds(Long institutionId) {
+        if (institutionId == null) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "未识别当前账号所属机构，无法读取教室");
+        }
+        return campusMapper.selectList(new LambdaQueryWrapper<CampusEntity>()
+                .select(CampusEntity::getId)
+                .eq(CampusEntity::getInstitutionId, institutionId))
+            .stream()
+            .map(CampusEntity::getId)
+            .toList();
     }
 
     private String normalize(String value) {

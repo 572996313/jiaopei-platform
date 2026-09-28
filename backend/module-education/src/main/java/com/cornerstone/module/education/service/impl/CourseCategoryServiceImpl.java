@@ -9,6 +9,7 @@ import com.cornerstone.module.education.dto.CourseCategoryUpdateRequest;
 import com.cornerstone.module.education.mapper.CourseCategoryMapper;
 import com.cornerstone.module.education.service.CourseCategoryService;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
@@ -19,10 +20,13 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
 
     private final CourseCategoryMapper courseCategoryMapper;
     private final InstitutionMapper institutionMapper;
+    private final CodeRuleService codeRuleService;
 
-    public CourseCategoryServiceImpl(CourseCategoryMapper courseCategoryMapper, InstitutionMapper institutionMapper) {
+    public CourseCategoryServiceImpl(CourseCategoryMapper courseCategoryMapper, InstitutionMapper institutionMapper,
+                                     CodeRuleService codeRuleService) {
         this.courseCategoryMapper = courseCategoryMapper;
         this.institutionMapper = institutionMapper;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -41,7 +45,7 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
     public CourseCategoryEntity createCategory(CourseCategoryCreateRequest request) {
         requireInstitution(request.institutionId());
 
-        String categoryCode = normalize(request.categoryCode());
+        String categoryCode = codeRuleService.resolveForCreate("course_category", request.categoryCode());
         String categoryName = normalize(request.categoryName());
         assertUniqueCategoryCode(request.institutionId(), categoryCode, null);
         assertUniqueCategoryName(request.institutionId(), categoryName, null);

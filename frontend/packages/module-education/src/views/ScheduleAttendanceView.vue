@@ -25,21 +25,13 @@
       </div>
     </div>
 
-    <!-- 统一筛选栏:校区/学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
     <div class="page-toolbar">
       <FilterBar
         :loading="lookupLoading || dayLoading || rangeLoading"
         @query="applyFilters"
         @reset="resetFilters"
       >
-        <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-          <el-option
-            v-for="item in campuses"
-            :key="item.id"
-            :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-            :value="item.id"
-          />
-        </el-select>
         <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
           <el-option
             v-for="item in terms"
@@ -571,6 +563,11 @@ const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
+/**
+ * 校区范围在横幅那颗芯片上选，本页跟着它筛课次。
+ * 但教师/教室数组还要反查课次上的名称，课次可以来自任何校区，
+ * 所以那两份一律按机构全量拉（见 loadSupportingOptions），不跟着范围收窄。
+ */
 const { institutions, institutionId, campuses, terms, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
@@ -999,7 +996,7 @@ function formatInstitution(id?: string | null) {
 
 function formatCampus(id?: string | null) {
   if (!id) {
-    return '未选择'
+    return '全部校区'
   }
   return campusMap.value.get(id) || `校区 #${id}`
 }
@@ -1040,9 +1037,9 @@ async function loadSupportingOptions() {
   }
 
   const [teacherList, classroomList, timeSlotList] = await Promise.all([
-    fetchTeachers({ institutionId: institutionId.value, campusId: campusId.value }),
-    // 不传校区时后端返回全部教室，保证未选校区时课表仍能显示教室名称
-    fetchClassrooms(campusId.value),
+    // 这两份是课次行上教师名/教室名的反查字典，课次可以来自任何校区，一律按机构全量拉
+    fetchTeachers({ institutionId: institutionId.value }),
+    fetchClassrooms(null),
     fetchTimeSlots(institutionId.value),
   ])
 
@@ -1053,7 +1050,6 @@ async function loadSupportingOptions() {
 
 async function refreshScopeData() {
   if (!institutionId.value) {
-    campuses.value = []
     terms.value = []
     teachers.value = []
     classrooms.value = []
@@ -1069,10 +1065,6 @@ async function refreshScopeData() {
     await loadScope()
     await loadSupportingOptions()
 
-    if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
-      campusId.value = null
-      await loadSupportingOptions()
-    }
     if (termId.value && !terms.value.some((item) => item.id === termId.value)) {
       termId.value = null
       await loadScope()
@@ -1171,22 +1163,15 @@ async function refreshAll() {
   await Promise.all([refreshDayTimetable(), refreshRangeTimetable(), refreshPendingMakeupLessons()])
 }
 
-/** 上一次「查询」实际生效的校区:只有校区真变了才清掉已选班级草稿 */
-const lastAppliedCampus = ref<string | null>(null)
-
+/** 换校区由横幅芯片把全部页签重挂一遍，已选班级随重挂清空，这里只管本页的草稿 */
 async function applyFilters() {
-  if (campusId.value !== lastAppliedCampus.value) {
-    classId.value = null
-  }
   await refreshScopeData()
-  lastAppliedCampus.value = campusId.value
   // 课表请求已带 classId（服务端过滤，客户端过滤兜底），筛选变化后需整体重拉
   await refreshAll()
 }
 
-/** 重置 = 取消校区/学期/班级筛选并生效 */
+/** 重置 = 取消学期/班级筛选并生效（校区是全站范围，不由本页重置） */
 async function resetFilters() {
-  campusId.value = null
   termId.value = null
   classId.value = null
   await applyFilters()
@@ -1264,7 +1249,7 @@ function handleWeekCellClick(payload: {
       timeSlotId: payload.timeSlotId || undefined,
       classroomId: payload.classroomId || undefined,
       classId: classId.value || undefined,
-      campusId: campusId.value || undefined,
+      // 校区是全站范围，排课管理读的是同一个 store，跳转不用再带 campusId
       termId: termId.value || undefined,
     },
   })
@@ -1416,7 +1401,7 @@ async function initializePage() {
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 换机构时 store 的 reset() 已清空校区范围，本页只清自己选的筛选
     termId.value = null
     classId.value = null
     await refreshScopeData()

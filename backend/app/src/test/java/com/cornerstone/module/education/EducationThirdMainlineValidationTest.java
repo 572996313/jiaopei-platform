@@ -53,6 +53,7 @@ import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
+import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -143,7 +144,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void createTeacherRejectsDuplicateTeacherCode() {
         TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
-            userAccountMapper, dictValueValidator);
+            userAccountMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(1L);
 
@@ -156,7 +157,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void createTeacherRejectsTeacherStatusOutsideDict() {
         TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
-            userAccountMapper, dictValueValidator);
+            userAccountMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(0L);
         when(systemDictService.listItems("teacher_status")).thenReturn(dictItems("active", "suspended", "left"));
@@ -172,7 +173,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void createTeacherFallsBackToColumnDefaultWhenStatusBlank() {
         TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
-            userAccountMapper, dictValueValidator);
+            userAccountMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(teacherMapper.selectCount(any())).thenReturn(0L);
 
@@ -187,7 +188,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void updateTeacherKeepsExistingStatusWhenStatusBlank() {
         TeacherServiceImpl service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
-            userAccountMapper, dictValueValidator);
+            userAccountMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         TeacherEntity existing = new TeacherEntity();
         existing.setId(300L);
         existing.setInstitutionId(1L);
@@ -204,7 +205,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsDuplicateStudentNo() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectCount(any())).thenReturn(1L);
 
@@ -215,7 +216,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createStudentRejectsFutureBirthday() {
-        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator);
+        StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createStudent(studentRequest("S002", LocalDate.now().plusDays(1))));
@@ -235,7 +236,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -259,7 +261,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -272,7 +275,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createCourseCategoryRejectsDuplicateCategoryCode() {
-        CourseCategoryServiceImpl service = new CourseCategoryServiceImpl(courseCategoryMapper, institutionMapper);
+        CourseCategoryServiceImpl service = new CourseCategoryServiceImpl(courseCategoryMapper, institutionMapper, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(courseCategoryMapper.selectCount(any())).thenReturn(1L);
 
@@ -283,7 +286,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createCourseRejectsCategoryFromAnotherInstitution() {
-        CourseServiceImpl service = new CourseServiceImpl(courseMapper, courseCategoryMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
+        CourseServiceImpl service = new CourseServiceImpl(courseMapper, courseCategoryMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         CourseCategoryEntity category = new CourseCategoryEntity();
         category.setId(1L);
@@ -297,7 +300,7 @@ class EducationThirdMainlineValidationTest {
 
     @Test
     void createClassTypeRejectsMaxStudentsLessThanMinStudents() {
-        ClassTypeServiceImpl service = new ClassTypeServiceImpl(classTypeMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)));
+        ClassTypeServiceImpl service = new ClassTypeServiceImpl(classTypeMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 
         assertThrows(BusinessException.class, () -> service.createClassType(classTypeRequest(4, 3)));
@@ -317,7 +320,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -343,7 +347,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -375,7 +380,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -423,7 +429,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         TeachingClassEntity existing = teachingClass(30, 10);
         existing.setTeacherId(8L);
@@ -669,7 +676,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectById(1L)).thenReturn(campus());
@@ -697,7 +705,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         TeachingClassEntity existing = teachingClass(30, 18);
         existing.setTeacherId(10L);
@@ -766,7 +775,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 12));
         when(classStudentMapper.selectCount(any())).thenReturn(3L);
@@ -789,7 +799,8 @@ class EducationThirdMainlineValidationTest {
             classTypeMapper,
             classStudentMapper,
             classChangeNoticeService,
-            classTeacherService
+            classTeacherService,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
         when(classStudentMapper.selectCount(any())).thenReturn(0L);

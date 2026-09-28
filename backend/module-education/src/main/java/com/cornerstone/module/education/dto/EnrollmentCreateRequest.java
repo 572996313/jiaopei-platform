@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
@@ -25,9 +24,9 @@ public record EnrollmentCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "班级ID不能为空")
     Long classId,
-    @Schema(description = "报名编号", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "报名编号(可留空,留空时按编号规则自动生成)")
     @JsonAlias({"code", "enrollment_no"})
-    @NotBlank(message = "报名编号不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String enrollmentNo,
     @Schema(description = "报名渠道字典(enrollment_channel:front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)", allowableValues = {"front_desk", "consultant", "online", "referral"})
     String channel,

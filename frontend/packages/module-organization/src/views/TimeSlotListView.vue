@@ -12,23 +12,14 @@
       <div class="education-context-text">
         {{
           campusId
-            ? `当前校区：${formatCampus(campusId)}，另含机构通用节次`
-            : '未筛选校区：显示本机构全部节次'
+            ? `当前校区：${scopeStore.campusName(campusId)}，另含机构通用节次`
+            : '全部校区：显示本机构全部节次'
         }}
       </div>
     </div>
 
-    <!-- 统一筛选栏:校区选择不再自动触发,点「查询」才按新校区拉节次;来源只筛已加载的这批,不发请求 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它取数;来源只筛已加载的这批,不发请求 -->
     <FilterBar :loading="loading" @query="loadTimeSlots" @reset="resetAndLoad">
-      <!-- 不选校区 = 本机构全部节次;选了 = 本校区 + 机构通用（服务端按 campusId 收窄） -->
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <el-select v-model="sourceFilter" placeholder="筛选来源" clearable filterable>
         <el-option v-if="hasManualSlots" label="手工新增" value="manual" />
         <el-option
@@ -79,7 +70,7 @@
             show-overflow-tooltip
           >
             <template #default="{ row }">{{
-              row.campusId ? formatCampus(row.campusId) : '机构通用'
+              row.campusId ? scopeStore.campusName(row.campusId) : '机构通用'
             }}</template>
           </el-table-column>
           <el-table-column label="时间" min-width="180" prop="startTime" sortable>
@@ -103,7 +94,9 @@
               <el-button link type="primary" @click="openTimeSlotDialog('edit', row)"
                 >编辑</el-button
               >
-              <el-button v-if="canReadSchedule" link @click="openRefsDialog(row)">查看引用</el-button>
+              <el-button v-if="canReadSchedule" link @click="openRefsDialog(row)"
+                >查看引用</el-button
+              >
               <el-button link type="danger" @click="confirmDeleteTimeSlot(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -139,7 +132,13 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="节次编码"><el-input v-model="timeSlotForm.slotCode" /></el-form-item>
+        <el-form-item label="节次编码">
+          <CodeInput
+            v-model="timeSlotForm.slotCode"
+            resource="time_slot"
+            :mode="timeSlotDialogMode"
+          />
+        </el-form-item>
         <el-form-item label="节次名称"><el-input v-model="timeSlotForm.slotName" /></el-form-item>
         <el-form-item label="节次类型">
           <DictSelect
@@ -212,10 +211,14 @@
           <template #default="{ row }">{{ weekdayLabel(row.lessonWeekday) }}</template>
         </el-table-column>
         <el-table-column label="时间" width="150">
-          <template #default="{ row }">{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template>
+          <template #default="{ row }"
+            >{{ row.startTime || '-' }} - {{ row.endTime || '-' }}</template
+          >
         </el-table-column>
         <el-table-column label="班级" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.className || `班级 #${row.classId ?? '-'}` }}</template>
+          <template #default="{ row }">{{
+            row.className || `班级 #${row.classId ?? '-'}`
+          }}</template>
         </el-table-column>
         <el-table-column label="课次状态" width="130">
           <template #default="{ row }">
@@ -225,7 +228,9 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="!refsLoading && refs.length === 0" class="education-empty">没有课次引用这个节次，可以直接删除。</div>
+      <div v-if="!refsLoading && refs.length === 0" class="education-empty">
+        没有课次引用这个节次，可以直接删除。
+      </div>
       <div v-else-if="!refsLoading" class="education-context-text">
         {{
           liveRefCount > 0
@@ -262,6 +267,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
@@ -270,13 +276,11 @@ import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import {
   createTimeSlot,
   deleteTimeSlot,
-  fetchCampuses,
   fetchTimeSlotLessonRefs,
   fetchTimeSlotTemplates,
   fetchTimeSlots,
   purgeTimeSlotLessonTombstones,
   updateTimeSlot,
-  type CampusSummary,
   type TimeSlotLessonRef,
   type TimeSlotSummary,
   type TimeSlotTemplateSummary,
@@ -296,10 +300,9 @@ const canWriteSchedule = computed(() => auth.hasPermission('education:schedule:w
 const canWriteOrganization = computed(() => auth.hasPermission('organization:write'))
 
 const institutionId = computed(() => institutionStore.currentInstitutionId)
-/** 校区与模板页共用同一份范围,从模板页跳过来时停在同一个校区 */
-const { campusId } = storeToRefs(scopeStore)
+/** 校区范围全站只有一份：横幅那顆芯片改，本页只读；模板页跳过来时停在同一个范围 */
+const { campusId, campuses, prefillCampusId } = storeToRefs(scopeStore)
 
-const campuses = ref<CampusSummary[]>([])
 const templates = ref<TimeSlotTemplateSummary[]>([])
 const timeSlots = ref<TimeSlotSummary[]>([])
 const loading = ref(false)
@@ -351,14 +354,6 @@ function trimOrUndefined(value: string) {
   return normalized ? normalized : undefined
 }
 
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  const campus = campuses.value.find((item) => item.id === id)
-  return campus?.campusName || campus?.campusCode || `校区 #${id}`
-}
-
 function weekdayLabel(value?: number | null) {
   return WEEKDAY_OPTIONS.find((item) => item.value === value)?.label || '-'
 }
@@ -394,9 +389,8 @@ async function loadTimeSlots() {
   }
 }
 
-/** 重置 = 取消校区与来源筛选，看本机构全部节次 */
+/** 重置 = 取消来源筛选（校区范围是全站的，不归本页改） */
 function resetAndLoad() {
-  campusId.value = null
   sourceFilter.value = ''
   void loadTimeSlots()
 }
@@ -411,16 +405,11 @@ async function refreshAll() {
   }
   loading.value = true
   try {
-    const [campusList, templateList] = await Promise.all([
-      fetchCampuses(institutionId.value),
+    const [, templateList] = await Promise.all([
+      scopeStore.loadCampuses(institutionId.value),
       fetchTimeSlotTemplates(institutionId.value),
     ])
-    campuses.value = campusList
     templates.value = templateList
-    // 与校区/教室页同一口径：范围里带着死 id 或空值时兜到第一个校区，别一进来就铺上千行
-    if (!campusId.value || !campusList.some((item) => item.id === campusId.value)) {
-      campusId.value = campusList[0]?.id || null
-    }
     timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
   } catch (error) {
     timeSlots.value = []
@@ -483,7 +472,7 @@ function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
     timeSlotForm.status = row.status ?? 'active'
   } else {
     editingTimeSlotId.value = null
-    timeSlotForm.campusId = campusId.value
+    timeSlotForm.campusId = prefillCampusId.value
     timeSlotForm.slotCode = ''
     timeSlotForm.slotName = ''
     timeSlotForm.slotType = ''
@@ -547,9 +536,10 @@ async function submitTimeSlot() {
       ElMessage.success('节次已更新')
     }
     timeSlotDialogVisible.value = false
-    // 存到别的校区（或改成机构通用）时跟着切过去，否则刚保存的那条会被当前校区筛选挡掉
-    if (campusId.value !== (timeSlotForm.campusId || null)) {
-      campusId.value = timeSlotForm.campusId || null
+    // 范围已收窄到某个校区、保存的却是另一个校区时把范围跟过去，否则刚保存的那条被挡在列表外
+    // 改成「机构通用」不用切：后端读本校区时一并返回 campus_id 为空的节次
+    if (campusId.value && timeSlotForm.campusId && campusId.value !== timeSlotForm.campusId) {
+      scopeStore.setCampus(timeSlotForm.campusId)
     }
     await loadTimeSlots()
   } catch (error) {
@@ -640,7 +630,9 @@ async function purgeTombstones() {
     const result = await purgeTimeSlotLessonTombstones(String(slot.id))
     ElMessage.success(
       `已清理 ${result.purgedCount} 个已删除课次` +
-        (result.skippedCount > 0 ? `，${result.skippedCount} 个仍有未删除的补课课次指着、已跳过` : '')
+        (result.skippedCount > 0
+          ? `，${result.skippedCount} 个仍有未删除的补课课次指着、已跳过`
+          : '')
     )
     await loadRefs()
   } catch (error) {
@@ -661,7 +653,6 @@ function deleteReferencedSlot() {
 }
 
 watch(institutionId, async () => {
-  campusId.value = null
   sourceFilter.value = ''
   await refreshAll()
 })

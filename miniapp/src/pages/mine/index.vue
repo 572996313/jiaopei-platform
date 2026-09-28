@@ -88,6 +88,10 @@ function goTimetable(studentId: string) {
   uni.navigateTo({ url: '/pages/timetable/index?studentId=' + studentId })
 }
 
+function goClassmates(studentId: string) {
+  uni.navigateTo({ url: '/pages/classmates/index?studentId=' + studentId })
+}
+
 function handleUnbind(student: StudentBrief) {
   uni.showModal({
     title: '解绑学员',
@@ -226,6 +230,7 @@ function handleDeregister() {
         </view>
         <view class="profile-actions">
           <text class="action-link timetable" @click="goTimetable(myProfile?.studentId || '')">我的课表</text>
+          <text class="action-link timetable" @click="goClassmates(myProfile?.studentId || '')">我的同学</text>
           <text class="action-link edit" @click="goEditProfile">编辑档案</text>
         </view>
       </view>

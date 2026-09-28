@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-@Schema(description = "小程序课表条目(含班级/课程/教室/教师信息)")
+@Schema(description = "小程序课表条目(含班级/课程/教室信息,教师只给姓)")
 public record MiniappLessonView(
     @Schema(description = "课次ID")
     Long lessonId,
@@ -26,9 +26,7 @@ public record MiniappLessonView(
     String courseName,
     @Schema(description = "教室名称")
     String classroomName,
-    @Schema(description = "授课教师姓名")
-    String teacherName,
-    @Schema(description = "授课教师电话")
-    String teacherPhone
+    @Schema(description = "授课教师称呼(只给姓+老师,如「张老师」,全名与联系方式不下发)")
+    String teacherName
 ) {
 }

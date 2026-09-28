@@ -35,7 +35,7 @@ public record TeachingClassCreateRequest(
     Long classTypeId,
     @Schema(description = "班级编号", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"code", "class_code"})
-    @NotBlank(message = "班级编号不能为空")
+    // 可留空：新增时留空由编号规则补号（判空在 createClass），编辑时仍必填（updateClass 里 requireNonBlank）
     String classCode,
     @Schema(description = "班级名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "class_name"})

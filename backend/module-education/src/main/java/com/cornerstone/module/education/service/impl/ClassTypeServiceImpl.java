@@ -10,6 +10,7 @@ import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.service.ClassTypeService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
@@ -21,12 +22,14 @@ public class ClassTypeServiceImpl implements ClassTypeService {
     private final ClassTypeMapper classTypeMapper;
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public ClassTypeServiceImpl(ClassTypeMapper classTypeMapper, InstitutionMapper institutionMapper,
-                                DictValueValidator dictValueValidator) {
+                                DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.classTypeMapper = classTypeMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -49,7 +52,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "最大学员数不能小于最小学员数");
         }
 
-        String typeCode = normalize(request.typeCode());
+        String typeCode = codeRuleService.resolveForCreate("class_type", request.typeCode());
         String typeName = normalize(request.typeName());
         assertUniqueTypeCode(request.institutionId(), typeCode, null);
         assertUniqueTypeName(request.institutionId(), typeName, null);

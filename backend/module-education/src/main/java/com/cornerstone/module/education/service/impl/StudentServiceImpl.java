@@ -16,6 +16,7 @@ import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.service.StudentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -50,12 +51,14 @@ public class StudentServiceImpl implements StudentService {
     private final StudentMapper studentMapper;
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
-                              DictValueValidator dictValueValidator) {
+                              DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -136,7 +139,7 @@ public class StudentServiceImpl implements StudentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
-        String studentNo = normalize(request.studentNo());
+        String studentNo = codeRuleService.resolveForCreate("student", request.studentNo());
         assertUniqueStudentNo(request.institutionId(), studentNo, null);
 
         StudentEntity entity = new StudentEntity();

@@ -8,6 +8,7 @@ import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.dto.TermCreateRequest;
 import com.cornerstone.module.organization.dto.TermUpdateRequest;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import com.cornerstone.module.organization.service.TermService;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
@@ -22,12 +23,14 @@ public class TermServiceImpl implements TermService {
     private final TermMapper termMapper;
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public TermServiceImpl(TermMapper termMapper, InstitutionMapper institutionMapper,
-                           DictValueValidator dictValueValidator) {
+                           DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.termMapper = termMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -55,7 +58,7 @@ public class TermServiceImpl implements TermService {
             && request.enrollmentStartDate().isAfter(request.enrollmentEndDate())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "报名开始日期不能晚于报名结束日期");
         }
-        String termCode = normalize(request.termCode());
+        String termCode = codeRuleService.resolveForCreate("term", request.termCode());
         String termName = normalize(request.termName());
         assertUniqueTermCode(request.institutionId(), termCode, null);
         assertUniqueTermName(request.institutionId(), termName, null);

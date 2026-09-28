@@ -15,7 +15,7 @@ public record ClassroomCreateRequest(
     @NotNull(message = "校区ID不能为空")
     Long campusId,
     @JsonAlias({"code", "classroom_code"})
-    @NotBlank(message = "教室编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String classroomCode,
     @JsonAlias({"name", "classroom_name"})
     @NotBlank(message = "教室名称不能为空")

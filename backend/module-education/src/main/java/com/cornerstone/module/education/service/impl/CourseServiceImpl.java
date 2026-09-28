@@ -17,6 +17,7 @@ import com.cornerstone.module.education.mapper.CourseMapper;
 import com.cornerstone.module.education.service.CourseService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,13 +39,16 @@ public class CourseServiceImpl implements CourseService {
     private final CourseCategoryMapper courseCategoryMapper;
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public CourseServiceImpl(CourseMapper courseMapper, CourseCategoryMapper courseCategoryMapper,
-                             InstitutionMapper institutionMapper, DictValueValidator dictValueValidator) {
+                             InstitutionMapper institutionMapper, DictValueValidator dictValueValidator,
+                             CodeRuleService codeRuleService) {
         this.courseMapper = courseMapper;
         this.courseCategoryMapper = courseCategoryMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -104,7 +108,7 @@ public class CourseServiceImpl implements CourseService {
             requireCategoryInInstitution(request.categoryId(), request.institutionId());
         }
 
-        String courseCode = normalize(request.courseCode());
+        String courseCode = codeRuleService.resolveForCreate("course", request.courseCode());
         String courseName = normalize(request.courseName());
         assertUniqueCourseCode(request.institutionId(), courseCode, null);
         assertUniqueCourseName(request.institutionId(), courseName, null);

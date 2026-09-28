@@ -20,8 +20,39 @@ export interface MiniappLesson {
   className: string | null
   courseName: string | null
   classroomName: string | null
+  /** 教师称呼:后端只下发姓+老师,全名与电话不进小程序 */
   teacherName: string | null
-  teacherPhone: string | null
+}
+
+/** 首页课次:已按日期与时间排好序,停课课次后端已排除 */
+export interface HomeLesson {
+  studentName: string
+  lessonDate: string
+  startTime: string
+  endTime: string
+  courseName: string | null
+  className: string | null
+  classroomName: string | null
+  teacherName: string | null
+  lessonStatus: string
+}
+
+export interface HomeOverview {
+  /** false = 还没绑定学员档案,首页引导去绑定或自助建档 */
+  bound: boolean
+  todayLessons: HomeLesson[]
+  weekLessonCount: number
+  nextLesson: HomeLesson | null
+  /** 已绑定但当前不在任何班级的学员姓名 */
+  studentsWithoutClass: string[]
+}
+
+/** 同学名单分组:一个当前班级一组,成员只有姓名 */
+export interface ClassmateGroup {
+  classId: string
+  className: string | null
+  total: number
+  classmateNames: string[]
 }
 
 export type BindMethod = 'STUDENT_NO' | 'PARENT_PHONE'
@@ -116,4 +147,14 @@ export function fetchStudentLessons(studentId: string, start: string, end: strin
     start,
     end,
   })
+}
+
+/** 某位学员的同班同学名单(按当前班级分组,只给姓名) */
+export function fetchClassmates(studentId: string) {
+  return requestGet<ClassmateGroup[]>('/miniapp/students/' + studentId + '/classmates')
+}
+
+/** 首页近况:当前账号名下全部绑定学员的今日课次、本周节数与下一节预告 */
+export function fetchHomeOverview() {
+  return requestGet<HomeOverview>('/miniapp/home/overview')
 }

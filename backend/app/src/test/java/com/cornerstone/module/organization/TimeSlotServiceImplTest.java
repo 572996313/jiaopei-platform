@@ -9,6 +9,7 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.cornerstone.module.organization.service.impl.TimeSlotServiceImpl;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
+import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +40,7 @@ class TimeSlotServiceImplTest {
 
     private TimeSlotServiceImpl service() {
         return new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
-            new DictValueValidator(systemDictService));
+            new DictValueValidator(systemDictService), CodeRuleTestSupport.unconfiguredRules());
     }
 
     private TimeSlotEntity timeSlot(Long id, Long institutionId) {

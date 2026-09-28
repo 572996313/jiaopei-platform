@@ -172,7 +172,7 @@ class SecondThirdMainlineApiCompatibilityWebTest {
     @BeforeEach
     void allowStubUser() {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
-        given(classroomService.listClassrooms(any())).willReturn(List.of());
+        given(classroomService.listClassrooms(any(), any())).willReturn(List.of());
         given(termService.listTerms(any())).willReturn(List.of());
         given(timeSlotService.listTimeSlots(any(), any(), any())).willReturn(List.of());
         given(teacherService.listTeachers(any(), any())).willReturn(List.of());
@@ -193,7 +193,8 @@ class SecondThirdMainlineApiCompatibilityWebTest {
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
-        verify(classroomService).listClassrooms(1L);
+        // 机构一律取登录态（第一个 1L），不接受请求参数：教室表没有机构列，服务端按本校区的 id 集合收窄
+        verify(classroomService).listClassrooms(1L, 1L);
 
         mockMvc.perform(get("/api/organizations/terms")
                 .param("institutionId", "INST-001")

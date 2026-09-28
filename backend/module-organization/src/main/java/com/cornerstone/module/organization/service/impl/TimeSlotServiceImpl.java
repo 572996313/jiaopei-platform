@@ -12,6 +12,7 @@ import com.cornerstone.module.organization.service.support.DictValueValidator;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.TimeSlotService;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -30,13 +31,16 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     private final InstitutionMapper institutionMapper;
     private final CampusMapper campusMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public TimeSlotServiceImpl(TimeSlotMapper timeSlotMapper, InstitutionMapper institutionMapper,
-                               CampusMapper campusMapper, DictValueValidator dictValueValidator) {
+                               CampusMapper campusMapper, DictValueValidator dictValueValidator,
+                               CodeRuleService codeRuleService) {
         this.timeSlotMapper = timeSlotMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -90,7 +94,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         if (minutes != request.durationMinutes()) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "时长(分钟)必须与开始时间和结束时间一致");
         }
-        String slotCode = normalize(request.slotCode());
+        String slotCode = codeRuleService.resolveForCreate("time_slot", request.slotCode());
         String slotName = normalize(request.slotName());
         assertUniqueSlotCode(request.institutionId(), request.campusId(), request.weekday(), slotCode, null);
         assertUniqueSlotName(request.institutionId(), request.campusId(), request.weekday(), slotName, null);

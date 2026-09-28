@@ -1,5 +1,6 @@
 package com.cornerstone.module.education;
 
+import com.cornerstone.support.CodeRuleTestSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,7 +59,7 @@ class TeacherServiceImplExportTest {
     @BeforeEach
     void setUp() {
         service = new TeacherServiceImpl(teacherMapper, institutionMapper, campusMapper,
-            userAccountMapper, dictValueValidator);
+            userAccountMapper, dictValueValidator, CodeRuleTestSupport.unconfiguredRules());
         when(institutionMapper.selectById(INSTITUTION_ID)).thenReturn(new InstitutionEntity());
         when(campusMapper.selectBatchIds(any())).thenReturn(List.of(campus()));
         when(userAccountMapper.selectBatchIds(any())).thenReturn(List.of(account()));

@@ -1,61 +1,58 @@
 <script setup lang="ts">
-import { onLoad } from '@dcloudio/uni-app'
-import { computed, ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { computed, ref, watch } from 'vue'
 import { fetchStudentLessons, type MiniappLesson } from '@/api/miniapp'
+import { useBoundStudent } from '@/composables/use-bound-student'
+import LessonRow from '@/components/LessonRow.vue'
+import StudentSwitcher from '@/components/StudentSwitcher.vue'
 
-const studentId = ref('')
+const { students, studentId, ready, showSwitcher, init, switchTo } = useBoundStudent()
+
+const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const weekStart = ref('')
+const selectedDate = ref('')
 const lessons = ref<MiniappLesson[]>([])
 const loading = ref(false)
-const studentName = ref('')
 
-// 周一..周日
-const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-
-const grid = computed(() => {
+/** 一周的七天:标签、日期、有没有课,一次算完给导航条和列表共用 */
+const days = computed(() => {
   const start = new Date(weekStart.value + 'T00:00:00')
-  const cells = Array.from({ length: 7 }, (_, i) => {
+  const today = formatDate(new Date())
+  return WEEKDAYS.map((label, index) => {
     const date = new Date(start)
-    date.setDate(start.getDate() + i)
+    date.setDate(start.getDate() + index)
+    const key = formatDate(date)
     return {
-      label: WEEKDAYS[i],
-      dateText: `${date.getMonth() + 1}月${date.getDate()}日`,
-      date: formatDate(date),
-      lessons: lessons.value.filter((l) => l.lessonDate === formatDate(date)),
+      date: key,
+      label,
+      dayNumber: date.getDate(),
+      isToday: key === today,
+      count: lessons.value.filter((item) => item.lessonDate === key).length,
     }
   })
-  return cells
 })
 
-onLoad((options) => {
-  studentId.value = decodeURIComponent(options?.studentId || '')
-  const today = new Date()
-  // 以本周一为起始
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-  weekStart.value = formatDate(monday)
-  loadLessons()
+const weekLabel = computed(() => {
+  if (!weekStart.value) {
+    return ''
+  }
+  const start = new Date(weekStart.value + 'T00:00:00')
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+  return `${monthDay(start)} - ${monthDay(end)}`
 })
 
-async function loadLessons() {
-  if (!studentId.value) {
-    return
+const selectedDay = computed(() => days.value.find((item) => item.date === selectedDate.value) ?? null)
+const selectedDayText = computed(() => {
+  if (!selectedDay.value) {
+    return ''
   }
-  loading.value = true
-  try {
-    const endDate = new Date(weekStart.value + 'T00:00:00')
-    endDate.setDate(endDate.getDate() + 6)
-    lessons.value = await fetchStudentLessons(
-      studentId.value,
-      weekStart.value,
-      formatDate(endDate),
-    )
-  } catch {
-    lessons.value = []
-  } finally {
-    loading.value = false
-  }
-}
+  const date = new Date(selectedDay.value.date + 'T00:00:00')
+  return `${selectedDay.value.label} ${monthDay(date)}`
+})
+const selectedDayLessons = computed(() =>
+  lessons.value.filter((item) => item.lessonDate === selectedDate.value),
+)
 
 function formatDate(date: Date) {
   const y = date.getFullYear()
@@ -64,66 +61,144 @@ function formatDate(date: Date) {
   return `${y}-${m}-${d}`
 }
 
-function prevWeek() {
-  const d = new Date(weekStart.value + 'T00:00:00')
-  d.setDate(d.getDate() - 7)
-  weekStart.value = formatDate(d)
-  loadLessons()
+function monthDay(date: Date) {
+  return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
-function nextWeek() {
-  const d = new Date(weekStart.value + 'T00:00:00')
-  d.setDate(d.getDate() + 7)
-  weekStart.value = formatDate(d)
-  loadLessons()
+function currentWeekMonday() {
+  const today = new Date()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  return monday
 }
 
-function lessonStatusText(status: string) {
-  const map: Record<string, string> = {
-    scheduled: '已排课',
-    rescheduled: '已调课',
-    cancelled: '已停课',
-    makeup: '补课',
-    completed: '已结课',
+function loadLessons() {
+  if (!studentId.value || !weekStart.value) {
+    lessons.value = []
+    return
   }
-  return map[status] || status
+  loading.value = true
+  const end = new Date(weekStart.value + 'T00:00:00')
+  end.setDate(end.getDate() + 6)
+  fetchStudentLessons(studentId.value, weekStart.value, formatDate(end))
+    .then((data) => {
+      lessons.value = data
+    })
+    .catch(() => {
+      lessons.value = []
+    })
+    .finally(() => {
+      loading.value = false
+    })
+}
+
+onLoad((options) => {
+  const monday = currentWeekMonday()
+  weekStart.value = formatDate(monday)
+  // 默认停在今天;今天还没课也停在这里,列表会给"这天没有课"
+  selectedDate.value = formatDate(new Date())
+  init(decodeURIComponent(options?.studentId || ''))
+})
+
+// 页签缓存着这一页,PC 侧改完排课回来要能看到,所以每次显示都重拉
+onShow(() => {
+  if (ready.value && studentId.value) {
+    loadLessons()
+  }
+})
+
+watch(weekStart, () => {
+  // 换周后原来选中那天可能已经不在这一周,落回本周今天或周一
+  const monday = new Date(weekStart.value + 'T00:00:00')
+  const end = new Date(monday)
+  end.setDate(end.getDate() + 6)
+  const today = new Date()
+  selectedDate.value =
+    today >= monday && today <= end ? formatDate(today) : formatDate(monday)
+  loadLessons()
+})
+
+watch(studentId, (id) => {
+  if (id) {
+    loadLessons()
+  }
+})
+
+function shiftWeek(offset: number) {
+  const d = new Date(weekStart.value + 'T00:00:00')
+  d.setDate(d.getDate() + offset * 7)
+  weekStart.value = formatDate(d)
+}
+
+function goToday() {
+  const monday = currentWeekMonday()
+  const key = formatDate(monday)
+  if (weekStart.value === key) {
+    selectedDate.value = formatDate(new Date())
+    return
+  }
+  weekStart.value = key
+}
+
+function goClassmates() {
+  uni.navigateTo({ url: '/pages/classmates/index?studentId=' + studentId.value })
 }
 </script>
 
 <template>
   <view class="timetable-page">
+    <StudentSwitcher
+      v-if="showSwitcher"
+      :students="students"
+      :active-id="studentId"
+      @select="switchTo"
+    />
+
     <view class="week-nav">
-      <view class="nav-btn" @click="prevWeek">‹</view>
-      <text class="week-label">{{ weekStart }} 起</text>
-      <view class="nav-btn" @click="nextWeek">›</view>
+      <view class="nav-btn" @click="shiftWeek(-1)">‹</view>
+      <view class="week-label-box" @click="goToday">
+        <text class="week-label">{{ weekLabel }}</text>
+        <text class="week-today">回本周</text>
+      </view>
+      <view class="nav-btn" @click="shiftWeek(1)">›</view>
     </view>
 
-    <view class="week-grid">
-      <view v-for="day in grid" :key="day.date" class="day-col">
-        <view class="day-head">
-          <text class="day-label">{{ day.label }}</text>
-          <text class="day-date">{{ day.dateText }}</text>
-        </view>
-        <view v-if="day.lessons.length === 0" class="day-empty">
-          <text class="empty-text">无课</text>
-        </view>
-        <view
-          v-for="lesson in day.lessons"
-          :key="lesson.lessonId"
-          class="lesson-card"
-          :class="{ cancelled: lesson.lessonStatus === 'cancelled' }"
-        >
-          <text class="lesson-time">{{ lesson.startTime }}–{{ lesson.endTime }}</text>
-          <text class="lesson-title">{{ lesson.courseName || lesson.lessonTitle || '课程' }}</text>
-          <text class="lesson-sub">{{ lesson.className || '' }}</text>
-          <view class="status-tag" :class="{ cancelled: lesson.lessonStatus === 'cancelled' }">
-            {{ lessonStatusText(lesson.lessonStatus) }}
-          </view>
-        </view>
+    <view class="day-tabs">
+      <view
+        v-for="day in days"
+        :key="day.date"
+        class="day-tab"
+        :class="{ active: day.date === selectedDate, today: day.isToday }"
+        @click="selectedDate = day.date"
+      >
+        <text class="tab-weekday">{{ day.label }}</text>
+        <text class="tab-date">{{ day.dayNumber }}</text>
+        <text class="tab-count" :class="{ blank: day.count === 0 }">{{ day.count > 0 ? day.count : '·' }}</text>
       </view>
     </view>
 
-    <view v-if="loading" class="loading-tip">加载中…</view>
+    <view class="day-card">
+      <view class="day-card-head">
+        <text class="day-card-title">
+          {{ selectedDayText }}
+          <text v-if="selectedDayLessons.length > 0" class="day-card-count">
+            {{ selectedDayLessons.length }} 节课
+          </text>
+        </text>
+        <text v-if="studentId" class="day-card-link" @click="goClassmates">我的同学 ›</text>
+      </view>
+
+      <view v-if="loading" class="page-tip">加载中…</view>
+      <view v-else-if="!studentId" class="page-tip">
+        <text>还没有可查看的学员,先在「我的」页绑定档案</text>
+      </view>
+      <view v-else-if="selectedDayLessons.length === 0" class="page-tip">
+        <text>这天没有课</text>
+      </view>
+      <template v-else>
+        <LessonRow v-for="lesson in selectedDayLessons" :key="lesson.lessonId" :lesson="lesson" />
+      </template>
+    </view>
   </view>
 </template>
 
@@ -153,120 +228,113 @@ function lessonStatusText(status: string) {
   box-shadow: 0 2rpx 8rpx rgba(17, 24, 39, 0.06);
 }
 
+.week-label-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .week-label {
   font-size: 30rpx;
   font-weight: 600;
   color: #111827;
 }
 
-.week-grid {
+.week-today {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: #2563eb;
+}
+
+.day-tabs {
   display: flex;
-  overflow-x: auto;
+  margin-bottom: 24rpx;
 }
 
-.day-col {
+.day-tab {
   flex: 1;
-  min-width: 180rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14rpx 0;
+  margin-right: 10rpx;
   background: #ffffff;
-  border-radius: 16rpx;
-  margin-right: 16rpx;
-  padding: 20rpx 16rpx;
-  box-shadow: 0 2rpx 12rpx rgba(17, 24, 39, 0.04);
+  border-radius: 14rpx;
+  border: 1rpx solid transparent;
 }
 
-.day-col:last-child {
+.day-tab:last-child {
   margin-right: 0;
 }
 
-.day-head {
+.day-tab.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.tab-weekday {
+  font-size: 22rpx;
+  color: #9ca3af;
+}
+
+.day-tab.active .tab-weekday {
+  color: #2563eb;
+}
+
+.tab-date {
+  margin-top: 4rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.tab-count {
+  margin-top: 2rpx;
+  font-size: 20rpx;
+  color: #2563eb;
+}
+
+.tab-count.blank {
+  color: #d1d5db;
+}
+
+.day-card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(17, 24, 39, 0.04);
+}
+
+.day-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding-bottom: 16rpx;
   border-bottom: 1rpx solid #f3f4f6;
 }
 
-.day-label {
-  display: block;
+.day-card-title {
   font-size: 28rpx;
   font-weight: 600;
   color: #111827;
 }
 
-.day-date {
-  display: block;
-  margin-top: 4rpx;
+.day-card-count {
+  margin-left: 12rpx;
   font-size: 22rpx;
+  font-weight: 400;
   color: #9ca3af;
 }
 
-.day-empty {
-  padding: 32rpx 0;
-  text-align: center;
+.day-card-link {
+  font-size: 24rpx;
+  color: #2563eb;
 }
 
-.empty-text {
-  font-size: 24rpx;
+.page-tip {
+  padding: 60rpx 0;
+  text-align: center;
+  font-size: 26rpx;
   color: #c4c9d1;
-}
-
-.lesson-card {
-  position: relative;
-  margin-top: 20rpx;
-  padding: 16rpx 12rpx;
-  border-radius: 12rpx;
-  background: #eff6ff;
-  border-left: 6rpx solid #2563eb;
-}
-
-.lesson-card.cancelled {
-  background: #f9fafb;
-  border-left-color: #d1d5db;
-  opacity: 0.7;
-}
-
-.lesson-time {
-  display: block;
-  font-size: 22rpx;
-  color: #2563eb;
-  font-weight: 600;
-}
-
-.lesson-card.cancelled .lesson-time {
-  color: #9ca3af;
-}
-
-.lesson-title {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.3;
-}
-
-.lesson-sub {
-  display: block;
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: #6b7280;
-}
-
-.status-tag {
-  margin-top: 10rpx;
-  display: inline-block;
-  font-size: 20rpx;
-  color: #2563eb;
-  background: #ffffff;
-  border-radius: 999rpx;
-  padding: 2rpx 12rpx;
-}
-
-.status-tag.cancelled {
-  color: #6b7280;
-}
-
-.loading-tip {
-  text-align: center;
-  color: #9ca3af;
-  font-size: 24rpx;
-  margin-top: 24rpx;
 }
 </style>

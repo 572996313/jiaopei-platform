@@ -23,6 +23,7 @@ import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import java.util.List;
 import java.util.Objects;
@@ -49,13 +50,15 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     private final ClassStudentMapper classStudentMapper;
     private final ClassChangeNoticeService classChangeNoticeService;
     private final ClassTeacherService classTeacherService;
+    private final CodeRuleService codeRuleService;
 
     public TeachingClassServiceImpl(TeachingClassMapper teachingClassMapper, InstitutionMapper institutionMapper,
                                     CampusMapper campusMapper, TermMapper termMapper, TeacherMapper teacherMapper,
                                     CourseMapper courseMapper, ClassTypeMapper classTypeMapper,
                                     ClassStudentMapper classStudentMapper,
                                     ClassChangeNoticeService classChangeNoticeService,
-                                    ClassTeacherService classTeacherService) {
+                                    ClassTeacherService classTeacherService,
+                                    CodeRuleService codeRuleService) {
         this.teachingClassMapper = teachingClassMapper;
         this.institutionMapper = institutionMapper;
         this.campusMapper = campusMapper;
@@ -66,6 +69,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         this.classStudentMapper = classStudentMapper;
         this.classChangeNoticeService = classChangeNoticeService;
         this.classTeacherService = classTeacherService;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -140,7 +144,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     public TeachingClassEntity createClass(TeachingClassCreateRequest request) {
         validateRequest(request);
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
-        String classCode = normalize(request.classCode());
+        String classCode = codeRuleService.resolveForCreate("class", request.classCode());
         String className = normalize(request.className());
         assertUniqueClassCode(request.campusId(), classCode, null);
         assertUniqueClassName(request.campusId(), className, null);
@@ -186,7 +190,8 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "容量上限不能小于当前在班人数：" + activeStudents);
         }
-        String classCode = normalize(request.classCode());
+        // 编辑是整表单覆盖，留空不能当成"再要一个新号"，只能报空（补号只在新增路径）
+        String classCode = requireNonBlank(request.classCode(), "班级编码");
         String className = normalize(request.className());
         assertUniqueClassCode(request.campusId(), classCode, id);
         assertUniqueClassName(request.campusId(), className, id);
@@ -369,5 +374,12 @@ public class TeachingClassServiceImpl implements TeachingClassService {
 
     private String normalize(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String requireNonBlank(String value, String label) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, label + "不能为空");
+        }
+        return value.trim();
     }
 }

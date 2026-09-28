@@ -14,7 +14,7 @@ public record TermCreateRequest(
     @NotNull(message = "机构ID不能为空")
     Long institutionId,
     @JsonAlias({"code", "term_code"})
-    @NotBlank(message = "学期编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String termCode,
     @JsonAlias({"name", "term_name"})
     @NotBlank(message = "学期名称不能为空")

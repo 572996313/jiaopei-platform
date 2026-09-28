@@ -14,16 +14,8 @@
       </span>
     </div>
 
-    <!-- 统一筛选栏:校区/班级/学员都不再自动触发,点「查询」才按当前条件重拉名册 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛名册;班级/学员都不再自动触发,点「查询」才重拉 -->
     <FilterBar :loading="tableLoading" @query="applyFilters" @reset="resetFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <ClassSelect
         v-model="classId"
         :institution-id="institutionId"
@@ -215,7 +207,7 @@ const router = useRouter()
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const { campusId } = storeToRefs(scopeStore)
-const { institutionId, campuses, loadScope } = useEducationScope()
+const { institutionId, loadScope } = useEducationScope()
 
 const courses = ref<CourseRecord[]>([])
 const classTypes = ref<ClassTypeRecord[]>([])
@@ -342,7 +334,6 @@ function resetForm() {
 /** 名册页只需要课程与班型两张字典做名称回显，教师与班级数组不进这页 */
 async function refreshLookups() {
   if (!institutionId.value) {
-    campuses.value = []
     courses.value = []
     classTypes.value = []
     return
@@ -405,9 +396,8 @@ async function applyFilters() {
   await loadRecords()
 }
 
-/** 重置 = 清空校区/班级/学员筛选并重查 */
+/** 重置 = 清空班级/学员筛选并重查（校区是全站范围，不由本页重置） */
 async function resetFilters() {
-  campusId.value = null
   classId.value = null
   studentId.value = null
   contactStudentId.value = null
@@ -531,7 +521,7 @@ watch(
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 校区范围由横幅芯片在新机构上重新 initScope，本页只清自己选的筛选
     classId.value = null
     studentId.value = null
     contactStudentId.value = null

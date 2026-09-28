@@ -18,7 +18,7 @@ public record TimeSlotCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long campusId,
     @JsonAlias({"code", "slot_code"})
-    @NotBlank(message = "时段编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String slotCode,
     @JsonAlias({"name", "slot_name"})
     @NotBlank(message = "时段名称不能为空")

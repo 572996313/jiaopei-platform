@@ -25,20 +25,14 @@
         @click="refreshAll"
       />
       <div class="education-context-text">
-        当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{ formatCampus(campusId) }}
+        当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
+          scopeStore.campusName(campusId)
+        }}
       </div>
     </div>
 
-    <!-- 统一筛选栏:校区/关键字都不再自动触发,点「查询」才按当前条件重查 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛档案;关键字不再自动触发,点「查询」才重查 -->
     <FilterBar :loading="tableLoading" @query="searchTeachers" @reset="resetTeacherFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <el-input
         v-model="teacherKeyword"
         placeholder="编码/姓名/手机号"
@@ -52,9 +46,7 @@
       <article class="stat-card">
         <div class="stat-label">教师数</div>
         <div class="stat-value">{{ teacherTotal }}</div>
-        <div class="stat-hint">
-          {{ campusId ? `当前校区：${formatCampus(campusId)}` : '全部校区' }}
-        </div>
+        <div class="stat-hint">范围：{{ scopeStore.campusName(campusId) }}</div>
       </article>
       <article class="stat-card">
         <div class="stat-label">校区数</div>
@@ -93,7 +85,7 @@
           />
           <el-table-column label="校区" min-width="160">
             <template #default="{ row }">
-              {{ formatCampus(row.campusId) }}
+              {{ row.campusId ? scopeStore.campusName(row.campusId) : '未分配校区' }}
             </template>
           </el-table-column>
           <el-table-column prop="phone" label="手机号" width="150" sortable="custom" />
@@ -167,7 +159,12 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="教师编码">
-          <el-input v-model="form.teacherCode" placeholder="例如 TCH-20260609-001" />
+          <CodeInput
+            v-model="form.teacherCode"
+            resource="teacher"
+            :mode="teacherDialogMode"
+            placeholder="例如 TCH-20260609-001"
+          />
         </el-form-item>
         <el-form-item label="教师姓名">
           <el-input v-model="form.teacherName" placeholder="请输入教师姓名" />
@@ -248,7 +245,6 @@ import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import TeacherAccountLinkDialog from '@cornerstone/module-education/views/components/TeacherAccountLinkDialog.vue'
 import TeacherImportDialog from '@cornerstone/module-education/views/components/TeacherImportDialog.vue'
 import { ArrowDown, Download, Link, Refresh, Upload } from '@element-plus/icons-vue'
-import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   createTeacher,
@@ -258,24 +254,24 @@ import {
   type TeacherSummary,
 } from '@cornerstone/module-education/api/education'
 import { exportTeachers } from '@cornerstone/module-education/api/teacherImport'
-import {
-  fetchCampuses,
-  type CampusSummary,
-} from '@cornerstone/module-organization/api/organization'
+import { storeToRefs } from 'pinia'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
 const auth = useAuthStore()
-const { campusId } = storeToRefs(scopeStore)
+/** 校区范围是全站那一份：本页跟着横幅芯片收窄，「全部校区」就是不收窄的显式档 */
+const { campusId, prefillCampusId } = storeToRefs(scopeStore)
 const institutionId = computed(() => institutionStore.currentInstitutionId)
-const campuses = ref<CampusSummary[]>([])
+/** 弹窗校区下拉与表格「校区」列的名称来源，机构全量，不随范围收窄 */
+const campuses = computed(() => scopeStore.campuses)
 const teachers = ref<TeacherSummary[]>([])
 
 // 分页状态:教师列表服务端分页
@@ -336,15 +332,6 @@ function formatInstitution(id?: string | null) {
   return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')
 }
 
-function formatCampus(id?: string | null) {
-  const target = campuses.value.find((item) => item.id === id)
-  return target
-    ? target.campusName || target.campusCode || `校区 #${id}`
-    : id
-      ? `校区 #${id}`
-      : '未选择'
-}
-
 function employmentTypeLabel(value?: string | null) {
   return dictStore.displayLabel('employment_type', value)
 }
@@ -368,7 +355,8 @@ function teacherStatusTagType(value?: string | null) {
 function resetForm() {
   form.teacherCode = ''
   form.teacherName = ''
-  form.campusId = campusId.value
+  // 范围收到具体校区就建进该校区；「全部校区」时回落账号默认校区
+  form.campusId = prefillCampusId.value
   form.phone = ''
   form.employmentType = ''
   form.status = ''
@@ -381,17 +369,14 @@ function resetForm() {
 
 async function loadCampusesAndTeachers() {
   if (!institutionId.value) {
-    campuses.value = []
     teachers.value = []
     return
   }
 
   lookupLoading.value = true
   try {
-    campuses.value = await fetchCampuses(institutionId.value)
-    if (campusId.value && !campuses.value.some((item) => item.id === campusId.value)) {
-      campusId.value = null
-    }
+    // 弹窗校区下拉与「校区」列的名称都取全站那一份机构级校区清单
+    await scopeStore.loadCampuses(institutionId.value)
   } catch (error) {
     pageError.value = toMessage(error, '校区数据加载失败')
   } finally {
@@ -436,9 +421,8 @@ function searchTeachers() {
   return loadTeachers()
 }
 
-/** 重置 = 清空校区与关键字后重查 */
+/** 重置 = 清空本页关键字后重查（校区范围是全站入口，不由本页重置） */
 function resetTeacherFilters() {
-  campusId.value = null
   teacherKeyword.value = ''
   void searchTeachers()
 }
@@ -512,7 +496,7 @@ async function submitTeacher() {
   formError.value = ''
   try {
     if (teacherDialogMode.value === 'create') {
-      await createTeacher({
+      const created = await createTeacher({
         institutionId: institutionId.value,
         campusId: form.campusId || undefined,
         teacherCode: form.teacherCode.trim(),
@@ -526,6 +510,13 @@ async function submitTeacher() {
         remark: trimToUndefined(form.remark),
       })
       ElMessage.success('教师已新增')
+      dialogVisible.value = false
+      resetForm()
+      // 建到别的校区、当前范围又收窄着，这条档案会筛不见：把范围跟过去，不然用户以为没建成
+      if (campusId.value && created?.campusId && created.campusId !== campusId.value) {
+        scopeStore.setCampus(created.campusId)
+        return
+      }
     } else if (editingTeacherId.value) {
       await updateTeacher(editingTeacherId.value, {
         campusId: form.campusId || undefined,
@@ -598,7 +589,7 @@ async function initializePage() {
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 换机构时 store 的 reset() 已清空范围，横幅芯片会在新机构上重新 initScope
     teacherKeyword.value = ''
     teacherPage.value = 1
     teacherSort.resetSort()

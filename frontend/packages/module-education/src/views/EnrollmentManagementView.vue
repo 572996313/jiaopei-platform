@@ -14,16 +14,8 @@
       </span>
     </div>
 
-    <!-- 统一筛选栏:四个条件都不再自动触发,点「查询」才按当前组合重查报名 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛报名;点「查询」才按当前组合重查 -->
     <FilterBar :loading="tableLoading" @query="applyFilters" @reset="resetFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
         <el-option
           v-for="item in terms"
@@ -142,7 +134,12 @@
           />
         </el-form-item>
         <el-form-item label="报名编号">
-          <el-input v-model="form.enrollmentNo" placeholder="例如 ENR-20260608-001" />
+          <CodeInput
+            v-model="form.enrollmentNo"
+            resource="enrollment"
+            mode="create"
+            placeholder="例如 ENR-20260608-001"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">
@@ -191,6 +188,7 @@ import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
@@ -215,7 +213,7 @@ const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
-const { institutionId, campuses, terms, loadScope } = useEducationScope()
+const { institutionId, terms, loadScope } = useEducationScope()
 
 const classId = ref<string | null>(null)
 const studentId = ref<string | null>(null)
@@ -363,7 +361,6 @@ function handleSizeChange() {
 
 async function refreshScopeData() {
   if (!institutionId.value) {
-    campuses.value = []
     terms.value = []
     return
   }
@@ -385,9 +382,8 @@ async function applyFilters() {
   await loadRecords()
 }
 
-/** 重置 = 清空校区/学期/班级/学员筛选并重查 */
+/** 重置 = 清空学期/班级/学员筛选并重查（校区是全站范围，不由本页重置） */
 async function resetFilters() {
-  campusId.value = null
   termId.value = null
   classId.value = null
   studentId.value = null
@@ -469,7 +465,7 @@ watch(
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 校区范围由横幅芯片在新机构上重新 initScope，本页只清自己选的筛选
     termId.value = null
     classId.value = null
     studentId.value = null

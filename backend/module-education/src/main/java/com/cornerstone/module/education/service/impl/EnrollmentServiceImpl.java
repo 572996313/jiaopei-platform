@@ -19,6 +19,7 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.EnrollmentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -44,15 +45,17 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final StudentMapper studentMapper;
     private final TeachingClassMapper teachingClassMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public EnrollmentServiceImpl(EnrollmentMapper enrollmentMapper, InstitutionMapper institutionMapper,
                                  StudentMapper studentMapper, TeachingClassMapper teachingClassMapper,
-                                 DictValueValidator dictValueValidator) {
+                                 DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.enrollmentMapper = enrollmentMapper;
         this.institutionMapper = institutionMapper;
         this.studentMapper = studentMapper;
         this.teachingClassMapper = teachingClassMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -148,7 +151,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
-        String enrollmentNo = normalize(request.enrollmentNo());
+        String enrollmentNo = codeRuleService.resolveForCreate("enrollment", request.enrollmentNo());
         assertUniqueEnrollmentNo(request.institutionId(), enrollmentNo);
         assertUniqueStudentClass(request.studentId(), request.classId());
 

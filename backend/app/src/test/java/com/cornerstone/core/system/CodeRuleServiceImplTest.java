@@ -371,6 +371,29 @@ class CodeRuleServiceImplTest {
         verifyNoInteractions(codeRuleMapper);
     }
 
+    /**
+     * 前端「生成」按钮的显隐依据：只报"已启用且仍然登记着"的资源。
+     *
+     * <p>规则行不会被模块卸载删掉，所以"启用中的行"多于"能取号的资源"是常态（关了 organization、
+     * 或资源改了码）。把那种资源报出去，按钮会亮着、点下去必报"未登记的编码资源"。</p>
+     */
+    @Test
+    void 启用的资源码只报仍然登记着的() {
+        Map<String, CodeRuleSpec> specs = new LinkedHashMap<>();
+        specs.put("student", STUDENT);
+        specs.put("class", new CodeRuleSpec("class", "班级编码", "jp_class", "class_code",
+            "CLS", "-", "yyyyMM", 3));
+        when(registry.all()).thenReturn(specs);
+        // selectList 的 enabled=1 条件在 SQL 里，桩给的就是库中"启用中的行"；campus 那条已不再登记
+        CodeRuleEntity studentEnabled = enabledRow();
+        CodeRuleEntity orphanEnabled = enabledRow();
+        orphanEnabled.setResourceCode("campus");
+        when(codeRuleMapper.selectList(any(LambdaQueryWrapper.class)))
+            .thenReturn(List.of(orphanEnabled, studentEnabled));
+
+        assertEquals(List.of("student"), service.listEnabledResourceCodes());
+    }
+
     @Test
     void 日期段按登记的粒度参与拼号() {
         CodeRuleSpec byYear =

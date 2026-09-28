@@ -1,6 +1,8 @@
 package com.cornerstone.module.education.controller;
 
 import com.cornerstone.module.education.dto.BindStudentRequest;
+import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
+import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
@@ -86,7 +88,7 @@ public class MiniappController {
     }
 
     @Operation(summary = "学员课表",
-        description = "按日期范围返回当前用户某位学员的课次(联查班级/课程/教室/教师);只有绑定该学员的当前用户能查到,他人无权")
+        description = "按日期范围返回当前用户某位学员的课次(联查班级/课程/教室,教师只给姓);只有绑定该学员的当前用户能查到,他人无权")
     @RequiresPermission("miniapp:access")
     @GetMapping("/students/{studentId}/lessons")
     public ApiResponse<List<MiniappLessonView>> studentLessons(
@@ -94,5 +96,21 @@ public class MiniappController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return ApiResponse.success("已获取课表", miniappService.studentLessons(studentId, start, end));
+    }
+
+    @Operation(summary = "学员的同班同学名单",
+        description = "按该学员当前所在班级分组返回同学姓名(不含本人);班级不由客户端指定,只给姓名,学号与联系方式一律不下发")
+    @RequiresPermission("miniapp:access")
+    @GetMapping("/students/{studentId}/classmates")
+    public ApiResponse<List<MiniappClassmateGroupView>> studentClassmates(@PathVariable Long studentId) {
+        return ApiResponse.success("已获取同学名单", miniappService.studentClassmates(studentId));
+    }
+
+    @Operation(summary = "首页今日近况",
+        description = "当前账号名下全部绑定学员合并:今日课次、本周节数、下一节预告与未分班名单;停课课次不计")
+    @RequiresPermission("miniapp:access")
+    @GetMapping("/home/overview")
+    public ApiResponse<MiniappHomeOverviewView> homeOverview() {
+        return ApiResponse.success("已获取首页近况", miniappService.homeOverview());
     }
 }

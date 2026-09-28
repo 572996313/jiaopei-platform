@@ -1,6 +1,8 @@
 package com.cornerstone.module.education.service;
 
 import com.cornerstone.module.education.dto.BindStudentRequest;
+import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
+import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
@@ -23,8 +25,14 @@ public interface MiniappService {
     /** 当前用户已关联的学员列表 */
     List<StudentBriefView> listMyStudents();
 
-    /** 当前用户某学员在指定日期范围内的课表(联查班级/课程/教室/教师) */
+    /** 当前用户某学员在指定日期范围内的课表(联查班级/课程/教室,教师只给姓) */
     List<MiniappLessonView> studentLessons(Long studentId, LocalDate start, LocalDate end);
+
+    /** 当前用户某学员的同班同学名单,按当前班级分组(只给姓名) */
+    List<MiniappClassmateGroupView> studentClassmates(Long studentId);
+
+    /** 小程序首页近况:当前账号名下全部绑定学员的今日课次、本周节数与下一节预告 */
+    MiniappHomeOverviewView homeOverview();
 
     /** 学生端:查询自己的档案(未归属时 bound=false) */
     StudentOwnProfileView myStudentProfile();

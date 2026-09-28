@@ -63,6 +63,9 @@
         </div>
         <div v-else class="banner-chip banner-chip-static is-warn">未选择机构</div>
 
+        <!-- 业务登记的范围芯片（校区一类跟着机构走的工作范围），紧跟机构芯片、读起来是「机构 / 校区」一组 -->
+        <component v-for="chip in bannerChips" :is="chip.component" :key="chip.key" />
+
         <el-dropdown trigger="click" @command="handleUserCommand">
           <div class="banner-chip banner-user">
             <span class="banner-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
@@ -391,6 +394,7 @@ import {
 import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
 import {
   contributedBannerActions,
+  contributedBannerChips,
   contributedNavItems,
   type NavItemDefinition,
 } from '@cornerstone/core/extension/module-extensions'
@@ -480,6 +484,8 @@ const searchOpen = ref(false)
 
 /** 顶栏业务入口：现算而不是加载时取快照，登记晚于外壳挂载也要出现 */
 const bannerActions = computed(() => contributedBannerActions())
+/** 顶栏范围芯片（校区一类），落在机构芯片右侧 */
+const bannerChips = computed(() => contributedBannerChips())
 
 watch(
   menuPreferences,

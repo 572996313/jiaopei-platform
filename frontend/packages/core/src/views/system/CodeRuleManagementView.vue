@@ -13,14 +13,17 @@
               <b>不能新增或删除资源</b>。
             </p>
             <p>
-              <b>启用</b>之后，这一资源的新增页点「生成」即可填号、留空保存也会自动补号；不启用就照旧必须自己填。
+              <b>启用</b
+              >之后，这一资源的新增页会在打开时把建议号填进编码框（可自己改，也能点「重新生成」换一个）；不启用就照旧纯手工填写。<b>编码始终必填</b>，系统不会背着你偷偷补号。
             </p>
             <p>
-              <b>日期段</b>决定序号多久重排一次：yyyyMMdd 每天从 001 开始，yyyy 全年累加，留空则不带日期段、一直累加。
+              <b>日期段</b>决定序号多久重排一次：yyyyMMdd 每天从 001 开始，yyyy
+              全年累加，留空则不带日期段、一直累加。
             </p>
             <p><b>分隔符</b>留空表示各段直接相连（如 STU20260928001）。</p>
             <p>
-              <b>允许断号</b>：点了生成但没保存，那个号就空着，不回收也不补。这里的编号只是快捷入口，客户自己维护。
+              <b>允许断号</b
+              >：点了生成但没保存，那个号就空着，不回收也不补。这里的编号只是快捷入口，客户自己维护。
             </p>
             <p>序号位数不足补零；实际号超出位数时自动加宽，不会截断成重复号。</p>
           </NoteHint>
@@ -55,7 +58,13 @@
             <el-table-column label="日期段" width="120" prop="datePattern" sortable>
               <template #default="{ row }">{{ datePatternLabel(row.datePattern) }}</template>
             </el-table-column>
-            <el-table-column prop="serialLength" label="序号位数" width="90" align="right" sortable />
+            <el-table-column
+              prop="serialLength"
+              label="序号位数"
+              width="90"
+              align="right"
+              sortable
+            />
             <el-table-column label="下一个号" min-width="170">
               <template #default="{ row }">
                 <code v-if="row.previewCode" class="rule-preview-text">{{ row.previewCode }}</code>
@@ -69,7 +78,12 @@
               show-overflow-tooltip
               sortable
             />
-            <el-table-column v-if="permissions.canManageCodeRules" label="操作" width="90" fixed="right">
+            <el-table-column
+              v-if="permissions.canManageCodeRules"
+              label="操作"
+              width="90"
+              fixed="right"
+            >
               <template #default="{ row }">
                 <el-button text type="primary" @click="openEditDialog(row)">编辑</el-button>
               </template>
@@ -94,7 +108,7 @@
           <span class="rule-switch-hint">
             {{
               form.enabled
-                ? '该资源的新增页可点「生成」填号，留空保存也会补号'
+                ? '该资源的新增页打开时会自动填好建议号，可以改'
                 : '该资源的新增页仍必须自己填编号'
             }}
           </span>
@@ -128,14 +142,21 @@
             </el-select>
           </el-form-item>
           <el-form-item label="序号位数">
-            <el-input-number v-model="form.serialLength" :min="1" :max="10" controls-position="right" />
+            <el-input-number
+              v-model="form.serialLength"
+              :min="1"
+              :max="10"
+              controls-position="right"
+            />
           </el-form-item>
         </div>
 
         <el-form-item label="编号形态">
           <div class="rule-preview-line">
             <code class="rule-preview-text">{{ formatPreview }}</code>
-            <span class="rule-muted">（日期段显示的是格式本身，保存后按当天填充；序号用 0 占位表示位数）</span>
+            <span class="rule-muted"
+              >（日期段显示的是格式本身，保存后按当天填充；序号用 0 占位表示位数）</span
+            >
           </div>
         </el-form-item>
 
@@ -166,6 +187,7 @@ import NoteHint from '@cornerstone/core/components/NoteHint.vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { fetchCodeRules, updateCodeRule } from '@cornerstone/core/api/system'
 import type { CodeRuleSummary } from '@cornerstone/core/api/system'
+import { invalidateEnabledCodeResources } from '@cornerstone/core/composables/use-code-rules'
 import { toMessage, useSystemPermissions } from './shared'
 
 const permissions = useSystemPermissions()
@@ -279,6 +301,8 @@ async function submit() {
     })
     ElMessage.success('编号规则已保存')
     dialogVisible.value = false
+    // 各新增页的「生成」按钮显隐读的是那份模块级集合，不刷新的话要重新进页面才跟上
+    invalidateEnabledCodeResources()
     await loadRules()
   } catch (error) {
     formError.value = toMessage(error, '保存编号规则失败')

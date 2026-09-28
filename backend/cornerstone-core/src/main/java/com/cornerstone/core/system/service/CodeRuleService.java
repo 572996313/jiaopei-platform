@@ -27,4 +27,20 @@ public interface CodeRuleService {
      * @return 一定非空
      */
     String resolveForCreate(String resourceCode, String submitted);
+
+    /**
+     * 已启用自动编号的资源码清单。
+     *
+     * <p>给新增页决定"要不要显示那颗生成按钮"用：维护规则的权限码是系统管理页的，业务操作员没有，
+     * 所以这里只能另开一个只需登录的入口，不能让前端去读全量清单。</p>
+     */
+    List<String> listEnabledResourceCodes();
+
+    /**
+     * 无人工提交值时的自动取号：该资源没启用规则就返回 {@code null}，不报错。
+     *
+     * <p>给"操作员根本不填编号"的入口用（小程序自助建档一类）。那种路径不能改走
+     * {@link #resolveForCreate}——留空且未启用时它会抛"XX不能为空"，而这类入口没有"必填"可言。</p>
+     */
+    String autoCodeIfEnabled(String resourceCode);
 }

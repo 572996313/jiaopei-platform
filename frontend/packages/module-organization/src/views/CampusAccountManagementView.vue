@@ -9,22 +9,9 @@
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       <el-button @click="goCampus">校区与学期</el-button>
       <span class="education-context-text">
-        默认校区决定该账号打开工作台时预选哪个校区；改完对方下次进工作台生效。
+        当前校区：{{ campusId ? scopeStore.campusName(campusId) : '全部校区' }}；偏好按校区成组维护，改完对方下次进工作台生效。
       </span>
     </div>
-
-    <!-- 统一筛选栏:换校区不再自动触发,点「查询」才按新校区重拉偏好与候选 -->
-    <FilterBar :loading="lookupLoading" @query="reloadBoth" @reset="resetToDefaultCampus">
-      <!-- 偏好按校区成组维护,没有"全部校区"这一档;范围与教室、节次页共用同一个 store -->
-      <el-select v-model="campusId" placeholder="选择校区" filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="`${item.id}-${item.campusName || item.campusCode}`"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
-    </FilterBar>
 
     <article class="panel-card education-panel">
       <div class="table-toolbar">
@@ -46,16 +33,14 @@
           </el-select>
           <el-button
             type="primary"
-            :disabled="!pendingUserId"
+            :disabled="!pendingUserId || !campusId"
             :loading="saving"
             @click="assignDefaultCampus"
           >
             设为本校区默认
           </el-button>
         </template>
-        <span class="education-context-text">
-          当前校区：{{ formatCampus(campusId) }}；候选账号只列本机构前 100 个,人多用关键字缩小范围。
-        </span>
+        <span class="education-context-text">候选账号只列本机构前 100 个，人多用关键字缩小范围。</span>
       </div>
 
       <TableFillBox v-slot="{ height }">
@@ -86,7 +71,7 @@
         {{
           campusId
             ? '当前校区下暂无设为默认的账号。'
-            : '当前机构下暂无校区，请先在「校区与学期」新增校区。'
+            : '默认校区按校区成组维护，请先在顶部把范围收到具体校区。'
         }}
       </div>
     </article>
@@ -100,16 +85,13 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { fetchSystemUserPage, type SystemUserSummary } from '@cornerstone/core/api/system'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import {
   fetchCampusAccountPreferences,
-  fetchCampuses,
   updateCampusAccountPreference,
   type CampusAccountPreference,
-  type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 
@@ -117,7 +99,8 @@ const router = useRouter()
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
 /** 校区范围与教室、节次模板页共用同一份，切页时停在同一个校区 */
-const { campusId } = storeToRefs(useEducationScopeStore())
+const scopeStore = useEducationScopeStore()
+const { campusId } = storeToRefs(scopeStore)
 
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const canWrite = computed(() => auth.hasPermission('organization:write'))
@@ -127,7 +110,6 @@ const canWrite = computed(() => auth.hasPermission('organization:write'))
  */
 const canPickAccount = computed(() => auth.hasPermission('system:user:manage') && canWrite.value)
 
-const campuses = ref<CampusSummary[]>([])
 const preferences = ref<CampusAccountPreference[]>([])
 const candidateUsers = ref<SystemUserSummary[]>([])
 const pendingUserId = ref('')
@@ -140,14 +122,6 @@ const saving = ref(false)
 
 function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  const matched = campuses.value.find((item) => item.id === id)
-  return matched?.campusName || matched?.campusCode || `校区 #${id}`
 }
 
 async function loadPreferences() {
@@ -195,28 +169,17 @@ async function reloadBoth() {
   await loadCandidates()
 }
 
-/** 没有"全部校区"档,重置 = 回到第一个校区并重查 */
-function resetToDefaultCampus() {
-  campusId.value = campuses.value[0]?.id || null
-  void reloadBoth()
-}
-
-async function loadCampuses() {
+/** 校区范围在横幅那颗芯片上选，本页只保证清单拉过，然后按当前范围取数 */
+async function refreshAll() {
   if (!institutionId.value) {
-    campuses.value = []
-    campusId.value = null
+    preferences.value = []
+    candidateUsers.value = []
     return
   }
   lookupLoading.value = true
   pageError.value = ''
   try {
-    campuses.value = await fetchCampuses(institutionId.value)
-    // 机构里没有这个校区（换机构、或校区被删）时兜成第一个，避免带着死 id 进来显示"未选择"
-    if (!campusId.value || !campuses.value.some((item) => item.id === campusId.value)) {
-      campusId.value = campuses.value[0]?.id || null
-    }
-  } catch (error) {
-    pageError.value = toMessage(error, '校区列表加载失败')
+    await scopeStore.loadCampuses(institutionId.value)
   } finally {
     lookupLoading.value = false
   }
@@ -229,6 +192,8 @@ async function savePreference(userId: string, targetCampusId: string | null, mes
   try {
     await updateCampusAccountPreference(userId, targetCampusId)
     ElMessage.success(message)
+    // 改的可能是自己:全站筛选与表单预填读的就是这一份偏好,改完要重取
+    await scopeStore.loadPreference(institutionId.value, true)
     await reloadBoth()
     pendingUserId.value = ''
   } catch (error) {
@@ -254,10 +219,6 @@ function goCampus() {
   router.push('/campus')
 }
 
-async function refreshAll() {
-  await loadCampuses()
-}
-
 async function initializePage() {
   try {
     await institutionStore.loadInstitutions()
@@ -268,8 +229,8 @@ async function initializePage() {
 }
 
 watch(institutionId, async () => {
-  campusId.value = null
-  await loadCampuses()
+  // 换机构时 store 的 reset() 已经把范围清空，横幅芯片会在新机构上重新 initScope
+  await refreshAll()
 })
 
 onMounted(() => {

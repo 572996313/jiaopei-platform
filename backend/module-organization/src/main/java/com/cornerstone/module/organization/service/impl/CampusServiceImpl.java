@@ -9,6 +9,7 @@ import com.cornerstone.module.organization.dto.CampusCreateRequest;
 import com.cornerstone.module.organization.dto.CampusUpdateRequest;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.CampusService;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.util.List;
@@ -22,12 +23,14 @@ public class CampusServiceImpl implements CampusService {
     private final CampusMapper campusMapper;
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
+    private final CodeRuleService codeRuleService;
 
     public CampusServiceImpl(CampusMapper campusMapper, InstitutionMapper institutionMapper,
-                             DictValueValidator dictValueValidator) {
+                             DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
         this.campusMapper = campusMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -48,7 +51,7 @@ public class CampusServiceImpl implements CampusService {
         if (institution == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
         }
-        String campusCode = normalize(request.campusCode());
+        String campusCode = codeRuleService.resolveForCreate("campus", request.campusCode());
         String campusName = normalize(request.campusName());
         assertUniqueCampusCode(request.institutionId(), campusCode, null);
         assertUniqueCampusName(request.institutionId(), campusName, null);

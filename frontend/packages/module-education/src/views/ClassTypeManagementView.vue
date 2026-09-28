@@ -78,7 +78,9 @@
         class="education-alert"
       />
       <el-form label-position="top" class="education-form">
-        <el-form-item label="班型编码"><el-input v-model="form.typeCode" /></el-form-item>
+        <el-form-item label="班型编码">
+          <CodeInput v-model="form.typeCode" resource="class_type" :mode="dialogMode" />
+        </el-form-item>
         <el-form-item label="班型名称"><el-input v-model="form.typeName" /></el-form-item>
         <el-form-item label="授课方式"
           ><DictSelect v-model="form.teachingMethod" type-code="teaching_method"
@@ -116,6 +118,7 @@ import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'

@@ -1,6 +1,8 @@
 package com.cornerstone.module.education;
 
+import com.cornerstone.support.CodeRuleTestSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,10 +22,12 @@ import com.cornerstone.module.education.mapper.UserStudentRelMapper;
 import com.cornerstone.module.education.service.impl.MiniappServiceImpl;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
+import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
+import com.cornerstone.module.education.domain.entity.CourseEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.StudentParentEntity;
@@ -70,7 +74,7 @@ class MiniappServiceImplTest {
     void setUp() {
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
             classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService,
-            dictValueValidator, authApplicationService);
+            dictValueValidator, authApplicationService, CodeRuleTestSupport.unconfiguredRules());
         when(systemConfigService.getIntConfig("auth.register.default_institution_id", 1)).thenReturn(1);
         when(systemDictService.listItems("gender")).thenReturn(List.of(
             new DictItemView(40L, 5L, "male", "男", "male", 10, "active", null),
@@ -228,8 +232,8 @@ class MiniappServiceImplTest {
 
         assertEquals(1, result.size());
         assertEquals("三(1)班", result.get(0).className());
+        // 教师只下发姓氏称呼:全名与手机号都不进小程序课表(几百个家庭都能翻到这页)
         assertEquals("张老师", result.get(0).teacherName());
-        assertEquals("13800001111", result.get(0).teacherPhone());
     }
 
     @Test
@@ -240,6 +244,98 @@ class MiniappServiceImplTest {
             () -> service.studentLessons(10L, LocalDate.now(), LocalDate.now()));
 
         assertTrue(exception.getMessage().contains("无权查看"));
+    }
+
+    @Test
+    void studentClassmatesGroupsByCurrentClassAndExcludesSelfAndNotYetJoined() {
+        when(relMapper.selectCount(any())).thenReturn(1L);
+        ClassStudentEntity futureJoin = inClass(20L, 12L);
+        futureJoin.setJoinedAt(LocalDate.now().plusDays(1));
+        // 第一次 selectList 取"我的在班关系"，第二次取"班内全部在班关系"，顺序即实现的调用顺序
+        when(classStudentMapper.selectList(any()))
+            .thenReturn(List.of(inClass(20L, 10L)))
+            .thenReturn(List.of(inClass(20L, 10L), inClass(20L, 11L), futureJoin));
+        when(classMapper.selectBatchIds(List.of(20L))).thenReturn(List.of(teachingClass()));
+        when(studentMapper.selectBatchIds(List.of(11L))).thenReturn(List.of(student(11L, "S002", "小红")));
+
+        var groups = service.studentClassmates(10L);
+
+        assertEquals(1, groups.size());
+        assertEquals("三(1)班", groups.get(0).className());
+        // total 含本人;明天才入班的那个还不算同学
+        assertEquals(2, groups.get(0).total());
+        assertEquals(List.of("小红"), groups.get(0).classmateNames());
+    }
+
+    @Test
+    void studentClassmatesRejectsUnboundStudent() {
+        when(relMapper.selectCount(any())).thenReturn(0L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+            () -> service.studentClassmates(10L));
+
+        assertTrue(exception.getMessage().contains("无权查看"));
+    }
+
+    @Test
+    void homeOverviewAsksUnboundAccountToBindProfile() {
+        when(relMapper.selectList(any())).thenReturn(List.of());
+
+        var view = service.homeOverview();
+
+        assertEquals(Boolean.FALSE, view.bound());
+        assertTrue(view.todayLessons().isEmpty());
+        assertEquals(0, view.weekLessonCount());
+    }
+
+    @Test
+    void homeOverviewListsTodayAndNextLessonAndFlagsStudentWithoutClass() {
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L), rel(1L, 12L)));
+        when(studentMapper.selectBatchIds(List.of(10L, 12L)))
+            .thenReturn(List.of(student(10L, "S001", "小明"), student(12L, "S003", "小亮")));
+        // 只有小明在班，小亮已绑定但没分班
+        when(classStudentMapper.selectList(any())).thenReturn(List.of(inClass(20L, 10L)));
+        when(classMapper.selectBatchIds(List.of(20L))).thenReturn(List.of(teachingClass()));
+        when(courseMapper.selectBatchIds(List.of(30L))).thenReturn(List.of(course()));
+        when(teacherMapper.selectBatchIds(List.of(40L))).thenReturn(List.of(teacher()));
+        when(classroomMapper.selectBatchIds(List.of(50L))).thenReturn(List.of(classroom()));
+        LocalDate today = LocalDate.now();
+        // 故意给成乱序:实现要自己按日期与时间排,不靠 SQL 的 order by
+        when(lessonMapper.selectList(any())).thenReturn(List.of(
+            lesson(today.plusDays(1), LocalTime.of(14, 0)),
+            lesson(today, LocalTime.of(9, 0)),
+            lesson(today, LocalTime.of(16, 0))));
+
+        var view = service.homeOverview();
+
+        assertEquals(Boolean.TRUE, view.bound());
+        assertEquals(List.of("小亮"), view.studentsWithoutClass());
+        assertEquals(3, view.weekLessonCount());
+        assertEquals(2, view.todayLessons().size());
+        assertEquals("小明", view.todayLessons().get(0).studentName());
+        assertEquals("张老师", view.todayLessons().get(0).teacherName());
+        assertEquals(LocalTime.of(9, 0), view.todayLessons().get(0).startTime());
+        assertEquals(LocalTime.of(16, 0), view.todayLessons().get(1).startTime());
+    }
+
+    @Test
+    void homeOverviewPicksEarliestUpcomingLessonAsNext() {
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L)));
+        when(studentMapper.selectBatchIds(List.of(10L))).thenReturn(List.of(student(10L, "S001", "小明")));
+        when(classStudentMapper.selectList(any())).thenReturn(List.of(inClass(20L, 10L)));
+        when(classMapper.selectBatchIds(List.of(20L))).thenReturn(List.of(teachingClass()));
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        // 全在明天:断言与跑测试的钟点无关
+        when(lessonMapper.selectList(any())).thenReturn(List.of(
+            lesson(tomorrow, LocalTime.of(14, 0)),
+            lesson(tomorrow, LocalTime.of(9, 0))));
+
+        var view = service.homeOverview();
+
+        assertTrue(view.todayLessons().isEmpty());
+        assertEquals(2, view.weekLessonCount());
+        assertEquals(tomorrow, view.nextLesson().lessonDate());
+        assertEquals(LocalTime.of(9, 0), view.nextLesson().startTime());
     }
 
     @Test
@@ -370,6 +466,31 @@ class MiniappServiceImplTest {
         assertEquals(2L, captor.getValue().getUserId());
         assertEquals("female", captor.getValue().getGender());
         assertTrue(captor.getValue().getStudentNo() != null && captor.getValue().getStudentNo().startsWith("S"));
+    }
+
+    @Test
+    void saveStudentProfileUsesRuleCodeWhenAutoNumberingEnabled() {
+        // 自助建档没有人填学号这一步：启用了编号规则就用规则出的号，不再是时间戳号
+        CodeRuleService rules = CodeRuleTestSupport.rulesEnabledFor("student", null);
+        String fromRule = rules.autoCodeIfEnabled("student");
+        assertNotNull(fromRule, "桩没生效，本用例随之失效");
+        service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
+            classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService,
+            dictValueValidator, authApplicationService, rules);
+        authenticateStudent(2L);
+        when(studentMapper.selectOne(any())).thenReturn(null);
+        when(studentMapper.insert(any(StudentEntity.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, StudentEntity.class).setId(30L);
+            return 1;
+        });
+        when(relMapper.selectCount(any())).thenReturn(0L);
+        when(classStudentMapper.selectList(any())).thenReturn(List.of());
+
+        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
+
+        ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentMapper).insert(captor.capture());
+        assertEquals(fromRule, captor.getValue().getStudentNo());
     }
 
     @Test
@@ -514,8 +635,48 @@ class MiniappServiceImplTest {
     private TeacherEntity teacher() {
         TeacherEntity teacher = new TeacherEntity();
         teacher.setId(40L);
-        teacher.setTeacherName("张老师");
+        teacher.setTeacherName("张伟");
         teacher.setPhone("13800001111");
         return teacher;
+    }
+
+    private ClassStudentEntity inClass(Long classId, Long studentId) {
+        ClassStudentEntity relation = new ClassStudentEntity();
+        relation.setInstitutionId(1L);
+        relation.setClassId(classId);
+        relation.setStudentId(studentId);
+        relation.setStatus("active");
+        return relation;
+    }
+
+    private TeachingClassEntity teachingClass() {
+        TeachingClassEntity clazz = new TeachingClassEntity();
+        clazz.setId(20L);
+        clazz.setInstitutionId(1L);
+        clazz.setClassName("三(1)班");
+        clazz.setCourseId(30L);
+        clazz.setTeacherId(40L);
+        return clazz;
+    }
+
+    private CourseEntity course() {
+        CourseEntity course = new CourseEntity();
+        course.setId(30L);
+        course.setCourseName("硬笔书法");
+        return course;
+    }
+
+    private ScheduleLessonEntity lesson(LocalDate date, LocalTime startTime) {
+        ScheduleLessonEntity lesson = new ScheduleLessonEntity();
+        lesson.setId(1L);
+        lesson.setClassId(20L);
+        lesson.setClassroomId(50L);
+        lesson.setLessonDate(date);
+        lesson.setLessonWeekday(date.getDayOfWeek().getValue());
+        lesson.setStartTime(startTime);
+        lesson.setEndTime(startTime.plusHours(1));
+        lesson.setLessonTitle("第1课");
+        lesson.setLessonStatus("scheduled");
+        return lesson;
     }
 }

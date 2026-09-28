@@ -31,6 +31,7 @@ import com.cornerstone.module.education.service.impl.ClassStudentServiceImpl;
 import com.cornerstone.module.education.service.impl.EnrollmentServiceImpl;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -108,7 +109,8 @@ class EducationFourthMainlineValidationTest {
             institutionMapper,
             studentMapper,
             teachingClassMapper,
-            dictValueValidator
+            dictValueValidator,
+            CodeRuleTestSupport.unconfiguredRules()
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectById(10L)).thenReturn(student());

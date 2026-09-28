@@ -5,6 +5,9 @@ import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.module.education.domain.entity.UserStudentRelEntity;
 import com.cornerstone.module.education.dto.BindStudentRequest;
+import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
+import com.cornerstone.module.education.dto.MiniappHomeLessonView;
+import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
 import com.cornerstone.module.education.dto.StudentBriefView;
 import com.cornerstone.module.education.mapper.UserStudentRelMapper;
@@ -16,7 +19,9 @@ import com.cornerstone.module.education.dto.StudentProfileSaveRequest;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.common.model.BaseEntity;
-import com.cornerstone.core.system.service.SystemConfigService;import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
+import com.cornerstone.core.system.service.CodeRuleService;
+import com.cornerstone.core.system.service.SystemConfigService;
+import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.CourseEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
@@ -33,12 +38,14 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -52,6 +59,10 @@ public class MiniappServiceImpl implements MiniappService {
     private static final String CLASS_STUDENT_ACTIVE = ACTIVE;
     /** 家长账号显示名的后缀：孩子姓名顿号连接 + 该后缀 */
     private static final String PARENT_NAME_SUFFIX = "家长";
+    /** 停课课次不进首页今日列表与本周节数:那是"不用去"的课,算进去会把家长引到空教室 */
+    private static final String LESSON_STATUS_CANCELLED = "cancelled";
+    /** 同学名单封顶:正常班级几十人,超出即数据异常,页面提示联系机构而不是整页渲染 */
+    private static final int CLASSMATE_LIMIT = 200;
 
     private final UserStudentRelMapper userStudentRelMapper;
     private final StudentMapper studentMapper;
@@ -65,13 +76,15 @@ public class MiniappServiceImpl implements MiniappService {
     private final SystemConfigService systemConfigService;
     private final DictValueValidator dictValueValidator;
     private final AuthApplicationService authApplicationService;
+    private final CodeRuleService codeRuleService;
 
     public MiniappServiceImpl(UserStudentRelMapper userStudentRelMapper, StudentMapper studentMapper,
                               StudentParentMapper studentParentMapper, ClassStudentMapper classStudentMapper,
                               TeachingClassMapper teachingClassMapper, ScheduleLessonMapper scheduleLessonMapper,
                               CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper,
                               SystemConfigService systemConfigService, DictValueValidator dictValueValidator,
-                              AuthApplicationService authApplicationService) {
+                              AuthApplicationService authApplicationService,
+                              CodeRuleService codeRuleService) {
         this.userStudentRelMapper = userStudentRelMapper;
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
@@ -84,6 +97,7 @@ public class MiniappServiceImpl implements MiniappService {
         this.systemConfigService = systemConfigService;
         this.dictValueValidator = dictValueValidator;
         this.authApplicationService = authApplicationService;
+        this.codeRuleService = codeRuleService;
     }
 
     @Override
@@ -158,24 +172,13 @@ public class MiniappServiceImpl implements MiniappService {
         }
 
         Map<Long, TeachingClassEntity> classes = groupById(teachingClassMapper.selectBatchIds(classIds));
-        Set<Long> courseIdSet = classes.values().stream().map(TeachingClassEntity::getCourseId)
-            .filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, CourseEntity> courses = courseIdSet.isEmpty() ? Map.of()
-            : groupById(courseMapper.selectBatchIds(new ArrayList<>(courseIdSet)));
-        Set<Long> classroomIdSet = lessons.stream().map(ScheduleLessonEntity::getClassroomId)
-            .filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, ClassroomEntity> classrooms = classroomIdSet.isEmpty() ? Map.of()
-            : groupById(classroomMapper.selectBatchIds(new ArrayList<>(classroomIdSet)));
-        Set<Long> teacherIdSet = classes.values().stream().map(TeachingClassEntity::getTeacherId)
-            .filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, TeacherEntity> teachers = teacherIdSet.isEmpty() ? Map.of()
-            : groupById(teacherMapper.selectBatchIds(new ArrayList<>(teacherIdSet)));
+        Map<Long, CourseEntity> courses = coursesOfClasses(classes.values());
+        Map<Long, ClassroomEntity> classrooms = classroomsOfLessons(lessons);
+        Map<Long, TeacherEntity> teachers = teachersOfClasses(classes.values());
 
         return lessons.stream().map(lesson -> {
             TeachingClassEntity clazz = classes.get(lesson.getClassId());
-            CourseEntity course = clazz == null ? null : courses.get(clazz.getCourseId());
             ClassroomEntity classroom = classrooms.get(lesson.getClassroomId());
-            TeacherEntity teacher = clazz == null ? null : teachers.get(clazz.getTeacherId());
             return new MiniappLessonView(
                 lesson.getId(),
                 lesson.getLessonDate(),
@@ -185,12 +188,125 @@ public class MiniappServiceImpl implements MiniappService {
                 lesson.getLessonTitle(),
                 lesson.getLessonStatus(),
                 clazz == null ? null : clazz.getClassName(),
-                course == null ? null : course.getSubjectName() != null ? course.getSubjectName() : course.getCourseName(),
+                courseNameOf(clazz, courses),
                 classroom == null ? null : classroom.getClassroomName(),
-                teacher == null ? null : teacher.getTeacherName(),
-                teacher == null ? null : teacher.getPhone()
+                teacherSalutation(clazz == null ? null : teachers.get(clazz.getTeacherId()))
             );
         }).toList();
+    }
+
+    @Override
+    public List<MiniappClassmateGroupView> studentClassmates(Long studentId) {
+        Long userId = AuthContext.requireUser().userId();
+        // 数据隔离:必须当前用户已关联该学员,否则视为不可访问
+        ensureBound(userId, studentId);
+        List<Long> classIds = currentClassIds(studentId);
+        if (classIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, TeachingClassEntity> classes = groupById(teachingClassMapper.selectBatchIds(classIds));
+        LocalDate today = LocalDate.now();
+        Map<Long, List<ClassStudentEntity>> membersByClass = classStudentMapper.selectList(
+                new LambdaQueryWrapper<ClassStudentEntity>()
+                    .in(ClassStudentEntity::getClassId, classIds)
+                    .eq(ClassStudentEntity::getStatus, CLASS_STUDENT_ACTIVE))
+            .stream()
+            .filter(relation -> isInClassNow(relation, today))
+            .collect(Collectors.groupingBy(ClassStudentEntity::getClassId));
+
+        List<MiniappClassmateGroupView> groups = new ArrayList<>();
+        for (Long classId : classIds) {
+            List<ClassStudentEntity> members = membersByClass.getOrDefault(classId, List.of());
+            List<Long> classmateIds = members.stream()
+                .map(ClassStudentEntity::getStudentId)
+                .filter(id -> !id.equals(studentId))
+                .distinct()
+                .toList();
+            TeachingClassEntity clazz = classes.get(classId);
+            if (classmateIds.isEmpty()) {
+                groups.add(new MiniappClassmateGroupView(classId, clazz == null ? null : clazz.getClassName(),
+                    members.size(), List.of()));
+                continue;
+            }
+            // 按学号排,名单顺序稳定;学号只用于排序,不出现在返回值里
+            List<String> names = studentMapper.selectBatchIds(classmateIds).stream()
+                .sorted(Comparator.comparing(StudentEntity::getStudentNo,
+                    Comparator.nullsLast(Comparator.naturalOrder())))
+                .limit(CLASSMATE_LIMIT)
+                .map(StudentEntity::getStudentName)
+                .filter(name -> name != null && !name.isBlank())
+                .toList();
+            groups.add(new MiniappClassmateGroupView(classId, clazz == null ? null : clazz.getClassName(),
+                members.size(), names));
+        }
+        return groups;
+    }
+
+    @Override
+    public MiniappHomeOverviewView homeOverview() {
+        Long userId = AuthContext.requireUser().userId();
+        List<UserStudentRelEntity> relations = userStudentRelMapper.selectList(new LambdaQueryWrapper<UserStudentRelEntity>()
+            .eq(UserStudentRelEntity::getUserId, userId)
+            .orderByAsc(UserStudentRelEntity::getId));
+        if (relations.isEmpty()) {
+            return new MiniappHomeOverviewView(Boolean.FALSE, List.of(), 0, null, List.of());
+        }
+        List<Long> studentIds = relations.stream().map(UserStudentRelEntity::getStudentId).toList();
+        Map<Long, StudentEntity> students = groupById(studentMapper.selectBatchIds(studentIds));
+
+        LocalDate today = LocalDate.now();
+        List<ClassStudentEntity> inClass = classStudentMapper.selectList(new LambdaQueryWrapper<ClassStudentEntity>()
+                .in(ClassStudentEntity::getStudentId, studentIds)
+                .eq(ClassStudentEntity::getStatus, CLASS_STUDENT_ACTIVE))
+            .stream()
+            .filter(relation -> isInClassNow(relation, today))
+            .toList();
+        List<String> studentsWithoutClass = students.values().stream()
+            .filter(student -> inClass.stream().noneMatch(r -> r.getStudentId().equals(student.getId())))
+            .map(StudentEntity::getStudentName)
+            .filter(name -> name != null && !name.isBlank())
+            .toList();
+        List<Long> classIds = inClass.stream().map(ClassStudentEntity::getClassId).distinct().toList();
+        if (classIds.isEmpty()) {
+            return new MiniappHomeOverviewView(Boolean.TRUE, List.of(), 0, null, studentsWithoutClass);
+        }
+
+        Map<Long, TeachingClassEntity> classes = groupById(teachingClassMapper.selectBatchIds(classIds));
+        // 同一班可能有该账号的两个孩子,所以班级到学员是列表;拼成"小明、小红"一个角标显示
+        Map<Long, List<StudentEntity>> studentsByClass = new LinkedHashMap<>();
+        for (ClassStudentEntity relation : inClass) {
+            StudentEntity student = students.get(relation.getStudentId());
+            if (student != null) {
+                studentsByClass.computeIfAbsent(relation.getClassId(), key -> new ArrayList<>()).add(student);
+            }
+        }
+
+        LocalDate monday = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        List<ScheduleLessonEntity> lessons = scheduleLessonMapper.selectList(new LambdaQueryWrapper<ScheduleLessonEntity>()
+                .in(ScheduleLessonEntity::getClassId, classIds)
+                .ge(ScheduleLessonEntity::getLessonDate, monday)
+                .le(ScheduleLessonEntity::getLessonDate, monday.plusDays(6))
+                .ne(ScheduleLessonEntity::getLessonStatus, LESSON_STATUS_CANCELLED)
+                .orderByAsc(ScheduleLessonEntity::getLessonDate, ScheduleLessonEntity::getStartTime));
+        Map<Long, CourseEntity> courses = coursesOfClasses(classes.values());
+        Map<Long, ClassroomEntity> classrooms = classroomsOfLessons(lessons);
+        Map<Long, TeacherEntity> teachers = teachersOfClasses(classes.values());
+
+        List<MiniappHomeLessonView> weekLessons = lessons.stream()
+            .map(lesson -> toHomeLesson(lesson, classes, studentsByClass, courses, classrooms, teachers))
+            .sorted(Comparator.comparing(MiniappHomeLessonView::lessonDate)
+                .thenComparing(MiniappHomeLessonView::startTime))
+            .toList();
+        LocalTime now = LocalTime.now();
+        List<MiniappHomeLessonView> todayLessons = weekLessons.stream()
+            .filter(view -> today.equals(view.lessonDate()))
+            .toList();
+        MiniappHomeLessonView nextLesson = weekLessons.stream()
+            .filter(view -> view.lessonDate().isAfter(today)
+                || (today.equals(view.lessonDate()) && view.startTime().isAfter(now)))
+            .findFirst()
+            .orElse(null);
+        return new MiniappHomeOverviewView(Boolean.TRUE, todayLessons, weekLessons.size(), nextLesson, studentsWithoutClass);
     }
 
     @Override
@@ -238,7 +354,7 @@ public class MiniappServiceImpl implements MiniappService {
             created.setInstitutionId(Long.valueOf(
                 systemConfigService.getIntConfig("auth.register.default_institution_id", 1)));
             created.setUserId(userId);
-            created.setStudentNo(generateStudentNo());
+            created.setStudentNo(nextStudentNo());
             created.setStudentName(request.studentName().trim());
             created.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
             created.setBirthday(request.birthday());
@@ -366,6 +482,15 @@ public class MiniappServiceImpl implements MiniappService {
         userStudentRelMapper.insert(relation);
     }
 
+    /**
+     * 自助建档没有人工填号这一步：启用了编号规则就按规则取号，没启用沿用原来的时间戳号，
+     * 保证这条路径永远不会因为"没配规则"而建不出档案。
+     */
+    private String nextStudentNo() {
+        String fromRule = codeRuleService.autoCodeIfEnabled("student");
+        return fromRule != null ? fromRule : generateStudentNo();
+    }
+
     /** 学号自动生成:S + 13位时间戳(yyMMddHHmmss) + 3位随机,机构范围即可防重 */
     private String generateStudentNo() {
         String ts = java.time.LocalDateTime.now()
@@ -374,7 +499,7 @@ public class MiniappServiceImpl implements MiniappService {
         return "S" + ts + rand;
     }
 
-private StudentEntity resolveStudent(BindStudentRequest request) {
+    private StudentEntity resolveStudent(BindStudentRequest request) {
         String expectedName = request.studentName().trim();
         if ("PARENT_PHONE".equals(request.method())) {
             String phone = request.value().trim();
@@ -426,11 +551,80 @@ private StudentEntity resolveStudent(BindStudentRequest request) {
             .eq(ClassStudentEntity::getStatus, CLASS_STUDENT_ACTIVE));
         LocalDate today = LocalDate.now();
         return relations.stream()
-            .filter(r -> r.getJoinedAt() == null || !r.getJoinedAt().isAfter(today))
-            .filter(r -> r.getLeftAt() == null || !r.getLeftAt().isBefore(today))
+            .filter(r -> isInClassNow(r, today))
             .map(ClassStudentEntity::getClassId)
             .distinct()
             .toList();
+    }
+
+    /** 在班日期窗口:joined_at 未到、left_at 已过都不算"现在在这个班" */
+    private boolean isInClassNow(ClassStudentEntity relation, LocalDate today) {
+        boolean joined = relation.getJoinedAt() == null || !relation.getJoinedAt().isAfter(today);
+        boolean notLeft = relation.getLeftAt() == null || !relation.getLeftAt().isBefore(today);
+        return joined && notLeft;
+    }
+
+    private Map<Long, CourseEntity> coursesOfClasses(Collection<TeachingClassEntity> classes) {
+        List<Long> courseIds = classes.stream().map(TeachingClassEntity::getCourseId)
+            .filter(Objects::nonNull).distinct().toList();
+        return courseIds.isEmpty() ? Map.of() : groupById(courseMapper.selectBatchIds(courseIds));
+    }
+
+    private Map<Long, TeacherEntity> teachersOfClasses(Collection<TeachingClassEntity> classes) {
+        List<Long> teacherIds = classes.stream().map(TeachingClassEntity::getTeacherId)
+            .filter(Objects::nonNull).distinct().toList();
+        return teacherIds.isEmpty() ? Map.of() : groupById(teacherMapper.selectBatchIds(teacherIds));
+    }
+
+    private Map<Long, ClassroomEntity> classroomsOfLessons(Collection<ScheduleLessonEntity> lessons) {
+        List<Long> classroomIds = lessons.stream().map(ScheduleLessonEntity::getClassroomId)
+            .filter(Objects::nonNull).distinct().toList();
+        return classroomIds.isEmpty() ? Map.of() : groupById(classroomMapper.selectBatchIds(classroomIds));
+    }
+
+    /** 班级没有直接挂课程时课程名取不到,回落课次标题由调用方处理 */
+    private String courseNameOf(TeachingClassEntity clazz, Map<Long, CourseEntity> courses) {
+        CourseEntity course = clazz == null ? null : courses.get(clazz.getCourseId());
+        if (course == null) {
+            return null;
+        }
+        return course.getSubjectName() != null ? course.getSubjectName() : course.getCourseName();
+    }
+
+    /**
+     * 教师对家长与学生的称呼:只给姓。全名、手机号等联系方式都不下发——课表是给几百个家庭看的,
+     * 而教师档案里的电话是机构内部联系口径。复姓按首字显示(欧阳→欧老师),宁可少给一个字也不给全名。
+     */
+    private String teacherSalutation(TeacherEntity teacher) {
+        String name = teacher == null ? null : teacher.getTeacherName();
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        return name.trim().substring(0, 1) + "老师";
+    }
+
+    private MiniappHomeLessonView toHomeLesson(ScheduleLessonEntity lesson, Map<Long, TeachingClassEntity> classes,
+                                               Map<Long, List<StudentEntity>> studentsByClass,
+                                               Map<Long, CourseEntity> courses, Map<Long, ClassroomEntity> classrooms,
+                                               Map<Long, TeacherEntity> teachers) {
+        TeachingClassEntity clazz = classes.get(lesson.getClassId());
+        ClassroomEntity classroom = classrooms.get(lesson.getClassroomId());
+        String studentNames = studentsByClass.getOrDefault(lesson.getClassId(), List.of()).stream()
+            .map(StudentEntity::getStudentName)
+            .filter(name -> name != null && !name.isBlank())
+            .distinct()
+            .collect(Collectors.joining("、"));
+        return new MiniappHomeLessonView(
+            studentNames,
+            lesson.getLessonDate(),
+            lesson.getStartTime(),
+            lesson.getEndTime(),
+            courseNameOf(clazz, courses),
+            clazz == null ? null : clazz.getClassName(),
+            classroom == null ? null : classroom.getClassroomName(),
+            teacherSalutation(clazz == null ? null : teachers.get(clazz.getTeacherId())),
+            lesson.getLessonStatus()
+        );
     }
 
     private StudentBriefView toStudentBrief(StudentEntity student) {

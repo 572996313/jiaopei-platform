@@ -4,29 +4,16 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行在它下面 -->
+    <!-- 主操作行:按钮靠左、当前范围回显靠右。校区不在本页选,统一在横幅那颗芯片 -->
     <div class="table-toolbar">
       <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       <div class="education-context-text">
         当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
-          formatCampus(campusId)
+          scopeStore.campusName(campusId)
         }}；教室编码与名称在同一校区内唯一
       </div>
     </div>
-
-    <!-- 统一筛选栏:换校区不再自动触发,点「查询」才按新校区拉教室 -->
-    <FilterBar :loading="tableLoading" @query="loadClassrooms" @reset="resetToDefaultCampus">
-      <!-- 教室必须挂在某个校区下,没有"全部校区"这一档 -->
-      <el-select v-model="campusId" placeholder="选择校区" filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
-    </FilterBar>
 
     <article class="panel-card education-panel">
       <TableFillBox v-slot="{ height }">
@@ -38,6 +25,10 @@
           :height="height"
           v-loading="tableLoading"
         >
+          <!-- 收成「全部校区」时整表混着几个校区的教室,靠这一列分得开;单选一个校区时整列同值,就收掉 -->
+          <el-table-column v-if="!campusId" label="校区" width="130" prop="campusId" sortable>
+            <template #default="{ row }">{{ scopeStore.campusName(row.campusId) }}</template>
+          </el-table-column>
           <el-table-column
             prop="classroomCode"
             label="教室编码"
@@ -86,7 +77,7 @@
       </TableFillBox>
 
       <div v-if="!tableLoading && classrooms.length === 0" class="education-empty">
-        当前校区下暂无教室数据。
+        该范围下暂无教室数据。
       </div>
     </article>
 
@@ -114,9 +105,13 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="教室编码"
-          ><el-input v-model="classroomForm.classroomCode"
-        /></el-form-item>
+        <el-form-item label="教室编码">
+          <CodeInput
+            v-model="classroomForm.classroomCode"
+            resource="classroom"
+            :mode="classroomDialogMode"
+          />
+        </el-form-item>
         <el-form-item label="教室名称"
           ><el-input v-model="classroomForm.classroomName"
         /></el-form-item>
@@ -149,19 +144,17 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import {
   createClassroom,
   deleteClassroom,
-  fetchCampuses,
   fetchClassrooms,
   updateClassroom,
-  type CampusSummary,
   type ClassroomSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
@@ -171,23 +164,13 @@ const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
 
 const institutionId = computed(() => institutionStore.currentInstitutionId)
-/** 校区是本页唯一的范围条件,与别的页共用同一个 store,切页时保持在同一校区 */
-const { campusId } = storeToRefs(scopeStore)
-const campuses = ref<CampusSummary[]>([])
+/** 校区范围是全站那一份：横幅芯片改，本页只读 */
+const { campusId, campuses, prefillCampusId } = storeToRefs(scopeStore)
 const classrooms = ref<ClassroomSummary[]>([])
 
 const pageError = ref('')
 const lookupLoading = ref(false)
 const tableLoading = ref(false)
-
-const campusMap = computed(() => {
-  return new Map(
-    campuses.value.map((item) => [
-      item.id,
-      item.campusName || item.campusCode || `校区 #${item.id}`,
-    ])
-  )
-})
 
 function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
@@ -200,13 +183,6 @@ function trimToUndefined(value: string) {
 
 function formatInstitution(id?: string | null) {
   return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return campusMap.value.get(id) || `校区 #${id}`
 }
 
 function roomTypeLabel(value?: string | null) {
@@ -256,7 +232,8 @@ const classroomForm = reactive({
 })
 
 function resetClassroomForm() {
-  classroomForm.campusId = campusId.value
+  // 「全部校区」时没有唯一归属校区，留空让操作员自己选，不替他猜
+  classroomForm.campusId = prefillCampusId.value
   classroomForm.classroomCode = ''
   classroomForm.classroomName = ''
   classroomForm.roomType = ''
@@ -270,7 +247,7 @@ function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
   classroomDialogMode.value = mode
   if (mode === 'edit' && row) {
     editingClassroomId.value = row.id
-    classroomForm.campusId = row.campusId ?? campusId.value
+    classroomForm.campusId = row.campusId ?? null
     classroomForm.classroomCode = row.classroomCode ?? ''
     classroomForm.classroomName = row.classroomName ?? ''
     classroomForm.roomType = row.roomType ?? ''
@@ -286,12 +263,9 @@ function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
 }
 
 async function loadClassrooms() {
-  if (!campusId.value) {
-    classrooms.value = []
-    return
-  }
   tableLoading.value = true
   try {
+    // 传 null 就是「全部校区」，后端按本机构校区集合收窄
     classrooms.value = await fetchClassrooms(campusId.value)
   } catch (error) {
     classrooms.value = []
@@ -341,9 +315,9 @@ async function submitClassroom() {
       ElMessage.success('教室已更新')
     }
     classroomDialogVisible.value = false
-    // 存到别的校区时跟着切过去,否则刚保存的那条会被当前校区筛选挡掉
-    if (campusId.value !== classroomForm.campusId) {
-      campusId.value = classroomForm.campusId
+    // 范围已收窄到某个校区、保存的却是另一个校区时，把全站范围跟过去，否则刚保存的那条被挡在列表外
+    if (campusId.value && campusId.value !== classroomForm.campusId) {
+      scopeStore.setCampus(classroomForm.campusId)
     }
     await loadClassrooms()
   } catch (error) {
@@ -375,34 +349,16 @@ async function confirmDeleteClassroom(row: ClassroomSummary) {
   }
 }
 
-async function loadCampuses() {
-  if (!institutionId.value) {
-    campuses.value = []
-    return
-  }
+/** 弹窗的归属校区下拉要用的清单在 store 里，进页面时确保拉过（同一机构只拉一次） */
+async function refreshAll() {
   lookupLoading.value = true
   pageError.value = ''
   try {
-    campuses.value = await fetchCampuses(institutionId.value)
-    if (!campusId.value || !campuses.value.some((item) => item.id === campusId.value)) {
-      campusId.value = campuses.value[0]?.id || null
-    }
-  } catch (error) {
-    pageError.value = toMessage(error, '校区列表加载失败')
+    await scopeStore.loadCampuses(institutionId.value)
   } finally {
     lookupLoading.value = false
   }
   await loadClassrooms()
-}
-
-async function refreshAll() {
-  await loadCampuses()
-}
-
-/** 教室没有"全部校区"档,重置 = 回到第一个校区并重查 */
-function resetToDefaultCampus() {
-  campusId.value = campuses.value[0]?.id || null
-  void loadClassrooms()
 }
 
 async function initializePage() {
@@ -413,11 +369,6 @@ async function initializePage() {
   }
   await refreshAll()
 }
-
-watch(institutionId, async () => {
-  campusId.value = null
-  await loadCampuses()
-})
 
 onMounted(() => {
   // 列表回显要用的字典在进页面时就拉取（表单里的 DictSelect 会自己拉，表格列不会）

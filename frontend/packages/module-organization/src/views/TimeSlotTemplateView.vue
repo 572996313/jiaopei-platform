@@ -14,16 +14,8 @@
       <el-button @click="goTimeSlotList">节次明细</el-button>
     </div>
 
-    <!-- 统一筛选栏:校区/模板都不再自动触发,点「查询」才切范围并载入所选模板 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛模板;点「查询」才把所选模板载入编辑器 -->
     <FilterBar :loading="loading" @query="applyFilters" @reset="resetFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <el-select
         v-model="selectedTemplateId"
         placeholder="选择时段模板"
@@ -135,14 +127,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
 import {
   applyTimeSlotTemplate,
   createTimeSlotTemplate,
   deleteTimeSlotTemplate,
-  fetchCampuses,
   fetchTimeSlotTemplates,
   fetchTimeSlots,
-  type CampusSummary,
   type TimeSlotConfig,
   type TimeSlotSummary,
   type TimeSlotTemplateSummary,
@@ -175,11 +166,11 @@ const loading = ref(false)
 const saving = ref(false)
 const pageError = ref('')
 
-const campuses = ref<CampusSummary[]>([])
 const templates = ref<TimeSlotTemplateSummary[]>([])
 const timeSlots = ref<TimeSlotSummary[]>([])
 
-const campusId = ref<string | null>(educationScope.campusId)
+/** 校区范围与校区清单全站只有一份：范围在横幅那颗芯片上改，本页只读 */
+const { campusId, campuses, prefillCampusId } = storeToRefs(educationScope)
 const selectedTemplateId = ref<string | null>(null)
 const config = ref<TimeSlotConfig>(defaultTimeSlotConfig())
 const rows = ref<SectionRow[]>([])
@@ -202,23 +193,12 @@ function toMessage(error: unknown, fallback: string) {
 }
 
 function campusText(id?: string | null) {
-  if (!id) {
-    return '机构级'
-  }
-  const campus = campuses.value.find((item) => item.id === id)
-  return campus?.campusName || campus?.campusCode || `校区 #${id}`
+  return id ? educationScope.campusName(id) : '机构级'
 }
 
-/** 节次明细是另一张页面,跳过去时把当前校区带过去（两页共用 educationScope 那份范围） */
+/** 节次明细是另一张页面,跳过去即可——两页共用 educationScope 那份范围 */
 function goTimeSlotList() {
-  educationScope.setCampus(campusId.value)
   router.push('/time-slot-list')
-}
-
-async function onCampusChange() {
-  educationScope.setCampus(campusId.value)
-  // 节次按校区取；网格里的行不动，避免换校区把未保存的编辑清掉
-  await reloadTimeSlots()
 }
 
 function onTemplateChange(id: string | null) {
@@ -229,18 +209,17 @@ function onTemplateChange(id: string | null) {
   loadTemplateIntoEditor(selectedTemplate.value)
 }
 
-/** 点「查询」才应用:先切校区范围重拉节次,再把选中的模板载入编辑器 */
+/** 点「查询」只按当前范围重拉节次，再把选中的模板载入编辑器（范围本身在横幅改） */
 async function applyFilters() {
-  await onCampusChange()
+  await reloadTimeSlots()
   onTemplateChange(selectedTemplateId.value)
 }
 
-/** 重置 = 取消校区筛选(看机构全部模板)并退出当前模板 */
+/** 重置 = 退出当前模板，取消本页的模板筛选 */
 async function resetFilters() {
-  campusId.value = null
   selectedTemplateId.value = null
-  await onCampusChange()
   rows.value = []
+  await reloadTimeSlots()
 }
 
 /** 选中模板后:回填参数;已有展开结果则还原网格,否则按参数生成 */
@@ -302,14 +281,10 @@ async function refreshAll() {
   loading.value = true
   pageError.value = ''
   try {
-    const [campusList, templateList, slotList] = await Promise.all([
-      fetchCampuses(institutionId.value),
-      fetchTimeSlotTemplates(institutionId.value),
-      fetchTimeSlots(institutionId.value, campusId.value),
-    ])
-    campuses.value = campusList
+    const templateList = await fetchTimeSlotTemplates(institutionId.value)
     templates.value = templateList
-    timeSlots.value = slotList
+    await educationScope.loadCampuses(institutionId.value)
+    timeSlots.value = await fetchTimeSlots(institutionId.value, campusId.value)
     if (
       selectedTemplateId.value &&
       !templateList.some((item) => item.id === selectedTemplateId.value)
@@ -385,7 +360,7 @@ const createForm = reactive({ templateName: '', campusId: '' as string | null, r
 
 function openCreateDialog() {
   createForm.templateName = ''
-  createForm.campusId = campusId.value || null
+  createForm.campusId = prefillCampusId.value
   createForm.remark = ''
   createError.value = ''
   createDialogVisible.value = true

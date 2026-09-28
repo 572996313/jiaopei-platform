@@ -20,16 +20,8 @@
       </span>
     </div>
 
-    <!-- 统一筛选栏:校区/班级都不再自动触发,点「查询」才加载选中班级的档案 -->
+    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛班级;点「查询」才加载选中班级的档案 -->
     <FilterBar :loading="lookupLoading" @query="applyFilters" @reset="resetFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <ClassSelect
         v-model="classId"
         :institution-id="institutionId"
@@ -321,7 +313,12 @@
 
       <el-form label-position="top" class="education-form">
         <el-form-item label="班级编码" required>
-          <el-input v-model="classProfileForm.classCode" placeholder="例如 2026S-MATH-A1" />
+          <CodeInput
+            v-model="classProfileForm.classCode"
+            resource="class"
+            mode="edit"
+            placeholder="例如 2026S-MATH-A1"
+          />
         </el-form-item>
         <el-form-item label="班级名称" required>
           <el-input v-model="classProfileForm.className" placeholder="例如 周六上午数学A1班" />
@@ -435,7 +432,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="班级编码" required>
-          <el-input v-model="classCreateForm.classCode" placeholder="例如 2026S-MATH-A1" />
+          <CodeInput
+            v-model="classCreateForm.classCode"
+            resource="class"
+            mode="create"
+            placeholder="例如 2026S-MATH-A1"
+          />
         </el-form-item>
         <el-form-item label="班级名称" required>
           <el-input v-model="classCreateForm.className" placeholder="例如 周六上午数学A1班" />
@@ -578,6 +580,7 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
+import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import {
   classLabelOf,
   rememberClassOptions,
@@ -604,7 +607,7 @@ const router = useRouter()
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
-const { campusId } = storeToRefs(scopeStore)
+const { campusId, prefillCampusId } = storeToRefs(scopeStore)
 const { institutionId, campuses, terms, loadScope } = useEducationScope()
 const teachers = ref<TeacherSummary[]>([])
 const courses = ref<CourseRecord[]>([])
@@ -927,7 +930,7 @@ function resetClassProfileForm(target?: TeachingClassSummary | null) {
 }
 
 function resetClassCreateForm() {
-  classCreateForm.campusId = campusId.value
+  classCreateForm.campusId = prefillCampusId.value
   classCreateForm.classCode = ''
   classCreateForm.className = ''
   classCreateForm.termId = ''
@@ -966,7 +969,7 @@ function buildTeacherPayload(): ClassTeacherCreatePayload {
 function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUpdatePayload {
   return {
     institutionId: target.institutionId || (institutionId.value as string),
-    campusId: target.campusId || (campusId.value as string),
+    campusId: target.campusId || (prefillCampusId.value as string),
     termId: classProfileForm.termId || null,
     courseId: classProfileForm.courseId || null,
     classTypeId: classProfileForm.classTypeId || null,
@@ -988,7 +991,6 @@ function buildClassProfilePayload(target: TeachingClassSummary): TeachingClassUp
 
 async function refreshScopeData() {
   if (!institutionId.value) {
-    campuses.value = []
     classTotal.value = 0
     teachers.value = []
     courses.value = []
@@ -1111,9 +1113,8 @@ async function applyFilters() {
   await loadRecords()
 }
 
-/** 重置 = 取消校区与班级筛选,回到未选班级的档案总览 */
+/** 重置 = 取消班级筛选,回到未选班级的档案总览(校区范围是全站入口,不由本页重置) */
 async function resetFilters() {
-  campusId.value = null
   classId.value = null
   await applyFilters()
 }
@@ -1193,6 +1194,11 @@ async function submitClassCreate() {
     ElMessage.success('班级主档已新增')
     classCreateDialogVisible.value = false
     resetClassCreateForm()
+    // 建在别的校区的班级，当前范围收窄着就看不见：把范围跟过去，不然用户以为没建成
+    if (campusId.value && created?.campusId && created.campusId !== campusId.value) {
+      scopeStore.setCampus(created.campusId)
+      return
+    }
     await refreshScopeData()
     if (created?.id) {
       classId.value = created.id
@@ -1394,7 +1400,7 @@ watch(
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 校区范围由横幅芯片在新机构上重新 initScope，本页只清自己选的班级
     classId.value = null
     await refreshScopeData()
     await loadRecords()

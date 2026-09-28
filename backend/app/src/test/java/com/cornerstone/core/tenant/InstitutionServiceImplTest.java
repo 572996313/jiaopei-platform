@@ -6,6 +6,7 @@ import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.dto.CurrentInstitutionUpdateRequest;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.core.tenant.service.impl.InstitutionServiceImpl;
+import com.cornerstone.support.CodeRuleTestSupport;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +19,7 @@ import static org.mockito.Mockito.when;
 class InstitutionServiceImplTest {
 
     private final InstitutionMapper institutionMapper = mock(InstitutionMapper.class);
-    private final InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper);
+    private final InstitutionServiceImpl service = new InstitutionServiceImpl(institutionMapper, CodeRuleTestSupport.unconfiguredRules());
 
     @Test
     void updateCurrentInstitutionWritesAllowedProfileFieldsOnly() {

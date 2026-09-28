@@ -802,3 +802,8 @@ export function updateCodeRule(resourceCode: string, payload: CodeRuleUpdatePayl
 export function nextCodeNumber(resourceCode: string) {
   return requestGet<string>('/system/code-rules/next', { resource: resourceCode })
 }
+
+/** 已启用自动编号的资源码:各新增页据此决定编号输入框要不要显示「生成」 */
+export function fetchEnabledCodeResources() {
+  return requestGet<string[]>('/system/code-rules/enabled')
+}

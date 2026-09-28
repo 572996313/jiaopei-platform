@@ -32,14 +32,6 @@
     </div>
 
     <FilterBar :loading="reportLoading" @query="applyFilters" @reset="resetFilters">
-      <el-select v-model="campusId" placeholder="筛选校区" clearable filterable>
-        <el-option
-          v-for="item in campuses"
-          :key="item.id"
-          :label="item.campusName || item.campusCode || `校区 #${item.id}`"
-          :value="item.id"
-        />
-      </el-select>
       <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
         <el-option
           v-for="item in terms"
@@ -228,8 +220,9 @@ import { toMessage, weekdayLabel } from './components/schedule-utils'
 const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
-const { campusId, termId } = storeToRefs(scopeStore)
-const { campuses, terms, institutionId, loadScope } = useEducationScope()
+const { termId } = storeToRefs(scopeStore)
+/** 校区范围在横幅那颗芯片上选：null=全部校区，铺矩阵时不按校区收窄 */
+const { campuses, campusId, terms, institutionId, loadScope } = useEducationScope()
 const router = useRouter()
 
 /** 「去补排」是写流程入口，按排课维护码收口；报表本身只要 education:read */
@@ -385,7 +378,6 @@ async function loadReport() {
 
 async function refreshScopeData() {
   if (!institutionId.value) {
-    campuses.value = []
     terms.value = []
     classId.value = null
     return
@@ -406,9 +398,8 @@ async function applyFilters() {
   await loadReport()
 }
 
-/** 重置 = 取消校区/学期/班级/统计区间筛选并生效 */
+/** 重置 = 取消学期/班级/统计区间筛选并生效（校区是全站范围，不由本页重置） */
 async function resetFilters() {
-  campusId.value = null
   termId.value = null
   classId.value = null
   dateRange.value = null
@@ -418,7 +409,7 @@ async function resetFilters() {
 watch(
   () => institutionStore.currentInstitutionId,
   async () => {
-    campusId.value = null
+    // 换机构时 store 的 reset() 已清空校区范围，本页只清自己选的筛选
     termId.value = null
     classId.value = null
     await refreshScopeData()

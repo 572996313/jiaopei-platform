@@ -15,9 +15,9 @@ public record CourseCategoryCreateRequest(
     @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     @NotNull(message = "机构ID不能为空")
     Long institutionId,
-    @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "分类编码(可留空,留空时按编号规则自动生成)")
     @JsonAlias({"code", "category_code"})
-    @NotBlank(message = "课程分类编码不能为空")
+    // 可留空：留空时由编号规则补号，判空在 Service 里做
     String categoryCode,
     @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"name", "category_name"})
