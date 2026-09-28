@@ -4,7 +4,7 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 档案页只管"这个班是怎么搭的"：入班、退班和家长联系人在「班级名册」 -->
+    <!-- 档案页只管"这个班是怎么搭的"：入班、退班和家长联系人在「分班与名册」 -->
     <div class="table-toolbar">
       <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
       <el-button @click="statsVisible = !statsVisible">
@@ -14,9 +14,9 @@
         /></el-icon>
       </el-button>
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
-      <el-button @click="goRoster">班级名册</el-button>
+      <el-button @click="goRoster">分班与名册</el-button>
       <span class="education-context-text">
-        入班、退班和家长联系人在「班级名册」；设为主讲会把原主讲降级为普通教师。
+        入班、退班和家长联系人在「分班与名册」；设为主讲会把原主讲降级为普通教师。
       </span>
     </div>
 

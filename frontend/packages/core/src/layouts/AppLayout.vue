@@ -105,7 +105,7 @@
       <aside v-if="navMode === 'full'" class="app-nav is-full">
         <nav class="nav-groups">
           <section v-for="group in navGroups" :key="group.key" class="nav-group">
-            <div class="nav-group-title">{{ group.label }}</div>
+            <div v-if="!isGroupTitleRedundant(group)" class="nav-group-title">{{ group.label }}</div>
             <div class="nav-list">
               <template v-for="item in group.items" :key="item.key">
                 <div v-if="visibleChildren(item).length" class="nav-parent">
@@ -607,6 +607,15 @@ function displayLabel(item: SidebarDefinition): string {
     }
   }
   return item.label
+}
+
+/**
+ * 「一个 `sys_menu` 目录自成一组」时（业务导航的常态：组名就取自目录节点名），
+ * 完整导航不再渲染组标题——否则标题与下面那颗可展开的目录按钮同名、各占一行。
+ * 窄栏浮层早有同一条判断（rail-pop 的 v-if），这里补齐宽栏。
+ */
+function isGroupTitleRedundant(group: { label: string; items: SidebarDefinition[] }): boolean {
+  return group.items.length === 1 && displayLabel(group.items[0]) === group.label
 }
 
 const navItems = computed(() => {

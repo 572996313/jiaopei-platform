@@ -3,7 +3,7 @@
     <!-- 本页动作靠左、圆形刷新居中作分隔、会跳走的入口在它右边、说明靠右 -->
     <div class="table-toolbar">
       <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
-      <el-button type="primary" @click="goToSchedule()">进入日常教务中心</el-button>
+      <el-button type="primary" @click="goToSchedule()">打开课表与点名</el-button>
       <div class="education-context-text">
         先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。
       </div>
@@ -288,7 +288,7 @@ const classroomMap = computed(() => {
   )
 })
 
-// 与日常教务中心口径一致：调课/补课课次仍要实际上课，可点名可结课；停课不产生考勤
+// 与「课表与点名」口径一致：调课/补课课次仍要实际上课，可点名可结课；停课不产生考勤
 function isAttendanceAllowedStatus(status?: string | null) {
   return (
     status === 'scheduled' ||
@@ -420,7 +420,7 @@ const todayQueueItems = computed<QueueItem[]>(() => {
     queue.push({
       key: `${lesson.id}-complete`,
       title: `${compactTimeRange(lesson.startTime, lesson.endTime) || '待定时段'} ${formatClass(lesson.classId)} 可结课`,
-      text: '点名状态已覆盖应到学员，可以进入日常教务中心完成结课。',
+      text: '点名状态已覆盖应到学员，可以进入「课表与点名」完成结课。',
       meta: '去结课',
       action: 'schedule',
       focus: 'completed',
@@ -442,10 +442,10 @@ const todayQueueItems = computed<QueueItem[]>(() => {
 })
 
 const quickLinks = [
-  { label: '日常教务中心', hint: '排课、点名、结课、日周课表', to: '/schedule' },
+  { label: '课表与点名', hint: '点名、结课、日周课表', to: '/schedule' },
   { label: '学员报名', hint: '处理报名记录，报上名再去入班', to: '/enrollments' },
   { label: '学员档案', hint: '录入与维护学员本身、家长联系人', to: '/students' },
-  { label: '班级名册', hint: '查看班级人数与在班状态', to: '/class-roster' },
+  { label: '分班与名册', hint: '查看班级人数与在班状态', to: '/class-roster' },
   { label: '班级档案', hint: '维护班级主档与任课教师', to: '/classes' },
   { label: '教师档案', hint: '维护教师基础信息和所属校区', to: '/teachers' },
 ]

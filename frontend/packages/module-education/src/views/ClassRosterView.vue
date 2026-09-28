@@ -374,7 +374,7 @@ async function loadRosterPage() {
   } catch (error) {
     records.value = []
     rosterTotal.value = 0
-    pageError.value = toMessage(error, '班级名册加载失败')
+    pageError.value = toMessage(error, '分班与名册加载失败')
   } finally {
     tableLoading.value = false
   }

@@ -1000,7 +1000,7 @@ export function deleteScheduleRule(id: string) {
   return requestDelete<null>(`/education/schedule-rules/${id}`)
 }
 
-/** 排课完成度：行=班级、列=自然周，应排优先取班级课时目标(weeklyLessons×周数)，未设目标时回落到该班启用中的排课计划展开 */
+/** 课时完成度：行=班级、列=自然周，应排优先取班级课时目标(weeklyLessons×周数)，未设目标时回落到该班启用中的排课计划展开 */
 export interface ScheduleCompletenessWeekColumn {
   index: number
   weekStart: string

@@ -234,7 +234,7 @@
       <div v-else-if="!refsLoading" class="education-context-text">
         {{
           liveRefCount > 0
-            ? `在排课中的 ${liveRefCount} 节要请到排课或执行与课表页处理${
+            ? `在排课中的 ${liveRefCount} 节要请到排课或课表与点名页处理${
                 tombstoneCount > 0 ? `；另有 ${tombstoneCount} 节已删除的课次可以清理` : ''
               }。`
             : `全部 ${tombstoneCount} 节都是已删除的课次，清理后这个节次就能删除。`

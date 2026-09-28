@@ -10,7 +10,7 @@
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
       <el-button @click="goStudents">学员档案</el-button>
       <span class="education-context-text">
-        报名记录不等于入班：报上名后到「班级名册」办理入班才会进班。
+        报名记录不等于入班：报上名后到「分班与名册」办理入班才会进班。
       </span>
     </div>
 

@@ -19,7 +19,7 @@
       <div class="education-context-text">
         校区：{{ scopeStore.campusName(campusId) }}，班级：{{ formatClass(classId) }}，日期：{{
           lessonDate || '全部'
-        }}。点名、结课、停课、补课等执行操作请前往「执行与课表」。
+        }}。点名、结课、停课、补课等执行操作请前往「课表与点名」。
       </div>
     </div>
 

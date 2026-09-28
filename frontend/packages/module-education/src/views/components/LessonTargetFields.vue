@@ -30,7 +30,7 @@
       <span class="lesson-target-unit">节</span>
     </div>
     <div class="education-context-text">
-      这一班合同/教学计划里一共上多少节。填了才在「排课完成度」页显示整班进度，不参与每周应排节数的计算。
+      这一班合同/教学计划里一共上多少节。填了才在「课时完成度」页显示整班进度，不参与每周应排节数的计算。
     </div>
   </el-form-item>
 </template>
@@ -78,16 +78,16 @@ const weekly = computed(() =>
 const hint = computed(() => {
   const value = input.value
   if (value === null || value === undefined) {
-    return '留空表示未设定；排课完成度会回落到该班排课计划的展开口径。'
+    return '留空表示未设定；课时完成度会回落到该班排课计划的展开口径。'
   }
   if (!monthly.value) {
-    return `每周 ${value} 节，自动补排和排课完成度都按这个数算。`
+    return `每周 ${value} 节，自动补排和课时完成度都按这个数算。`
   }
   const exact = ((value * 12) / 52).toFixed(2)
   if (weekly.value >= 1) {
     return `每月 ${value} 节 ≈ 每周 ${weekly.value} 节（${value}×12÷52=${exact}，四舍五入），报表按每周 ${weekly.value} 节算。`
   }
-  return `每月 ${value} 节摊到一周不足 1 节（${value}×12÷52=${exact}），按"未设定周目标"处理：排课完成度回落到排课计划展开口径，不报错。`
+  return `每月 ${value} 节摊到一周不足 1 节（${value}×12÷52=${exact}），按"未设定周目标"处理：课时完成度回落到排课计划展开口径，不报错。`
 })
 </script>
 

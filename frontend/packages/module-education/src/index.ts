@@ -1,15 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import {
-  AlarmClock,
-  Avatar,
-  Bell,
-  Files,
-  Grid,
-  Notebook,
-  Reading,
-  User,
-} from '@element-plus/icons-vue'
+import { AlarmClock, Bell, School } from '@element-plus/icons-vue'
 import {
   registerBannerActions,
   registerInvitationActions,
@@ -100,112 +91,39 @@ registerPermissionLabels([
 
 /**
  * 本模块的侧边栏入口：底座只内置「系统设置」，业务导航一律靠登记。
- * groupOrder 决定分组自上而下的顺序，同一组内按登记顺序排列；
- * 「档案中心」这一组与组织模块共用，先登记的模块决定组名与顺序号。
+ * 一个 `sys_menu` 目录节点 = 侧边栏一组（V92 定稿的形态），组名、组内页面与顺序都取菜单树，
+ * 后台改菜单名/排序即生效；登记方只负责给出图标与组顺序号。
+ * 教师/课程/班型三张档案页不在这里登记——它们与组织模块的校区、教室、节次同属「基础资料」
+ * 一组，由组织模块登记那一份目录（菜单树驱动子项，跨模块不影响显隐；关 organization 必须
+ * 同关 education，所以不存在"装了教务没装组织却少入口"的状态）。
  */
 registerNavItems([
   {
     key: 'scheduling',
     to: '/scheduling',
-    label: '排课中心',
-    title: '排课中心',
+    label: '排课与上课',
+    title: '排课与上课',
     icon: AlarmClock,
-    group: 'daily',
-    groupLabel: '日常教务',
+    group: 'run',
+    groupLabel: '排课与上课',
     groupOrder: 20,
     prefixes: ['/scheduling', '/schedule', '/schedule-completeness'],
-    // 目录与子项来自 sys_menu(V37 排课管理/执行与课表、V59 排课完成度),名称/顺序/图标可后台配置
+    // 目录与子项来自 sys_menu(V37 排课管理、V59 排课完成度、V92 改名课表与点名/课时完成度)
     menuCatalogCode: 'education_schedule_center',
   },
   {
-    key: 'students',
+    key: 'student-class',
     to: '/students',
-    label: '学员档案',
-    title: '学员档案',
-    icon: User,
-    group: 'daily',
-    groupLabel: '日常教务',
-    groupOrder: 20,
-    prefixes: ['/students'],
-    // 入口显隐与名称由 sys_menu 节点驱动(V84 节点):报名拆到独立页后这一页只剩学员本身
-    menuCode: 'education_students',
-  },
-  {
-    key: 'enrollments',
-    to: '/enrollments',
-    label: '学员报名',
-    title: '学员报名',
-    icon: Notebook,
-    group: 'daily',
-    groupLabel: '日常教务',
-    groupOrder: 20,
-    prefixes: ['/enrollments'],
-    // 原「报名与入班」页收窄成只管报名(V84):入班在「班级名册」，档案在这一页
-    menuCode: 'education_enrollments',
-  },
-  {
-    key: 'classes',
-    to: '/classes',
-    label: '班级档案',
-    title: '班级档案',
-    icon: Reading,
-    group: 'class',
-    groupLabel: '班级与教学',
+    label: '学员与班级',
+    title: '学员与班级',
+    icon: School,
+    group: 'student-class',
+    groupLabel: '学员与班级',
     groupOrder: 30,
-    prefixes: ['/classes'],
-    menuCode: 'education_classes',
-  },
-  {
-    key: 'class-roster',
-    to: '/class-roster',
-    label: '班级名册',
-    title: '班级名册',
-    icon: Notebook,
-    group: 'class',
-    groupLabel: '班级与教学',
-    groupOrder: 30,
-    prefixes: ['/class-roster'],
-    // 入班、退班与家长联系人在这一页(V83 节点):与档案页同一份读码，写码仍走按钮节点
-    menuCode: 'education_class_roster',
-  },
-  {
-    key: 'courses',
-    to: '/courses',
-    label: '课程档案',
-    title: '课程档案',
-    icon: Files,
-    group: 'archive',
-    groupLabel: '档案中心',
-    groupOrder: 40,
-    prefixes: ['/courses'],
-    // 原「校区与学期」页里的三张教务卡片独立成页(V85):课程为主表，分类封顶同屏；
-    // 班型与课程无关(V87 已拆到「班型档案」)
-    menuCode: 'education_courses',
-  },
-  {
-    key: 'class-types',
-    to: '/class-types',
-    label: '班型档案',
-    title: '班型档案',
-    icon: Grid,
-    group: 'archive',
-    groupLabel: '档案中心',
-    groupOrder: 40,
-    prefixes: ['/class-types'],
-    // 班型是建班级时才选的档案，与课程零交集，V87 从课程页的辅助卡拆成独立页
-    menuCode: 'education_class_types',
-  },
-  {
-    key: 'teachers',
-    to: '/teachers',
-    label: '教师档案',
-    title: '教师档案',
-    icon: Avatar,
-    group: 'archive',
-    groupLabel: '档案中心',
-    groupOrder: 40,
-    prefixes: ['/teachers'],
-    menuCode: 'education_teachers',
+    prefixes: ['/students', '/enrollments', '/classes', '/class-roster'],
+    // 从建档到进班一条链收进一个目录(V92 新建节点 139):学员档案 → 报名 → 班级 → 分班
+    // 目录节点必须授给所有在职角色，漏授权时这四张页面的入口整块不显示(同 V81 的 130)
+    menuCatalogCode: 'education_student_class',
   },
   {
     key: 'announcements',

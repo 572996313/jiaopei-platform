@@ -56,20 +56,30 @@ registerPermissionLabels([
 
 /**
  * 本模块的侧边栏入口：底座只内置「系统设置」，业务导航一律靠登记。
- * groupOrder 决定分组自上而下的顺序，同一组内按登记顺序排列。
+ * 一个 `sys_menu` 目录节点 = 侧边栏一组，组内页面的名称与顺序都由菜单树决定（V92 定稿形态）。
  */
 registerNavItems([
   {
-    key: 'teaching-resources',
+    key: 'base-data',
     to: '/campus',
-    label: '教学资源',
-    title: '教学资源',
+    label: '基础资料',
+    title: '基础资料',
     icon: OfficeBuilding,
-    group: 'archive',
-    groupLabel: '档案中心',
+    group: 'base-data',
+    groupLabel: '基础资料',
     groupOrder: 40,
-    prefixes: ['/campus', '/campus-accounts', '/classrooms', '/time-slots', '/time-slot-list'],
-    // 目录与五张页面（校区与学期 / 校区默认账号 / 教室管理 / 时段模板 / 节次明细）的名称、顺序、图标都在 sys_menu(V81/V82/V86)
+    // 这一组是"开班前配好、之后不常进"的档案：本模块的校区/教室/节次五页 + 教务的教师/课程/班型三页
+    prefixes: [
+      '/campus',
+      '/campus-accounts',
+      '/classrooms',
+      '/time-slots',
+      '/time-slot-list',
+      '/teachers',
+      '/courses',
+      '/class-types',
+    ],
+    // 目录与八张页面的名称、顺序、图标都在 sys_menu(V81/V82/V86 五页 + V92 收编教师/课程/班型)
     menuCatalogCode: 'organization_teaching_resources',
   },
 ])

@@ -4,7 +4,7 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 这一页只管学员本身：报名去「学员报名」，进班去「班级名册」 -->
+    <!-- 这一页只管学员本身：报名去「学员报名」，进班去「分班与名册」 -->
     <div class="table-toolbar">
       <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
