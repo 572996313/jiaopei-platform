@@ -228,8 +228,12 @@ function handleDeregister() {
           <text class="detail-label">生日</text>
           <text class="detail-value">{{ myProfile.birthday || '-' }}</text>
         </view>
+        <!-- 没填监护人就不占一行,填了要能在这里看到,否则改完像是没存上 -->
+        <view v-if="myProfile.guardianName || myProfile.guardianPhone" class="profile-detail">
+          <text class="detail-label">监护人</text>
+          <text class="detail-value">{{ [myProfile.guardianName, myProfile.guardianPhone].filter(Boolean).join(' · ') }}</text>
+        </view>
         <view class="profile-actions">
-          <text class="action-link timetable" @click="goTimetable(myProfile?.studentId || '')">我的课表</text>
           <text class="action-link timetable" @click="goClassmates(myProfile?.studentId || '')">我的同学</text>
           <text class="action-link edit" @click="goEditProfile">编辑档案</text>
         </view>

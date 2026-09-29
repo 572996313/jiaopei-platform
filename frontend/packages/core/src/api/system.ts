@@ -317,6 +317,11 @@ export function updateSystemUserRoles(id: string, payload: UserRoleUpdatePayload
   return requestPost<SystemUserSummary>(`/system/users/${id}/roles`, payload).then(normalizeUser)
 }
 
+/** 注销账号:物理删除账号行及其角色关联、注册凭证,业务档案解绑归属,不可恢复 */
+export function deregisterSystemUser(id: string) {
+  return requestDelete<null>(`/system/users/${id}`)
+}
+
 export function fetchSystemRoles() {
   return requestGet<SystemRoleSummary[]>('/system/roles')
 }
@@ -806,4 +811,79 @@ export function nextCodeNumber(resourceCode: string) {
 /** 已启用自动编号的资源码:各新增页据此决定编号输入框要不要显示「生成」 */
 export function fetchEnabledCodeResources() {
   return requestGet<string[]>('/system/code-rules/enabled')
+}
+
+// ==================== 导航编排 ====================
+
+/**
+ * 导航编排页的一行：管理端可编排的目录与页面节点（按钮不进导航，接口不返回）。
+ * 这五是本页唯一可改的列——组名、图标、顺序、所属分组、是否可见；
+ * 路由/权限码/类型仍归「菜单管理」。
+ */
+export interface NavigationNode {
+  id: string
+  parentId: string | null
+  menuCode: string
+  menuName: string
+  menuType: string
+  path?: string | null
+  permissionCode?: string | null
+  icon?: string | null
+  sortNo?: number | null
+  visible?: boolean | null
+  /** 底座「系统设置」子树为 true：这一段在本页只读，挪动会绕过"不给非平台角色开系统页"的约束 */
+  locked: boolean
+  /** 多少个在职角色勾到了这个节点；目录为 0 意味着这一组的入口整块不显示且不报错 */
+  grantedRoleCount: number
+}
+
+export interface NavigationNodePayload {
+  id: string
+  menuName: string
+  icon?: string | null
+  sortNo: number
+  parentId?: string | null
+  visible: boolean
+}
+
+export interface NavigationCatalogCreatePayload {
+  menuName: string
+  icon?: string
+  menuCode?: string
+}
+
+export interface NavigationCatalogResult {
+  id: string
+  grantedRoleIdCount: number
+  nodes: NavigationNode[]
+}
+
+function normalizeNavigationNode(item: NavigationNode): NavigationNode {
+  return {
+    ...item,
+    id: String(item.id),
+    parentId: item.parentId === null || item.parentId === undefined ? null : String(item.parentId),
+  }
+}
+
+export function fetchNavigation() {
+  return requestGet<NavigationNode[]>('/system/navigation').then((items) =>
+    items.map(normalizeNavigationNode)
+  )
+}
+
+/** 批量保存：id 保持字符串下发（新建分组的 id 是雪花 19 位，Number() 会截断精度） */
+export function saveNavigation(nodes: NavigationNodePayload[]) {
+  return requestPut<NavigationNode[]>('/system/navigation', { nodes }).then((items) =>
+    items.map(normalizeNavigationNode)
+  )
+}
+
+/** 新建顶层分组并同批授权给所有在职角色，返回最新导航结构 */
+export function createNavigationCatalog(payload: NavigationCatalogCreatePayload) {
+  return requestPost<NavigationCatalogResult>('/system/navigation/catalogs', payload).then((result) => ({
+    ...result,
+    id: String(result.id),
+    nodes: (result.nodes || []).map(normalizeNavigationNode),
+  }))
 }

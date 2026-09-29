@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
-@Schema(description = "学生档案新建/编辑请求(仅开放姓名/性别/生日)")
+@Schema(description = "学生档案新建/编辑请求(仅开放姓名/性别/生日/监护人)")
 public record StudentProfileSaveRequest(
     @Schema(description = "学员姓名", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "学员姓名不能为空")
@@ -19,6 +19,14 @@ public record StudentProfileSaveRequest(
     String gender,
 
     @Schema(description = "出生日期(选填)")
-    LocalDate birthday
+    LocalDate birthday,
+
+    @Schema(description = "监护人姓名(选填,留空即清空)")
+    @Size(max = 32, message = "监护人姓名不能超过32个字符")
+    String guardianName,
+
+    @Schema(description = "监护人联系电话(选填,留空即清空)")
+    @Size(max = 20, message = "监护人联系电话不能超过20个字符")
+    String guardianPhone
 ) {
 }

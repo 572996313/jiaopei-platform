@@ -37,7 +37,13 @@ class JwtTokenServiceTest {
     @Test
     void verifyRejectsTamperedToken() {
         String token = jwtTokenService.issue(user(), 12, TimeUnit.HOURS);
-        String tampered = token.substring(0, token.length() - 2) + "xx";
+        // 改签名中段而不是末尾两位:签名本身以 "xx" 结尾时"篡改"无效,用例会随机假失败
+        String[] parts = token.split("\\.");
+        String signature = parts[2];
+        int mid = signature.length() / 2;
+        char replaced = signature.charAt(mid) == 'a' ? 'b' : 'a';
+        String tampered = parts[0] + "." + parts[1] + "."
+            + signature.substring(0, mid) + replaced + signature.substring(mid + 1);
 
         assertThatThrownBy(() -> jwtTokenService.verify(tampered))
             .isInstanceOf(BadCredentialsException.class);

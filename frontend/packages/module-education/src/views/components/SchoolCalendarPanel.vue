@@ -11,7 +11,7 @@
         :editable="false"
         placeholder="筛选年份"
         class="calendar-year-picker"
-        @change="loadDays"
+        @change="handleYearChange"
       />
       <div class="education-context-text">
         校区为「全校区」的停排日对本机构所有校区生效；排课时命中停排日只提示、不拦保存。
@@ -19,19 +19,23 @@
     </div>
 
     <el-table
-      :data="sortedDays"
+      class="calendar-table"
+      :data="pagedDays"
       border
       row-key="id"
       highlight-current-row
       v-loading="loading"
-      max-height="440"
+      height="440"
+      :empty-text="`${year} 年暂无停排日`"
+      :cell-class-name="sort.cellClass"
+      @sort-change="sort.onSortChange"
     >
-      <el-table-column prop="dayDate" label="日期" width="120" fixed="left" sortable />
-      <el-table-column prop="dayName" label="名称" min-width="160" show-overflow-tooltip sortable />
+      <el-table-column prop="dayDate" label="日期" width="120" fixed="left" sortable="custom" />
+      <el-table-column prop="dayName" label="名称" min-width="160" show-overflow-tooltip sortable="custom" />
       <el-table-column label="校区" min-width="160">
         <template #default="{ row }">{{ formatDayCampus(row.campusId) }}</template>
       </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip sortable>
+      <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip sortable="custom">
         <template #default="{ row }">{{ row.remark || '—' }}</template>
       </el-table-column>
       <el-table-column v-if="canManage" label="操作" width="130" fixed="right">
@@ -51,9 +55,15 @@
       </el-table-column>
     </el-table>
 
-    <div v-if="!loading && sortedDays.length === 0" class="education-empty">
-      {{ year }} 年暂无停排日。
-    </div>
+    <el-pagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      class="panel-pagination"
+      :total="sortedDays.length"
+      :page-sizes="[10, 20, 50]"
+      layout="total, sizes, prev, pager, next"
+      @size-change="page = 1"
+    />
 
     <el-dialog
       v-model="dialogVisible"
@@ -129,6 +139,7 @@ import {
 } from '@cornerstone/module-education/api/education'
 import type { CampusSummary } from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { toMessage } from './schedule-utils'
 
 const ALL_CAMPUS_ID = '0'
@@ -150,6 +161,8 @@ const loading = ref(false)
 const deletingId = ref<string | null>(null)
 /** 已完成首次加载的机构ID：切机构要重拉，切回页签不重复拉 */
 const loadedKey = ref<string | null>(null)
+const page = ref(1)
+const pageSize = ref(10)
 
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -163,11 +176,27 @@ const form = reactive({
   remark: '',
 })
 
-const sortedDays = computed(() =>
-  [...days.value].sort((left, right) =>
-    String(left.dayDate || '').localeCompare(String(right.dayDate || ''))
+/** 后端按年全量返回，排序与分页都在本地做：整年排完再切当前页，避免只排屏上那 10 行 */
+const sort = useTableSort({ onSorted: () => (page.value = 1) })
+
+const sortedDays = computed(() => {
+  const field = sort.sortField.value as 'dayDate' | 'dayName' | 'remark' | ''
+  const direction = sort.sortOrder.value === 'desc' ? -1 : 1
+  return [...days.value].sort((left, right) =>
+    field
+      ? String(left[field] ?? '').localeCompare(String(right[field] ?? '')) * direction
+      : String(left.dayDate || '').localeCompare(String(right.dayDate || ''))
   )
+})
+
+const pagedDays = computed(() =>
+  sortedDays.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 )
+
+function handleYearChange() {
+  page.value = 1
+  void loadDays()
+}
 
 function formatDayCampus(campusId?: string | number | null) {
   const id = String(campusId ?? '')
@@ -193,6 +222,11 @@ async function loadDays() {
     days.value = []
     ElMessage.error(toMessage(error, '校区日历加载失败'))
   } finally {
+    // 删掉当页最后一条后页码会越界，回到实有最后一页，否则界面停在一张空表
+    const maxPage = Math.max(1, Math.ceil(days.value.length / pageSize.value))
+    if (page.value > maxPage) {
+      page.value = maxPage
+    }
     loading.value = false
   }
 }
@@ -280,6 +314,7 @@ watch(
       return
     }
     loadedKey.value = institutionId
+    page.value = 1
     void loadDays()
   },
   { immediate: true }
@@ -294,5 +329,10 @@ watch(
 
 .calendar-year-picker {
   width: 130px;
+}
+
+/* 表体固定高度后，空数据提示要铺满表体垂直居中（EP 默认只给 60px，会贴在表头下面）*/
+.calendar-table :deep(.el-table__empty-block) {
+  min-height: calc(440px - 38px);
 }
 </style>

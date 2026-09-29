@@ -18,6 +18,8 @@ const studentNo = ref('')
 const studentName = ref('')
 const gender = ref('')
 const birthday = ref('')
+const guardianName = ref('')
+const guardianPhone = ref('')
 
 // 性别选项来自系统字典 gender,与 PC 端同一套值(male/female/unknown)
 const genderOptions = ref<DictOptionItem[]>([])
@@ -54,6 +56,8 @@ async function loadProfileForEdit() {
         gender.value = profile.gender
       }
       birthday.value = profile.birthday || ''
+      guardianName.value = profile.guardianName || ''
+      guardianPhone.value = profile.guardianPhone || ''
     }
   } catch {
     // 忽略,保持空白表单
@@ -92,6 +96,8 @@ async function handleSubmit() {
         studentName: studentName.value.trim(),
         gender: gender.value,
         birthday: birthday.value || undefined,
+        guardianName: guardianName.value.trim(),
+        guardianPhone: guardianPhone.value.trim(),
       })
     }
     uni.hideLoading()
@@ -159,6 +165,28 @@ async function handleSubmit() {
             {{ birthday || '请选择出生日期' }}
           </view>
         </picker>
+      </view>
+      <view v-if="mode !== 'bind'" class="form-item">
+        <text class="label">监护人姓名(选填)</text>
+        <input
+          v-model="guardianName"
+          class="input"
+          type="text"
+          maxlength="32"
+          placeholder="请输入监护人姓名"
+          placeholder-class="placeholder"
+        />
+      </view>
+      <view v-if="mode !== 'bind'" class="form-item">
+        <text class="label">监护人电话(选填)</text>
+        <input
+          v-model="guardianPhone"
+          class="input"
+          type="text"
+          maxlength="20"
+          placeholder="请填写常用联系电话,清空即不保留"
+          placeholder-class="placeholder"
+        />
       </view>
       <button class="submit-btn" :disabled="submitting" @click="handleSubmit">保存</button>
     </view>

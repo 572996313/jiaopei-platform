@@ -312,7 +312,7 @@ public class MiniappServiceImpl implements MiniappService {
     @Override
     public StudentOwnProfileView myStudentProfile() {
         StudentEntity student = myOwnedStudentOrNull();
-        return student == null ? new StudentOwnProfileView(Boolean.FALSE, null, null, null, null, null, null)
+        return student == null ? new StudentOwnProfileView(Boolean.FALSE, null, null, null, null, null, null, null, null)
             : toOwnProfile(student);
     }
 
@@ -348,6 +348,9 @@ public class MiniappServiceImpl implements MiniappService {
         requireStudentPortal();
         Long userId = AuthContext.requireUser().userId();
         StudentEntity student = myOwnedStudentOrNull();
+        String gender = dictValueValidator.validate("gender", "性别", request.gender());
+        String guardianName = blankToNull(request.guardianName());
+        String guardianPhone = blankToNull(request.guardianPhone());
         if (student == null) {
             // 未归档:新建档案并归属自己,学号自动生成
             StudentEntity created = new StudentEntity();
@@ -356,8 +359,10 @@ public class MiniappServiceImpl implements MiniappService {
             created.setUserId(userId);
             created.setStudentNo(nextStudentNo());
             created.setStudentName(request.studentName().trim());
-            created.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
+            created.setGender(gender);
             created.setBirthday(request.birthday());
+            created.setGuardianName(guardianName);
+            created.setGuardianPhone(guardianPhone);
             created.setStatus("studying");
             studentMapper.insert(created);
             if (created.getId() != null) {
@@ -366,13 +371,20 @@ public class MiniappServiceImpl implements MiniappService {
             syncAccountDisplayName();
             return toOwnProfile(created);
         }
-        // 已归属:仅可编辑姓名/性别/生日
+        // 已归属:仅可编辑姓名/性别/生日/监护人
         student.setStudentName(request.studentName().trim());
-        student.setGender(dictValueValidator.validate("gender", "性别", request.gender()));
+        student.setGender(gender);
         student.setBirthday(request.birthday());
+        student.setGuardianName(guardianName);
+        student.setGuardianPhone(guardianPhone);
         studentMapper.updateById(student);
         syncAccountDisplayName();
         return toOwnProfile(student);
+    }
+
+    /** 输入框清空提交的是空串,落库存 NULL,不要留一个空字符串占位 */
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     // ---- 内部辅助 ----
@@ -463,6 +475,8 @@ public class MiniappServiceImpl implements MiniappService {
             student.getStudentName(),
             student.getGender(),
             student.getBirthday(),
+            student.getGuardianName(),
+            student.getGuardianPhone(),
             currentClassName(student.getId())
         );
     }

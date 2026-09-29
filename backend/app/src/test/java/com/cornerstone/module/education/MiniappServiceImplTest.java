@@ -3,6 +3,7 @@ package com.cornerstone.module.education;
 import com.cornerstone.support.CodeRuleTestSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -457,7 +458,8 @@ class MiniappServiceImplTest {
         when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
+        var profile = service.saveStudentProfile(
+            new StudentProfileSaveRequest("小花", "female", null, "小花妈", " 13900000000 "));
 
         assertEquals(Boolean.TRUE, profile.bound());
         assertEquals("小花", profile.studentName());
@@ -466,6 +468,9 @@ class MiniappServiceImplTest {
         assertEquals(2L, captor.getValue().getUserId());
         assertEquals("female", captor.getValue().getGender());
         assertTrue(captor.getValue().getStudentNo() != null && captor.getValue().getStudentNo().startsWith("S"));
+        // 监护人填了就落库,顺手把首尾空格去掉
+        assertEquals("小花妈", captor.getValue().getGuardianName());
+        assertEquals("13900000000", captor.getValue().getGuardianPhone());
     }
 
     @Test
@@ -486,7 +491,7 @@ class MiniappServiceImplTest {
         when(relMapper.selectCount(any())).thenReturn(0L);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
+        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null, null, null));
 
         ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
         verify(studentMapper).insert(captor.capture());
@@ -498,13 +503,19 @@ class MiniappServiceImplTest {
         authenticateStudent(2L);
         StudentEntity student = student(10L, "S001", "小明");
         student.setUserId(2L);
+        student.setGuardianName("小明爸");
+        student.setGuardianPhone("13800000000");
         when(studentMapper.selectOne(any())).thenReturn(student);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        var profile = service.saveStudentProfile(new StudentProfileSaveRequest("小明改", "male", null));
+        var profile = service.saveStudentProfile(
+            new StudentProfileSaveRequest("小明改", "male", null, "  ", "13711111111"));
 
         assertEquals("小明改", profile.studentName());
         assertEquals("male", profile.gender());
+        // 监护人电话改了要生效,姓名清空要真的清成 NULL(留空不是"不改")
+        assertNull(profile.guardianName());
+        assertEquals("13711111111", profile.guardianPhone());
         verify(studentMapper).updateById(student);
     }
 
@@ -513,7 +524,7 @@ class MiniappServiceImplTest {
         authenticateStudent(2L);
         // 历史大写值不再受理：写入口径统一为 gender 字典的 item_value
         BusinessException error = assertThrows(BusinessException.class,
-            () -> service.saveStudentProfile(new StudentProfileSaveRequest("小明", "MALE", null)));
+            () -> service.saveStudentProfile(new StudentProfileSaveRequest("小明", "MALE", null, null, null)));
         assertTrue(error.getMessage().contains("性别取值无效"));
         verify(studentMapper, never()).updateById(any(StudentEntity.class));
     }
@@ -587,7 +598,7 @@ class MiniappServiceImplTest {
         when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
         when(classStudentMapper.selectList(any())).thenReturn(List.of());
 
-        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null));
+        service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null, null, null));
 
         verify(authApplicationService).updateDisplayName(2L, "小花");
     }

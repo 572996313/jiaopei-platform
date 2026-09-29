@@ -17,6 +17,7 @@ const basePermissionLabels: PermissionLabelItem[] = [
   { code: 'system:user:manage', label: '用户维护', group: '系统管理' },
   { code: 'system:role:manage', label: '角色维护', group: '系统管理' },
   { code: 'system:menu:manage', label: '菜单维护', group: '系统管理' },
+  { code: 'system:nav:manage', label: '导航编排', group: '系统管理' },
   { code: 'system:dict:manage', label: '字典维护', group: '系统管理' },
   { code: 'system:config:read', label: '参数查看', group: '系统管理' },
   { code: 'system:config:write', label: '参数维护', group: '系统管理' },

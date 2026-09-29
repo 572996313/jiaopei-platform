@@ -40,6 +40,6 @@ public interface MiniappService {
     /** 学生端:按学号+姓名绑定自己的档案(绑定后不可换绑,重复调用幂等) */
     StudentOwnProfileView bindSelfStudent(StudentBindSelfRequest request);
 
-    /** 学生端:无档案时新建并归属自己;已归属时编辑本人档案(仅姓名/性别/生日) */
+    /** 学生端:无档案时新建并归属自己;已归属时编辑本人档案(仅姓名/性别/生日/监护人) */
     StudentOwnProfileView saveStudentProfile(StudentProfileSaveRequest request);
 }

@@ -2,7 +2,7 @@
   <el-dialog
     :model-value="modelValue"
     title="排课规则"
-    width="1080px"
+    width="1280px"
     top="6vh"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
@@ -29,12 +29,13 @@
         </div>
 
         <el-table
+          class="rule-list-table"
           :data="rules"
           border
           row-key="id"
           highlight-current-row
           v-loading="loading"
-          max-height="440"
+          height="440"
           :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
@@ -305,12 +306,20 @@ defineExpose({ reload })
 .rule-list-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
 }
 
+/* 说明占满剩余宽度，把关闭按钮钉在右下角；校区日历页签没有这句说明，按钮同样靠右 */
 .rule-list-hint {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+/* 表体固定高度后，空数据提示要铺满表体垂直居中（EP 默认只给 60px，会贴在表头下面）*/
+.rule-list-table :deep(.el-table__empty-block) {
+  min-height: calc(440px - 38px);
 }
 </style>

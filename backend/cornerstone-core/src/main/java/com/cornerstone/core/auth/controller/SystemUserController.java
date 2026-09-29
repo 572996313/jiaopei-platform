@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -74,5 +75,14 @@ public class SystemUserController {
     @RequiresPermission("system:user:manage")
     public ApiResponse<UserView> updateRoles(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {
         return ApiResponse.success("用户角色已更新", systemUserService.updateRoles(id, request));
+    }
+
+    @Operation(summary = "注销用户账号",
+            description = "物理删除账号及其角色关联、注册凭证,并让业务档案解绑归属;账号必须先停用,不能注销自己或最后一个平台管理员")
+    @DeleteMapping("/{id}")
+    @RequiresPermission("system:user:manage")
+    public ApiResponse<Void> deregister(@PathVariable Long id) {
+        systemUserService.deregisterUser(id);
+        return ApiResponse.success("账号已注销", null);
     }
 }

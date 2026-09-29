@@ -155,6 +155,7 @@ export function useSystemPermissions() {
     canManageDataSources: auth.hasPermission('system:data-source:manage'),
     canManageInvitations: auth.hasPermission('system:invitation:manage'),
     canManageCodeRules: auth.hasPermission('system:code-rule:manage'),
+    canManageNavigation: auth.hasPermission('system:nav:manage'),
   }))
 }
 

@@ -6,7 +6,7 @@
     <template v-else>
       <!-- 页头 h1 已是"字典管理",这里不再重复标题;两张子表各自带标题作区分 -->
       <div class="system-dict-grid">
-        <div class="panel-card">
+        <div class="panel-card resource-card">
           <div class="education-table-head">
             <div class="panel-title">字典类型</div>
           </div>
@@ -14,7 +14,6 @@
             <el-button
               v-if="permissions.canManageDicts"
               type="primary"
-              size="small"
               @click="openCreateDictTypeDialog"
               >新增类型</el-button
             >
@@ -59,23 +58,19 @@
               </el-table-column>
               <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
                 <template #default="{ row }">
-                  <el-button
-                    link
-                    type="primary"
-                    size="small"
-                    @click.stop="openEditDictTypeDialog(row)"
-                    >编辑</el-button
-                  >
-                  <el-button link type="danger" size="small" @click.stop="removeDictType(row)"
-                    >删除</el-button
-                  >
+                  <div class="system-operation-group">
+                    <el-button link type="primary" @click.stop="openEditDictTypeDialog(row)"
+                      >编辑</el-button
+                    >
+                    <el-button link type="danger" @click.stop="removeDictType(row)">删除</el-button>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>
           </TableFillBox>
         </div>
 
-        <div class="panel-card">
+        <div class="panel-card resource-card">
           <div class="education-table-head">
             <div class="panel-title">字典条目</div>
           </div>
@@ -83,7 +78,6 @@
             <el-button
               v-if="permissions.canManageDicts"
               type="primary"
-              size="small"
               :disabled="!selectedDictTypeCode"
               @click="openCreateDictItemDialog"
               >新增条目</el-button
@@ -133,12 +127,12 @@
               </el-table-column>
               <el-table-column v-if="permissions.canManageDicts" label="操作" width="140">
                 <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openEditDictItemDialog(row)"
-                    >编辑</el-button
-                  >
-                  <el-button link type="danger" size="small" @click="removeDictItem(row)"
-                    >删除</el-button
-                  >
+                  <div class="system-operation-group">
+                    <el-button link type="primary" @click="openEditDictItemDialog(row)"
+                      >编辑</el-button
+                    >
+                    <el-button link type="danger" @click="removeDictItem(row)">删除</el-button>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>

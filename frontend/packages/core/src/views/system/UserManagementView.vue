@@ -50,6 +50,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import {
   createSystemUser,
+  deregisterSystemUser,
   fetchSystemRoles,
   resetSystemUserPassword,
   updateSystemUser,
@@ -183,7 +184,42 @@ const userCrud: CrudPageOptions = {
     'user-assign-roles': {
       handler: (row) => openRoleAssignDialog(row as SystemUserSummary),
     },
+    'user-deregister': {
+      handler: (row) => void handleDeregister(row as SystemUserSummary),
+      // 注销当前登录账号等于把自己关在门外,后端同样会拒绝
+      disabled: (row) =>
+        String((row as SystemUserSummary | undefined)?.id ?? '') ===
+        String(auth.currentUser?.userId ?? ''),
+    },
   },
+}
+
+/** 注销确认文案要点:不可恢复 + 会连带清掉什么 + 档案怎么处置 */
+async function handleDeregister(user: SystemUserSummary) {
+  if (user.status === 'active') {
+    ElMessage.warning('该账号仍在启用中，请先停用再注销')
+    return
+  }
+
+  const name = user.displayName || user.username
+  try {
+    await ElMessageBox.confirm(
+      `确定注销账号「${name}（${user.username}）」吗?账号、角色分配与注册凭证会被删除且不可恢复;` +
+        '该账号绑定的教师/学员档案保留,但会解除归属,微信绑定需重新注册。',
+      '注销确认',
+      { type: 'warning', confirmButtonText: '确认注销', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await deregisterSystemUser(user.id)
+    ElMessage.success('账号已注销')
+    await userCrudPageRef.value?.reload()
+  } catch (error) {
+    ElMessage.error(toMessage(error, '注销失败'))
+  }
 }
 
 async function handleResetPassword(user: SystemUserSummary) {

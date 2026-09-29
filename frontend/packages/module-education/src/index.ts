@@ -1,10 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { AlarmClock, Bell, School } from '@element-plus/icons-vue'
 import {
   registerBannerActions,
   registerInvitationActions,
-  registerNavItems,
   registerPermissionLabels,
 } from '@cornerstone/core/extension/module-extensions'
 
@@ -90,54 +88,12 @@ registerPermissionLabels([
 ])
 
 /**
- * 本模块的侧边栏入口：底座只内置「系统设置」，业务导航一律靠登记。
- * 一个 `sys_menu` 目录节点 = 侧边栏一组（V92 定稿的形态），组名、组内页面与顺序都取菜单树，
- * 后台改菜单名/排序即生效；登记方只负责给出图标与组顺序号。
- * 教师/课程/班型三张档案页不在这里登记——它们与组织模块的校区、教室、节次同属「基础资料」
- * 一组，由组织模块登记那一份目录（菜单树驱动子项，跨模块不影响显隐；关 organization 必须
- * 同关 education，所以不存在"装了教务没装组织却少入口"的状态）。
+ * 本模块的侧边栏入口：**不需要在这里登记**（理由同组织模块）。
+ * 排课与上课(15)、学员与班级(139)、基础资料(130)、公告中心(25) 都是 `sys_menu` 的顶层节点，
+ * 顶层组的名称、顺序、图标与组内页面一律由已授权的菜单树驱动，后台改完刷新即生效。
+ * 目录节点必须授给所有在职角色这条没变：漏授权时子页会被当成孤儿提升到根，
+ * 于是那一张页面自己变成一个顶层图标，而不是整组消失（见 docs/前端交付说明.md 3.4）。
  */
-registerNavItems([
-  {
-    key: 'scheduling',
-    to: '/scheduling',
-    label: '排课与上课',
-    title: '排课与上课',
-    icon: AlarmClock,
-    group: 'run',
-    groupLabel: '排课与上课',
-    groupOrder: 20,
-    prefixes: ['/scheduling', '/schedule', '/schedule-completeness'],
-    // 目录与子项来自 sys_menu(V37 排课管理、V59 排课完成度、V92 改名课表与点名/课时完成度)
-    menuCatalogCode: 'education_schedule_center',
-  },
-  {
-    key: 'student-class',
-    to: '/students',
-    label: '学员与班级',
-    title: '学员与班级',
-    icon: School,
-    group: 'student-class',
-    groupLabel: '学员与班级',
-    groupOrder: 30,
-    prefixes: ['/students', '/enrollments', '/classes', '/class-roster'],
-    // 从建档到进班一条链收进一个目录(V92 新建节点 139):学员档案 → 报名 → 班级 → 分班
-    // 目录节点必须授给所有在职角色，漏授权时这四张页面的入口整块不显示(同 V81 的 130)
-    menuCatalogCode: 'education_student_class',
-  },
-  {
-    key: 'announcements',
-    to: '/announcements',
-    label: '公告中心',
-    title: '公告中心',
-    icon: Bell,
-    group: 'notice',
-    groupLabel: '消息通知',
-    groupOrder: 50,
-    prefixes: ['/announcements'],
-    menuCode: 'announcement_center',
-  },
-])
 
 /**
  * 注册凭证页的行操作：邀请码可生成直达小程序注册页的太阳码。

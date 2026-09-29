@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>导航编排页原型（乙方案）— 只写名称/图标/顺序/父级/显隐五列</title>
+    <!-- 引入顺序与 main.ts 一致:EP 基础 -> EP 暗色 -> core 样式 -->
+    <link rel="stylesheet" href="../../frontend/node_modules/element-plus/dist/index.css" />
+    <link rel="stylesheet" href="../../frontend/node_modules/element-plus/theme-chalk/dark/css-vars.css" />
+    <link rel="stylesheet" href="../../frontend/packages/core/src/styles/index.css" />
+    <style>
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text-primary);
+        font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+        padding: 16px;
+      }
+
+      /* 外壳照真页：按钮行 → 主体两列（各自封顶内滚），不在页签行以下再塞一行 */
+      .page-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .page-toolbar .note {
+        margin-left: auto;
+        color: var(--text-secondary);
+        font-size: 12px;
+        text-align: right;
+        min-width: 0;
+      }
+
+      .nav-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+        align-items: start;
+      }
+      .pane {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: var(--shadow-soft);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .pane-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .pane-head b {
+        font-size: 13px;
+      }
+      .pane-head .sub {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+      .pane-body {
+        max-height: 520px;
+        overflow: auto;
+        padding: 8px 10px 12px;
+      }
+
+      .catalog {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        background: var(--surface);
+      }
+      .catalog.locked {
+        background: var(--subtle-bg);
+        opacity: 0.85;
+      }
+      .catalog.drag-over {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--tint-bg);
+      }
+      .catalog-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+      }
+      .catalog-head .g-icon {
+        width: 22px;
+        text-align: center;
+        color: var(--accent);
+      }
+      .catalog-head input.name {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .catalog-head .count {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+      .catalog-head .ops {
+        display: flex;
+        gap: 2px;
+      }
+
+      .page-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px 4px 26px;
+        border-top: 1px dashed var(--line);
+      }
+      .page-row.dragging {
+        opacity: 0.4;
+      }
+      .page-row .p-icon {
+        width: 18px;
+        text-align: center;
+        color: var(--text-muted);
+      }
+      .page-row input.name {
+        flex: 0 0 168px;
+      }
+      .page-row .readonly {
+        color: var(--text-faint);
+        font-size: 12px;
+        font-family: ui-monospace, Consolas, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .page-row .ops {
+        margin-left: auto;
+        display: flex;
+        gap: 2px;
+        flex: 0 0 auto;
+      }
+
+      input.name {
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        font-size: 13px;
+      }
+      input.name:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: -1px;
+      }
+      .dirty {
+        border-color: var(--accent);
+        background: var(--tint-bg);
+      }
+
+      .preview-rail {
+        display: flex;
+        gap: 4px;
+        padding: 8px;
+        background: var(--subtle-bg);
+        border-radius: 8px;
+        flex-wrap: wrap;
+      }
+      .rail-dot {
+        width: 52px;
+        height: 46px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        background: var(--card-bg);
+        border: 1px solid var(--line);
+        font-size: 11px;
+      }
+      .rail-dot.on {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .rail-dot i {
+        font-style: normal;
+        font-size: 15px;
+      }
+
+      ul.full-nav {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+      }
+      ul.full-nav > li {
+        margin-bottom: 6px;
+      }
+      .full-group {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--text-secondary);
+        padding: 2px 0;
+      }
+      .full-parent {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 13px;
+      }
+      .full-kids {
+        margin: 2px 0 0 14px;
+        padding-left: 10px;
+        border-left: 1px solid var(--line);
+        list-style: none;
+      }
+      .full-kids li {
+        padding: 2px 0;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .issues {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .issues li {
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+        padding: 6px 8px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .issues li.block {
+        background: var(--soft-danger-bg);
+        color: var(--soft-danger-ink);
+      }
+      .issues li.warn {
+        background: var(--soft-warn-bg);
+        color: var(--soft-warn-ink);
+      }
+      .issues li.ok {
+        background: var(--soft-success-bg);
+        color: var(--soft-success-ink);
+      }
+      .diff table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .diff th,
+      .diff td {
+        border-bottom: 1px solid var(--line);
+        padding: 4px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .diff th {
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+      .diff .old {
+        color: var(--text-faint);
+        text-decoration: line-through;
+      }
+      .diff .new {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .lock {
+        color: var(--text-faint);
+        font-size: 11px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 0 4px;
+      }
+      .measure {
+        margin-top: 14px;
+        background: var(--card-bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: 12px/1.6 ui-monospace, Consolas, monospace;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-toolbar">
+      <button class="el-button el-button--primary" id="btn-save">保存导航</button>
+      <button class="el-button" id="btn-reset">放弃修改</button>
+      <button class="el-button" id="btn-new">新建目录</button>
+      <button class="el-button" id="btn-collapse">全部收起</button>
+      <span class="note"
+        >只写 <b>名称 / 图标 / 顺序 / 所属目录 / 侧边栏可见</b> 五列；路径与权限码只读。<b
+          >改完需退出重进</b
+        >才生效（菜单树是登录时拉的）。</span
+      >
+    </div>
+    <div class="page-toolbar" style="margin-top: 6px">
+      <span class="note" style="margin-left: 0"
+        >演示：<button class="el-button el-button--small" id="demo-clean">干净基线</button>
+        <button class="el-button el-button--small" id="demo-noauth">目录没授权角色</button>
+        <button class="el-button el-button--small" id="demo-empty">把一个目录搬空</button>
+        <button class="el-button el-button--small" id="demo-scatter"
+          >把页面挪成散页（客户最容易干的事）</button
+        ></span
+      >
+    </div>
+
+    <div class="nav-grid">
+      <section class="pane">
+        <div class="pane-head">
+          <b>左侧：目录与页面</b><span class="sub">↑↓ 改顺序，「挪到」改所属目录，拖拽只是快捷</span>
+        </div>
+        <div class="pane-body" id="editor"></div>
+      </section>
+
+      <div style="display: grid; gap: 12px">
+        <section class="pane">
+          <div class="pane-head">
+            <b>右侧：侧边栏实时预览</b><span class="sub" id="preview-note"></span>
+          </div>
+          <div class="pane-body" style="max-height: 260px">
+            <div class="preview-rail" id="rail"></div>
+            <ul class="full-nav" id="full"></ul>
+          </div>
+        </section>
+
+        <section class="pane">
+          <div class="pane-head"><b>校验</b><span class="sub">有红色拦截时「保存」不可点</span></div>
+          <div class="pane-body" style="max-height: 170px"><ul class="issues" id="issues"></ul></div>
+        </section>
+
+        <section class="pane">
+          <div class="pane-head">
+            <b>将写入的差异</b><span class="sub" id="diff-count">0 行</span>
+          </div>
+          <div class="pane-body diff" style="max-height: 200px" id="diff"></div>
+        </section>
+      </div>
+    </div>
+
+    <pre class="measure" id="measure"></pre>
+
+    <script>
+      // ===== 数据：照 V92 落地后的活库形态造基线（granted=授给了几个在职角色） =====
+      const ICONS = ['⏰', '🏫', '🎓', '📚', '📢', '⚙️', '🗂️', '🧭', '📅', '🏠']
+      let seq = 900
+      const base = () => [
+        // 工作台是壳登记的落地页，sys_menu 里没有节点 ⇒ 这一行在本页只读、固定在最前
+        mkFixed('dashboard', '今日教务', '🏠', 1, '/dashboard'),
+        mk(15, '排课与上课', 'catalog', '⏰', 20, null, 5, 'education_schedule_center', true),
+        mk(16, '排课管理', 'menu', null, 10, 15, 4, 'education_scheduling', false, '/scheduling', 'education:read'),
+        mk(17, '课表与点名', 'menu', null, 20, 15, 5, 'education_execution', false, '/schedule', 'education:read'),
+        mk(19, '课时完成度', 'menu', null, 30, 15, 4, 'education_completeness', false, '/schedule-completeness', 'education:read'),
+        mk(139, '学员与班级', 'catalog', '🎓', 30, null, 7, 'education_student_class', true),
+        mk(134, '学员档案', 'menu', null, 10, 139, 3, 'education_students', false, '/students', 'education:read'),
+        mk(22, '学员报名', 'menu', null, 20, 139, 3, 'education_enrollments', false, '/enrollments', 'education:read'),
+        mk(23, '班级档案', 'menu', null, 30, 139, 3, 'education_classes', false, '/classes', 'education:read'),
+        mk(133, '分班与名册', 'menu', null, 40, 139, 3, 'education_class_roster', false, '/class-roster', 'education:read'),
+        mk(130, '基础资料', 'catalog', '📚', 40, null, 7, 'organization_teaching_resources', true),
+        mk(24, '教师档案', 'menu', null, 10, 130, 3, 'education_teachers', false, '/teachers', 'education:read'),
+        mk(135, '课程档案', 'menu', null, 20, 130, 3, 'education_courses', false, '/courses', 'education:read'),
+        mk(137, '班型档案', 'menu', null, 30, 130, 3, 'education_class_types', false, '/class-types', 'education:read'),
+        mk(20, '校区与学期', 'menu', null, 40, 130, 3, 'organization_campus', false, '/campus', 'organization:read'),
+        mk(131, '教室管理', 'menu', null, 50, 130, 3, 'organization_classrooms', false, '/classrooms', 'organization:read'),
+        mk(21, '时段模板', 'menu', null, 60, 130, 3, 'organization_time_slots', false, '/time-slots', 'organization:read'),
+        mk(132, '节次明细', 'menu', null, 70, 130, 3, 'organization_time_slot_list', false, '/time-slot-list', 'organization:read'),
+        mk(136, '校区默认账号', 'menu', null, 80, 130, 3, 'organization_campus_accounts', false, '/campus-accounts', 'organization:read'),
+        mk(25, '公告中心', 'menu', '📢', 50, null, 3, 'announcement_center', false, '/announcements', 'announcement:read'),
+        mk(1, '系统设置', 'catalog', '⚙️', 100, null, 1, 'system', true, null, null, true),
+        mk(12, '机构与权限', 'catalog', null, 10, 1, 1, 'system_org_permission', true),
+        mk(8, '机构资料', 'menu', null, 10, 12, 1, 'system_institution', true, '/system/institution', 'tenant:read'),
+        mk(2, '用户管理', 'menu', null, 20, 12, 1, 'system_users', true, '/system/users', 'system:user:manage'),
+      ]
+      function mk(id, name, type, icon, sortNo, parentId, granted, code, locked, path, perm, deepLock) {
+        return { id, name, type, icon, sortNo, parentId, granted, code, path, perm, locked: !!locked, deepLock: !!deepLock, visible: true }
+      }
+      /** 固定项：没有菜单节点、不由数据驱动，本页面里只读 */
+      function mkFixed(id, name, icon, sortNo, path) {
+        return { id, name, type: 'fixed', icon, sortNo, parentId: null, granted: null, code: id, path, perm: '仅登录', locked: true, deepLock: true, visible: true }
+      }
+
+      let nodes = base()
+      let origin = new Map(nodes.map((n) => [n.id, { ...n }]))
+      let collapsed = new Set()
+
+      // 前端路由表：真页面里这份由后端 bootstrap 给（原型写死用于演示拦截）
+      const ROUTES = new Set(nodes.filter((n) => n.path).map((n) => n.path))
+
+      const catalogs = () => nodes.filter((n) => n.type === 'catalog')
+      /** 顶层目录 = 侧边栏的一组；目录里再套目录属于第三层，业务段不许 */
+      const topCatalogs = () => catalogs().filter((c) => c.parentId === null).sort((a, b) => a.sortNo - b.sortNo)
+      const childrenOf = (pid) => nodes.filter((n) => n.parentId === pid && n.type === 'menu').sort((a, b) => a.sortNo - b.sortNo)
+      const subCatalogsOf = (pid) => nodes.filter((n) => n.parentId === pid && n.type === 'catalog').sort((a, b) => a.sortNo - b.sortNo)
+      /** 某目录下的全部页面（含子目录里的，底座段是三层） */
+      function pagesUnder(pid) {
+        return [...childrenOf(pid), ...subCatalogsOf(pid).flatMap((c) => pagesUnder(c.id))]
+      }
+      const loosePages = () => nodes.filter((n) => n.parentId === null && n.type === 'menu').sort((a, b) => a.sortNo - b.sortNo)
+      /** 祖先链里有没有底座只读段（系统设置自己就是三层，不受"恒定两层"这条约束） */
+      function hasDeepLockAncestor(n) {
+        let p = n.parentId === null ? null : find(n.parentId)
+        while (p) {
+          if (p.deepLock) return true
+          p = p.parentId === null ? null : find(p.parentId)
+        }
+        return false
+      }
+
+      // ===== 交互：只碰五列 =====
+      function rename(id, v) {
+        find(id).name = v
+      }
+      function setIcon(id, v) {
+        find(id).icon = v
+      }
+      function find(id) {
+        return nodes.find((n) => n.id === id)
+      }
+      function move(id, dir) {
+        const n = find(id)
+        const sib = n.parentId === null ? loosePages() : childrenOf(n.parentId)
+        const i = sib.findIndex((x) => x.id === id)
+        const j = i + dir
+        if (j < 0 || j >= sib.length) return
+        // 与邻居交换 sortNo：落库时按目标目录内重排 10/20/30…
+        const a = sib[i],
+          b = sib[j]
+        ;[a.sortNo, b.sortNo] = [b.sortNo, a.sortNo]
+      }
+      function reparent(id, newParent) {
+        const n = find(id)
+        n.parentId = newParent === 'null' ? null : Number(newParent)
+        const list = n.parentId === null ? loosePages() : childrenOf(n.parentId)
+        n.sortNo = (list.length + 1) * 10
+      }
+      function toggleVis(id) {
+        const n = find(id)
+        n.visible = !n.visible
+      }
+      function addCatalog() {
+        seq += 1
+        const maxSort = Math.max(...catalogs().map((c) => c.sortNo), 0)
+        nodes.push(mk(-seq, '新目录', 'catalog', '🗂️', maxSort + 10, null, 0, 'nav_draft_' + seq, false))
+      }
+      function delCatalog(id) {
+        if (childrenOf(id).length) return alert('目录里还有页面，先把页面挪走再删。')
+        nodes = nodes.filter((n) => n.id !== id)
+      }
+
+      // ===== 校验：四条硬口径 =====
+      function validate() {
+        const out = []
+        // 1) 目录一个角色都没授 = 侧边栏整组消失且不报错（本次交付唯一的静默坑）
+        for (const c of topCatalogs()) {
+          if (c.deepLock) continue
+          const kids = pagesUnder(c.id).filter((k) => k.visible)
+          if (kids.length && c.granted === 0)
+            out.push({
+              lv: 'block',
+              text: `「${c.name}」没有授权给任何在职角色：${kids.length} 张页面的入口会从侧边栏整块消失、也不报错。保存前请去角色管理勾选该目录。`,
+            })
+        }
+        // 2) 业务段不许再套目录：恒定两层（底座「系统设置」自己就是三段，不在本条口径内）
+        catalogs()
+          .filter((c) => c.parentId !== null && !c.deepLock && !hasDeepLockAncestor(c))
+          .forEach((c) => out.push({ lv: 'block', text: `「${c.name}」是目录里的目录，会让业务导航变成三层（全站口径是恒定两层）。` }))
+        // 3) 目录被搬空 = 该组不再渲染（提示，不拦）
+        for (const c of topCatalogs()) {
+          if (c.deepLock) continue
+          if (pagesUnder(c.id).filter((k) => k.visible).length === 0 && origin.get(c.id))
+            out.push({ lv: 'warn', text: `「${c.name}」已无可见页面，这一组会从侧边栏消失（空目录不渲染）。` })
+        }
+        // 4) 页面挪成顶层散页 = 回到客户投诉的那棵树
+        const loose = loosePages().filter((p) => p.visible)
+        if (loose.length)
+          out.push({
+            lv: 'warn',
+            text: `有 ${loose.length} 张页面挂在顶层（${loose.map((p) => p.name).join('、')}）。顶层散页会让图标变多、来路面包屑变空，建议放进化好名的目录。`,
+          })
+        // 5) 路径命中不了前端路由表（只读列，正常改不出来；导入/手工建节点才会撞）
+        nodes
+          .filter((n) => n.type === 'menu' && n.path && !ROUTES.has(n.path))
+          .forEach((n) => out.push({ lv: 'block', text: `「${n.name}」的路径 ${n.path} 不在前端路由表里，点进去是空页。` }))
+        if (!out.some((o) => o.lv === 'block')) out.unshift({ lv: 'ok', text: '没有拦截项，可保存。' })
+        return out
+      }
+
+      // ===== 差异：只有五列会被写回 =====
+      const WRITABLE = [
+        ['name', '名称'],
+        ['icon', '图标'],
+        ['sortNo', '顺序'],
+        ['parentId', '所属目录'],
+        ['visible', '侧边栏可见'],
+      ]
+      function diffRows() {
+        const rows = []
+        for (const n of nodes) {
+          const o = origin.get(n.id)
+          if (!o) {
+            rows.push({ name: n.name, col: '（新建目录）', old: '—', new: '写入 sys_menu：catalog、不挂权限码' })
+            continue
+          }
+          for (const [key, label] of WRITABLE) {
+            let oldV = o[key],
+              newV = n[key]
+            if (key === 'parentId') {
+              oldV = o.parentId === null ? '（顶层）' : (origin.get(o.parentId) || {}).name || o.parentId
+              newV = n.parentId === null ? '（顶层）' : (find(n.parentId) || {}).name || n.parentId
+            }
+            if (key === 'visible') {
+              oldV = o.visible ? '可见' : '隐藏'
+              newV = n.visible ? '可见' : '隐藏'
+            }
+            if (String(oldV) !== String(newV)) rows.push({ name: n.name, col: label, old: String(oldV), new: String(newV) })
+          }
+        }
+        return rows
+      }
+
+      // ===== 预览 =====
+      function previewGroups() {
+        const fixed = nodes.filter((n) => n.type === 'fixed').map((n) => ({ ...n, kids: [n], single: true }))
+        const gs = topCatalogs()
+          .filter((c) => c.visible && pagesUnder(c.id).filter((k) => k.visible).length && (c.deepLock || c.granted > 0))
+          .map((c) => ({ ...c, kids: pagesUnder(c.id).filter((k) => k.visible) }))
+        for (const p of loosePages().filter((p) => p.visible)) {
+          gs.push({ id: 'loose-' + p.id, name: p.name, icon: p.icon || '🧭', sortNo: p.sortNo, kids: [p], single: true })
+        }
+        return [...fixed, ...gs].sort((a, b) => a.sortNo - b.sortNo)
+      }
+      function renderPreview() {
+        const gs = previewGroups()
+        document.getElementById('rail').innerHTML = gs
+          .map(
+            (g) =>
+              `<div class="rail-dot ${g.single ? 'on' : ''}"><i>${g.icon || '🧭'}</i><span>${g.name.length > 4 ? g.name.slice(0, 4) : g.name}</span></div>`
+          )
+          .join('')
+        // 一组就是一个顶层目录：目录行本身就是那组的入口，不再叠一行同名组标题（同 AppLayout 的 isGroupTitleRedundant）
+        document.getElementById('full').innerHTML = gs
+          .map((g) => {
+            const kids = g.single ? '' : `<ul class="full-kids">${g.kids.map((k) => `<li>${k.name}</li>`).join('')}</ul>`
+            return `<li><div class="full-parent">${g.icon || '🗂️'} ${g.name}${g.deepLock ? ' <span class="lock">只读</span>' : ''}${kids}</div></li>`
+          })
+          .join('')
+        document.getElementById('preview-note').textContent = `${gs.length} 个图标 / 两层`
+      }
+
+      // ===== 渲染 =====
+      function iconSelect(n) {
+        return `<select class="name" data-act="icon" data-id="${n.id}" style="width:64px">
+          ${ICONS.map((i) => `<option ${n.icon === i ? 'selected' : ''}>${i}</option>`).join('')}
+          <option value="">无</option>
+        </select>`
+      }
+      function moveTo(n) {
+        const opts = [
+          `<option value="null" ${n.parentId === null ? 'selected' : ''}>（顶层散页·不建议）</option>`,
+          ...topCatalogs()
+            .filter((c) => !c.deepLock || n.parentId === c.id)
+            .map((c) => `<option value="${c.id}" ${n.parentId === c.id ? 'selected' : ''}>${c.name}</option>`),
+        ]
+        return `<select class="name" data-act="parent" data-id="${n.id}" style="width:120px">${opts.join('')}</select>`
+      }
+      function ops(n, dirTitle) {
+        return `<span class="ops">
+          <button class="el-button el-button--small" data-act="up" data-id="${n.id}" title="上移">↑</button>
+          <button class="el-button el-button--small" data-act="down" data-id="${n.id}" title="下移">↓</button>
+          <button class="el-button el-button--small" data-act="vis" data-id="${n.id}" title="显隐">${n.visible ? '可见' : '隐藏'}</button>
+        </span>`
+      }
+      function render() {
+        const ed = document.getElementById('editor')
+        const parts = []
+        for (const c of topCatalogs()) {
+          const pages = pagesUnder(c.id)
+          if (c.deepLock) {
+            // 底座段整块只读：不给输入框，只给一行说明，避免客户把「用户管理」挪出系统设置
+            parts.push(`<div class="catalog locked"><div class="catalog-head">
+              <span class="lock">底座段·只读</span>
+              <b>${c.name}</b>
+              <span class="count">${pages.length} 页 · 排序 ${c.sortNo} · 已授 ${c.granted} 个角色</span>
+            </div></div>`)
+            continue
+          }
+          parts.push(`<div class="catalog" data-drop="${c.id}">
+            <div class="catalog-head">
+              ${iconSelect(c)}
+              <input class="name ${dirty(c, 'name') ? 'dirty' : ''}" value="${c.name}" data-act="name" data-id="${c.id}" />
+              <span class="count">${pages.length} 页 · 排序 ${c.sortNo} · 已授 ${c.granted} 个角色</span>
+              <span class="ops">
+                <button class="el-button el-button--small" data-act="up" data-id="${c.id}">↑</button>
+                <button class="el-button el-button--small" data-act="down" data-id="${c.id}">↓</button>
+                <button class="el-button el-button--small el-button--danger" data-act="del" data-id="${c.id}">删</button>
+              </span>
+            </div>
+            ${collapsed.has(c.id) ? '' : childrenOf(c.id).map(pageRow).join('') || '<div class="page-row"><span class="readonly">（空目录：这一组不会出现在侧边栏）</span></div>'}
+          </div>`)
+        }
+        const loose = loosePages()
+        if (loose.length)
+          parts.push(`<div class="catalog" data-drop="null"><div class="catalog-head"><b>未分组页面</b><span class="count">${loose.length}</span></div>${loose.map(pageRow).join('')}</div>`)
+        ed.innerHTML = parts.join('')
+        bind()
+        renderPreview()
+        const issues = validate()
+        document.getElementById('issues').innerHTML = issues
+          .map((i) => `<li class="${i.lv}">${i.lv === 'block' ? '⛔' : i.lv === 'warn' ? '⚠️' : '✅'} ${i.text}</li>`)
+          .join('')
+        const rows = diffRows()
+        document.getElementById('diff-count').textContent = `${rows.length} 处`
+        document.getElementById('diff').innerHTML = rows.length
+          ? `<table><tr><th>节点</th><th>列</th><th>原值</th><th>新值</th></tr>${rows
+              .map((r) => `<tr><td>${r.name}</td><td>${r.col}</td><td class="old">${r.old}</td><td class="new">${r.new}</td></tr>`)
+              .join('')}</table>`
+          : '<div class="readonly" style="color:var(--text-faint)">没有改动</div>'
+        const blocked = issues.some((i) => i.lv === 'block')
+        document.getElementById('btn-save').disabled = blocked
+        document.getElementById('btn-save').textContent = blocked ? '保存导航（有拦截项）' : `保存导航（${rows.length} 处）`
+        measure()
+      }
+      function dirty(n, key) {
+        const o = origin.get(n.id)
+        return o && String(o[key]) !== String(n[key])
+      }
+      function pageRow(n) {
+        return `<div class="page-row" draggable="${n.deepLock ? 'false' : 'true'}" data-page="${n.id}">
+          <span class="p-icon">${n.icon || '·'}</span>
+          <input class="name ${dirty(n, 'name') ? 'dirty' : ''}" value="${n.name}" data-act="name" data-id="${n.id}" ${n.deepLock ? 'readonly' : ''} />
+          ${n.deepLock ? '' : moveTo(n)}
+          <span class="readonly" title="只读">${n.path || '—'} · ${n.perm || '仅登录'}</span>
+          ${n.deepLock ? '' : ops(n)}
+        </div>`
+      }
+      function bind() {
+        document.getElementById('editor').onclick = (e) => {
+          const b = e.target.closest('[data-act]')
+          if (!b) return
+          const id = Number(b.dataset.id)
+          if (b.dataset.act === 'up') move(id, -1)
+          if (b.dataset.act === 'down') move(id, 1)
+          if (b.dataset.act === 'vis') toggleVis(id)
+          if (b.dataset.act === 'del') delCatalog(id)
+          if (b.tagName === 'BUTTON' && b.dataset.act !== 'up' && b.dataset.act !== 'down' && b.dataset.act !== 'vis' && b.dataset.act !== 'del') return
+          render()
+        }
+        document.getElementById('editor').onchange = (e) => {
+          const b = e.target.closest('[data-act]')
+          if (!b) return
+          const id = Number(b.dataset.id)
+          if (b.dataset.act === 'name') rename(id, b.value)
+          if (b.dataset.act === 'icon') setIcon(id, b.value)
+          if (b.dataset.act === 'parent') reparent(id, b.value)
+          render()
+        }
+        // 点击目录头 = 折叠/展开（拖拽落点另算）
+        document.querySelectorAll('.catalog-head').forEach((h) => {
+          h.ondblclick = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return
+            const id = Number(h.parentElement.dataset.drop)
+            if (Number.isNaN(id)) return
+            collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id)
+            render()
+          }
+        })
+        // 拖拽（快捷路径，不作为唯一入口：客户滚轮可能是坏的）
+        document.querySelectorAll('[data-page]').forEach((el) => {
+          el.ondragstart = () => el.classList.add('dragging')
+          el.ondragend = () => el.classList.remove('dragging')
+        })
+        document.querySelectorAll('[data-drop]').forEach((box) => {
+          box.ondragover = (e) => {
+            e.preventDefault()
+            box.classList.add('drag-over')
+          }
+          box.ondragleave = () => box.classList.remove('drag-over')
+          box.ondrop = (e) => {
+            e.preventDefault()
+            box.classList.remove('drag-over')
+            const id = Number(document.querySelector('.dragging')?.dataset.page)
+            if (!id) return
+            reparent(id, box.dataset.drop)
+            render()
+          }
+        })
+      }
+      function measure() {
+        const gs = previewGroups()
+        document.getElementById('measure').textContent = [
+          `顶层图标数 = ${gs.length}（改版前实测 12；V92 基线 6）`,
+          `散页 = ${loosePages().length} 张${loosePages().length ? '（会被提升到根，来路面包屑为空）' : ''}`,
+          `拦截 = ${validate().filter((i) => i.lv === 'block').length} 条 · 提醒 = ${validate().filter((i) => i.lv === 'warn').length} 条`,
+          `将写入 = ${diffRows().length} 处，只可能出现在 5 个可写列；path/permission_code/menu_type/portal 不在写回白名单`,
+          `落库形态 = UPDATE sys_menu SET menu_name/icon/sort_no/parent_id/visible WHERE id=? （按 id 定位，不动 menu_code）`,
+        ].join('\n')
+      }
+
+      document.getElementById('btn-new').onclick = () => {
+        addCatalog()
+        render()
+      }
+      document.getElementById('btn-reset').onclick = () => {
+        nodes = base()
+        origin = new Map(nodes.map((n) => [n.id, { ...n }]))
+        render()
+      }
+      document.getElementById('btn-collapse').onclick = () => {
+        catalogs().forEach((c) => collapsed.add(c.id))
+        render()
+      }
+      document.getElementById('btn-save').onclick = () => {
+        alert('原型不落库。真实实现：一条事务按 id 批量 UPDATE 五列 + 新建目录时同批授给在职角色（与 V92 尾部那三条 sys_role_menu 同口径）。')
+      }
+      document.getElementById('demo-clean').onclick = () => {
+        document.getElementById('btn-reset').click()
+      }
+      document.getElementById('demo-noauth').onclick = () => {
+        document.getElementById('btn-reset').click()
+        find(139).granted = 0
+        render()
+      }
+      document.getElementById('demo-empty').onclick = () => {
+        document.getElementById('btn-reset').click()
+        childrenOf(15).forEach((k) => reparent(k.id, 130))
+        render()
+      }
+      document.getElementById('demo-scatter').onclick = () => {
+        document.getElementById('btn-reset').click()
+        reparent(132, 'null')
+        reparent(136, 'null')
+        render()
+      }
+      render()
+    </script>
+  </body>
+</html>

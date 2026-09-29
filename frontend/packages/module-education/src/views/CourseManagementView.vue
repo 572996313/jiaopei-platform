@@ -9,11 +9,11 @@
     <article class="panel-card resource-card course-category-card">
       <div class="education-table-head">
         <div class="panel-title">课程分类</div>
-        <div class="table-actions">
-          <el-button v-if="canManage" type="primary" @click="openCourseCategoryDialog('create')"
-            >新增分类</el-button
-          >
-        </div>
+      </div>
+      <div class="table-toolbar">
+        <el-button v-if="canManage" type="primary" @click="openCourseCategoryDialog('create')"
+          >新增分类</el-button
+        >
       </div>
       <!-- 分类是全量小表,排序走 Element Plus 本地比较,不发请求 -->
       <el-table
@@ -50,14 +50,14 @@
     </article>
 
     <article class="panel-card education-panel course-main-panel">
-      <!-- 主表标题与主操作同一行、靠左,页面说明靠右;筛选行在它下面 -->
+      <!-- 标题独占一行,按钮一律在下一行(本页动作靠左、圆形刷新作分隔、说明靠右),与校区/字典同一种表头 -->
       <div class="education-table-head">
         <div class="panel-title">课程列表</div>
-        <div class="table-actions">
-          <el-button v-if="canManage" type="primary" @click="openCourseDialog('create')"
-            >新增课程</el-button
-          >
-        </div>
+      </div>
+      <div class="table-toolbar">
+        <el-button v-if="canManage" type="primary" @click="openCourseDialog('create')"
+          >新增课程</el-button
+        >
         <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
         <el-button @click="goClassTypes">班型档案</el-button>
         <div class="education-context-text">
@@ -655,14 +655,14 @@ onMounted(async () => {
 
 <style scoped>
 /* 分类卡整行铺开、不给 max-height：表体已按三行封顶，卡片高度只由内容决定
-   （43 卡头 + 12 卡内间距 + 146 表体 + 28 内边距 = 229），剩下的都是课程主表的。
+   （标题 25 + 12 + 按钮行 32 + 12 + 表体 146 + 上下内边距 40 = 267），剩下的都是课程主表的。
+   内边距与卡内间距都回到 core 的统一档（--card-flow-gap + .panel-card 的 20px），
+   不再单独收紧——同一屏两张卡两种节奏是这里原先"看着不齐"的根因。
    flex:0 0 auto 是必需的：.education-page 是纵向 flex，主表靠 TableFillBox 自量高度，
    这一卡若不固定，会被 flex 拉伸、把主表顶下去。 */
 .course-category-card {
   min-height: 0;
   overflow: hidden;
-  gap: 12px;
-  padding: 14px 16px;
   flex: 0 0 auto;
 }
 

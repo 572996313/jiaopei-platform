@@ -73,7 +73,7 @@ public class MiniappController {
     }
 
     @Operation(summary = "学生端-新建/编辑本人档案",
-        description = "未归属档案时自动创建并归属当前学生(学号自动生成);已归属时仅可编辑姓名/性别/生日")
+        description = "未归属档案时自动创建并归属当前学生(学号自动生成);已归属时仅可编辑姓名/性别/生日/监护人")
     @RequiresPermission("miniapp:access")
     @PostMapping("/student/profile")
     public ApiResponse<StudentOwnProfileView> saveStudentProfile(@Valid @RequestBody StudentProfileSaveRequest request) {

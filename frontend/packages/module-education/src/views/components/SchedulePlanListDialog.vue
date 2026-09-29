@@ -2,7 +2,7 @@
   <el-dialog
     :model-value="modelValue"
     title="周期排课计划"
-    width="1080px"
+    width="1280px"
     top="6vh"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
@@ -24,12 +24,13 @@
     </div>
 
     <el-table
+      class="plan-list-table"
       :data="plans"
       border
       row-key="id"
       highlight-current-row
       v-loading="loading"
-      max-height="440"
+      height="440"
       :cell-class-name="sort.cellClass"
       @sort-change="sort.onSortChange"
     >
@@ -58,7 +59,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="canManage" label="操作" width="210" fixed="right">
+      <el-table-column v-if="canManage" label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <div class="system-operation-group">
             <el-button link type="primary" @click="emit('edit', row)">补排/调整</el-button>
@@ -320,12 +321,20 @@ defineExpose({ reload })
 .plan-list-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
 }
 
+/* 说明占满剩余宽度，把关闭按钮钉在右下角（与排课规则弹窗同一条）*/
 .plan-list-hint {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+/* 表体固定高度后，空数据提示要铺满表体垂直居中（EP 默认只给 60px，会贴在表头下面）*/
+.plan-list-table :deep(.el-table__empty-block) {
+  min-height: calc(440px - 38px);
 }
 </style>

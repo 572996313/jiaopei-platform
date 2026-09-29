@@ -255,9 +255,8 @@ public class WechatAuthServiceImpl implements WechatAuthService {
         // 先清令牌,再物理删除账号数据,注销后同一微信可重新注册为全新账号
         tokenCacheService.invalidateUserTokens(userId);
         userRoleRelMapper.physicalDeleteByUserId(userId);
-        wechatBindingMapper.physicalDeleteByUserId(userId);
-        // 学员档案归属与用户-学员关联的清理由业务模块监听事件完成（同事务），
-        // 避免底座直接依赖教务域
+        // 学员/教师档案归属、用户-学员关联、微信绑定行的清理都在 EducationDeregistrationListener,
+        // 与管理端代注销共用同一条路径（同事务）
         eventPublisher.publishEvent(new UserAccountDeregisteredEvent(userId));
         userAccountMapper.physicalDeleteById(userId);
     }

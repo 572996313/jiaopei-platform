@@ -239,8 +239,7 @@ class WechatAuthServiceImplTest {
 
         verify(tokenCacheService).invalidateUserTokens(7L);
         verify(userRoleRelMapper).physicalDeleteByUserId(7L);
-        verify(wechatBindingMapper).physicalDeleteByUserId(7L);
-        // 注销时发布事件，学员域的清理由业务模块监听器完成
+        // 注销时发布事件，学员/教师档案归属、用户-学员关联与微信绑定的清理由业务模块监听器完成
         verify(eventPublisher).publishEvent(new UserAccountDeregisteredEvent(7L));
         verify(userAccountMapper).physicalDeleteById(7L);
     }

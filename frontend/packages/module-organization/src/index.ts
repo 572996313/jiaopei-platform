@@ -1,10 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { defineAsyncComponent } from 'vue'
-import { OfficeBuilding } from '@element-plus/icons-vue'
 import {
   onInstitutionReset,
   registerBannerChips,
-  registerNavItems,
   registerPermissionLabels,
 } from '@cornerstone/core/extension/module-extensions'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
@@ -55,34 +53,12 @@ registerPermissionLabels([
 ])
 
 /**
- * 本模块的侧边栏入口：底座只内置「系统设置」，业务导航一律靠登记。
- * 一个 `sys_menu` 目录节点 = 侧边栏一组，组内页面的名称与顺序都由菜单树决定（V92 定稿形态）。
+ * 本模块的侧边栏入口：**不需要在这里登记**。
+ * 「基础资料」是 `sys_menu` 里的顶层目录（id 130），顶层组名、组间顺序、图标、组内页面与顺序
+ * 全部由当前用户已授权的菜单树驱动（见 core 的 AppLayout），后台改名/改序/换图标/挪页面即生效。
+ * 以前在这里写死的 `groupOrder: 40` 与八条 `prefixes` 正是"客户调了 sort_no、界面不动"的根因；
+ * 删掉之后跨模块的三张档案页（教师/课程/班型）也跟着目录认，不再需要手工补前缀。
  */
-registerNavItems([
-  {
-    key: 'base-data',
-    to: '/campus',
-    label: '基础资料',
-    title: '基础资料',
-    icon: OfficeBuilding,
-    group: 'base-data',
-    groupLabel: '基础资料',
-    groupOrder: 40,
-    // 这一组是"开班前配好、之后不常进"的档案：本模块的校区/教室/节次五页 + 教务的教师/课程/班型三页
-    prefixes: [
-      '/campus',
-      '/campus-accounts',
-      '/classrooms',
-      '/time-slots',
-      '/time-slot-list',
-      '/teachers',
-      '/courses',
-      '/class-types',
-    ],
-    // 目录与八张页面的名称、顺序、图标都在 sys_menu(V81/V82/V86 五页 + V92 收编教师/课程/班型)
-    menuCatalogCode: 'organization_teaching_resources',
-  },
-])
 
 /** 机构切换/退出登录时清空本模块维护的教学范围（校区/学期） */
 onInstitutionReset(() => {

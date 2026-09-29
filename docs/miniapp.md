@@ -24,14 +24,16 @@ miniapp/src/
 │   ├── auth-session.ts     # 登录态存取(uni storage,key: cornerstone.mini.auth.session)
 │   └── request.ts          # uni.request 封装:ApiResponse 信封解包 + 雪花 ID 精度保护 + 401 统一处理
 ├── api/auth.ts             # 微信登录 / 自助注册 / 注销 / 当前用户
-├── api/miniapp.ts          # 学员档案关联 + 课表查询
+├── api/miniapp.ts          # 学员档案关联 + 课表/同学名单/首页概览查询
 ├── stores/auth.ts          # Pinia 登录态
 └── pages/
     ├── login/index.vue     # 微信一键登录(启动页)
     ├── register/index.vue  # 首次使用选择身份(学生/家长)自动注册
-    ├── index/index.vue     # 首页 tab(业务占位)
+    ├── index/index.vue     # 首页 tab(欢迎语 + 今日课程卡 + 服务卡)
     ├── bind-student/index.vue  # 绑定学员档案(按学号/监护人手机号)
-    ├── timetable/index.vue     # 课程表(周视图)
+    ├── student-profile/index.vue   # 学生端:绑定/新建/编辑自己的档案
+    ├── timetable/index.vue     # 课程表(按天列表)
+    ├── classmates/index.vue    # 我的同学(按班级分组的同班姓名名单)
     └── mine/index.vue      # 我的 tab(学员管理 + 退出/注销)
 ```
 
@@ -97,19 +99,23 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 | `DELETE /api/miniapp/students/{id}` | 解绑学员档案(物理删除关联,解绑后可重新绑定) |
 | `GET /api/miniapp/student/profile` | 学生端-我的档案(未绑定 bound=false) |
 | `POST /api/miniapp/student/bind-self` | 学生端-按学号+姓名绑定自己的档案(双因子,绑定后不可换绑) |
-| `POST /api/miniapp/student/profile` | 学生端-新建(无档案时自动建档并归属)或编辑本人档案(仅姓名/性别/生日) |
+| `POST /api/miniapp/student/profile` | 学生端-新建(无档案时自动建档并归属)或编辑本人档案(仅姓名/性别/生日/监护人) |
 | `GET /api/system/dicts/options?typeCodes=gender` | 性别字典选项(底座字典接口,登录即可访问,小程序与 PC 同源) |
 | `GET /api/miniapp/students/{id}/lessons` | 学员周课表(联查班级/课程/教室/教师),仅限已绑定的当前用户 |
+| `GET /api/miniapp/students/{id}/classmates` | 我的同学:该学员在班班级按班分组的同班姓名名单(不含本人),**只返回姓名,学号/性别/生日一律不下发** |
+| `GET /api/miniapp/home/overview` | 首页概览:名下全部学员的今日课次、本周节数、下一节预告、未分班学员标记 |
 
 ## 档案关联与课程表
 
 - **绑定学员**:「我的」→「绑定学员档案」,支持按**学员编号**或**监护人手机号**两种方式;手机号方式通过 `jp_student_parent.parent_phone` 匹配。**双因子校验**:除编号/手机号外必须填写**学员姓名**,字段与档案不一致(或该手机号下无此姓名)时拒绝绑定,防止陌生人仅凭传播的学号/手机号绑定查看学员信息。一个账号可绑多个学员,一个学员可被多个家长绑定。
 - **绑定的学员**:家长端「我的」→「我的学员」列表,点学员进课表,点「解绑」解除关联(有二次确认,解绑后可重新绑定)。
-- **学生端「我的」**:按是否绑定档案展示——未绑定引导「按学号绑定已有档案」或「自助创建档案」;已绑定展示本人档案(姓名/性别/生日/班级)+「我的课表」「编辑档案」入口。学生档案**绑定后不可换绑**,注销账号时自动清除档案归属(user_id 置空,档案本身保留可由后续绑定)。
+- **学生端「我的」**:按是否绑定档案展示——未绑定引导「按学号绑定已有档案」或「自助创建档案」;已绑定展示本人档案(姓名/性别/生日/班级)+「我的同学」「编辑档案」入口(课表入口只在首页,不在这里重复给)。学生档案**绑定后不可换绑**,注销账号时自动清除档案归属(user_id 置空,档案本身保留可由后续绑定)。
 - **性别取值统一走 `gender` 字典**(male=男 / female=女 / unknown=未知,系统字典管理页可维护):小程序选项与 PC 学员/教师表单同源,后端写入前由 `DictValueValidator` 校验,非法值报「性别取值无效」;V51 已把存量大小写混用(`MALE`/`FEMALE`/`UNKNOWN`)归一为小写。
 - **账号显示名跟随档案**:绑定关系一变化就重算 `sys_user_account.display_name`——学生端取自己档案姓名,家长端取已绑学员姓名按绑定先后顿号连接再加「家长」(如「小明、小红家长」),注册时填的微信昵称会被覆盖,管理端账号列表与小程序「我的」看到的就是"这个人是谁"。姓名多到超过 `display_name` 的 128 列宽时按能放下的孩子数截断并补「等」(「小明、小红等家长」),连一个孩子姓名都放不下时截姓名保住后缀。**没有档案可依据时保留现有名字**(解绑最后一个孩子、学生尚未归档),不清空也不写占位文案。「我的」页 `onShow` 会重拉 `/api/auth/me`,改完当场可见,不必退出重登。
 - **数据隔离**:所有 `/api/miniapp` 接口都经 `@RequiresPermission("miniapp:access")` 且按**当前登录用户**过滤——只能查到自己绑定的学员,不能越权看别人。
-- **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` status=`active`,小写规范值)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师姓名电话。停课(cancelled)课次在页面置灰标识。
+- **课表**:按当前用户所选学员,取其在班班级(`jp_class_student` status=`active`,小写规范值)→ 查询该班课次(`schedule_lesson`)并按日期范围返回,联查出班级名、课程名、教室名、教师称呼。停课(cancelled)课次在页面置灰标识。
+- **给家长/学生的信息按最小化收**:教师只下发**姓 + 老师**(如「王老师」,`MiniappLessonView.teacherName`),**电话不再下发**;同学名单结构上就是 `List<String>` 姓名,接口层带不出学号。**同学名单为什么不给学号**:`POST /api/miniapp/students/bind` 是「学号 + 姓名」双因子校验,名单一旦同时给出这两个因子,等于把绑定凭据整包发出去,任何人都能绑走别人家孩子的档案。
+- **我的同学**:一个学员可在多个班,所以一次返回「班级 → 名单」分组,页面顶部切班不再打接口;名单 200 条封顶。入口在课表页卡片头与学生档案卡。**监护人姓名/电话可由学生在编辑档案页自填或清空**,写入 `jp_student.guardian_name/guardian_phone`(镜像列);家长绑定走的是 `jp_student_parent.parent_phone`,所以这里改动能不能绑到人、由 PC 侧「家长联系人」决定,与它无关。**注意**:PC 维护家长联系人时 `StudentParentServiceImpl#syncStudentGuardian` 会用主家长行覆盖这两列。
 
 ## 登录与注册流程
 

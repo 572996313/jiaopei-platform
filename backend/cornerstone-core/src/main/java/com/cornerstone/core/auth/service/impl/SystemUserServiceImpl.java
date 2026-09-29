@@ -3,6 +3,8 @@ package com.cornerstone.core.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cornerstone.core.auth.context.AuthContext;
+import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
@@ -12,6 +14,8 @@ import com.cornerstone.core.auth.dto.UserPageQuery;
 import com.cornerstone.core.auth.dto.UserRoleUpdateRequest;
 import com.cornerstone.core.auth.dto.UserUpdateRequest;
 import com.cornerstone.core.auth.dto.UserView;
+import com.cornerstone.core.auth.event.UserAccountDeregisteredEvent;
+import com.cornerstone.core.auth.mapper.AuthInvitationMapper;
 import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
@@ -29,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +44,8 @@ public class SystemUserServiceImpl implements SystemUserService {
 
     private static final String ACTIVE = "active";
     private static final String DEFAULT_INITIAL_PASSWORD = "Init@123456";
+    /** 平台管理员角色编码:注销账号时用它判断"是否最后一个能管系统的人" */
+    private static final String PLATFORM_ADMIN_ROLE = "PLATFORM_ADMIN";
 
     /** 用户列表可排序字段:与列表列一一对应,机构/校区是 ID 列不参与排序 */
     private static final Map<String, SFunction<UserAccountEntity, ?>> USER_SORTABLE = Map.of(
@@ -54,19 +61,25 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
     private final InstitutionMapper institutionMapper;
+    private final AuthInvitationMapper invitationMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuthApplicationService authApplicationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public SystemUserServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                  UserRoleRelMapper userRoleRelMapper, InstitutionMapper institutionMapper,
+                                 AuthInvitationMapper invitationMapper,
                                  PasswordEncoder passwordEncoder,
-                                 AuthApplicationService authApplicationService) {
+                                 AuthApplicationService authApplicationService,
+                                 ApplicationEventPublisher eventPublisher) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.institutionMapper = institutionMapper;
+        this.invitationMapper = invitationMapper;
         this.passwordEncoder = passwordEncoder;
         this.authApplicationService = authApplicationService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -181,6 +194,75 @@ public class SystemUserServiceImpl implements SystemUserService {
         // 角色快照写进了 JWT，改完必须让该用户重新登录，否则旧权限在令牌过期前继续可用
         authApplicationService.invalidateUserSessions(id);
         return toView(user);
+    }
+
+    @Override
+    @Transactional
+    public void deregisterUser(Long id) {
+        AuthenticatedUser current = AuthContext.requireUser();
+        UserAccountEntity entity = requireUser(id);
+
+        if (Objects.equals(current.userId(), id)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "不能注销当前登录的账号");
+        }
+        assertSameInstitutionUnlessPlatformAdmin(current, entity);
+        if (ACTIVE.equals(entity.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "账号「" + entity.getUsername() + "」还在启用中，请先停用再注销");
+        }
+        assertNotLastActivePlatformAdmin(entity);
+
+        // 先清会话再删行:账号行没了,残留会话里的权限快照就没人能复核了
+        authApplicationService.invalidateUserSessions(id);
+        // 激活码绑定的是这个账号,FK 指向 sys_user_account,不先清掉删账号会被 1451 挡住
+        invitationMapper.physicalDeleteByUserId(id);
+        userRoleRelMapper.physicalDeleteByUserId(id);
+        // 业务域(学员/教师档案归属、微信绑定、校区偏好)由各自监听器清理,同事务、任一失败整体回滚
+        eventPublisher.publishEvent(new UserAccountDeregisteredEvent(id));
+        // 物理删而非逻辑删:username 唯一键含 deleted,软删行会永久占住这个账号名
+        userAccountMapper.physicalDeleteById(id);
+    }
+
+    /**
+     * 机构比对:注销是最不可逆的写操作,非平台管理员只能动本机构的账号。
+     * 平台管理员保持现状跨机构操作(用户管理页目前只对平台角色开放)。
+     */
+    private void assertSameInstitutionUnlessPlatformAdmin(AuthenticatedUser current, UserAccountEntity target) {
+        if (current.roles() != null && current.roles().contains(PLATFORM_ADMIN_ROLE)) {
+            return;
+        }
+        if (!Objects.equals(current.orgId(), target.getInstitutionId())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "只能注销本机构的账号");
+        }
+    }
+
+    /** 挡住"注销掉最后一个能管系统的人"——系统会没人能进用户管理页，只能进数据库改。 */
+    private void assertNotLastActivePlatformAdmin(UserAccountEntity target) {
+        RoleEntity platformRole = roleMapper.selectOne(new LambdaQueryWrapper<RoleEntity>()
+            .eq(RoleEntity::getRoleCode, PLATFORM_ADMIN_ROLE));
+        if (platformRole == null) {
+            return;
+        }
+        Long holds = userRoleRelMapper.selectCount(new LambdaQueryWrapper<UserRoleRelEntity>()
+            .eq(UserRoleRelEntity::getUserId, target.getId())
+            .eq(UserRoleRelEntity::getRoleId, platformRole.getId()));
+        if (holds == null || holds == 0) {
+            return;
+        }
+        List<Long> otherUserIds = userRoleRelMapper.selectList(new LambdaQueryWrapper<UserRoleRelEntity>()
+                .eq(UserRoleRelEntity::getRoleId, platformRole.getId())
+                .ne(UserRoleRelEntity::getUserId, target.getId()))
+            .stream()
+            .map(UserRoleRelEntity::getUserId)
+            .toList();
+        Long activeOthers = otherUserIds.isEmpty() ? 0L : userAccountMapper.selectCount(
+            new LambdaQueryWrapper<UserAccountEntity>()
+                .in(UserAccountEntity::getId, otherUserIds)
+                .eq(UserAccountEntity::getStatus, ACTIVE));
+        if (activeOthers == null || activeOthers == 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "该账号是最后一个可用的平台管理员，注销后将无人能管理系统，请先给其他账号分配平台管理员角色");
+        }
     }
 
     private UserView toView(UserAccountEntity entity) {

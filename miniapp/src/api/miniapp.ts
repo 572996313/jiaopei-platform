@@ -87,6 +87,8 @@ export interface StudentOwnProfile {
   studentName: string | null
   gender: Gender | null
   birthday: string | null
+  guardianName: string | null
+  guardianPhone: string | null
   className: string | null
 }
 
@@ -136,8 +138,14 @@ export function bindSelfStudent(studentNo: string, studentName: string) {
   return requestPost<StudentOwnProfile>('/miniapp/student/bind-self', { studentNo, studentName })
 }
 
-/** 学生端-新建/编辑本人档案(姓名/性别/生日) */
-export function saveStudentProfile(payload: { studentName: string; gender: Gender; birthday?: string }) {
+/** 学生端-新建/编辑本人档案(姓名/性别/生日/监护人) */
+export function saveStudentProfile(payload: {
+  studentName: string
+  gender: Gender
+  birthday?: string
+  guardianName?: string
+  guardianPhone?: string
+}) {
   return requestPost<StudentOwnProfile>('/miniapp/student/profile', payload)
 }
 

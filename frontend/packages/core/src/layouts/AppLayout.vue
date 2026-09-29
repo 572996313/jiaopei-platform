@@ -385,10 +385,10 @@ import {
   ArrowDown,
   Check,
   Close,
+  Grid,
   Monitor,
   Moon,
   Search,
-  Setting,
   Sunny,
 } from '@element-plus/icons-vue'
 import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
@@ -574,28 +574,96 @@ function hasVisibleChild(item: SidebarDefinition) {
 }
 
 /**
- * 底座自有的顶层导航项。业务模块的入口一律经 registerNavItems 登记，
- * 这里只保留底座自身（系统设置是底座概念，任何行业都要）。
+ * 顶层导航段：**一个 `sys_menu` 顶层节点 = 侧边栏一组（一个图标）**。
+ * 组名取 `menu_name`、组间顺序取 `sort_no`、图标取 `icon`、组内页面与顺序取子节点，
+ * 全部来自当前用户已授权的菜单树——客户在「导航编排」页改完刷新即生效，不用改代码。
+ * 之前这套顺序写死在各模块 `registerNavItems` 的 `groupOrder` 里，客户调 `sort_no` 界面不动。
  */
-const coreSidebarDefinitions: SidebarDefinition[] = [
-  {
-    key: 'system',
-    to: '/system/users',
-    label: '系统设置',
-    title: '系统设置',
-    icon: Setting,
-    group: 'system',
-    groupLabel: '系统设置',
-    // 底座段固定沉底，业务模块的分组顺序号都小于它
-    groupOrder: 900,
-    prefixes: ['/system'],
-    // 系统设置组:父级目录与子项均来自 sys_menu(/auth/current/menus),名称/顺序/图标可在后台菜单管理配置
-    menuCatalogCode: 'system',
-  },
-]
 
-/** 业务登记的在前、底座自有在后；组间顺序看 groupOrder，组内保持登记顺序 */
-const sidebarDefinitions = computed(() => [...contributedNavItems(), ...coreSidebarDefinitions])
+/** 目录没配图标的回落：窄栏里一个图标都看不见，等于这一组消失了 */
+const FALLBACK_GROUP_ICON = Grid
+
+/** 收集一个顶层节点下所有可点页面的路径（含子目录里的），用作整组的高亮前缀 */
+function collectPagePaths(nodes: SystemMenuTreeNode[]): string[] {
+  const paths: string[] = []
+  for (const node of nodes) {
+    if (node.menuType === 'menu' && node.path) {
+      paths.push(node.path)
+    }
+    if (node.children?.length) {
+      paths.push(...collectPagePaths(node.children))
+    }
+  }
+  return paths
+}
+
+const menuDrivenDefinitions = computed<SidebarDefinition[]>(() => {
+  // 登记项的图标只作为"菜单节点没配图"时的回落，顺序与名称一概不从代码取
+  const contributed = contributedNavItems()
+  const list: SidebarDefinition[] = []
+  for (const node of auth.currentMenus || []) {
+    if (node.menuType === 'button' || !node.menuCode) {
+      continue
+    }
+    const groupKey = `menu:${node.menuCode}`
+    const pagePaths = collectPagePaths(node.children || [])
+    if (node.menuType === 'catalog') {
+      // 空目录不渲染：窄栏会出现一个点开没有内容的图标
+      if (!pagePaths.length) {
+        continue
+      }
+      list.push({
+        key: groupKey,
+        to: pagePaths[0],
+        label: node.menuName,
+        title: node.menuName,
+        icon:
+          resolveMenuIcon(node.icon) ??
+          contributed.find((item) => item.menuCatalogCode === node.menuCode)?.icon ??
+          FALLBACK_GROUP_ICON,
+        group: groupKey,
+        groupLabel: node.menuName,
+        groupOrder: node.sortNo ?? 100,
+        prefixes: pagePaths,
+        menuCatalogCode: node.menuCode,
+      })
+      continue
+    }
+    if (!node.path) {
+      continue
+    }
+    list.push({
+      key: groupKey,
+      to: node.path,
+      label: node.menuName,
+      title: node.menuName,
+      icon:
+        resolveMenuIcon(node.icon) ??
+        contributed.find((item) => item.menuCode === node.menuCode)?.icon ??
+        FALLBACK_GROUP_ICON,
+      group: groupKey,
+      groupLabel: node.menuName,
+      groupOrder: node.sortNo ?? 100,
+      prefixes: [node.path],
+      menuCode: node.menuCode,
+    })
+  }
+  return list
+})
+
+/**
+ * 代码登记的入口：只留"没有菜单节点承载"的那些（工作台这类落地页，全站必进、不对应权限）。
+ * **凡登记时写了 `menuCode`/`menuCatalogCode` 的，一律由上面那份菜单树自己出现**——
+ * 同一个入口两处出现会在窄栏画两颗一样的图标，而"节点没授权"正是要它不出现。
+ */
+const registeredDefinitions = computed(() =>
+  contributedNavItems().filter((item) => !item.menuCode && !item.menuCatalogCode)
+)
+
+const sidebarDefinitions = computed(() => [
+  ...menuDrivenDefinitions.value,
+  ...registeredDefinitions.value,
+])
 
 /** 配置化目录/单页入口的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
 function displayLabel(item: SidebarDefinition): string {
@@ -667,7 +735,12 @@ const currentPageTrail = computed(() => {
         return { groupLabel: group.label, parentLabel: displayLabel(item), label: child.label }
       }
       if (isNavItemActive(item)) {
-        return { groupLabel: group.label, parentLabel: '', label: displayLabel(item) }
+        // 顶层节点自己就是一张页面时（如公告中心），组名与页名同源，来路不再重复一遍
+        return {
+          groupLabel: isGroupTitleRedundant(group) ? '' : group.label,
+          parentLabel: '',
+          label: displayLabel(item),
+        }
       }
     }
   }

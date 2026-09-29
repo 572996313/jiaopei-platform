@@ -17,6 +17,10 @@ public record StudentOwnProfileView(
     String gender,
     @Schema(description = "出生日期")
     LocalDate birthday,
+    @Schema(description = "监护人姓名")
+    String guardianName,
+    @Schema(description = "监护人联系电话")
+    String guardianPhone,
     @Schema(description = "班级名称(当前所在班,无则为空)")
     String className
 ) {

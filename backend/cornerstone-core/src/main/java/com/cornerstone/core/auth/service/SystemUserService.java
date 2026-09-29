@@ -22,4 +22,12 @@ public interface SystemUserService {
     ResetPasswordResponse resetPassword(Long id);
 
     UserView updateRoles(Long id, UserRoleUpdateRequest request);
+
+    /**
+     * 注销账号：物理删除账号行及其角色关联、注册凭证，业务域档案的归属由
+     * {@link com.cornerstone.core.auth.event.UserAccountDeregisteredEvent} 的监听器清理。
+     *
+     * <p>必须是已停用的账号才能注销，且不能注销自己或最后一个可用的平台管理员。</p>
+     */
+    void deregisterUser(Long id);
 }

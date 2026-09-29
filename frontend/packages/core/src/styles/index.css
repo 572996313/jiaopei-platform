@@ -90,6 +90,11 @@
   --radius-card: 12px;
   --radius-block: 10px;
 
+  /* 卡内纵向节奏：标题行 → 按钮行 → 筛选行 → 表格，每一步都用这一个数。
+     原先主表卡 16、辅助卡 12、字典卡 0（工具栏和表格贴死、标题却又自带 16 下边距），
+     同一套页面三种节奏，这就是"标题离按钮太远、按钮离表格太近"的来源。 */
+  --card-flow-gap: 12px;
+
   /*
    * 横幅常量(不随主题翻):横幅永远深藏青,压在它上面的浅色胶囊永远深字,
    * 这两组值若跟随 html.dark 会翻成"深底深字"看不见,所以刻意与上面语义色分开。
@@ -986,7 +991,7 @@ body {
 .education-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--card-flow-gap);
   /* 视口填充:表格卡片吃掉页面剩余高度,表内滚动由 TableFillBox 量出的 px 高度驱动 */
   flex: 1 1 auto;
   min-height: 320px;
@@ -1093,7 +1098,7 @@ body {
 .resource-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--card-flow-gap);
   min-height: 0;
 }
 
@@ -1159,6 +1164,13 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   text-align: right;
+}
+
+/* 表头行里的标题不吃 .panel-title 的独立块下边距：那条 16px 是给"标题自己就是卡片首行"的
+   静态块用的，放进 flex 行会让行高凭空长 16px、标题还比同一行的按钮偏高半截。
+   卡内的上下留白一律由 --card-flow-gap 统一给。 */
+.education-table-head > .panel-title {
+  margin-bottom: 0;
 }
 
 /* 问号说明:自己不收窄,始终贴到行右端 */

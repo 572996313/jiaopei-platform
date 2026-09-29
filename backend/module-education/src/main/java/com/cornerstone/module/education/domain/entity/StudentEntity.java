@@ -1,5 +1,7 @@
 package com.cornerstone.module.education.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cornerstone.core.common.model.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,12 +30,16 @@ public class StudentEntity extends BaseEntity {
     @Schema(description = "性别(MALE=男,FEMALE=女,UNKNOWN=未知)", allowableValues = {"MALE", "FEMALE", "UNKNOWN"})
     private String gender;
 
+    // 这三列都可以被清空(updateById 默认跳过 null,不加 ALWAYS 就清不掉),且写入方都是先查全量实体再落库
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     @Schema(description = "出生日期")
     private LocalDate birthday;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     @Schema(description = "监护人姓名")
     private String guardianName;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     @Schema(description = "监护人联系电话")
     private String guardianPhone;
 
