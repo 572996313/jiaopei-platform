@@ -86,7 +86,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + classroomCode);
         }
         return entity;
     }
@@ -147,7 +147,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + existing.getCampusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + existing.getClassroomCode());
         }
         return existing;
     }
@@ -175,7 +175,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         Long count = classroomMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码已存在：" + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码已存在：" + classroomCode);
         }
     }
 
@@ -188,7 +188,7 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
         Long count = classroomMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室名称已存在：" + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室名称已存在：" + classroomName);
         }
     }
 

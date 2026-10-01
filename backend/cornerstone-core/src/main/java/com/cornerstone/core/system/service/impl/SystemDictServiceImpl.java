@@ -117,11 +117,11 @@ public class SystemDictServiceImpl implements SystemDictService {
     @Override
     @Transactional
     public void deleteType(Long id) {
-        requireType(id);
+        SystemDictTypeEntity entity = requireType(id);
         Long itemCount = itemMapper.selectCount(new LambdaQueryWrapper<SystemDictItemEntity>()
             .eq(SystemDictItemEntity::getTypeId, id));
         if (itemCount != null && itemCount > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "字典类型下仍存在条目，请先删除条目：" + id);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "字典类型下仍存在条目，请先删除条目：" + entity.getTypeCode());
         }
         typeMapper.physicalDeleteById(id);
     }

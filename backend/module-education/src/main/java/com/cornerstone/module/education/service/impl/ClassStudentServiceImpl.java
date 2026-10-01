@@ -158,12 +158,13 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         StudentEntity student = requireStudent(request.studentId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级与学员必须属于同一机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "班级「" + teachingClass.getClassCode() + "」与学员「" + student.getStudentNo() + "」必须属于同一机构");
         }
         if (request.leftAt() != null && request.joinedAt() != null && request.leftAt().isBefore(request.joinedAt())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "离开日期不能早于加入日期");
         }
-        assertUniqueClassStudent(request.classId(), request.studentId());
+        assertUniqueClassStudent(request.classId(), request.studentId(), teachingClass.getClassCode());
         int activeStudents = countActiveStudents(institutionId, request.classId());
         assertClassCapacity(teachingClass, activeStudents);
 
@@ -179,7 +180,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         try {
             classStudentMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + request.classId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + teachingClass.getClassCode());
         }
 
         // 当前人数按在班学员关系重算，只统计 status=active 的记录，并顺带修复历史脏数据
@@ -219,19 +220,19 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         return student;
     }
 
-    private void assertUniqueClassStudent(Long classId, Long studentId) {
+    private void assertUniqueClassStudent(Long classId, Long studentId, String classCode) {
         Long count = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
             .eq(ClassStudentEntity::getClassId, classId)
             .eq(ClassStudentEntity::getStudentId, studentId));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已加入此班级：" + classCode);
         }
     }
 
     private void assertClassCapacity(TeachingClassEntity teachingClass, int activeStudents) {
         int capacity = teachingClass.getCapacityLimit() == null ? 0 : teachingClass.getCapacityLimit();
         if (capacity > 0 && activeStudents >= capacity) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级容量已满：" + teachingClass.getId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级容量已满：" + teachingClass.getClassCode());
         }
     }
 }

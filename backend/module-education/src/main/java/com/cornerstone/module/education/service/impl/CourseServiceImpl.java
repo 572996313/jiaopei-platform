@@ -127,7 +127,7 @@ public class CourseServiceImpl implements CourseService {
             courseMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下课程编码或名称已存在：" + request.institutionId());
+                "该机构下课程编码或名称已存在：" + courseCode);
         }
         return entity;
     }
@@ -169,7 +169,7 @@ public class CourseServiceImpl implements CourseService {
             courseMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下课程编码或名称已存在：" + existing.getInstitutionId());
+                "该机构下课程编码或名称已存在：" + existing.getCourseCode());
         }
         return existing;
     }
@@ -201,7 +201,7 @@ public class CourseServiceImpl implements CourseService {
         }
         if (!Objects.equals(category.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "课程分类不属于该机构：" + institutionId);
+                "课程分类不属于该机构：" + category.getCategoryCode());
         }
     }
 
@@ -215,7 +215,7 @@ public class CourseServiceImpl implements CourseService {
         Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下课程编码已存在：" + institutionId);
+                "该机构下课程编码已存在：" + courseCode);
         }
     }
 
@@ -229,7 +229,7 @@ public class CourseServiceImpl implements CourseService {
         Long count = courseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下课程名称已存在：" + institutionId);
+                "该机构下课程名称已存在：" + courseName);
         }
     }
 

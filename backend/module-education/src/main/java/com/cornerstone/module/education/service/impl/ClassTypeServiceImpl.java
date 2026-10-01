@@ -71,7 +71,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             classTypeMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下班型编码或名称已存在：" + request.institutionId());
+                "该机构下班型编码或名称已存在：" + typeCode);
         }
         return entity;
     }
@@ -117,7 +117,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
             classTypeMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下班型编码或名称已存在：" + existing.getInstitutionId());
+                "该机构下班型编码或名称已存在：" + existing.getTypeCode());
         }
         return existing;
     }
@@ -152,7 +152,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         Long count = classTypeMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下班型编码已存在：" + institutionId);
+                "该机构下班型编码已存在：" + typeCode);
         }
     }
 
@@ -166,7 +166,7 @@ public class ClassTypeServiceImpl implements ClassTypeService {
         Long count = classTypeMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该机构下班型名称已存在：" + institutionId);
+                "该机构下班型名称已存在：" + typeName);
         }
     }
 

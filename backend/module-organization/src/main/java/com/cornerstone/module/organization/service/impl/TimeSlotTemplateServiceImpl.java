@@ -324,7 +324,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
         }
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
         }
     }
 
@@ -357,7 +357,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
         try {
             config = objectMapper.readTree(entity.getConfigJson());
         } catch (JsonProcessingException exception) {
-            throw new BusinessException(ResultCode.INTERNAL_ERROR, "模板参数快照损坏：" + entity.getId());
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "模板参数快照损坏：" + entity.getTemplateName());
         }
         return new TimeSlotTemplateView(
             entity.getId(),

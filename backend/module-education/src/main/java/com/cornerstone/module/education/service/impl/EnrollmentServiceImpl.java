@@ -157,14 +157,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public EnrollmentEntity createEnrollment(EnrollmentCreateRequest request) {
         requireInstitution(request.institutionId());
         requireStudentInInstitution(request.studentId(), request.institutionId());
-        requireClassInInstitution(request.classId(), request.institutionId());
+        TeachingClassEntity teachingClass = requireClassInInstitution(request.classId(), request.institutionId());
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }
 
         String enrollmentNo = codeRuleService.resolveForCreate("enrollment", request.enrollmentNo());
         assertUniqueEnrollmentNo(request.institutionId(), enrollmentNo);
-        assertUniqueStudentClass(request.studentId(), request.classId());
+        assertUniqueStudentClass(request.studentId(), request.classId(), teachingClass.getClassCode());
 
         EnrollmentEntity entity = new EnrollmentEntity();
         entity.setInstitutionId(request.institutionId());
@@ -213,7 +213,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         if (!Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + student.getStudentNo());
         }
         return student;
     }
@@ -224,7 +224,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + teachingClass.getClassCode());
         }
         return teachingClass;
     }
@@ -234,16 +234,16 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             .eq(EnrollmentEntity::getInstitutionId, institutionId)
             .eq(EnrollmentEntity::getEnrollmentNo, enrollmentNo));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下报名单号已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下报名单号已存在：" + enrollmentNo);
         }
     }
 
-    private void assertUniqueStudentClass(Long studentId, Long classId) {
+    private void assertUniqueStudentClass(Long studentId, Long classId, String classCode) {
         Long count = enrollmentMapper.selectCount(new LambdaQueryWrapper<EnrollmentEntity>()
             .eq(EnrollmentEntity::getStudentId, studentId)
             .eq(EnrollmentEntity::getClassId, classId));
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已存在此班级的报名记录：" + classId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该学员已存在此班级的报名记录：" + classCode);
         }
     }
 

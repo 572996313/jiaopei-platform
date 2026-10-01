@@ -175,7 +175,7 @@ public class StudentParentServiceImpl implements StudentParentService {
                 studentParentMapper.insert(entity);
             } catch (DuplicateKeyException exception) {
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "该学员下家长联系电话已存在：" + request.studentId());
+                    "该学员下家长联系电话已存在：" + parentPhone);
             }
         } else {
             studentParentMapper.updateById(entity);
@@ -197,7 +197,7 @@ public class StudentParentServiceImpl implements StudentParentService {
             throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
         }
         if (!Objects.equals(student.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + student.getStudentNo());
         }
         return student;
     }
@@ -212,7 +212,7 @@ public class StudentParentServiceImpl implements StudentParentService {
         Long count = studentParentMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "该学员下家长联系电话已存在：" + studentId);
+                "该学员下家长联系电话已存在：" + parentPhone);
         }
     }
 

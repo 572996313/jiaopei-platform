@@ -246,7 +246,7 @@ public class TeacherServiceImpl implements TeacherService {
         try {
             teacherMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + teacherCode);
         }
         return entity;
     }
@@ -292,7 +292,7 @@ public class TeacherServiceImpl implements TeacherService {
         try {
             teacherMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码或手机号已存在：" + existing.getTeacherCode());
         }
         return existing;
     }
@@ -323,7 +323,7 @@ public class TeacherServiceImpl implements TeacherService {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
         }
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
         }
     }
 
@@ -336,7 +336,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
         Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师编码已存在：" + teacherCode);
         }
     }
 
@@ -349,7 +349,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
         Long count = teacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师手机号已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下教师手机号已存在：" + phone);
         }
     }
 

@@ -108,7 +108,8 @@ public class UserCampusPrefServiceImpl implements UserCampusPrefService {
         }
         CampusEntity campus = campusMapper.selectById(campusId);
         if (campus == null || !institutionId.equals(campus.getInstitutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于当前机构：" + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "校区不属于当前机构：" + (campus == null ? campusId : campus.getCampusCode()));
         }
     }
 

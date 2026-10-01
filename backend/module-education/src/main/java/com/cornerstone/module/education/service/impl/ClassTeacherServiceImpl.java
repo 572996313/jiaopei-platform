@@ -209,7 +209,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + classId);
         }
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + teachingClass.getClassCode());
         }
         return teachingClass;
     }
@@ -220,7 +220,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + teacherId);
         }
         if (!Objects.equals(teacher.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + teacher.getTeacherCode());
         }
     }
 

@@ -84,7 +84,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
                 throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
             }
             if (!Objects.equals(campus.getInstitutionId(), request.institutionId())) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + request.institutionId());
+                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
             }
         }
         if (!request.startTime().isBefore(request.endTime())) {
@@ -118,7 +118,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + slotCode);
         }
         return entity;
     }
@@ -134,7 +134,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
                 throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
             }
             if (!Objects.equals(campus.getInstitutionId(), existing.getInstitutionId())) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + existing.getInstitutionId());
+                throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
             }
             existing.setCampusId(request.campusId());
         }
@@ -196,7 +196,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         try {
             timeSlotMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构/校区/星期下时间段编码或名称已存在：" + existing.getSlotCode());
         }
         return existing;
     }

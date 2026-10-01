@@ -121,7 +121,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     public TeachingClassEntity getClassDetail(Long id, Long institutionId) {
         TeachingClassEntity teachingClass = requireClass(id);
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + teachingClass.getClassCode());
         }
         return teachingClass;
     }
@@ -168,7 +168,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         try {
             teachingClassMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + classCode);
         }
         // 主讲教师以班级教师关系为准：只写 jp_class.teacher_id 不建关系，班级详情页会提示"班级未设置主讲教师"
         classTeacherService.assignPrimaryTeacher(entity.getInstitutionId(), entity.getId(), request.teacherId());
@@ -182,7 +182,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         TeachingClassEntity existing = requireClass(id);
         validateRequest(request);
         if (!Objects.equals(existing.getInstitutionId(), request.institutionId())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + existing.getClassCode());
         }
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
         int activeStudents = countActiveStudents(id);
@@ -213,7 +213,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         try {
             teachingClassMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + request.campusId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码或班级名称已存在：" + classCode);
         }
         classTeacherService.assignPrimaryTeacher(existing.getInstitutionId(), existing.getId(), request.teacherId());
         existing.setTeacherId(request.teacherId());
@@ -230,7 +230,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             .eq(ClassStudentEntity::getStatus, "active"));
         if (activeStudents != null && activeStudents > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "班级仍有在读学员：" + existing.getId() + "，请先移出班级学员");
+                "班级仍有在读学员：" + existing.getClassCode() + "，请先移出班级学员");
         }
         teachingClassMapper.deleteById(id);
     }
@@ -264,7 +264,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
         }
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
         }
     }
 
@@ -274,7 +274,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.NOT_FOUND, "学期不存在：" + termId);
         }
         if (!Objects.equals(term.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学期不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学期不属于该机构：" + term.getTermCode());
         }
     }
 
@@ -284,7 +284,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.NOT_FOUND, "教师不存在：" + teacherId);
         }
         if (!Objects.equals(teacher.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "教师不属于该机构：" + teacher.getTeacherCode());
         }
     }
 
@@ -294,7 +294,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.NOT_FOUND, "课程不存在：" + courseId);
         }
         if (!Objects.equals(course.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "课程不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "课程不属于该机构：" + course.getCourseCode());
         }
     }
 
@@ -304,7 +304,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
             throw new BusinessException(ResultCode.NOT_FOUND, "班型不存在：" + classTypeId);
         }
         if (!Objects.equals(classType.getInstitutionId(), institutionId)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "班型不属于该机构：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "班型不属于该机构：" + classType.getTypeCode());
         }
     }
 
@@ -317,7 +317,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         Long count = teachingClassMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码已存在：" + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级编码已存在：" + classCode);
         }
     }
 
@@ -330,7 +330,7 @@ public class TeachingClassServiceImpl implements TeachingClassService {
         }
         Long count = teachingClassMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级名称已存在：" + campusId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下班级名称已存在：" + className);
         }
     }
 

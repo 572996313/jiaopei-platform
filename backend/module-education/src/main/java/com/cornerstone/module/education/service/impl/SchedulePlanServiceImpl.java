@@ -301,8 +301,11 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         if (planId != null) {
             SchedulePlanEntity existing = requirePlan(planId);
             if (!STATUS_ACTIVE.equals(existing.getStatus())) {
+                // 计划本身没有业务编号，操作员认的是班级，用班级编码指认这条计划
+                TeachingClassEntity planClass = classMapper.selectById(existing.getClassId());
                 throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "该计划已停用，不能提交排课，请先启用后再补排：" + planId);
+                    "该计划已停用，不能提交排课，请先启用后再补排（班级："
+                        + (planClass == null ? "未知" : planClass.getClassCode()) + "）");
             }
         }
     }

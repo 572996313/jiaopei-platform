@@ -158,7 +158,7 @@ public class StudentServiceImpl implements StudentService {
         try {
             studentMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + studentNo);
         }
         return entity;
     }
@@ -194,7 +194,7 @@ public class StudentServiceImpl implements StudentService {
         try {
             studentMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + existing.getStudentNo());
         }
         return existing;
     }
@@ -228,7 +228,7 @@ public class StudentServiceImpl implements StudentService {
         }
         Long count = studentMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学员编号已存在：" + studentNo);
         }
     }
 

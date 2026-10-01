@@ -77,7 +77,7 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + campusCode);
         }
         return entity;
     }
@@ -139,7 +139,7 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + existing.getCampusCode());
         }
         return existing;
     }
@@ -167,7 +167,7 @@ public class CampusServiceImpl implements CampusService {
         }
         Long count = campusMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码已存在：" + campusCode);
         }
     }
 
@@ -180,7 +180,7 @@ public class CampusServiceImpl implements CampusService {
         }
         Long count = campusMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区名称已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区名称已存在：" + campusName);
         }
     }
 

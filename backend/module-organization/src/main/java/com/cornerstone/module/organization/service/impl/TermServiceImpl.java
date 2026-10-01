@@ -80,7 +80,7 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + request.institutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + termCode);
         }
         return entity;
     }
@@ -158,7 +158,7 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + existing.getInstitutionId());
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + existing.getTermCode());
         }
         return existing;
     }
@@ -186,7 +186,7 @@ public class TermServiceImpl implements TermService {
         }
         Long count = termMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码已存在：" + termCode);
         }
     }
 
@@ -199,7 +199,7 @@ public class TermServiceImpl implements TermService {
         }
         Long count = termMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期名称已存在：" + institutionId);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期名称已存在：" + termName);
         }
     }
 
