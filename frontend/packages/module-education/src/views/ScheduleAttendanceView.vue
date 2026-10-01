@@ -16,22 +16,18 @@
       <el-button
         :icon="Refresh"
         circle
-        :loading="lookupLoading || dayLoading || rangeLoading"
+        :loading="lookupLoading || dayLoading"
         @click="refreshAll"
       />
       <el-button type="primary" @click="goToScheduling">去排课管理</el-button>
       <div class="education-context-text">
-        本页只做点名、结课、停课、补课；改排课计划与新增课次请前往「排课管理」。
+        本页只做点名、结课、停课、补课；改排课计划与新增课次请前往「排课管理」，整周整月的课表看「课表总览」。
       </div>
     </div>
 
     <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,学期/班级点「查询」才生效;日期前后翻页是导航,保持选中即切换 -->
     <div class="page-toolbar">
-      <FilterBar
-        :loading="lookupLoading || dayLoading || rangeLoading"
-        @query="applyFilters"
-        @reset="resetFilters"
-      >
+      <FilterBar :loading="lookupLoading || dayLoading" @query="applyFilters" @reset="resetFilters">
         <el-select v-model="termId" placeholder="筛选学期" clearable filterable>
           <el-option
             v-for="item in terms"
@@ -49,40 +45,18 @@
         />
       </FilterBar>
       <div class="page-toolbar-datebar">
-        <template v-if="timetableTab === 'day'">
-          <span class="datebar-label">日课表</span>
-          <el-button :icon="ArrowLeft" circle @click="shiftDay(-1)" />
-          <el-date-picker
-            v-model="lessonDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="选择日期"
-            :clearable="false"
-            @change="refreshDayAndMakeup"
-          />
-          <el-button :icon="ArrowRight" circle @click="shiftDay(1)" />
-          <el-button @click="goDayToday">今天</el-button>
-        </template>
-        <template v-else>
-          <span class="datebar-label">课表视图</span>
-          <el-radio-group v-model="rangeMode" size="small" @change="refreshRangeTimetable">
-            <el-radio-button label="week">周</el-radio-button>
-            <el-radio-button label="month">月</el-radio-button>
-            <el-radio-button label="quarter">季</el-radio-button>
-          </el-radio-group>
-          <el-button :icon="ArrowLeft" circle @click="shiftRange(-1)" />
-          <el-date-picker
-            v-model="anchorDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="选择日期定位"
-            :clearable="false"
-            @change="refreshRangeTimetable"
-          />
-          <el-button :icon="ArrowRight" circle @click="shiftRange(1)" />
-          <el-button @click="goThisPeriod">{{ rangeModeLabel }}</el-button>
-          <span class="datebar-hint">{{ timetableRangeLabel }}</span>
-        </template>
+        <span class="datebar-label">日课表</span>
+        <el-button :icon="ArrowLeft" circle @click="shiftDay(-1)" />
+        <el-date-picker
+          v-model="lessonDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="选择日期"
+          :clearable="false"
+          @change="refreshDayAndMakeup"
+        />
+        <el-button :icon="ArrowRight" circle @click="shiftDay(1)" />
+        <el-button @click="goDayToday">今天</el-button>
       </div>
     </div>
 
@@ -291,176 +265,126 @@
     </article>
 
     <article class="panel-card education-panel">
-      <el-tabs v-model="timetableTab">
-        <el-tab-pane label="日课表" name="day">
-          <div class="education-table-head">
-            <div class="panel-title">日课表</div>
-            <div class="education-context-text">
-              课表日期：{{ lessonDate || '未选择' }}；班级：{{ formatClass(classId) }}；范围：{{
-                formatInstitution(institutionId)
-              }}
-              / {{ formatCampus(campusId) }}
-              <el-button
-                v-if="dayAttendanceMissing > 0"
-                link
-                type="warning"
-                @click="retryDayAttendanceProgress"
+      <div class="education-table-head">
+        <div class="panel-title">日课表</div>
+        <div class="education-context-text">
+          课表日期：{{ lessonDate || '未选择' }}；班级：{{ formatClass(classId) }}；范围：{{
+            formatInstitution(institutionId)
+          }}
+          / {{ formatCampus(campusId) }}
+          <el-button
+            v-if="dayAttendanceMissing > 0"
+            link
+            type="warning"
+            @click="retryDayAttendanceProgress"
+          >
+            {{ dayAttendanceMissing }} 节课点名进度加载失败，点击重试
+          </el-button>
+        </div>
+      </div>
+
+      <el-table
+        :data="filteredDayLessons"
+        border
+        v-loading="dayLoading"
+        :max-height="TABLE_STACK_MAX_HEIGHT"
+      >
+        <!-- 日课表是一次性全量加载的客户端表,排序走 Element Plus 本地比较,不发请求 -->
+        <el-table-column label="时段" min-width="170" prop="startTime" sortable>
+          <template #default="{ row }">
+            {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="班级" min-width="160">
+          <template #default="{ row }">
+            {{ formatClass(row.classId) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="教室" min-width="150">
+          <template #default="{ row }">
+            {{ formatClassroom(row.classroomId) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="教师" min-width="200">
+          <template #default="{ row }">
+            {{ formatTeacherNames(row.teacherIds) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="lessonTitle"
+          label="课程主题"
+          min-width="160"
+          show-overflow-tooltip
+          sortable
+        />
+        <el-table-column label="状态" width="120" prop="lessonStatus" sortable>
+          <template #default="{ row }">
+            <div class="lesson-status-cell">
+              <el-tag :type="lessonStatusTagType(row.lessonStatus)">
+                {{ lessonStatusLabel(row.lessonStatus) }}
+              </el-tag>
+              <el-tag v-if="isPendingMakeupLesson(row)" size="small" type="danger" effect="plain"
+                >待补课</el-tag
               >
-                {{ dayAttendanceMissing }} 节课点名进度加载失败，点击重试
+              <!-- 与周课表同一来源：禁排结论由服务端按课次自己的班级与教师算，列表只是转述 -->
+              <el-tag
+                v-if="(row.ruleConflictMessages || []).length > 0"
+                size="small"
+                type="danger"
+                effect="plain"
+                :title="row.ruleConflictMessages.join('；')"
+                >禁排</el-tag
+              >
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="停补关联" min-width="220">
+          <template #default="{ row }">
+            <div class="relation-cell">
+              <span>{{ lessonRelationSummary(row) }}</span>
+              <el-button
+                v-if="relationJumpLabel(row)"
+                link
+                type="primary"
+                @click="jumpToRelatedLesson(row)"
+              >
+                {{ relationJumpLabel(row) }}
               </el-button>
             </div>
-          </div>
-
-          <el-table
-            :data="filteredDayLessons"
-            border
-            v-loading="dayLoading"
-            :max-height="TABLE_STACK_MAX_HEIGHT"
-          >
-            <!-- 日课表是一次性全量加载的客户端表,排序走 Element Plus 本地比较,不发请求 -->
-            <el-table-column label="时段" min-width="170" prop="startTime" sortable>
-              <template #default="{ row }">
-                {{ formatTimeSlot(row.timeSlotId, row.startTime, row.endTime) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="班级" min-width="160">
-              <template #default="{ row }">
-                {{ formatClass(row.classId) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="教室" min-width="150">
-              <template #default="{ row }">
-                {{ formatClassroom(row.classroomId) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="教师" min-width="200">
-              <template #default="{ row }">
-                {{ formatTeacherNames(row.teacherIds) }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              prop="lessonTitle"
-              label="课程主题"
-              min-width="160"
-              show-overflow-tooltip
-              sortable
-            />
-            <el-table-column label="状态" width="120" prop="lessonStatus" sortable>
-              <template #default="{ row }">
-                <div class="lesson-status-cell">
-                  <el-tag :type="lessonStatusTagType(row.lessonStatus)">
-                    {{ lessonStatusLabel(row.lessonStatus) }}
-                  </el-tag>
-                  <el-tag
-                    v-if="isPendingMakeupLesson(row)"
-                    size="small"
-                    type="danger"
-                    effect="plain"
-                    >待补课</el-tag
-                  >
-                  <!-- 与周课表同一来源：禁排结论由服务端按课次自己的班级与教师算，列表只是转述 -->
-                  <el-tag
-                    v-if="(row.ruleConflictMessages || []).length > 0"
-                    size="small"
-                    type="danger"
-                    effect="plain"
-                    :title="row.ruleConflictMessages.join('；')"
-                    >禁排</el-tag
-                  >
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="停补关联" min-width="220">
-              <template #default="{ row }">
-                <div class="relation-cell">
-                  <span>{{ lessonRelationSummary(row) }}</span>
-                  <el-button
-                    v-if="relationJumpLabel(row)"
-                    link
-                    type="primary"
-                    @click="jumpToRelatedLesson(row)"
-                  >
-                    {{ relationJumpLabel(row) }}
-                  </el-button>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column
-              v-if="canMark || canExecute"
-              label="执行动作"
-              width="280"
-              fixed="right"
+          </template>
+        </el-table-column>
+        <el-table-column v-if="canMark || canExecute" label="执行动作" width="280" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="canMark"
+              link
+              type="success"
+              :disabled="row.lessonStatus === 'cancelled'"
+              @click="openAttendanceDialog(row)"
+              >点名</el-button
             >
-              <template #default="{ row }">
-                <el-button
-                  v-if="canMark"
-                  link
-                  type="success"
-                  :disabled="row.lessonStatus === 'cancelled'"
-                  @click="openAttendanceDialog(row)"
-                  >点名</el-button
-                >
-                <template v-if="canExecute">
-                  <el-button
-                    link
-                    type="warning"
-                    :disabled="!canCompleteLesson(row)"
-                    @click="completeLesson(row)"
-                  >
-                    结课
-                  </el-button>
-                  <el-button link type="primary" @click="openFormDialog('reschedule', row)"
-                    >调课</el-button
-                  >
-                  <el-button link type="info" @click="openFormDialog('cancel', row)"
-                    >停课</el-button
-                  >
-                  <el-button link type="danger" @click="openFormDialog('makeup', row)"
-                    >补课</el-button
-                  >
-                </template>
-              </template>
-            </el-table-column>
-          </el-table>
+            <template v-if="canExecute">
+              <el-button
+                link
+                type="warning"
+                :disabled="!canCompleteLesson(row)"
+                @click="completeLesson(row)"
+              >
+                结课
+              </el-button>
+              <el-button link type="primary" @click="openFormDialog('reschedule', row)"
+                >调课</el-button
+              >
+              <el-button link type="info" @click="openFormDialog('cancel', row)">停课</el-button>
+              <el-button link type="danger" @click="openFormDialog('makeup', row)">补课</el-button>
+            </template>
+          </template>
+        </el-table-column>
+      </el-table>
 
-          <div v-if="!dayLoading && filteredDayLessons.length === 0" class="education-empty">
-            当前日期与筛选范围下暂无排课。
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane label="周/月/季课表" name="week">
-          <div class="education-table-head">
-            <div class="panel-title">周/月/季课表</div>
-            <div class="education-context-text">
-              日期：{{ timetableRange.start }} 至 {{ timetableRange.end }}（{{
-                rangeModeText
-              }}）；班级：{{ formatClass(classId) }}；范围：{{ formatInstitution(institutionId) }} /
-              {{ formatCampus(campusId) }}。
-              <span v-if="canExecute">点击空格可跳转排课管理新增。</span>
-            </div>
-          </div>
-
-          <WeekTimetableGrid
-            :mode="rangeMode"
-            :days="timetableDays"
-            :lessons="filteredWeekLessons"
-            :time-slots="timeSlots"
-            :classrooms="classrooms"
-            :teachers="teachers"
-            :loading="rangeLoading"
-            :can-mark="canMark"
-            :can-execute="canExecute"
-            :format-class="formatClass"
-            :format-classroom="formatClassroom"
-            :format-teachers="formatTeacherNames"
-            :status-label="lessonStatusLabel"
-            :status-tag-type="lessonStatusTagType"
-            :relation-summary="lessonRelationSummary"
-            @lesson-action="handleWeekLessonAction"
-            @cell-click="handleWeekCellClick"
-          />
-        </el-tab-pane>
-      </el-tabs>
+      <div v-if="!dayLoading && filteredDayLessons.length === 0" class="education-empty">
+        当前日期与筛选范围下暂无排课。
+      </div>
     </article>
 
     <ScheduleLessonFormDialog
@@ -495,7 +419,7 @@
 </template>
 
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { ArrowDown, ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
@@ -506,50 +430,29 @@ import {
   fetchLessonAttendanceProgress,
   fetchPendingMakeupLessonPage,
   fetchScheduleLesson,
-  fetchTeachers,
-  fetchWeekTimetable,
   type LessonAttendanceProgress,
   type ScheduleLessonRecord,
-  type TeacherSummary,
 } from '@cornerstone/module-education/api/education'
-import {
-  fetchClassrooms,
-  fetchTimeSlots,
-  type ClassroomSummary,
-  type TimeSlotSummary,
-} from '@cornerstone/module-organization/api/organization'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
-import {
-  classLabelOf,
-  ensureClassLabels,
-} from '@cornerstone/module-education/composables/classLabels'
+import { useLessonFormatters } from '@cornerstone/module-education/composables/useLessonFormatters'
+import { useLessonExecution } from '@cornerstone/module-education/composables/useLessonExecution'
+import { useLessonRelations } from '@cornerstone/module-education/composables/useLessonRelations'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
-import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import WeekTimetableGrid, { type WeekLessonAction } from './components/WeekTimetableGrid.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import ClassSelect from './components/ClassSelect.vue'
 import AttendanceDialog from './components/AttendanceDialog.vue'
 import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
 import {
   addDays,
-  addMonths,
   canCompleteLesson,
-  compactDateLabel,
   compactTimeRange,
-  enumerateDates,
-  formatTeacherIdsAs,
   isAttendanceAllowedStatus,
   lessonStatusLabel,
   lessonStatusTagType,
-  rangeFor,
   sortedLessons,
-  timeSlotOptionLabel,
   toMessage,
   todayValue,
-  updateLessonCompletion,
-  weekdayFromDate,
-  weekdayLabel,
 } from './components/schedule-utils'
 
 interface ScheduleReminderItem {
@@ -560,40 +463,33 @@ interface ScheduleReminderItem {
 }
 
 const institutionStore = useInstitutionStore()
-const auth = useAuthStore()
 const scopeStore = useEducationScopeStore()
 const { campusId, termId } = storeToRefs(scopeStore)
 /**
  * 校区范围在横幅那颗芯片上选，本页跟着它筛课次。
- * 但教师/教室数组还要反查课次上的名称，课次可以来自任何校区，
- * 所以那两份一律按机构全量拉（见 loadSupportingOptions），不跟着范围收窄。
+ * 教师/教室/时段的反查字典在 useLessonFormatters 里按机构全量拉，不跟范围收窄。
  */
 const { institutions, institutionId, campuses, terms, loadScope } = useEducationScope()
 const route = useRoute()
 const router = useRouter()
 
-/** 点名按课次点名码收口（按钮节点 113），结课/调课/停课/补课走排课更新接口、按排课维护码收口（按钮节点 112），后端仍按权限串硬拦 */
-const canMark = computed(() => auth.hasPermission('education:attendance:write'))
-const canExecute = computed(() => auth.hasPermission('education:schedule:write'))
-
-/** 执行变更弹窗模式：调课 / 停课 / 补课，与共享弹窗组件的契约一致 */
-type ExecutionMode = 'reschedule' | 'cancel' | 'makeup'
-
-const teachers = ref<TeacherSummary[]>([])
-const classrooms = ref<ClassroomSummary[]>([])
-const timeSlots = ref<TimeSlotSummary[]>([])
+const formatters = useLessonFormatters()
+const { teachers, classrooms, timeSlots, loadSupportingOptions } = formatters
+const {
+  formatInstitution,
+  formatCampus,
+  formatClass,
+  formatClassroom,
+  formatTimeSlot,
+  formatTeacherNames,
+} = formatters
 
 const classId = ref<string | null>(null)
 const lessonDate = ref(todayValue())
-// 周/月/季课表共用一个锚点日期，区间由 rangeFor 派生
-const anchorDate = ref(todayValue())
-const rangeMode = ref<'week' | 'month' | 'quarter'>('week')
-const timetableTab = ref('day')
 
 const statsVisible = ref(false)
 
 const dayLessons = ref<ScheduleLessonRecord[]>([])
-const weekLessons = ref<ScheduleLessonRecord[]>([])
 const pendingMakeupLessons = ref<ScheduleLessonRecord[]>([])
 
 // 待补课全局数取服务端总数
@@ -602,103 +498,44 @@ const pendingMakeupTotal = ref(0)
 const pageError = ref('')
 const lookupLoading = ref(false)
 const dayLoading = ref(false)
-const rangeLoading = ref(false)
-const completingLesson = ref(false)
 
 const dayAttendanceProgress = ref<Record<string, LessonAttendanceProgress>>({})
 const dayAttendanceMissing = ref(0)
 
-const formDialogVisible = ref(false)
-const formDialogMode = ref<ExecutionMode>('reschedule')
-const formDialogLesson = ref<ScheduleLessonRecord | null>(null)
-
-const attendanceDialogVisible = ref(false)
-const attendanceLessonId = ref<string | null>(null)
-
-const institutionMap = computed(() => {
-  return new Map(
-    institutions.value.map((item) => [
-      item.id,
-      item.orgName || item.shortName || item.orgCode || `机构 #${item.id}`,
-    ])
-  )
+const relations = useLessonRelations({
+  // 停补关联解析只看日课表与待补课聚合；周月季课表已拆到「课表总览」页，
+  // 本页补课弹窗的停课原课选项因此收窄为当日停课 + 待补队列（不限当日）+ 按需单拉的关联缓存
+  lessonSources: () => [dayLessons.value, pendingMakeupLessons.value],
+  formatClass,
 })
+const {
+  lessonMap,
+  addRelatedLesson,
+  relatedCancelledLesson,
+  relatedMakeupLessons,
+  lessonRelationSummary,
+  relationJumpLabel,
+} = relations
 
-const campusMap = computed(() => {
-  return new Map(
-    campuses.value.map((item) => [
-      item.id,
-      item.campusName || item.campusCode || `校区 #${item.id}`,
-    ])
-  )
+const execution = useLessonExecution({
+  formatClass,
+  refreshAfterChange: refreshAll,
 })
+const {
+  canMark,
+  canExecute,
+  formDialogVisible,
+  formDialogMode,
+  formDialogLesson,
+  attendanceDialogVisible,
+  attendanceLessonId,
+  openFormDialog,
+  openAttendanceDialog,
+  completeLesson,
+  handleDialogSaved,
+} = execution
 
-const classroomMap = computed(() => {
-  return new Map(
-    classrooms.value.map((item) => [
-      item.id,
-      item.classroomName || item.classroomCode || `教室 #${item.id}`,
-    ])
-  )
-})
-
-const teacherMap = computed(() => {
-  return new Map(
-    teachers.value.map((item) => [
-      item.id,
-      item.teacherName || item.teacherCode || `教师 #${item.id}`,
-    ])
-  )
-})
-
-const timeSlotMap = computed(() => {
-  return new Map(timeSlots.value.map((item) => [item.id, item]))
-})
-
-// 关联关系（补课↔停课原课）在已加载课次之外，还要并入「查看关联课次」按需单拉的结果
-const relatedLessonCache = ref<ScheduleLessonRecord[]>([])
-
-const lessonMap = computed(() => {
-  return new Map(
-    sortedLessons([
-      ...dayLessons.value,
-      ...weekLessons.value,
-      ...pendingMakeupLessons.value,
-      ...relatedLessonCache.value,
-    ]).map((item) => [item.id, item])
-  )
-})
-
-// 四块课表数据都只有 classId，班级名按 id 回查（下拉不再持有全量班级当字典）
-watch(
-  () => [dayLessons.value, weekLessons.value, pendingMakeupLessons.value, relatedLessonCache.value],
-  (groups) => {
-    void ensureClassLabels(
-      institutionId.value,
-      groups.flat().map((item) => item.classId)
-    )
-  }
-)
-
-const makeupLessonsByRelatedId = computed(() => {
-  const map = new Map<string, ScheduleLessonRecord[]>()
-  for (const lesson of lessonMap.value.values()) {
-    if (
-      lesson.lessonStatus !== 'makeup' ||
-      lesson.changeType !== 'cancelled_makeup' ||
-      !lesson.relatedLessonId
-    ) {
-      continue
-    }
-    const key = lesson.relatedLessonId
-    const list = map.get(key) || []
-    list.push(lesson)
-    map.set(key, list)
-  }
-  return map
-})
-
-// 补课弹窗可选择的停课原课：来自待补课聚合 + 已加载课次中的停课记录
+// 补课弹窗可选择的停课原课：来自待补课聚合 + 日课表中的停课记录（lessonMap 由 useLessonRelations 维护）
 const cancelledLessonOptions = computed(() => {
   return sortedLessons(
     Array.from(lessonMap.value.values()).filter((lesson) => lesson.lessonStatus === 'cancelled')
@@ -719,7 +556,6 @@ function filterLessonsByClass(values: ScheduleLessonRecord[]) {
 }
 
 const filteredDayLessons = computed(() => sortedLessons(filterLessonsByClass(dayLessons.value)))
-const filteredWeekLessons = computed(() => sortedLessons(filterLessonsByClass(weekLessons.value)))
 
 // 待补课聚合为全局口径，执行分区内再按当天过滤
 const dayPendingMakeupLessons = computed(() =>
@@ -729,39 +565,6 @@ const dayPendingMakeupLessons = computed(() =>
     )
   )
 )
-
-// 周=所在日历周；月/季=首尾对齐到周一~周日的日历范围（后端 between 支持任意区间）
-const timetableRange = computed(() => rangeFor(rangeMode.value, anchorDate.value))
-
-const timetableDays = computed(() =>
-  enumerateDates(timetableRange.value.start, timetableRange.value.end).map((date) => ({
-    date,
-    title: `${compactDateLabel(date)} ${weekdayLabel(weekdayFromDate(date))}`,
-    isToday: date === todayValue(),
-    dimmed: isDimmedDate(date),
-  }))
-)
-
-const timetableRangeLabel = computed(() => {
-  const { start, end } = timetableRange.value
-  if (!start || !end) {
-    return ''
-  }
-  return `${compactDateLabel(start)} ~ ${compactDateLabel(end)}`
-})
-
-const rangeModeLabel = computed(() => {
-  switch (rangeMode.value) {
-    case 'month':
-      return '本月'
-    case 'quarter':
-      return '本季'
-    default:
-      return '本周'
-  }
-})
-
-const rangeModeText = computed(() => rangeModeLabel.value.slice(1))
 
 const focusedSection = computed(() => {
   const value = route.query.focus
@@ -864,20 +667,6 @@ const attendanceLessonRecord = computed(() => {
   return id ? lessonMap.value.get(id) || null : null
 })
 
-// 月/季视图里落在前后月（季）的补位日期置灰展示
-function isDimmedDate(date: string) {
-  if (rangeMode.value === 'month') {
-    return date.slice(0, 7) !== anchorDate.value.slice(0, 7)
-  }
-  if (rangeMode.value === 'quarter') {
-    const month = Number(date.slice(5, 7))
-    const anchorMonth = Number(anchorDate.value.slice(5, 7))
-    const first = Math.floor((anchorMonth - 1) / 3) * 3 + 1
-    return month < first || month > first + 2
-  }
-  return false
-}
-
 function attendanceProgressFor(lessonId: string) {
   return dayAttendanceProgress.value[lessonId]
 }
@@ -901,151 +690,6 @@ function attendanceProgressText(lesson: ScheduleLessonRecord) {
 // 待补课统一以服务端派生字段为准，避免多处口径打架
 function isPendingMakeupLesson(lesson?: ScheduleLessonRecord | null) {
   return lesson?.pendingMakeup === true
-}
-
-function relatedCancelledLesson(lesson?: ScheduleLessonRecord | null) {
-  if (!lesson?.relatedLessonId) {
-    return null
-  }
-  return lessonMap.value.get(lesson.relatedLessonId) || null
-}
-
-function relatedMakeupLessons(lesson?: ScheduleLessonRecord | null) {
-  if (!lesson) {
-    return []
-  }
-  return sortedLessons(makeupLessonsByRelatedId.value.get(lesson.id) || [])
-}
-
-function lessonRelationSummary(lesson?: ScheduleLessonRecord | null) {
-  if (!lesson) {
-    return '无关联'
-  }
-  if (lesson.lessonStatus === 'cancelled') {
-    const related = relatedMakeupLessons(lesson)
-    return related.length === 0 ? '未关联补课' : `已关联 ${related.length} 节补课`
-  }
-  if (lesson.lessonStatus === 'makeup' && lesson.changeType === 'cancelled_makeup') {
-    const related = relatedCancelledLesson(lesson)
-    if (!related) {
-      return '补课原课未加载'
-    }
-    return `补 ${related.lessonDate || '未设置日期'} ${formatClass(related.classId)}`
-  }
-  return '无关联'
-}
-
-function relationJumpLabel(lesson?: ScheduleLessonRecord | null) {
-  if (!lesson) {
-    return ''
-  }
-  if (lesson.lessonStatus === 'cancelled' && relatedMakeupLessons(lesson).length > 0) {
-    return '查看补课'
-  }
-  if (
-    lesson.lessonStatus === 'makeup' &&
-    lesson.changeType === 'cancelled_makeup' &&
-    lesson.relatedLessonId
-  ) {
-    return '查看原停课'
-  }
-  return ''
-}
-
-async function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
-  if (!lesson) {
-    return
-  }
-  let target: ScheduleLessonRecord | null = null
-  if (lesson.lessonStatus === 'cancelled') {
-    target = relatedMakeupLessons(lesson)[0] || null
-  } else if (lesson.lessonStatus === 'makeup') {
-    target = relatedCancelledLesson(lesson)
-    if (!target && lesson.relatedLessonId) {
-      // 原停课课次几乎总在别的日期，当前区间没加载到，按 id 单拉一次并缓存
-      try {
-        target = await fetchScheduleLesson(lesson.relatedLessonId)
-        relatedLessonCache.value = [...relatedLessonCache.value, target]
-      } catch {
-        target = null
-      }
-    }
-  }
-  if (!target) {
-    ElMessage.warning('未找到关联课次')
-    return
-  }
-  attendanceDialogVisible.value = false
-  timetableTab.value = 'day'
-  lessonDate.value = target.lessonDate || lessonDate.value
-  // 目标课次可能与当前班级筛选不同，切换或清空班级，保证跳转后列表可见
-  if (target.classId && target.classId !== classId.value) {
-    classId.value = target.classId
-  }
-  refreshAll().then(() => {
-    ElMessage.success(`已定位到 ${formatClass(target.classId)} 的关联课次`)
-  })
-}
-
-function formatInstitution(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return institutionMap.value.get(id) || `机构 #${id}`
-}
-
-function formatCampus(id?: string | null) {
-  if (!id) {
-    return '全部校区'
-  }
-  return campusMap.value.get(id) || `校区 #${id}`
-}
-
-function formatClass(id?: string | null) {
-  return classLabelOf(id)
-}
-
-function formatClassroom(id?: string | null) {
-  if (!id) {
-    return '未选择'
-  }
-  return classroomMap.value.get(id) || `教室 #${id}`
-}
-
-function formatTimeSlot(id?: string | null, startTime?: string | null, endTime?: string | null) {
-  if (id) {
-    const slot = timeSlotMap.value.get(id)
-    if (slot) {
-      return timeSlotOptionLabel(slot.slotName, slot.startTime, slot.endTime, slot.weekday)
-    }
-  }
-
-  const fallbackRange = compactTimeRange(startTime, endTime)
-  return fallbackRange || (id ? `时间段 #${id}` : '未选择')
-}
-
-function formatTeacherNames(values?: Array<string | number> | null) {
-  return formatTeacherIdsAs(values, teacherMap.value)
-}
-
-async function loadSupportingOptions() {
-  if (!institutionId.value) {
-    teachers.value = []
-    classrooms.value = []
-    timeSlots.value = []
-    return
-  }
-
-  const [teacherList, classroomList, timeSlotList] = await Promise.all([
-    // 这两份是课次行上教师名/教室名的反查字典，课次可以来自任何校区，一律按机构全量拉
-    fetchTeachers({ institutionId: institutionId.value }),
-    fetchClassrooms(null),
-    fetchTimeSlots(institutionId.value),
-  ])
-
-  teachers.value = teacherList
-  classrooms.value = classroomList
-  timeSlots.value = timeSlotList
 }
 
 async function refreshScopeData() {
@@ -1129,38 +773,12 @@ async function refreshDayTimetable() {
   }
 }
 
-async function refreshRangeTimetable() {
-  if (!institutionId.value) {
-    weekLessons.value = []
-    return
-  }
-
-  rangeLoading.value = true
-  pageError.value = ''
-  try {
-    weekLessons.value = sortedLessons(
-      await fetchWeekTimetable({
-        institutionId: institutionId.value,
-        campusId: campusId.value,
-        classId: classId.value,
-        weekStart: timetableRange.value.start,
-        weekEnd: timetableRange.value.end,
-      })
-    )
-  } catch (error) {
-    weekLessons.value = []
-    pageError.value = toMessage(error, '课表加载失败')
-  } finally {
-    rangeLoading.value = false
-  }
-}
-
 async function refreshDayAndMakeup() {
   await Promise.all([refreshDayTimetable(), refreshPendingMakeupLessons()])
 }
 
 async function refreshAll() {
-  await Promise.all([refreshDayTimetable(), refreshRangeTimetable(), refreshPendingMakeupLessons()])
+  await Promise.all([refreshDayTimetable(), refreshPendingMakeupLessons()])
 }
 
 /** 换校区由横幅芯片把全部页签重挂一遍，已选班级随重挂清空，这里只管本页的草稿 */
@@ -1187,94 +805,8 @@ async function goDayToday() {
   await refreshDayAndMakeup()
 }
 
-async function shiftRange(delta: number) {
-  if (rangeMode.value === 'week') {
-    anchorDate.value = addDays(anchorDate.value, delta * 7)
-  } else if (rangeMode.value === 'month') {
-    anchorDate.value = addMonths(anchorDate.value, delta)
-  } else {
-    anchorDate.value = addMonths(anchorDate.value, delta * 3)
-  }
-  await refreshRangeTimetable()
-}
-
-async function goThisPeriod() {
-  anchorDate.value = todayValue()
-  await refreshRangeTimetable()
-}
-
 function goToScheduling() {
   router.push('/scheduling')
-}
-
-function handleWeekLessonAction(payload: WeekLessonAction) {
-  switch (payload.type) {
-    case 'attendance':
-      openAttendanceDialog(payload.lesson)
-      break
-    case 'complete':
-      completeLesson(payload.lesson)
-      break
-    case 'reschedule':
-      openFormDialog('reschedule', payload.lesson)
-      break
-    case 'cancel':
-      openFormDialog('cancel', payload.lesson)
-      break
-    case 'makeup':
-      openFormDialog('makeup', payload.lesson)
-      break
-    case 'edit':
-      // 基本信息编辑归排课管理页，带上下文跳转
-      router.push({
-        path: '/scheduling',
-        query: { editId: payload.lesson.id, date: payload.lesson.lessonDate || undefined },
-      })
-      break
-  }
-}
-
-function handleWeekCellClick(payload: {
-  date: string
-  timeSlotId?: string | null
-  classroomId?: string | null
-}) {
-  // 排课是计划动作，跳转排课管理页并预填空格上下文
-  // 校区/学期一起带上：直达页刷新后共享范围是空的，只靠对方内存范围会重新撞上「缺少校区信息」
-  router.push({
-    path: '/scheduling',
-    query: {
-      create: '1',
-      date: payload.date,
-      timeSlotId: payload.timeSlotId || undefined,
-      classroomId: payload.classroomId || undefined,
-      classId: classId.value || undefined,
-      // 校区是全站范围，排课管理读的是同一个 store，跳转不用再带 campusId
-      termId: termId.value || undefined,
-    },
-  })
-}
-
-function openFormDialog(mode: ExecutionMode, lesson: ScheduleLessonRecord) {
-  if (!canExecute.value) {
-    return
-  }
-  formDialogMode.value = mode
-  formDialogLesson.value = lesson
-  formDialogVisible.value = true
-}
-
-function handleDialogSaved(message: string) {
-  ElMessage.success(message)
-  refreshAll()
-}
-
-function openAttendanceDialog(lesson: ScheduleLessonRecord) {
-  if (!canMark.value) {
-    return
-  }
-  attendanceLessonId.value = lesson.id
-  attendanceDialogVisible.value = true
 }
 
 function handleReminderClick(lessonId: string) {
@@ -1287,6 +819,40 @@ function handleReminderClick(lessonId: string) {
     return
   }
   openAttendanceDialog(lesson)
+}
+
+async function jumpToRelatedLesson(lesson?: ScheduleLessonRecord | null) {
+  if (!lesson) {
+    return
+  }
+  let target: ScheduleLessonRecord | null = null
+  if (lesson.lessonStatus === 'cancelled') {
+    target = relatedMakeupLessons(lesson)[0] || null
+  } else if (lesson.lessonStatus === 'makeup') {
+    target = relatedCancelledLesson(lesson)
+    if (!target && lesson.relatedLessonId) {
+      // 原停课课次几乎总在别的日期，当前区间没加载到，按 id 单拉一次并缓存
+      try {
+        target = await fetchScheduleLesson(lesson.relatedLessonId)
+        addRelatedLesson(target)
+      } catch {
+        target = null
+      }
+    }
+  }
+  if (!target) {
+    ElMessage.warning('未找到关联课次')
+    return
+  }
+  attendanceDialogVisible.value = false
+  lessonDate.value = target.lessonDate || lessonDate.value
+  // 目标课次可能与当前班级筛选不同，切换或清空班级，保证跳转后列表可见
+  if (target.classId && target.classId !== classId.value) {
+    classId.value = target.classId
+  }
+  refreshAll().then(() => {
+    ElMessage.success(`已定位到 ${formatClass(target.classId)} 的关联课次`)
+  })
 }
 
 // 点名进度改走批量接口,替代原先逐课次拉点名页的 N+1;停课课次不产生考勤,不计入缺失
@@ -1330,54 +896,20 @@ async function retryDayAttendanceProgress() {
   }
 }
 
-async function completeLesson(lesson: ScheduleLessonRecord) {
-  if (!canCompleteLesson(lesson)) {
-    ElMessage.warning('已停课或已结课的课次不支持结课')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      `确认将 ${lesson.lessonDate || ''} ${formatClass(lesson.classId)} 标记为已结课吗？`,
-      '课次结课',
-      { type: 'warning' }
-    )
-  } catch {
-    return
-  }
-
-  completingLesson.value = true
-  try {
-    await updateLessonCompletion(lesson.id, 'completed')
-    ElMessage.success('课次已结课')
-    await refreshAll()
-  } catch (error) {
-    ElMessage.error(toMessage(error, '课次结课失败'))
-  } finally {
-    completingLesson.value = false
-  }
-}
-
 function applyRoutePreferences() {
   const date = route.query.date
   if (typeof date === 'string' && date) {
     lessonDate.value = date
-    anchorDate.value = date
   }
 
   const classQuery = route.query.classId
   if (typeof classQuery === 'string' && classQuery) {
     classId.value = classQuery
   }
-
-  if (route.query.focus === 'day') {
-    timetableTab.value = 'day'
-  }
 }
 
 async function jumpToToday() {
   lessonDate.value = todayValue()
-  anchorDate.value = todayValue()
   await refreshAll()
 }
 
@@ -1568,7 +1100,7 @@ onMounted(() => {
   gap: 6px;
 }
 
-/* 日期导航区:控件随当前视图切换(日课表翻日 / 周月季课表翻周期) */
+/* 日期导航区:日课表按天翻页（周月季的周期翻页在「课表总览」页） */
 .page-toolbar-datebar {
   display: flex;
   align-items: center;
