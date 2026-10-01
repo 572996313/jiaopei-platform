@@ -443,7 +443,7 @@ const todayQueueItems = computed<QueueItem[]>(() => {
 
 const quickLinks = [
   { label: '课表与点名', hint: '点名、结课、日周课表', to: '/schedule' },
-  { label: '学员报名', hint: '处理报名记录，报上名再去入班', to: '/enrollments' },
+  { label: '学员报名', hint: '处理报名记录，报名即入班', to: '/enrollments' },
   { label: '学员档案', hint: '录入与维护学员本身、家长联系人', to: '/students' },
   { label: '分班与名册', hint: '查看班级人数与在班状态', to: '/class-roster' },
   { label: '班级档案', hint: '维护班级主档与任课教师', to: '/classes' },

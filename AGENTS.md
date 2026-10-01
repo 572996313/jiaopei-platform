@@ -296,6 +296,10 @@ pnpm dev:h5            # H5 调试
 
 前端范围栏的学期选择器是**筛选条件**，不应作为报名/入班前置校验；只有 `ScheduleAttendanceView.vue` 的排课弹窗校验学期是对的。
 
+## 报名即入班（必填）
+
+报名（`jp_enrollment` 台账）与入班（`jp_class_student` 名册）在存储上是两张互不关联的表，但报名弹窗班级必填、业务上不存在"报名后才定班"的两阶段，所以创建报名**同事务自动写入班级名册**（`EnrollmentServiceImpl#enrollIntoClassRoster`）：入班日期取报名日期、复用 `ClassStudentService.createClassStudent` 的唯一性/容量校验与 `current_students` 重算；班级满员时异常抛出、报名与入班整体回滚，不留"报了名但没进班"的中间态；学员已在名册（经补录渠道先入的班）时只补台账、不重复入班。名册页「新增入班」保留为**补录通道**（插班/老学员等不走报名流程的场景），它**不回写**报名台账，两条入口语义分开、不要合并。报名状态（`submitted`/`confirmed`/`cancelled`）没有流转接口，新建一律落 `submitted`，报名弹窗不提供状态选择。
+
 ## 学员档案不持有校区（必填，V89）
 
 `jp_student.campus_id` 已删除，档案是**机构级**的，校区一律由班级推导（`jp_enrollment.class_id` / `jp_class_student.class_id` → `jp_class.campus_id`）。理由：一个学员可报多个班、班可分属不同校区，档案上的单值列把 1:N 压成 1:1，跨校区就读表达不了；而且改档案列不回写历史班级，"当时在哪个校区上的课"会变得不可追溯。落地要点：

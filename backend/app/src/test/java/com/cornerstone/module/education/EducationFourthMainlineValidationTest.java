@@ -29,6 +29,7 @@ import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassStudentServiceImpl;
 import com.cornerstone.module.education.service.impl.EnrollmentServiceImpl;
+import com.cornerstone.module.education.service.ClassStudentService;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.support.CodeRuleTestSupport;
@@ -84,6 +85,9 @@ class EducationFourthMainlineValidationTest {
     @Mock
     private TeacherMapper teacherMapper;
 
+    @Mock
+    private ClassStudentService classStudentService;
+
     private final SystemDictService systemDictService = mock(SystemDictService.class);
     private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
 
@@ -110,7 +114,9 @@ class EducationFourthMainlineValidationTest {
             studentMapper,
             teachingClassMapper,
             dictValueValidator,
-            CodeRuleTestSupport.unconfiguredRules()
+            CodeRuleTestSupport.unconfiguredRules(),
+            classStudentMapper,
+            classStudentService
         );
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectById(10L)).thenReturn(student());

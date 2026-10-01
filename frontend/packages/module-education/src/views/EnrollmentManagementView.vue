@@ -10,7 +10,7 @@
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
       <el-button @click="goStudents">学员档案</el-button>
       <span class="education-context-text">
-        报名记录不等于入班：报上名后到「分班与名册」办理入班才会进班。
+        新增报名会自动把学员加入该班级名册；插班、补录学员请到「分班与名册」办理入班。
       </span>
     </div>
 
@@ -141,13 +141,6 @@
             placeholder="例如 ENR-20260608-001"
           />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status" placeholder="选择状态">
-            <el-option label="已提交" value="submitted" />
-            <el-option label="已确认" value="confirmed" />
-            <el-option label="已取消" value="cancelled" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="来源渠道">
           <DictSelect
             v-model="form.channel"
@@ -242,7 +235,6 @@ const form = reactive({
   classId: '' as string | null,
   studentId: '' as string | null,
   enrollmentNo: '',
-  status: 'submitted',
   channel: '',
   enrolledAt: todayValue(),
   remark: '',
@@ -304,7 +296,6 @@ function resetForm() {
   form.classId = classId.value || ''
   form.studentId = studentId.value || ''
   form.enrollmentNo = ''
-  form.status = 'submitted'
   form.channel = ''
   form.enrolledAt = todayValue()
   form.remark = ''
@@ -421,12 +412,11 @@ async function submitEnrollment() {
       classId: form.classId,
       studentId: form.studentId,
       enrollmentNo: form.enrollmentNo.trim(),
-      status: form.status,
       channel: trimToUndefined(form.channel),
       enrolledAt: form.enrolledAt,
       remark: trimToUndefined(form.remark),
     })
-    ElMessage.success('报名记录已新增')
+    ElMessage.success('报名记录已新增，学员已加入班级名册')
     dialogVisible.value = false
     resetForm()
     await loadEnrollments()

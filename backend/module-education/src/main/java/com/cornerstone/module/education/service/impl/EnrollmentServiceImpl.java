@@ -7,15 +7,19 @@ import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.common.model.PageSortSupport;
+import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
 import com.cornerstone.module.education.dto.EnrollmentCreateRequest;
 import com.cornerstone.module.education.dto.EnrollmentPageQuery;
 import com.cornerstone.module.education.dto.EnrollmentView;
+import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.service.ClassStudentService;
 import com.cornerstone.module.education.service.EnrollmentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
@@ -28,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EnrollmentServiceImpl implements EnrollmentService {
@@ -46,16 +51,21 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final TeachingClassMapper teachingClassMapper;
     private final DictValueValidator dictValueValidator;
     private final CodeRuleService codeRuleService;
+    private final ClassStudentMapper classStudentMapper;
+    private final ClassStudentService classStudentService;
 
     public EnrollmentServiceImpl(EnrollmentMapper enrollmentMapper, InstitutionMapper institutionMapper,
                                  StudentMapper studentMapper, TeachingClassMapper teachingClassMapper,
-                                 DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
+                                 DictValueValidator dictValueValidator, CodeRuleService codeRuleService,
+                                 ClassStudentMapper classStudentMapper, ClassStudentService classStudentService) {
         this.enrollmentMapper = enrollmentMapper;
         this.institutionMapper = institutionMapper;
         this.studentMapper = studentMapper;
         this.teachingClassMapper = teachingClassMapper;
         this.dictValueValidator = dictValueValidator;
         this.codeRuleService = codeRuleService;
+        this.classStudentMapper = classStudentMapper;
+        this.classStudentService = classStudentService;
     }
 
     @Override
@@ -143,6 +153,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     }
 
     @Override
+    @Transactional
     public EnrollmentEntity createEnrollment(EnrollmentCreateRequest request) {
         requireInstitution(request.institutionId());
         requireStudentInInstitution(request.studentId(), request.institutionId());
@@ -170,7 +181,24 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "报名记录已存在");
         }
+        enrollIntoClassRoster(request, entity);
         return entity;
+    }
+
+    /** 报名即入班:报名落库后同事务写入班级名册,操作员一次办理完成;入班日期取报名日期 */
+    private void enrollIntoClassRoster(EnrollmentCreateRequest request, EnrollmentEntity entity) {
+        Long exists = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
+            .eq(ClassStudentEntity::getClassId, request.classId())
+            .eq(ClassStudentEntity::getStudentId, request.studentId()));
+        if (exists != null && exists > 0) {
+            // 名册已有该学员(经「分班与名册」补录先入了班)时只补报名台账,不重复入班
+            return;
+        }
+        // 复用入班链路的唯一性/容量校验与在班人数重算;班级满员时异常抛出、同事务整体回滚,
+        // 不留"报了名但没进班"的中间态
+        classStudentService.createClassStudent(new ClassStudentCreateRequest(
+            request.institutionId(), request.classId(), request.studentId(),
+            null, entity.getEnrolledAt(), null, null));
     }
 
     private void requireInstitution(Long institutionId) {
