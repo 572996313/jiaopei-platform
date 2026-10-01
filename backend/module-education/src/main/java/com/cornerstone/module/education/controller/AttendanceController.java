@@ -1,6 +1,7 @@
 package com.cornerstone.module.education.controller;
 
 import com.cornerstone.core.auth.annotation.RequiresPermission;
+import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.web.ExternalIdParser;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
@@ -8,12 +9,16 @@ import com.cornerstone.module.education.dto.AttendanceCreateRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonPageView;
 import com.cornerstone.module.education.dto.AttendanceLessonProgressView;
+import com.cornerstone.module.education.dto.AttendanceStudentDetailResponse;
+import com.cornerstone.module.education.dto.AttendanceSummaryQuery;
+import com.cornerstone.module.education.dto.AttendanceSummaryResponse;
 import com.cornerstone.module.education.service.AttendanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,5 +82,27 @@ public class AttendanceController {
     @RequiresPermission("education:attendance:write")
     public ApiResponse<AttendanceLessonPageView> saveLessonAttendance(@Valid @RequestBody AttendanceLessonBatchSaveRequest request) {
         return ApiResponse.success("课次点名已保存", attendanceService.saveLessonAttendance(request));
+    }
+
+    @Operation(summary = "考勤汇总", description = "按日期区间统计点名进度与出勤人次,支持按班级或按学员分组;只统计登录用户所属机构")
+    @GetMapping("/summary")
+    @RequiresPermission("education:read")
+    public ApiResponse<AttendanceSummaryResponse> summary(@Valid @ParameterObject AttendanceSummaryQuery query) {
+        return ApiResponse.success("考勤汇总已加载",
+            attendanceService.getSummary(AuthContext.requireUser().orgId(), query));
+    }
+
+    @Operation(summary = "学员考勤明细", description = "单个学员在日期区间内的应到课次与点名状态流水,供学员档案的考勤抽屉使用")
+    @GetMapping("/student-detail")
+    @RequiresPermission("education:read")
+    public ApiResponse<AttendanceStudentDetailResponse> studentDetail(
+        @RequestParam String studentId,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        return ApiResponse.success("学员考勤明细已加载", attendanceService.getStudentDetail(
+            AuthContext.requireUser().orgId(),
+            ExternalIdParser.parseRequired(studentId, "studentId"),
+            dateFrom,
+            dateTo));
     }
 }

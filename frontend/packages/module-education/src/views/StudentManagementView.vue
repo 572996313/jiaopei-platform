@@ -81,9 +81,10 @@
             show-overflow-tooltip
             sortable="custom"
           />
-          <el-table-column label="操作" width="210" fixed="right">
+          <el-table-column label="操作" width="260" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openParentDrawer(row)">联系人</el-button>
+              <el-button link type="primary" @click="openAttendanceDrawer(row)">考勤</el-button>
               <el-button link type="primary" @click="goStudentEnrollments(row)">报名</el-button>
               <el-button link type="primary" @click="openStudentDialog('edit', row)"
                 >编辑</el-button
@@ -194,6 +195,13 @@
       :institution-id="institutionId"
       :student-id="contactStudentId"
     />
+
+    <!-- 单个学员的考勤汇总与逐课次明细，同样收进右侧抽屉 -->
+    <StudentAttendanceDrawer
+      v-model="attendanceDrawerVisible"
+      :institution-id="institutionId"
+      :student-id="attendanceStudentId"
+    />
   </section>
 </template>
 
@@ -211,6 +219,7 @@ import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { rememberStudentOptions } from '@cornerstone/module-education/composables/studentLabels'
 import StudentParentDrawer from './components/StudentParentDrawer.vue'
+import StudentAttendanceDrawer from './components/StudentAttendanceDrawer.vue'
 import {
   createStudent,
   deleteStudent,
@@ -248,6 +257,9 @@ const studentFormError = ref('')
 
 const parentDrawerVisible = ref(false)
 const contactStudentId = ref<string | null>(null)
+
+const attendanceDrawerVisible = ref(false)
+const attendanceStudentId = ref<string | null>(null)
 
 const studentForm = reactive({
   studentNo: '',
@@ -417,6 +429,13 @@ function openParentDrawer(row: StudentSummary) {
   rememberStudentOptions([{ id: row.id, studentNo: row.studentNo, studentName: row.studentName }])
   contactStudentId.value = row.id
   parentDrawerVisible.value = true
+}
+
+/** 行上点「考勤」：同样先记名称，抽屉里看这个孩子的出勤汇总与逐课次明细 */
+function openAttendanceDrawer(row: StudentSummary) {
+  rememberStudentOptions([{ id: row.id, studentNo: row.studentNo, studentName: row.studentName }])
+  attendanceStudentId.value = row.id
+  attendanceDrawerVisible.value = true
 }
 
 /** 行上「报名」跳过去看这个孩子报过哪些班，把学员带过去当筛选条件 */

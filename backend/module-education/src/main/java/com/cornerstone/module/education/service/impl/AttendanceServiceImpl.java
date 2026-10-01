@@ -19,6 +19,13 @@ import com.cornerstone.module.education.dto.AttendanceLessonPageView;
 import com.cornerstone.module.education.dto.AttendanceLessonProgressView;
 import com.cornerstone.module.education.dto.AttendanceLessonStudentView;
 import com.cornerstone.module.education.dto.AttendanceLessonSummaryView;
+import com.cornerstone.module.education.dto.AttendanceMonthSubtotalView;
+import com.cornerstone.module.education.dto.AttendanceStudentDetailResponse;
+import com.cornerstone.module.education.dto.AttendanceStudentLessonView;
+import com.cornerstone.module.education.dto.AttendanceSummaryQuery;
+import com.cornerstone.module.education.dto.AttendanceSummaryResponse;
+import com.cornerstone.module.education.dto.AttendanceSummaryRowView;
+import com.cornerstone.module.education.dto.AttendanceSummaryTotalsView;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
@@ -28,15 +35,19 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.AttendanceService;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -71,6 +82,10 @@ public class AttendanceServiceImpl implements AttendanceService {
     // 持考勤管理码可代点任意课次；只有课次点名码的账号限本人授课课次。
     // 权限码只回答"能不能点名"，"能点谁的课"必须由课次教师关系兜住，否则一个教师账号能点全校的名。
     private static final String ATTENDANCE_MANAGE_PERMISSION = "education:attendance:manage";
+    /** 汇总区间上限:一个季度 92 天足够日常盘点,放宽到一年防呆 */
+    private static final int ATTENDANCE_SUMMARY_MAX_RANGE_DAYS = 366;
+    private static final String SUMMARY_GROUP_BY_CLASS = "class";
+    private static final String SUMMARY_GROUP_BY_STUDENT = "student";
 
     private final AttendanceMapper attendanceMapper;
     private final ClassStudentMapper classStudentMapper;
@@ -349,6 +364,440 @@ public class AttendanceServiceImpl implements AttendanceService {
             ),
             message
         );
+    }
+
+    // ===================== 考勤汇总(按班级/按学员)与学员考勤明细 =====================
+
+    /** 单节课的点名快照:应到在班学员 + 该课次已有考勤行,按班级/按学员两种聚合都从它出发 */
+    private record LessonAttendanceSnapshot(ScheduleLessonEntity lesson, Set<Long> rosterStudentIds,
+                                            Map<Long, AttendanceEntity> attendanceByStudent) {
+    }
+
+    /** 单节课的点名计数:expected=在班人数,marked=已点到人数 */
+    private record LessonCounters(int expected, int marked, int present, int late, int leave, int absent) {
+    }
+
+    /** 可累加的计数桶:班级/月份/学员/区间合计共用同一套字段,聚合完一次性转只读视图 */
+    private static final class CountBucket {
+        private int lessonCount;
+        private int fullyMarkedLessons;
+        private int pendingLessons;
+        private int expectedCount;
+        private int presentCount;
+        private int lateCount;
+        private int leaveCount;
+        private int absentCount;
+
+        /** 课次维度累加:应到>0 且全部点到记已点名,应到>0 但没点满记未点名(与点名页口径一致) */
+        private void addLesson(int expected, int marked, int present, int late, int leave, int absent) {
+            this.lessonCount++;
+            this.expectedCount += expected;
+            this.presentCount += present;
+            this.lateCount += late;
+            this.leaveCount += leave;
+            this.absentCount += absent;
+            if (expected > 0) {
+                if (marked >= expected) {
+                    this.fullyMarkedLessons++;
+                } else {
+                    this.pendingLessons++;
+                }
+            }
+        }
+
+        /** 学员维度累加:应到课次 = 当天在班 ∪ 有考勤行;没有考勤行即未点名 */
+        private void addStudentLesson(boolean hasRow, String status) {
+            this.lessonCount++;
+            this.expectedCount++;
+            if (hasRow) {
+                this.fullyMarkedLessons++;
+                switch (status == null ? "" : status) {
+                    case ATTENDANCE_STATUS_PRESENT -> this.presentCount++;
+                    case ATTENDANCE_STATUS_LATE -> this.lateCount++;
+                    case ATTENDANCE_STATUS_LEAVE -> this.leaveCount++;
+                    case ATTENDANCE_STATUS_ABSENT -> this.absentCount++;
+                    default -> {
+                    }
+                }
+            } else {
+                this.pendingLessons++;
+            }
+        }
+
+        private Integer attendanceRate() {
+            return expectedCount == 0 ? null : Math.round(presentCount * 100.0f / expectedCount);
+        }
+
+        private AttendanceSummaryTotalsView toTotals() {
+            return new AttendanceSummaryTotalsView(lessonCount, fullyMarkedLessons, pendingLessons,
+                expectedCount, presentCount, lateCount, leaveCount, absentCount);
+        }
+    }
+
+    private static final AttendanceSummaryTotalsView EMPTY_TOTALS =
+        new AttendanceSummaryTotalsView(0, 0, 0, 0, 0, 0, 0, 0);
+
+    @Override
+    public AttendanceSummaryResponse getSummary(Long institutionId, AttendanceSummaryQuery query) {
+        LocalDate dateFrom = query.getDateFrom();
+        LocalDate dateTo = query.getDateTo();
+        assertSummaryRange(dateFrom, dateTo);
+        String groupBy = normalizeSummaryGroupBy(query.getGroupBy());
+
+        List<LessonAttendanceSnapshot> snapshots = buildLessonSnapshots(
+            listAttendanceRangeLessons(institutionId, dateFrom, dateTo, query.getCampusId(), query.getClassId()));
+
+        // 区间合计是课次级口径,与分组维度无关
+        CountBucket totals = new CountBucket();
+        for (LessonAttendanceSnapshot snapshot : snapshots) {
+            LessonCounters counters = countLesson(snapshot);
+            totals.addLesson(counters.expected(), counters.marked(), counters.present(),
+                counters.late(), counters.leave(), counters.absent());
+        }
+
+        List<AttendanceSummaryRowView> rows = SUMMARY_GROUP_BY_STUDENT.equals(groupBy)
+            ? buildStudentSummaryRows(snapshots, query.getStudentId())
+            : buildClassSummaryRows(snapshots);
+        return new AttendanceSummaryResponse(dateFrom, dateTo, groupBy, totals.toTotals(), rows);
+    }
+
+    @Override
+    public AttendanceStudentDetailResponse getStudentDetail(Long institutionId, Long studentId,
+                                                            LocalDate dateFrom, LocalDate dateTo) {
+        assertSummaryRange(dateFrom, dateTo);
+        StudentEntity student = studentMapper.selectById(studentId);
+        if (student == null || !Objects.equals(student.getInstitutionId(), institutionId)) {
+            // 跨机构与不存在同样报"不存在",不泄露其他机构有没有这个学员
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
+        }
+
+        // 该学员的全部归属关系(预占不算):含已退班/结业,靠 joined_at/left_at 的日期过滤覆盖退班前的课次
+        List<ClassStudentEntity> memberships = classStudentMapper.selectList(
+            new LambdaQueryWrapper<ClassStudentEntity>()
+                .eq(ClassStudentEntity::getStudentId, studentId)
+                .ne(ClassStudentEntity::getStatus, "reserved"));
+        List<Long> classIds = memberships.stream()
+            .map(ClassStudentEntity::getClassId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (classIds.isEmpty()) {
+            return new AttendanceStudentDetailResponse(studentId, student.getStudentNo(), student.getStudentName(),
+                dateFrom, dateTo, EMPTY_TOTALS, List.of());
+        }
+
+        List<ScheduleLessonEntity> lessons = listStudentRangeLessons(institutionId, classIds, dateFrom, dateTo);
+        if (lessons.isEmpty()) {
+            return new AttendanceStudentDetailResponse(studentId, student.getStudentNo(), student.getStudentName(),
+                dateFrom, dateTo, EMPTY_TOTALS, List.of());
+        }
+
+        Map<Long, String> classNames = loadClassNames(classIds);
+        Map<Long, AttendanceEntity> attendanceByLesson = attendanceMapper.selectList(
+                new LambdaQueryWrapper<AttendanceEntity>()
+                    .in(AttendanceEntity::getLessonId, lessons.stream().map(ScheduleLessonEntity::getId).toList())
+                    .eq(AttendanceEntity::getStudentId, studentId))
+            .stream()
+            .filter(item -> item.getLessonId() != null)
+            .collect(Collectors.toMap(AttendanceEntity::getLessonId, item -> item, (left, right) -> right));
+
+        List<AttendanceStudentLessonView> lessonViews = new ArrayList<>();
+        int presentCount = 0;
+        int lateCount = 0;
+        int leaveCount = 0;
+        int absentCount = 0;
+        for (ScheduleLessonEntity lesson : lessons) {
+            AttendanceEntity row = attendanceByLesson.get(lesson.getId());
+            boolean inClass = isStudentInClassOnDate(memberships, lesson.getClassId(), lesson.getLessonDate());
+            if (!inClass && row == null) {
+                // 既不在班也没有点名记录的课次与这位学员无关(例如入班前的课次)
+                continue;
+            }
+            String status = row == null ? null : row.getAttendanceStatus();
+            if (status != null) {
+                switch (status) {
+                    case ATTENDANCE_STATUS_PRESENT -> presentCount++;
+                    case ATTENDANCE_STATUS_LATE -> lateCount++;
+                    case ATTENDANCE_STATUS_LEAVE -> leaveCount++;
+                    case ATTENDANCE_STATUS_ABSENT -> absentCount++;
+                    default -> {
+                    }
+                }
+            }
+            lessonViews.add(new AttendanceStudentLessonView(
+                lesson.getId(),
+                lesson.getClassId(),
+                classNames.get(lesson.getClassId()),
+                lesson.getLessonDate(),
+                lesson.getStartTime(),
+                lesson.getEndTime(),
+                lesson.getLessonStatus(),
+                lesson.getLessonTitle(),
+                status,
+                row == null ? null : row.getSource(),
+                row == null ? null : row.getRemark()
+            ));
+        }
+
+        int expectedTotal = lessonViews.size();
+        int markedTotal = (int) lessonViews.stream().filter(view -> view.attendanceStatus() != null).count();
+        AttendanceSummaryTotalsView summary = new AttendanceSummaryTotalsView(
+            expectedTotal, markedTotal, expectedTotal - markedTotal,
+            expectedTotal, presentCount, lateCount, leaveCount, absentCount);
+        return new AttendanceStudentDetailResponse(studentId, student.getStudentNo(), student.getStudentName(),
+            dateFrom, dateTo, summary, lessonViews);
+    }
+
+    private List<ScheduleLessonEntity> listAttendanceRangeLessons(Long institutionId, LocalDate dateFrom,
+                                                                  LocalDate dateTo, Long campusId, Long classId) {
+        return scheduleLessonMapper.selectList(new LambdaQueryWrapper<ScheduleLessonEntity>()
+            .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
+            .ge(ScheduleLessonEntity::getLessonDate, dateFrom)
+            .le(ScheduleLessonEntity::getLessonDate, dateTo)
+            .eq(campusId != null, ScheduleLessonEntity::getCampusId, campusId)
+            .eq(classId != null, ScheduleLessonEntity::getClassId, classId)
+            .in(ScheduleLessonEntity::getLessonStatus, ATTENDANCE_ALLOWED_LESSON_STATUSES)
+            .orderByAsc(ScheduleLessonEntity::getLessonDate)
+            .orderByAsc(ScheduleLessonEntity::getStartTime));
+    }
+
+    private List<ScheduleLessonEntity> listStudentRangeLessons(Long institutionId, List<Long> classIds,
+                                                               LocalDate dateFrom, LocalDate dateTo) {
+        return scheduleLessonMapper.selectList(new LambdaQueryWrapper<ScheduleLessonEntity>()
+            .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
+            .in(ScheduleLessonEntity::getClassId, classIds)
+            .ge(ScheduleLessonEntity::getLessonDate, dateFrom)
+            .le(ScheduleLessonEntity::getLessonDate, dateTo)
+            .in(ScheduleLessonEntity::getLessonStatus, ATTENDANCE_ALLOWED_LESSON_STATUSES)
+            .orderByAsc(ScheduleLessonEntity::getLessonDate)
+            .orderByAsc(ScheduleLessonEntity::getStartTime));
+    }
+
+    /** 批量构建课次点名快照:一次取齐名册与考勤行,内存里按课次日期过滤在班学员(口径同 listLessonProgress) */
+    private List<LessonAttendanceSnapshot> buildLessonSnapshots(List<ScheduleLessonEntity> lessons) {
+        if (lessons.isEmpty()) {
+            return List.of();
+        }
+        List<Long> classIds = lessons.stream()
+            .map(ScheduleLessonEntity::getClassId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        Map<Long, List<ClassStudentEntity>> rosterByClass = classIds.isEmpty() ? Map.of()
+            : classStudentMapper.selectList(new LambdaQueryWrapper<ClassStudentEntity>()
+                    .in(ClassStudentEntity::getClassId, classIds)
+                    .eq(ClassStudentEntity::getStatus, "active"))
+                .stream()
+                .collect(Collectors.groupingBy(ClassStudentEntity::getClassId));
+        Map<Long, List<AttendanceEntity>> attendanceByLesson = attendanceMapper.selectList(
+                new LambdaQueryWrapper<AttendanceEntity>()
+                    .in(AttendanceEntity::getLessonId, lessons.stream().map(ScheduleLessonEntity::getId).toList()))
+            .stream()
+            .filter(item -> item.getLessonId() != null)
+            .collect(Collectors.groupingBy(AttendanceEntity::getLessonId));
+
+        List<LessonAttendanceSnapshot> snapshots = new ArrayList<>();
+        for (ScheduleLessonEntity lesson : lessons) {
+            if (lesson.getClassId() == null) {
+                // 没挂班级的课次无法归属,防御性跳过
+                continue;
+            }
+            Set<Long> rosterStudentIds = rosterByClass.getOrDefault(lesson.getClassId(), List.of()).stream()
+                .filter(item -> item.getJoinedAt() == null || !item.getJoinedAt().isAfter(lesson.getLessonDate()))
+                .filter(item -> item.getLeftAt() == null || !item.getLeftAt().isBefore(lesson.getLessonDate()))
+                .map(ClassStudentEntity::getStudentId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+            Map<Long, AttendanceEntity> byStudent = attendanceByLesson
+                .getOrDefault(lesson.getId(), List.of()).stream()
+                .filter(item -> item.getStudentId() != null)
+                .collect(Collectors.toMap(AttendanceEntity::getStudentId, item -> item, (left, right) -> right));
+            snapshots.add(new LessonAttendanceSnapshot(lesson, rosterStudentIds, byStudent));
+        }
+        return snapshots;
+    }
+
+    private LessonCounters countLesson(LessonAttendanceSnapshot snapshot) {
+        int marked = 0;
+        int present = 0;
+        int late = 0;
+        int leave = 0;
+        int absent = 0;
+        for (Long studentId : snapshot.rosterStudentIds()) {
+            AttendanceEntity attendance = snapshot.attendanceByStudent().get(studentId);
+            String status = attendance == null ? null : attendance.getAttendanceStatus();
+            if (isBlank(status)) {
+                continue;
+            }
+            marked++;
+            switch (status) {
+                case ATTENDANCE_STATUS_PRESENT -> present++;
+                case ATTENDANCE_STATUS_LATE -> late++;
+                case ATTENDANCE_STATUS_LEAVE -> leave++;
+                case ATTENDANCE_STATUS_ABSENT -> absent++;
+                default -> {
+                }
+            }
+        }
+        return new LessonCounters(snapshot.rosterStudentIds().size(), marked, present, late, leave, absent);
+    }
+
+    /** 按班级聚合:每班一行 + 按月小计(季档展开行用,不再额外拉课次明细),班级名内存填充,前端不用回查 */
+    private List<AttendanceSummaryRowView> buildClassSummaryRows(List<LessonAttendanceSnapshot> snapshots) {
+        Map<Long, CountBucket> buckets = new LinkedHashMap<>();
+        Map<Long, Map<String, CountBucket>> monthBuckets = new LinkedHashMap<>();
+        for (LessonAttendanceSnapshot snapshot : snapshots) {
+            LessonCounters counters = countLesson(snapshot);
+            Long classId = snapshot.lesson().getClassId();
+            buckets.computeIfAbsent(classId, key -> new CountBucket())
+                .addLesson(counters.expected(), counters.marked(), counters.present(),
+                    counters.late(), counters.leave(), counters.absent());
+            monthBuckets.computeIfAbsent(classId, key -> new TreeMap<>())
+                .computeIfAbsent(YearMonth.from(snapshot.lesson().getLessonDate()).toString(), key -> new CountBucket())
+                .addLesson(counters.expected(), counters.marked(), counters.present(),
+                    counters.late(), counters.leave(), counters.absent());
+        }
+        Map<Long, String> classNames = loadClassNames(buckets.keySet());
+        return buckets.entrySet().stream()
+            .map(entry -> {
+                CountBucket bucket = entry.getValue();
+                return new AttendanceSummaryRowView(
+                    entry.getKey(),
+                    classNames.get(entry.getKey()),
+                    null, null, null, null,
+                    bucket.lessonCount,
+                    bucket.fullyMarkedLessons,
+                    bucket.pendingLessons,
+                    bucket.expectedCount,
+                    bucket.presentCount,
+                    bucket.lateCount,
+                    bucket.leaveCount,
+                    bucket.absentCount,
+                    bucket.attendanceRate(),
+                    monthBuckets.getOrDefault(entry.getKey(), Map.of()).entrySet().stream()
+                        .map(monthEntry -> new AttendanceMonthSubtotalView(
+                            monthEntry.getKey(),
+                            monthEntry.getValue().lessonCount,
+                            monthEntry.getValue().fullyMarkedLessons,
+                            monthEntry.getValue().pendingLessons,
+                            monthEntry.getValue().expectedCount,
+                            monthEntry.getValue().presentCount,
+                            monthEntry.getValue().lateCount,
+                            monthEntry.getValue().leaveCount,
+                            monthEntry.getValue().absentCount,
+                            monthEntry.getValue().attendanceRate()))
+                        .toList());
+            })
+            .sorted(Comparator.comparing(AttendanceSummaryRowView::className,
+                Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
+    }
+
+    /** 按学员聚合:应到 = 当天在班 ∪ 有考勤行,已退班学员退班前的点名记录不会算成"出勤 > 应到" */
+    private List<AttendanceSummaryRowView> buildStudentSummaryRows(List<LessonAttendanceSnapshot> snapshots,
+                                                                   Long studentIdFilter) {
+        Map<Long, CountBucket> buckets = new LinkedHashMap<>();
+        Map<Long, Set<Long>> classIdsByStudent = new LinkedHashMap<>();
+        for (LessonAttendanceSnapshot snapshot : snapshots) {
+            Set<Long> involvedStudentIds = new LinkedHashSet<>(snapshot.rosterStudentIds());
+            involvedStudentIds.addAll(snapshot.attendanceByStudent().keySet());
+            if (studentIdFilter != null) {
+                involvedStudentIds.retainAll(Set.of(studentIdFilter));
+            }
+            if (involvedStudentIds.isEmpty()) {
+                continue;
+            }
+            Long classId = snapshot.lesson().getClassId();
+            for (Long studentId : involvedStudentIds) {
+                AttendanceEntity row = snapshot.attendanceByStudent().get(studentId);
+                String status = row == null ? null : row.getAttendanceStatus();
+                buckets.computeIfAbsent(studentId, key -> new CountBucket()).addStudentLesson(row != null, status);
+                classIdsByStudent.computeIfAbsent(studentId, key -> new LinkedHashSet<>()).add(classId);
+            }
+        }
+        if (buckets.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, StudentEntity> studentMap = studentMapper.selectBatchIds(buckets.keySet()).stream()
+            .map(StudentEntity.class::cast)
+            .collect(Collectors.toMap(StudentEntity::getId, item -> item, (left, right) -> right));
+        Set<Long> involvedClassIds = classIdsByStudent.values().stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+        Map<Long, String> classNames = loadClassNames(involvedClassIds);
+        return buckets.entrySet().stream()
+            .map(entry -> {
+                StudentEntity student = studentMap.get(entry.getKey());
+                List<String> studentClassNames = classIdsByStudent.getOrDefault(entry.getKey(), Set.of()).stream()
+                    .map(classNames::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+                CountBucket bucket = entry.getValue();
+                return new AttendanceSummaryRowView(
+                    null, null,
+                    entry.getKey(),
+                    student == null ? null : student.getStudentNo(),
+                    student == null ? null : student.getStudentName(),
+                    studentClassNames,
+                    bucket.lessonCount,
+                    bucket.fullyMarkedLessons,
+                    bucket.pendingLessons,
+                    bucket.expectedCount,
+                    bucket.presentCount,
+                    bucket.lateCount,
+                    bucket.leaveCount,
+                    bucket.absentCount,
+                    bucket.attendanceRate(),
+                    List.of());
+            })
+            // 默认出勤率升序:最缺勤的学员排前面,这正是运营要先把目光落在谁身上的问题
+            .sorted(Comparator.comparing(AttendanceSummaryRowView::attendanceRate,
+                    Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(AttendanceSummaryRowView::studentId, Comparator.nullsFirst(Comparator.naturalOrder())))
+            .toList();
+    }
+
+    private Map<Long, String> loadClassNames(Collection<Long> classIds) {
+        if (classIds == null || classIds.isEmpty()) {
+            return Map.of();
+        }
+        return teachingClassMapper.selectBatchIds(classIds).stream()
+            .collect(Collectors.toMap(TeachingClassEntity::getId,
+                cls -> firstNotBlank(cls.getClassName(), cls.getClassCode()), (left, right) -> left));
+    }
+
+    private boolean isStudentInClassOnDate(List<ClassStudentEntity> memberships, Long classId, LocalDate lessonDate) {
+        for (ClassStudentEntity membership : memberships) {
+            if (!Objects.equals(membership.getClassId(), classId)) {
+                continue;
+            }
+            boolean joined = membership.getJoinedAt() == null || !membership.getJoinedAt().isAfter(lessonDate);
+            boolean notLeft = membership.getLeftAt() == null || !membership.getLeftAt().isBefore(lessonDate);
+            if (joined && notLeft) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void assertSummaryRange(LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom == null || dateTo == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "统计区间不能为空");
+        }
+        if (dateFrom.isAfter(dateTo)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "统计区间不合法：起始日期不能晚于截止日期");
+        }
+        if (dateFrom.plusDays(ATTENDANCE_SUMMARY_MAX_RANGE_DAYS).isBefore(dateTo)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "统计区间最长 " + ATTENDANCE_SUMMARY_MAX_RANGE_DAYS + " 天");
+        }
+    }
+
+    private String normalizeSummaryGroupBy(String rawGroupBy) {
+        String candidate = isBlank(rawGroupBy) ? SUMMARY_GROUP_BY_CLASS : rawGroupBy.trim().toLowerCase(Locale.ROOT);
+        if (!SUMMARY_GROUP_BY_CLASS.equals(candidate) && !SUMMARY_GROUP_BY_STUDENT.equals(candidate)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                "不支持的分组维度：" + rawGroupBy + "，可选值：class、student");
+        }
+        return candidate;
     }
 
     private Map<Long, StudentEntity> loadStudentMap(List<ClassStudentEntity> classStudents) {

@@ -778,6 +778,97 @@ export function saveLessonAttendanceBatch(payload: AttendanceLessonBatchSavePayl
   return requestPost<AttendanceLessonPage>('/education/attendance/lesson-batch', payload)
 }
 
+/** 考勤汇总合计，summary 接口与学员考勤明细接口共用 */
+export interface AttendanceSummaryTotals {
+  lessonCount: number
+  fullyMarkedLessons: number
+  pendingLessons: number
+  expectedCount: number
+  presentCount: number
+  lateCount: number
+  leaveCount: number
+  absentCount: number
+}
+
+/** 考勤按月小计，季档展开行用，不再额外拉课次明细 */
+export interface AttendanceMonthSubtotal extends AttendanceSummaryTotals {
+  month: string
+  attendanceRate: number | null
+}
+
+/**
+ * 考勤汇总行：按班级分组时填 classId/className，按学员分组时填 studentId 一侧。
+ * 名称由后端内存填充（同完成度报表 ClassRow.className 先例），前端不用按 id 回查。
+ */
+export interface AttendanceSummaryRow {
+  classId?: string | null
+  className?: string | null
+  studentId?: string | null
+  studentNo?: string | null
+  studentName?: string | null
+  /** 区间内上课的班级名称（按学员分组时有值） */
+  classNames?: string[] | null
+  lessonCount: number
+  fullyMarkedLessons: number
+  pendingLessons: number
+  expectedCount: number
+  presentCount: number
+  lateCount: number
+  leaveCount: number
+  absentCount: number
+  attendanceRate: number | null
+  months: AttendanceMonthSubtotal[] | null
+}
+
+export interface AttendanceSummaryResponse {
+  rangeStart: string
+  rangeEnd: string
+  groupBy: 'class' | 'student'
+  summary: AttendanceSummaryTotals
+  rows: AttendanceSummaryRow[]
+}
+
+/** 学员考勤明细行：attendanceStatus 为 null 表示该课次还没点到这位学员 */
+export interface AttendanceStudentLesson {
+  lessonId: string
+  classId: string
+  className?: string | null
+  lessonDate?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  lessonStatus?: string | null
+  lessonTitle?: string | null
+  attendanceStatus?: string | null
+  source?: string | null
+  remark?: string | null
+}
+
+export interface AttendanceStudentDetailResponse {
+  studentId: string
+  studentNo?: string | null
+  studentName?: string | null
+  rangeStart: string
+  rangeEnd: string
+  summary: AttendanceSummaryTotals
+  lessons: AttendanceStudentLesson[]
+}
+
+export function fetchAttendanceSummary(params: {
+  institutionId?: string | null
+  campusId?: string | null
+  classId?: string | null
+  studentId?: string | null
+  dateFrom: string
+  dateTo: string
+  groupBy?: 'class' | 'student'
+}) {
+  return requestGet<AttendanceSummaryResponse>('/education/attendance/summary', params)
+}
+
+export function fetchAttendanceStudentDetail(params: { studentId: string; dateFrom: string; dateTo: string }) {
+  return requestGet<AttendanceStudentDetailResponse>('/education/attendance/student-detail', params)
+}
+
 export function fetchScheduleLessons(params?: {
   institutionId?: string | null
   campusId?: string | null

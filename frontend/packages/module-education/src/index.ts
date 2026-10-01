@@ -59,6 +59,11 @@ export const educationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-education/views/ScheduleAttendanceView.vue'),
   },
   {
+    path: 'attendance-overview',
+    name: 'attendance-overview',
+    component: () => import('@cornerstone/module-education/views/AttendanceOverviewView.vue'),
+  },
+  {
     path: 'schedule-timetable',
     name: 'schedule-timetable',
     component: () => import('@cornerstone/module-education/views/ScheduleTimetableView.vue'),
