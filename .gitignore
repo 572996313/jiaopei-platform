@@ -29,6 +29,7 @@ Thumbs.db
 
 # docker prod secrets & runtime data
 docker/prod.env
+.deps-stamp
 docker/data/
 docker/backups/
 docker/deploy.log

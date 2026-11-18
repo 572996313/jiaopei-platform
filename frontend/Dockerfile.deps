@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1.7
+# ============================================
+# 前端依赖基础镜像：只装 pnpm 依赖，不含业务源码
+# ============================================
+# 由 deploy.sh 在 pnpm-lock.yaml / package.json 变化(或显式 --update-deps)时重建，
+# 日常部署直接复用。node_modules 与 pnpm store 被固化进镜像层，
+# 不会随 BuildKit 缓存回收而丢失，源码变更后无需重新下载依赖。
+#
+# 手动构建：
+#   docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
+
+FROM node:22-alpine
+
+WORKDIR /workspace/frontend
+
+RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
+
+# CI 模式下 pnpm 不再因无 TTY 拒绝清理/重建 node_modules
+ENV CI=true
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="${PNPM_HOME}:${PATH}"
+
+# workspace 安装需要根 package.json、锁文件与各子包 package.json 才能解析 workspace:* 依赖
+COPY frontend/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/packages/core/package.json ./packages/core/package.json
+COPY frontend/packages/module-organization/package.json ./packages/module-organization/package.json
+COPY frontend/packages/module-education/package.json ./packages/module-education/package.json
+
+# 注意：这里刻意不用 --mount=type=cache。
+# cache mount 的写入不会落到镜像层，node_modules/pnpm store 必须普通安装才能固化进镜像。
+RUN pnpm install --frozen-lockfile

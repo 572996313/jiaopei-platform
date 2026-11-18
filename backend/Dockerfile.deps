@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1.7
+# ============================================
+# 后端依赖基础镜像：只装 Maven 依赖，不含业务源码
+# ============================================
+# 由 deploy.sh 在 pom.xml 变化(或显式 --update-deps)时重建，日常部署直接复用。
+# 依赖被固化进镜像层后，不会像 BuildKit cache mount 那样被 builder GC 回收，
+# 因此源码变更触发重新编译时不需要再联网下载依赖。
+#
+# 手动构建：
+#   docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
+
+FROM maven:3.9.9-eclipse-temurin-21
+
+WORKDIR /workspace/backend
+
+COPY backend/settings-docker.xml /root/.m2/settings.xml
+COPY backend/pom.xml ./
+COPY backend/cornerstone-core/pom.xml cornerstone-core/
+COPY backend/module-organization/pom.xml module-organization/
+COPY backend/module-education/pom.xml module-education/
+COPY backend/app/pom.xml app/
+
+# 注意：这里刻意不用 --mount=type=cache。
+# cache mount 的写入不会落到镜像层，只有普通 RUN 的产物才会被烘焙进依赖镜像。
+# -q 安静输出；-fae 失败时继续构建其他模块；依赖下载失败重试 5 次。
+RUN mvn -B -ntp -q -s /root/.m2/settings.xml -DskipTests \
+        -Dmaven.wagon.http.retryHandler.count=5 \
+        -Dmaven.wagon.httpconnectionManager.ttlSeconds=60 \
+        -Dmaven.artifact.threads=4 \
+        -Dmaven.plugin.validation=BRIEF \
+        dependency:go-offline

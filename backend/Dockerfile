@@ -1,43 +1,25 @@
 # syntax=docker/dockerfile:1.7
-# 需要 BuildKit 才能使用 --mount=type=cache
-# 部署脚本(deploy.sh)里已通过 DOCKER_BUILDKIT=1 启用
-# 缓存策略:
-#   - m2-cache:        持久化 Maven 仓库,避免每次重拉依赖
-#   - target-cache:    持久化 target 目录,增量编译更快
-# 只要 backend/pom.xml 不变,本层缓存就命中,几乎秒过
+# ============================================
+# 后端运行镜像：依赖来自 backend/Dockerfile.deps 产出的基础镜像
+# ============================================
+# 依赖(整个 ~/.m2/repository)已固化在 jiaopei-platform-backend-deps:prod 里，
+# 本文件只做「拷源码 -> 编译打包 -> 装 jar」，源码变更不会触发依赖重新下载。
+# 构建前必须先有依赖镜像：deploy.sh 会自动按 pom.xml 哈希判断是否需要重建；
+# 手动构建时请先执行：
+#   docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
 
-FROM maven:3.9.9-eclipse-temurin-21 AS build
+ARG DEPS_IMAGE=jiaopei-platform-backend-deps:prod
+FROM ${DEPS_IMAGE} AS build
 
 WORKDIR /workspace/backend
-
-COPY backend/settings-docker.xml /root/.m2/settings.xml
-COPY backend/pom.xml ./
-COPY backend/cornerstone-core/pom.xml cornerstone-core/
-COPY backend/module-organization/pom.xml module-organization/
-COPY backend/module-education/pom.xml module-education/
-COPY backend/app/pom.xml app/
-
-# 第一层:只拉依赖(只依赖各模块 pom.xml,源码改了不会重跑这步)
-# -q 安静输出,省 IO
-# -fae 失败时继续构建其他模块(Fail At End),不会因一个插件问题卡死
-# -T 1C 每核一个项目线程
-RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
-    mvn -B -ntp -q -s /root/.m2/settings.xml -DskipTests \
-        -Dmaven.wagon.http.retryHandler.count=5 \
-        -Dmaven.wagon.httpconnectionManager.ttlSeconds=60 \
-        -Dmaven.artifact.threads=4 \
-        -Dmaven.plugin.validation=BRIEF \
-        dependency:go-offline
 
 COPY backend/cornerstone-core/src cornerstone-core/src
 COPY backend/module-organization/src module-organization/src
 COPY backend/module-education/src module-education/src
 COPY backend/app/src app/src
 
-# 第二层:编译(同时缓存 m2 和 target,源码变更只触发这一步)
-# -Dmaven.test.skip=true 同时跳过测试编译(比 -DskipTests 更彻底)
-RUN --mount=type=cache,target=/root/.m2/repository,id=jiaopei-m2-cache \
-    mvn -B -ntp -q -s /root/.m2/settings.xml \
+# -Dmaven.test.skip=true 同时跳过测试编译；javadoc 也不生成，缩短构建时间
+RUN mvn -B -ntp -q -s /root/.m2/settings.xml \
         -Dmaven.test.skip=true \
         -Dmaven.wagon.http.retryHandler.count=5 \
         -Dmaven.artifact.threads=4 \

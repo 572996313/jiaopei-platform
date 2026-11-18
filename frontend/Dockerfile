@@ -1,42 +1,17 @@
 # syntax=docker/dockerfile:1.7
-# 需要 BuildKit 才能使用 --mount=type=cache
-# 部署脚本(deploy.sh)里已通过 DOCKER_BUILDKIT=1 启用
-# 缓存策略:
-#   - pnpm-store:  持久化 pnpm 全局存储,锁文件不变就秒过 install
-#   - node-modules-cache:  持久化 node_modules,源码变了也不用重装依赖
+# ============================================
+# 前端运行镜像：依赖来自 frontend/Dockerfile.deps 产出的基础镜像
+# ============================================
+# node_modules 与 pnpm store 已固化在 jiaopei-platform-frontend-deps:prod 里，
+# 本文件只做「拷源码 -> pnpm build -> 交给 nginx」，源码变更不会触发依赖重新下载。
+# 构建前必须先有依赖镜像：deploy.sh 会自动按锁文件哈希判断是否需要重建；
+# 手动构建时请先执行：
+#   docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
 
-FROM node:22-alpine AS build
+ARG DEPS_IMAGE=jiaopei-platform-frontend-deps:prod
+FROM ${DEPS_IMAGE} AS build
 
 WORKDIR /workspace/frontend
-
-RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
-
-# CI 模式下 pnpm 检测到 node_modules 缓存失效时直接清空重建,不再因无 TTY 拒绝确认
-# (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)
-ENV CI=true
-
-# 关键:在缓存挂载目录里设 pnpm 的 store 目录,持久化依赖
-# pnpm 用 hardlink 从 store 引用,缓存命中时不消耗双倍磁盘
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="${PNPM_HOME}:${PATH}"
-
-# workspace 安装：pnpm 需要 pnpm-workspace.yaml 与各包 package.json 才能解析 workspace:* 依赖
-COPY frontend/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
-COPY frontend/packages/core/package.json ./packages/core/package.json
-COPY frontend/packages/module-organization/package.json ./packages/module-organization/package.json
-COPY frontend/packages/module-education/package.json ./packages/module-education/package.json
-# 先做一次 prefetch,把所有依赖下载到 store(fetch 只写 store,不碰 node_modules)
-# 锁文件不变时这一步秒命中缓存
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
-    pnpm fetch --frozen-lockfile
-
-# 然后做 install(同样会命中 node_modules 缓存)
-# 不加 --offline:store 缓存被 BuildKit 回收后仍要能联网补包
-# 各包的 node_modules 软链不在根目录缓存挂载内,由 install 每次重建
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
-    --mount=type=cache,target=/workspace/frontend/node_modules,id=jiaopei-node-modules-cache \
-    pnpm install --frozen-lockfile --prefer-offline
 
 COPY frontend/index.html ./index.html
 COPY frontend/vite.config.ts ./vite.config.ts
@@ -44,17 +19,15 @@ COPY frontend/tsconfig.json ./tsconfig.json
 COPY frontend/tsconfig.app.json ./tsconfig.app.json
 COPY frontend/tsconfig.node.json ./tsconfig.node.json
 COPY frontend/public ./public
-# 底座包与业务模块包(源码级引用,无各自构建)
+# 底座包与业务模块包(源码级引用，无各自构建)
+# COPY 是合并覆盖，不会删除依赖镜像里已装好的 packages/*/node_modules 软链
 COPY frontend/packages ./packages
 COPY frontend/src ./src
 
 ARG VITE_API_AUTHORIZATION="Bearer stub-access-token"
 ENV VITE_API_AUTHORIZATION=$VITE_API_AUTHORIZATION
 
-# build 阶段也缓存 node_modules,vite 内部用到的依赖不会反复下载
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=jiaopei-pnpm-store \
-    --mount=type=cache,target=/workspace/frontend/node_modules,id=jiaopei-node-modules-cache \
-    pnpm build
+RUN pnpm build
 
 FROM nginx:1.27-alpine
 

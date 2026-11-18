@@ -1,6 +1,9 @@
 .git
 .idea
 .vscode
+.deps-stamp
+docker/prod.env
+docker/deploy.log
 frontend/node_modules
 frontend/dist
 **/target

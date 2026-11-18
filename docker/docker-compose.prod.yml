@@ -47,11 +47,32 @@ services:
       timeout: 5s
       retries: 10
 
+  # 依赖基础镜像(构建用，不启动容器)
+  # 只有 pom.xml / 依赖声明变化时才重建，日常部署直接复用，避免重复下载依赖。
+  # 日常不需要手动构建：deploy.sh 会按哈希自动判断。
+  # 手动重建：docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
+  backend-deps:
+    profiles: ["deps"]
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.deps
+    image: jiaopei-platform-backend-deps:prod
+
+  # 前端依赖基础镜像(构建用，不启动容器)
+  # 手动重建：docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
+  frontend-deps:
+    profiles: ["deps"]
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile.deps
+    image: jiaopei-platform-frontend-deps:prod
+
   backend:
     build:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        DEPS_IMAGE: jiaopei-platform-backend-deps:prod
         MAVEN_OPTS: ${BACKEND_BUILD_MAVEN_OPTS:--Xmx512m -XX:MaxMetaspaceSize=256m -Djava.awt.headless=true}
     image: jiaopei-platform-backend:prod
     container_name: jiaopei-prod-backend
@@ -101,6 +122,7 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
       args:
+        DEPS_IMAGE: jiaopei-platform-frontend-deps:prod
         VITE_API_AUTHORIZATION: ${VITE_API_AUTHORIZATION:-}
     image: jiaopei-platform-frontend:prod
     container_name: jiaopei-prod-frontend

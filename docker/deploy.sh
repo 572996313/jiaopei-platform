@@ -6,6 +6,8 @@
 #       ./deploy.sh --force       # 强制重新构建(代码无变化也构建)
 #       ./deploy.sh --skip-pull   # 跳过 git pull(用于本地调试)
 #       ./deploy.sh --no-backup   # 跳过数据库逻辑备份
+#       ./deploy.sh --update-deps # 强制重建依赖基础镜像(重新下载依赖)
+#       ./deploy.sh --reuse-deps  # 强制沿用现有依赖镜像(不检查依赖变化)
 # ============================================
 set -euo pipefail
 
@@ -24,20 +26,30 @@ DB_BACKUP_DIR="/mnt/software/jiaopei/backups/db"
 LOG_FILE="/mnt/software/jiaopei/deploy.log"
 DATA_DIR="/mnt/software/jiaopei/data"
 KEEP_DB_BACKUPS=14
+# 依赖基础镜像的哈希戳：pom/lock 变化时自动重建依赖镜像，否则直接复用
+DEPS_STAMP_FILE="/mnt/software/jiaopei/.deps-stamp"
+BACKEND_DEPS_IMAGE="jiaopei-platform-backend-deps:prod"
+FRONTEND_DEPS_IMAGE="jiaopei-platform-frontend-deps:prod"
 # ---------- 配置区结束 ----------
 
 # ---------- 参数解析 ----------
 FORCE_BUILD=false
 SKIP_PULL=false
 SKIP_BACKUP=false
+FORCE_DEPS_BUILD=false
+REUSE_DEPS=false
 NOTE_ARGS=()
 for arg in "$@"; do
     case "${arg}" in
         --force) FORCE_BUILD=true ;;
         --skip-pull) SKIP_PULL=true ;;
         --no-backup) SKIP_BACKUP=true ;;
+        --update-deps) FORCE_DEPS_BUILD=true ;;
+        --reuse-deps) REUSE_DEPS=true ;;
         --help|-h)
-            echo "用法: $0 [版本说明] [--force] [--skip-pull] [--no-backup]"
+            echo "用法: $0 [版本说明] [--force] [--skip-pull] [--no-backup] [--update-deps] [--reuse-deps]"
+            echo "  --update-deps  强制重建依赖基础镜像(重新下载 Maven/pnpm 依赖)"
+            echo "  --reuse-deps   强制沿用现有依赖镜像(依赖声明变化也不重建)"
             exit 0
             ;;
         *) NOTE_ARGS+=("${arg}") ;;
@@ -71,7 +83,7 @@ echo "========================================"
 cd "${PROJECT_DIR}"
 
 # ---------- 0. 预检 ----------
-log_info "[0/8] 预检..."
+log_info "[0/9] 预检..."
 
 # 0.0 自我保护:检测本地有未提交的 deploy.sh 改动
 # 服务器上 chmod +x 后会触发 "modified" 标记,导致 git pull 失败。
@@ -193,12 +205,12 @@ ASKPASS_EOF
     fi
 fi
 
-# ---------- 2. 拉取最新代码 ----------
+# ---------- 1. 拉取最新代码 ----------
 CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 if [ "${SKIP_PULL}" = "true" ]; then
-    log_warn "[2/8] 跳过 git pull (--skip-pull)"
+    log_warn "[1/9] 跳过 git pull (--skip-pull)"
 else
-    log_info "[2/8] 拉取最新代码..."
+    log_info "[1/9] 拉取最新代码..."
     git fetch origin "${BRANCH}" || { log_err "git fetch 失败"; exit 1; }
     LOCAL=$(git rev-parse "${BRANCH}" 2>/dev/null || echo "")
     REMOTE=$(git rev-parse "origin/${BRANCH}" 2>/dev/null || echo "")
@@ -221,8 +233,8 @@ fi
 NEW_COMMIT=$(git rev-parse --short HEAD)
 log_ok "新版本: ${NEW_COMMIT}"
 
-# ---------- 3. 备份 ----------
-log_info "[3/8] 备份配置与数据库..."
+# ---------- 2. 备份 ----------
+log_info "[2/9] 备份配置与数据库..."
 mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}"
 if [ -f "docker/prod.env" ]; then
     cp "docker/prod.env" "${BACKUP_DIR}/prod.env.${TIMESTAMP}"
@@ -259,14 +271,74 @@ else
     fi
 fi
 
+# ---------- 3. 依赖基础镜像 ----------
+# 把 Maven / pnpm 依赖固化在带 tag 的镜像层里：
+#   - 只有 pom.xml、pnpm-lock.yaml 等依赖声明变化(或显式 --update-deps)时才重建
+#   - 日常部署直接复用，源码变化只重新编译，不再联网重下依赖
+#   - 带 tag 的镜像不会被 builder GC / docker image prune 回收，
+#     这正是原先 BuildKit cache mount 方案在低配服务器上失效的原因
+log_info "[3/9] 检查依赖基础镜像..."
+BACKEND_DEPS_HASH=$(cat backend/pom.xml \
+        backend/cornerstone-core/pom.xml \
+        backend/module-organization/pom.xml \
+        backend/module-education/pom.xml \
+        backend/app/pom.xml \
+        backend/settings-docker.xml | sha256sum | cut -c1-16)
+FRONTEND_DEPS_HASH=$(cat frontend/package.json \
+        frontend/pnpm-workspace.yaml \
+        frontend/pnpm-lock.yaml \
+        frontend/packages/core/package.json \
+        frontend/packages/module-organization/package.json \
+        frontend/packages/module-education/package.json | sha256sum | cut -c1-16)
+DEPS_HASH="backend=${BACKEND_DEPS_HASH} frontend=${FRONTEND_DEPS_HASH}"
+
+NEED_DEPS_BUILD=false
+if [ "${FORCE_DEPS_BUILD}" = "true" ]; then
+    NEED_DEPS_BUILD=true
+    log_warn "已指定 --update-deps，强制重建依赖镜像"
+elif [ "${REUSE_DEPS}" = "true" ]; then
+    PREV_DEPS_HASH=$(cat "${DEPS_STAMP_FILE}" 2>/dev/null || true)
+    log_warn "已指定 --reuse-deps，沿用现有依赖镜像"
+    if [ "${PREV_DEPS_HASH}" != "${DEPS_HASH}" ]; then
+        log_warn "注意: 依赖声明与依赖镜像不一致(旧=${PREV_DEPS_HASH:-<无>} 新=${DEPS_HASH})"
+        log_warn "      编译将使用旧依赖版本;若报找不到依赖，请改用 --update-deps"
+    fi
+else
+    PREV_DEPS_HASH=$(cat "${DEPS_STAMP_FILE}" 2>/dev/null || true)
+    if [ "${PREV_DEPS_HASH}" != "${DEPS_HASH}" ]; then
+        NEED_DEPS_BUILD=true
+        log_warn "依赖声明有变化，需要重建依赖镜像"
+        log_warn "  旧: ${PREV_DEPS_HASH:-<无>}"
+        log_warn "  新: ${DEPS_HASH}"
+    fi
+fi
+
+# 镜像不存在时无论如何都要构建，否则 backend/frontend 的 FROM 会失败
+if ! docker image inspect "${BACKEND_DEPS_IMAGE}" >/dev/null 2>&1; then
+    NEED_DEPS_BUILD=true
+    log_warn "依赖镜像 ${BACKEND_DEPS_IMAGE} 不存在，先构建"
+fi
+if ! docker image inspect "${FRONTEND_DEPS_IMAGE}" >/dev/null 2>&1; then
+    NEED_DEPS_BUILD=true
+    log_warn "依赖镜像 ${FRONTEND_DEPS_IMAGE} 不存在，先构建"
+fi
+
+if [ "${NEED_DEPS_BUILD}" = "true" ]; then
+    log_info "重建依赖基础镜像(仅在依赖变化时发生)..."
+    docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" \
+        --profile deps build backend-deps frontend-deps
+    echo "${DEPS_HASH}" > "${DEPS_STAMP_FILE}"
+    log_ok "依赖镜像已更新: ${DEPS_HASH}"
+else
+    log_ok "依赖未变化，直接复用现有依赖镜像"
+fi
+
 # ---------- 4. 构建并启动 ----------
-# 启用 BuildKit 后,backend/Dockerfile 与 frontend/Dockerfile 里的
-# --mount=type=cache 才会生效,这是把构建从 553s 降到几十秒的关键
+# 依赖已在第 3 步固化进基础镜像,这里只重新编译源码;
+# 仍启用 BuildKit,编译层的文件指纹缓存与依赖镜像配合,进一步缩短耗时。
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
-# BUILDKIT_INLINE_CACHE=0 表示不把缓存元数据写入镜像 tag,纯靠 BuildKit 本地缓存
-# 如果你的 docker 版本较旧(< 23),需要改成 export DOCKER_BUILDKIT=1 写到 /etc/docker/daemon.json
-log_info "[4/8] 构建并启动服务..."
+log_info "[4/9] 构建并启动服务..."
 # --parallel:                 后端和前端同时构建(总耗时取较慢的那一个)
 # 不传 --pull:                Compose 默认行为 —— 基础镜像本地有就用本地 tag,没有才拉
 #                            注意:--pull=missing 在某些 compose 插件版本上会报
@@ -279,7 +351,7 @@ docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" \
 docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" up -d
 
 # ---------- 5. 等待健康 ----------
-log_info "[5/8] 等待服务健康..."
+log_info "[5/9] 等待服务健康..."
 ALL_HEALTHY=true
 HEALTH_TIMEOUT=180
 HEALTH_ELAPSED=0
@@ -311,19 +383,19 @@ for SERVICE in mysql redis backend frontend; do
 done
 
 # ---------- 6. 清理悬空镜像 ----------
-log_info "[6/8] 清理悬空镜像..."
+log_info "[6/9] 清理悬空镜像..."
 set +e
 PRUNED=$(docker image prune -f 2>/dev/null | tail -1)
 set -e
 log_ok "${PRUNED:-已清理}"
 
 # ---------- 7. 记录日志 ----------
-log_info "[7/8] 记录部署日志..."
+log_info "[7/9] 记录部署日志..."
 mkdir -p "$(dirname "${LOG_FILE}")"
 echo "${TIMESTAMP} | ${CURRENT_COMMIT} -> ${NEW_COMMIT} | ${VERSION_NOTE}" >> "${LOG_FILE}"
 
 # ---------- 8. 完成 ----------
-log_info "[8/8] 部署完成！"
+log_info "[8/9] 部署完成！"
 echo "========================================"
 echo "  版本: ${CURRENT_COMMIT} -> ${NEW_COMMIT}"
 echo "  说明: ${VERSION_NOTE}"
