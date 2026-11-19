@@ -22,6 +22,7 @@ import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -95,6 +96,28 @@ class AuthApplicationServiceImplTest {
 
         assertThrows(BadCredentialsException.class,
             () -> service.authenticateToken(first.accessToken() + "forged"));
+    }
+
+    /**
+     * 回归:强制改密标记以库为准,不能被登录时写进 Redis 的旧快照覆盖。
+     * 改密只清了库里的标记,如果认证还返回快照里的 true,同一 token 之后会被过滤器一直拦成 403,
+     * 表现就是"改完密码必须退出重登才正常"。
+     */
+    @Test
+    void authenticateTokenUsesLiveForceChangeFlagInsteadOfLoginSnapshot() {
+        UserAccountEntity user = user();
+        user.setStatus("active");
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+        String token = jwtTokenService.issue(
+            new AuthenticatedUser(1L, 1L, "admin", Set.of(), Set.of(), true, "admin"), 12, TimeUnit.HOURS);
+        when(tokenCacheService.getUser(token)).thenReturn(
+            new AuthenticatedUser(1L, 1L, "admin", Set.of(), Set.of(), true, "admin"));
+
+        user.setForceChangePassword(Boolean.FALSE);
+        assertFalse(service.authenticateToken(token).forceChangePassword());
+
+        user.setForceChangePassword(Boolean.TRUE);
+        assertTrue(service.authenticateToken(token).forceChangePassword());
     }
 
     @Test

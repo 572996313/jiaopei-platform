@@ -89,7 +89,19 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
         if (!ACTIVE.equalsIgnoreCase(userAccount.getStatus())) {
             throw new DisabledException("账号已被禁用");
         }
-        return user;
+        // 强制改密标记是账号的实时状态,不是登录时固化的权限快照:
+        // 自助改密会清掉库里的标记,但 Redis 会话里仍留着登录那一刻的 true。
+        // 若直接返回快照,改密后同一个 token 会被过滤器一直当成"待改密"拦成 403。
+        // 这里已经查过库,顺带用库里的值覆盖,避免再为改密专门改写会话缓存。
+        return new AuthenticatedUser(
+            user.userId(),
+            user.orgId(),
+            user.username(),
+            user.roles(),
+            user.permissions(),
+            Boolean.TRUE.equals(userAccount.getForceChangePassword()),
+            user.portal()
+        );
     }
 
     @Override
