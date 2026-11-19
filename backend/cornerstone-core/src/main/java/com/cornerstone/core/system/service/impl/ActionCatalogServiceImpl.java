@@ -212,9 +212,22 @@ public class ActionCatalogServiceImpl implements ActionCatalogService {
             return;
         }
         SystemMenuEntity grant = menuByCode.get(definition.grantMenuCode());
-        if (grant == null || !TYPE_BUTTON.equals(grant.getMenuType())) {
+        if (grant == null) {
             gaps.add(new ActionCatalogGapView(definition.actionKey(), definition.pageMenuCode(),
-                definition.grantMenuCode(), "授权节点不存在或不是 button 类型"));
+                definition.grantMenuCode(), "授权节点不存在"));
+            return;
+        }
+        // LINKED 允许直接挂在所属页面节点上：系统管理页是"读写同码"，V62/V105 已把同码按钮节点废弃，
+        // 页面节点本身就是承载授权的节点（勾页面 = 进得来且能做全部操作）。
+        // STANDALONE 必须是独立 button 节点，否则"单独勾一个按钮"实际上会连带整页。
+        boolean pageNodeGrant = TYPE_MENU.equals(grant.getMenuType())
+            && definition.grantMenuCode().equals(definition.pageMenuCode());
+        boolean buttonGrant = TYPE_BUTTON.equals(grant.getMenuType());
+        if (!buttonGrant && !(definition.mode() == ActionMode.LINKED && pageNodeGrant)) {
+            gaps.add(new ActionCatalogGapView(definition.actionKey(), definition.pageMenuCode(),
+                definition.grantMenuCode(), definition.mode() == ActionMode.STANDALONE
+                    ? "独立授权动作必须绑定 button 节点"
+                    : "授权节点既不是 button，也不是所属页面本身"));
             return;
         }
         if (definition.permissionCode() == null || definition.permissionCode().isBlank()) {

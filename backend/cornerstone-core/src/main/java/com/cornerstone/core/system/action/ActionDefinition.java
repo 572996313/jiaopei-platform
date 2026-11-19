@@ -9,7 +9,13 @@ package com.cornerstone.core.system.action;
  *
  * @param pageMenuCode   所属页面的 {@code sys_menu.menu_code}（页面必须存在且为 menu 类型）
  * @param actionKey      稳定业务键，与列表配置 {@code actions_json[].action} 对齐
- * @param grantMenuCode  承载授权的按钮节点 {@code sys_menu.menu_code}；UI_ONLY 为 null
+ * @param grantMenuCode  承载授权的节点编码；只允许两种形态：
+ *                       <ul>
+ *                         <li>{@code STANDALONE}：独立的 button 节点（一项权限只服务这个动作）；</li>
+ *                         <li>{@code LINKED}：共享的 button 节点，或所属页面节点本身
+ *                             （读写同码的页面，勾页面即获得该页全部操作）。</li>
+ *                       </ul>
+ *                       UI_ONLY 为 null
  * @param permissionCode 该动作依赖的权限码，必须与授权节点的码一致；UI_ONLY 为 null
  * @param label          客户看到的中文按钮名
  * @param description    一句话说明，解释这个按钮会让用户做什么
