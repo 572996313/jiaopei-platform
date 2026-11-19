@@ -275,13 +275,17 @@ pnpm dev:h5            # H5 调试
 
 雪花 ID 为 19 位 `Long`，超出 JS `Number.MAX_SAFE_INTEGER`，跨端处理机制：
 
-- **后端入参**：`FlexibleLongIdDeserializer` 全局注册，`Long` 字段同时接受数字与字符串，业务 id 字符串（非纯数字、以数字结尾）由 `ExternalIdParser` 解析尾部数字。新增接收 `Long` 的 DTO 自动生效，不要自行写解析。解析失败的中文报错用字段名查词表，词表按归属分（底座三条 + 各模块 `ExternalIdFieldLabelContributor` 登记，见「底座边界」），新模块的字段名去自己模块注册，别往底座加。
-- **响应出参**：后端仍按 JSON 数字输出 `Long`；`frontend/src/api/http.ts` 与 `miniapp/src/utils/request.ts` 在 `transformResponse` 里用**字段名模式**兜底——匹配 `id`、`*Id`、`*Ids`、`*By` 且值为 16 位以上数字的，转成字符串再 `JSON.parse`。
+- **后端入参：逐字段注解，不是全局注册**。`FlexibleLongIdDeserializer` 必须显式挂在每个接收 id 的字段上：单值用 `@JsonDeserialize(using = FlexibleLongIdDeserializer.class)`，`List<Long>` 用 `@JsonDeserialize(contentUsing = FlexibleLongIdDeserializer.class)`。它同时接受数字、纯数字字符串和业务 id 字符串（非纯数字、以数字结尾，由 `ExternalIdParser` 解析尾部数字）。新增/修改 `*Request` DTO（含其中的嵌套记录，如排课的 `ScheduleSlotCell`）时**必须补注解**——漏了不会立刻报错，只是退回 Jackson 默认的隐式字符串转数字（能跑但契约不显式，且不认业务编码），所以按下面的自查命令复核。解析失败的中文报错用字段名查词表，词表按归属分（底座三条 + 各模块 `ExternalIdFieldLabelContributor` 登记，见「底座边界」），新模块的字段名去自己模块注册，别往底座加。
+- **前端请求侧：id 一律按字符串透传，禁止 `Number()` / `parseInt()`**。截断发生在浏览器内存里、请求发出之前，后端收不到原始值也还原不了；这不是前端替后端兜底，而是唯一能防住的位置。接口层已把 16 位以上的 `id/*Id/*Ids/*By` 归一成字符串，直接下发即可；拼参时用 `String(...)`，不要为了"类型对齐"转成 number。曾出过的事故：菜单新建/编辑把 `parentId` 写成 `Number(payload.parentId)`，种子数据菜单 id 是个位数所以开发环境正常，生产雪花 id 一选父节点就报「菜单不存在」。
+- **响应出参**：后端仍按 JSON 数字输出 `Long`；`frontend/packages/core/src/api/http.ts` 与 `miniapp/src/utils/request.ts` 在 `transformResponse` 里用**字段名模式**兜底——匹配 `id`、`*Id`、`*Ids`、`*By` 且值为 16 位以上数字的，转成字符串再 `JSON.parse`。
 - **结论：不需要维护字段白名单**（旧 `LARGE_ID_FIELDS` 白名单机制已废弃，文档旧描述作废）。新增雪花 ID 字段按 `xxxId`/`xxxIds`/`xxBy` 命名即被自动覆盖。
 - **剩余边界**：若出现**不按 Id/By 命名**的 16+ 位 Long 响应字段（或嵌套在自由 JSON 字符串里的 id），会被静默截断精度。更彻底的替代方案是后端 Jackson 全局 `Long → ToStringSerializer`（响应统一输出字符串），但那会改变所有接口响应形态、前端两端要一起回归，仅在边界字段真的出现时再评估。
 - 已排查现状：全仓库非 id 语义的 `Long` 字段均为计数/分页/时长（`count`/`total`/`page`/`durationMs` 等小数值），当前机制全覆盖，无未适配字段。
 - **小号 id 不会被转字符串，所以前端接收 id 的 prop 类型是 `string | number`**：种子数据里机构/校区的 id 是个位数（`1`），不满足"16 位以上"这条判定，运行期就是 `Number`；同一字段换到生产（雪花）又变回 `String`。因此组件 prop 要声明联合类型（`module-education` 的 `ClassScopeValue = string | number | null | undefined`）、拼请求参数时 `String(...)`；`el-select` 的 `:value` 也要写成 `String(item.id)`，否则 `v-model` 拿数字 `1` 去比字符串 `"1"` 匹配不上，下拉显示成裸数字。
-- 自查方式：改相关字段后看真实响应——字段值应为字符串形式，且前端显示 id 与数据库一致。
+- 自查方式：
+  - 响应侧：改相关字段后看真实响应——字段值应为字符串形式，且前端显示 id 与数据库一致。
+  - 入参侧：`grep -rnE "\b(Long|List<Long>|Set<Long>) [a-zA-Z]" --include=*Request.java backend/*/src/main/java`，每个命中字段的上方都必须有 `@JsonDeserialize`（`List/Set` 用 `contentUsing`）。请求里的嵌套记录（`ScheduleSlotCell`、`SchedulePlanOccurrence`）不叫 `*Request`，改到它们时同样按这条查；`View`/`Response` 是出参，不需要。
+  - 前端侧：`grep -rnE "Number\(|parseInt\(" --include=*.ts --include=*.vue frontend/packages frontend/src miniapp/src`，命中的变量若是 id 就是缺陷（年/月/宽高/排序号等非 id 数值不算）。
 
 ## Service 接口签名变更规范
 
@@ -388,7 +392,7 @@ pnpm dev:h5            # H5 调试
 
 动手写页面前先读 `docs/前端页面开发手册.md`：那是本节的**执行细则**（元素落点表、反模式对照、四型页面骨架、新建一页装配清单、与配置化的差距），不新增口径、只回答"该写在哪一行、抄哪个页面"；与本节冲突一律以本节为准。
 
-- API 层 `frontend/src/api/`：`http.ts`（axios 实例 + 大 ID 兜底）、`request.ts`（`unwrap` 解包 `ApiResponse.data`，非 success 抛 `ApiError`），按模块拆 `auth/organization/education/system.ts`。
+- API 层在 `frontend/packages/core/src/api/`：`http.ts`（axios 实例 + 大 ID 兜底）、`request.ts`（`unwrap` 解包 `ApiResponse.data`，非 success 抛 `ApiError`），按模块拆 `auth/tenant/system/...`；业务接口在各自 `frontend/packages/module-<name>/src/api/`（organization、education）。
 - 状态：Pinia，登录态持久化在 `localStorage` key `cornerstone.auth.session`（`utils/auth-session.ts`），`http.ts` 从该处取 `Authorization`；未登录时回退到 `import.meta.env.VITE_API_AUTHORIZATION`（仅本地联调用的固定头，生产构建不要注入）。
 - 路由 `router/index.ts`：`/login`、`/change-password` 公开；其余挂在 `AppLayout` 下；系统管理多 tab 复用 `SystemManagementView.vue`，靠 `meta.systemTab` 区分。
 - 路径别名 `@` → `frontend/src`（vite + tsconfig 均配置）。

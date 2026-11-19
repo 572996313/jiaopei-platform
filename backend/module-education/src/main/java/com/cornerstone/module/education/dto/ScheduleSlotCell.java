@@ -1,5 +1,7 @@
 package com.cornerstone.module.education.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -12,6 +14,8 @@ public record ScheduleSlotCell(
     @Min(value = 1, message = "星期取值范围为1-7")
     @Max(value = 7, message = "星期取值范围为1-7") Integer weekday,
     @Schema(description = "时段ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "时段ID不能为空") Long timeSlotId
+    @NotNull(message = "时段ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long timeSlotId
 ) {
 }

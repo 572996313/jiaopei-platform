@@ -1,5 +1,7 @@
 package com.cornerstone.module.education.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -11,17 +13,29 @@ import java.util.List;
 @Schema(description = "排课计划请求")
 public record SchedulePlanRequest(
     @Schema(description = "机构ID(多租户隔离)", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "机构ID不能为空") Long institutionId,
+    @NotNull(message = "机构ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long institutionId,
     @Schema(description = "校区ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "校区ID不能为空") Long campusId,
+    @NotNull(message = "校区ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long campusId,
     @Schema(description = "学期ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "学期ID不能为空") Long termId,
+    @NotNull(message = "学期ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long termId,
     @Schema(description = "班级ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "班级ID不能为空") Long classId,
+    @NotNull(message = "班级ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long classId,
     @Schema(description = "教室ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "教室ID不能为空") Long classroomId,
+    @NotNull(message = "教室ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long classroomId,
     @Schema(description = "授课教师ID列表", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotEmpty(message = "至少需要一名授课教师") List<Long> teacherIds,
+    @NotEmpty(message = "至少需要一名授课教师")
+    @JsonDeserialize(contentUsing = FlexibleLongIdDeserializer.class)
+    List<Long> teacherIds,
     @Schema(description = "每周节次模式(星期几+时段,允许一天多条)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "节次模式不能为空")
     @Valid List<ScheduleSlotCell> slots,

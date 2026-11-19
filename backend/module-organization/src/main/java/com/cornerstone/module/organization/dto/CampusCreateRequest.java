@@ -1,5 +1,7 @@
 package com.cornerstone.module.organization.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -7,6 +9,7 @@ import java.time.LocalDate;
 
 public record CampusCreateRequest(
     @NotNull(message = "机构ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long institutionId,
     // 可留空：留空时由编号规则补号，判空在 Service 里做
     String campusCode,

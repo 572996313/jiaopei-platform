@@ -349,17 +349,18 @@ export function fetchSystemMenusTree() {
   )
 }
 
+/** 父节点 id 是雪花 Long：必须以字符串下发，Number() 会截断 19 位精度（后端 FlexibleLongIdDeserializer 接收字符串） */
 export function createSystemMenu(payload: SystemMenuCreatePayload) {
   return requestPost<SystemMenuTreeNode>('/system/menus', {
     ...payload,
-    parentId: payload.parentId ? Number(payload.parentId) : null,
+    parentId: payload.parentId || null,
   }).then(normalizeMenu)
 }
 
 export function updateSystemMenu(id: string, payload: SystemMenuUpdatePayload) {
   return requestPut<SystemMenuTreeNode>(`/system/menus/${id}`, {
     ...payload,
-    parentId: payload.parentId ? Number(payload.parentId) : null,
+    parentId: payload.parentId || null,
   }).then(normalizeMenu)
 }
 
@@ -872,7 +873,7 @@ export function fetchNavigation() {
   )
 }
 
-/** 批量保存：id 保持字符串下发（新建分组的 id 是雪花 19 位，Number() 会截断精度） */
+/** 批量保存：id 以字符串下发（雪花 19 位，禁止 Number()；后端 FlexibleLongIdDeserializer 接收字符串） */
 export function saveNavigation(nodes: NavigationNodePayload[]) {
   return requestPut<NavigationNode[]>('/system/navigation', { nodes }).then((items) =>
     items.map(normalizeNavigationNode)

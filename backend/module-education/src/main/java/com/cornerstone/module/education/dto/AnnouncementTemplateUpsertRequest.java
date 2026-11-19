@@ -1,6 +1,8 @@
 package com.cornerstone.module.education.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -49,10 +51,12 @@ public record AnnouncementTemplateUpsertRequest(
 
     @Schema(description = "指定校区ID列表(campus_scope=part 时生效)")
     @JsonAlias("campus_ids")
+    @JsonDeserialize(contentUsing = FlexibleLongIdDeserializer.class)
     List<Long> campusIds,
 
     @Schema(description = "限定班级ID列表,留空=按校区全发")
     @JsonAlias("class_ids")
+    @JsonDeserialize(contentUsing = FlexibleLongIdDeserializer.class)
     List<Long> classIds,
 
     @Schema(description = "是否置顶")

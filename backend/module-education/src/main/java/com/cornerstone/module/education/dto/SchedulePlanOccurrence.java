@@ -1,5 +1,7 @@
 package com.cornerstone.module.education.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
@@ -9,6 +11,8 @@ public record SchedulePlanOccurrence(
     @Schema(description = "上课日期", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "上课日期不能为空") LocalDate lessonDate,
     @Schema(description = "时段ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "时段ID不能为空") Long timeSlotId
+    @NotNull(message = "时段ID不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long timeSlotId
 ) {
 }

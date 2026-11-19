@@ -1,5 +1,7 @@
 package com.cornerstone.core.system.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -7,7 +9,9 @@ import jakarta.validation.constraints.Size;
 
 public record DictItemCreateRequest(
     @Schema(description = "所属字典类型ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "字典类型不能为空") Long typeId,
+    @NotNull(message = "字典类型不能为空")
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
+    Long typeId,
     @Schema(description = "条目编码,同一类型下唯一", example = "normal", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "字典编码不能为空") @Size(max = 64, message = "字典编码长度不能超过64个字符") String itemCode,
     @Schema(description = "条目名称(中文展示名)", example = "示例条目", requiredMode = Schema.RequiredMode.REQUIRED)

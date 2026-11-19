@@ -1,9 +1,13 @@
 package com.cornerstone.core.system.dto;
 
+import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record MenuCreateRequest(
+    // 雪花 Long：前端按字符串下发，禁止经过 JS Number（19 位会被截断）
+    @JsonDeserialize(using = FlexibleLongIdDeserializer.class)
     Long parentId,
     @NotBlank(message = "菜单编码不能为空") @Size(max = 64, message = "菜单编码长度不能超过64个字符") String menuCode,
     @NotBlank(message = "菜单名称不能为空") @Size(max = 128, message = "菜单名称长度不能超过128个字符") String menuName,
