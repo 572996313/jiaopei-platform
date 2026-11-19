@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import type { SelectInstance } from 'element-plus'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 
 const props = withDefaults(
@@ -51,15 +52,37 @@ const mergedOptions = computed(() => {
   }
   return [{ value: current, label: current }, ...options.value]
 })
+
+const selectRef = ref<SelectInstance>()
+/** 下拉当前是否展开：el-select 的展开态判断在自己内部，这里备一份给点击拦截用 */
+const menuVisible = ref(false)
+
+/**
+ * filterable 的 el-select 在已经展开时，点输入区的那一下会被它自己的守卫直接吞掉
+ * （源码 toggleMenu 里 filterable && expanded && 非后缀区的点击一律 return），
+ * 于是"点一下展开、再点同一处收起"只剩右边箭头能用。
+ * 这里在捕获阶段先拦：已展开就手动收起并阻止冒泡，避免组件里的 toggleMenu 再把它翻回来；
+ * 未展开放行交给组件展开。后缀区（箭头/清空）必须放行——它们各有自己的开关与清空逻辑。
+ */
+function handleToggleClick(event: MouseEvent) {
+  if (!menuVisible.value) return
+  const target = event.target as HTMLElement | null
+  if (!target || target.closest('.el-select__suffix')) return
+  event.stopPropagation()
+  selectRef.value?.blur()
+}
 </script>
 
 <template>
   <!-- clear 时 el-select 可能发出 undefined,统一归一为空串,避免上层对空值调用 trim 崩溃 -->
   <el-select
+    ref="selectRef"
     v-model="modelValue"
     :placeholder="props.placeholder"
     :clearable="props.clearable"
     filterable
+    @click.capture="handleToggleClick"
+    @visible-change="(visible: boolean) => (menuVisible = visible)"
     @clear="modelValue = ''"
   >
     <el-option
