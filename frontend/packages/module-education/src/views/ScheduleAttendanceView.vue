@@ -90,7 +90,7 @@
 
     <article class="panel-card education-panel">
       <div class="daily-center-head">
-        <div>
+        <div class="daily-center-head-main">
           <div class="panel-title">今日执行分区</div>
           <div class="education-context-text">
             日期：{{ lessonDate || '未选择' }} / 已结课 {{ completedDayLessons.length }} 节 / 已排课
@@ -108,14 +108,16 @@
           <div class="daily-center-block-head">
             <div>
               <div class="daily-center-title">待点名</div>
-              <div class="education-context-text">未完成点名的课次会优先保留在这里。</div>
+              <div class="education-context-text" title="未完成点名的课次会优先保留在这里。">
+                未完成点名的课次会优先保留在这里。
+              </div>
             </div>
             <el-tag type="warning" effect="plain"
               >待点 {{ pendingAttendanceLessons.length }}</el-tag
             >
           </div>
 
-          <div v-if="pendingAttendanceLessons.length === 0" class="education-empty">
+          <div v-if="pendingAttendanceLessons.length === 0" class="daily-center-empty">
             当前日期下暂无待点名课次。
           </div>
 
@@ -170,14 +172,17 @@
           <div class="daily-center-block-head">
             <div>
               <div class="daily-center-title">待补课</div>
-              <div class="education-context-text">
+              <div
+                class="education-context-text"
+                title="已停课且未关联补课的原课次集中处理，直接进入补课动作。"
+              >
                 已停课且未关联补课的原课次集中处理，直接进入补课动作。
               </div>
             </div>
             <el-tag type="danger" effect="plain">待补 {{ dayPendingMakeupLessons.length }}</el-tag>
           </div>
 
-          <div v-if="dayPendingMakeupLessons.length === 0" class="education-empty">
+          <div v-if="dayPendingMakeupLessons.length === 0" class="daily-center-empty">
             当前日期下暂无待补课课次。
           </div>
 
@@ -209,12 +214,14 @@
           <div class="daily-center-block-head">
             <div>
               <div class="daily-center-title">已结课</div>
-              <div class="education-context-text">回看今日已完成课次，便于复盘和回查。</div>
+              <div class="education-context-text" title="回看今日已完成课次，便于复盘和回查。">
+                回看今日已完成课次，便于复盘和回查。
+              </div>
             </div>
             <el-tag type="success" effect="plain">已结 {{ completedDayLessons.length }}</el-tag>
           </div>
 
-          <div v-if="completedDayLessons.length === 0" class="education-empty">
+          <div v-if="completedDayLessons.length === 0" class="daily-center-empty">
             当前日期下还没有已结课课次。
           </div>
 
@@ -238,12 +245,14 @@
           <div class="daily-center-block-head">
             <div>
               <div class="daily-center-title">变动提醒</div>
-              <div class="education-context-text">课次备注、取消和点名提示集中提示。</div>
+              <div class="education-context-text" title="课次备注、取消和点名提示集中提示。">
+                课次备注、取消和点名提示集中提示。
+              </div>
             </div>
             <el-tag type="info" effect="plain">提醒 {{ scheduleChangeReminders.length }}</el-tag>
           </div>
 
-          <div v-if="scheduleChangeReminders.length === 0" class="education-empty">
+          <div v-if="scheduleChangeReminders.length === 0" class="daily-center-empty">
             当前日期暂无变动提醒。
           </div>
 
@@ -962,25 +971,39 @@ onMounted(() => {
   gap: 4px;
 }
 
+/* 标题与日期/课次回显同一行：这层是分区导航，不是内容，尽量少占高度 */
 .daily-center-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+}
+
+.daily-center-head-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.daily-center-head .panel-title {
+  margin-bottom: 0;
+  font-size: 16px;
 }
 
 .daily-center-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 10px;
 }
 
 .daily-center-block {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 8px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--subtle-bg);
 }
 
@@ -995,15 +1018,37 @@ onMounted(() => {
 
 .daily-center-block-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 8px;
+}
+
+/* 分区标题 + 一句说明并排成一行；窄列放不下时省略号截断，悬停看全文 */
+.daily-center-block-head > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.daily-center-block-head .education-context-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .daily-center-title {
-  font-size: 18px;
+  flex-shrink: 0;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* 分区里的空态只是一句说明，不做成整块底色的横幅 */
+.daily-center-empty {
+  padding: 2px 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
 }
 
 .daily-center-inline-tip {
@@ -1011,8 +1056,9 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
   color: var(--soft-warn-ink);
   background: rgba(249, 199, 79, 0.16);
 }
@@ -1020,7 +1066,7 @@ onMounted(() => {
 .daily-lesson-list,
 .daily-mini-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .daily-lesson-item,
@@ -1041,8 +1087,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
   background: var(--card-bg);
   box-shadow: var(--shadow-card);
 }
@@ -1050,7 +1096,7 @@ onMounted(() => {
 .daily-lesson-item-main,
 .daily-mini-item {
   display: grid;
-  gap: 6px;
+  gap: 3px;
 }
 
 .daily-lesson-item-title {
@@ -1076,8 +1122,8 @@ onMounted(() => {
 }
 
 .daily-mini-item {
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   color: var(--tint-ink);
   background: var(--card-bg);
 }

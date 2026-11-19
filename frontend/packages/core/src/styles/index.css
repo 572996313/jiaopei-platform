@@ -896,7 +896,7 @@ body {
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  gap: 10px;
 }
 
 .campus-page {
@@ -1309,14 +1309,32 @@ body {
   backdrop-filter: blur(8px);
 }
 
+/*
+ * 统计卡紧凑档：标签与数值同一行，说明占第二行小字，整卡从约 110px 收到 55~60px。
+ * 统计条是页面的"横幅式"辅助信息，不该和主表抢首屏高度。
+ */
+.stat-card {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--radius-block);
+}
+
 .stat-value {
-  margin-top: 8px;
-  font-size: 30px;
+  margin-top: 0;
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .stat-hint {
-  margin-top: 6px;
+  flex-basis: 100%;
+  margin-top: 0;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
@@ -1325,7 +1343,8 @@ body {
  * 再给表格卡加边框、圆角和 20px 内边距，等于把表格又圈进一个小盒子里，
  * 四周还白吃一圈高度和宽度。表格直接落在页面留白里，与上方工具栏同轴。
  */
-.panel-card.education-panel {
+.panel-card.education-panel,
+.panel-card.course-category-card {
   padding: 0;
   border: 0;
   border-radius: 0;

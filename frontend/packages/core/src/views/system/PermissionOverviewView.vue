@@ -545,11 +545,11 @@ onMounted(() => {
 }
 
 .permission-overview .stat-card {
-  padding: 16px 18px;
+  padding: 8px 12px;
 }
 
 .permission-overview .stat-value {
-  font-size: 26px;
+  font-size: 20px;
 }
 
 .stat-value-danger {
