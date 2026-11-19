@@ -77,7 +77,7 @@ const collapsible = computed(() => props.collapseAt > 0 && itemCount.value > pro
   display: flex;
   align-items: flex-start;
   flex-wrap: nowrap;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -85,29 +85,29 @@ const collapsible = computed(() => props.collapseAt > 0 && itemCount.value > pro
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
 }
 
 /* 收起态:只显示第一行,展开后恢复自然高度 */
 .filter-bar-filters.is-collapsed {
-  max-height: 32px;
+  max-height: 28px;
   overflow: hidden;
 }
 
 .filter-bar-tail {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 0 1 auto;
   min-width: 0;
   margin-left: auto;
 }
 
-/* 与 el-button 默认高度对齐,保证「展开」与「查询/重置」在同一基线 */
+/* 与工具栏紧凑按钮同高,保证「展开」与「查询/重置」在同一基线 */
 .filter-bar-toggle {
-  height: 32px;
+  height: 28px;
 }
 
 .filter-bar-toggle-icon {

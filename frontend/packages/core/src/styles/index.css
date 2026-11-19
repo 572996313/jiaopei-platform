@@ -93,7 +93,7 @@
   /* 卡内纵向节奏：标题行 → 按钮行 → 筛选行 → 表格，每一步都用这一个数。
      原先主表卡 16、辅助卡 12、字典卡 0（工具栏和表格贴死、标题却又自带 16 下边距），
      同一套页面三种节奏，这就是"标题离按钮太远、按钮离表格太近"的来源。 */
-  --card-flow-gap: 12px;
+  --card-flow-gap: 8px;
 
   /*
    * 横幅常量(不随主题翻):横幅永远深藏青,压在它上面的浅色胶囊永远深字,
@@ -598,8 +598,9 @@ body {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  margin: 14px;
-  padding: 14px 24px 20px;
+  /* 内容卡尽量贴边：外圈 8px 是视觉缝，内侧留白够放页签与表格即可，把宽度和高度都让给内容 */
+  margin: 8px;
+  padding: 10px 16px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--card-bg);
@@ -628,8 +629,8 @@ body {
    * 页签是「正在开哪几页」的导航层，下面才是当前页内容。之前只有 14px 间距，
    * 页签胶囊和页面里第一行按钮贴在一起像同一排工具栏；用一条通栏细线把两层分开。
    */
-  padding-bottom: 10px;
-  margin-bottom: 16px;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -910,7 +911,7 @@ body {
 .education-page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
   min-height: 100%;
 }
 
@@ -925,7 +926,8 @@ body {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 14px;
+  /* 筛选行自己就是一条工具带，留白收到最小，控件高度由下面的紧凑档统一给 */
+  padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--card-bg);
@@ -1026,8 +1028,45 @@ body {
   align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 6px 8px;
   flex-shrink: 0;
+}
+
+/*
+ * 操作/查询区统一紧凑档：按钮与筛选控件 28px（EP 默认 32px）。
+ * 这几行只是页面的入口条，高度让给表格；只作用于工具栏和筛选栏，
+ * 弹窗表单里的控件保持默认尺寸。
+ */
+.table-toolbar .el-button,
+.page-toolbar .el-button,
+.filter-bar .el-button,
+.education-table-head .el-button {
+  height: 28px;
+  padding: 0 12px;
+}
+
+.table-toolbar .el-button.is-circle,
+.page-toolbar .el-button.is-circle,
+.filter-bar .el-button.is-circle,
+.education-table-head .el-button.is-circle {
+  width: 28px;
+  padding: 0;
+}
+
+.filter-bar .el-select__wrapper {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 13px;
+}
+
+/* 输入框/日期选择器的高度由 --el-input-height 决定，光改 wrapper 的 min-height 压不下去 */
+.filter-bar .el-input {
+  --el-input-height: 28px;
+}
+
+.filter-bar .el-input__wrapper {
+  min-height: 28px;
+  padding: 1px 10px;
 }
 
 .education-panel > .el-table {
@@ -1139,7 +1178,8 @@ body {
 
 .education-context-text {
   color: var(--text-secondary);
-  font-size: 14px;
+  /* 工具栏右侧的范围回显/口径说明是次要信息，小一档，别和操作按钮抢行高 */
+  font-size: 12.5px;
 }
 
 /*
