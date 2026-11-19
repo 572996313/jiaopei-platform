@@ -74,6 +74,29 @@ log_ok()    { echo "${C_GREEN}[ OK ]${C_RESET} $*"; }
 log_warn()  { echo "${C_YELLOW}[WARN]${C_RESET} $*"; }
 log_err()   { echo "${C_RED}[FAIL]${C_RESET} $*" >&2; }
 
+# ---------- 退出收尾 ----------
+# 脚本会在多个地方提前 exit(例如"代码已是最新"、健康检查失败、git 出错)，
+# 这些路径同样要把暂存的本地部署改动还回去、清掉临时凭据脚本,
+# 所以统一放进 EXIT trap,而不是只在脚本末尾处理。
+DEPLOY_LOCAL_STASHED=0
+cleanup_on_exit() {
+    set +e
+    if [ "${DEPLOY_LOCAL_STASHED:-0}" -eq 1 ]; then
+        log_info "[清理] 恢复本地暂存的部署改动..."
+        if git stash pop >/dev/null 2>&1; then
+            log_ok "本地改动已恢复"
+        else
+            log_warn "stash pop 有冲突,你的本地改动暂存在 git stash list 里。可手动 git stash pop 解决"
+            git stash list
+        fi
+    fi
+    # 清理临时 askpass 脚本(避免 token 留在 /tmp)
+    if [ -n "${GIT_ASKPASS:-}" ] && [ -f "${GIT_ASKPASS}" ]; then
+        rm -f "${GIT_ASKPASS}"
+    fi
+}
+trap cleanup_on_exit EXIT
+
 echo "========================================"
 echo "  教培平台 - 生产部署"
 echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -85,21 +108,31 @@ cd "${PROJECT_DIR}"
 # ---------- 0. 预检 ----------
 log_info "[0/9] 预检..."
 
-# 0.0 自我保护:检测本地有未提交的 deploy.sh 改动
+# 0.0 自我保护:检测本地有未提交的部署相关改动
 # 服务器上 chmod +x 后会触发 "modified" 标记,导致 git pull 失败。
-# 这里把 deploy.sh / prod.env 之类的"部署机器本地"改动 stash 起来,
-# pull 之后再 pop 回来。如果没冲突(通常不会有)就静默恢复。
+# 这里把 deploy.sh / docker-compose.prod.yml 之类的"部署机器本地"改动 stash 起来,
+# pull 之后再 pop 回来(见脚本顶部的 EXIT trap)。
+#
+# 注意: 只 stash 受版本控制的文件。docker/prod.env 被 .gitignore 忽略、git 不跟踪,
+# 裸 pathspec 传给 git stash push 会报 "pathspec ... did not match" 并让整个 stash 失败;
+# 而且它本来就不会被 git pull 覆盖,不需要保护。
 if [ -d ".git" ] && [ "${SKIP_PULL}" != "true" ]; then
-    DEPLOY_LOCAL_STASHED=0
-    for LOCAL_FILE in docker/deploy.sh docker/prod.env docker/prod.env.example; do
-        if [ -f "${LOCAL_FILE}" ] && ! git diff --quiet -- "${LOCAL_FILE}" 2>/dev/null; then
-            if [ "${DEPLOY_LOCAL_STASHED}" -eq 0 ]; then
-                log_warn "检测到本地有未提交的部署相关改动,先 stash 起来以免 git pull 失败"
-                git stash push -m "deploy-local-$(date '+%Y%m%d_%H%M%S')" -- docker/deploy.sh docker/prod.env docker/prod.env.example
-                DEPLOY_LOCAL_STASHED=1
-            fi
+    STASH_PATHS=()
+    for LOCAL_FILE in docker/deploy.sh docker/docker-compose.prod.yml docker/prod.env.example; do
+        # 先确认文件被 git 跟踪,再确认确有改动,两者都满足才加入 stash 清单
+        if git ls-files --error-unmatch "${LOCAL_FILE}" >/dev/null 2>&1 \
+            && ! git diff --quiet -- "${LOCAL_FILE}" 2>/dev/null; then
+            STASH_PATHS+=("${LOCAL_FILE}")
         fi
     done
+    if [ "${#STASH_PATHS[@]}" -gt 0 ]; then
+        log_warn "检测到本地有未提交的部署相关改动,先 stash 起来以免 git pull 失败"
+        if git stash push -m "deploy-local-$(date '+%Y%m%d_%H%M%S')" -- "${STASH_PATHS[@]}"; then
+            DEPLOY_LOCAL_STASHED=1
+        else
+            log_warn "stash 失败,git pull 可能因本地改动而失败,请手动处理后重试"
+        fi
+    fi
 fi
 
 # 0.0 项目目录存在性 + 是否为 git 仓库
@@ -408,26 +441,11 @@ echo "  查看后端: docker compose -f ${COMPOSE_FILE} logs -f backend"
 echo "  回滚代码: git checkout ${CURRENT_COMMIT} && $0 --force --no-backup"
 echo "========================================"
 
+# ---------- 9. 恢复本地 stash + 清理临时凭据 ----------
+# 由脚本顶部的 EXIT trap(cleanup_on_exit)统一处理,无需在这里再写一遍:
+# 这样"代码已是最新"/健康失败/构建报错等提前退出的路径也不会丢本地改动。
+
 # 健康失败时返回非零,便于 CI/外部调度感知
 if [ "${ALL_HEALTHY}" != "true" ]; then
     exit 2
 fi
-
-# ---------- 9. 恢复本地 stash + 清理临时凭据 ----------
-# 部署完成后再 pop 回来,这样 deploy.sh 的 chmod / 临时改动不会丢。
-# 冲突几乎不会发生(因为我们是在 pull 之后才 pop,deploy.sh 内容只会更新一次)。
-if [ "${DEPLOY_LOCAL_STASHED:-0}" -eq 1 ]; then
-    log_info "[9/9] 恢复本地暂存的部署改动..."
-    if git stash pop >/dev/null 2>&1; then
-        log_ok "本地改动已恢复"
-    else
-        log_warn "stash pop 有冲突,你的本地改动暂存在 git stash list 里。可手动 git stash pop 解决"
-        git stash list
-    fi
-fi
-
-# 清理临时 askpass 脚本(避免 token 留在 /tmp)
-if [ -n "${GIT_ASKPASS:-}" ] && [ -f "${GIT_ASKPASS}" ]; then
-    rm -f "${GIT_ASKPASS}"
-fi
-unset GIT_ASKPASS GIT_ASKPASS_SCRIPT GIT_CREDENTIALS_TOKEN GIT_TERMINAL_PROMPT 2>/dev/null || true
