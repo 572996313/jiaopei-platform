@@ -106,7 +106,13 @@
         </div>
       </div>
 
-      <el-table :data="classRows" border row-key="classId" v-loading="loading">
+      <el-table
+        :data="classRows"
+        border
+        row-key="classId"
+        v-loading="loading"
+        :empty-text="loading ? '' : '当前日期与筛选范围下暂无排课。'"
+      >
         <!-- 班级行是客户端聚合,展开看该班每节课的点名明细 -->
         <el-table-column type="expand">
           <template #default="{ row }">
@@ -163,9 +169,6 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!loading && classRows.length === 0" class="education-empty">
-        当前日期与筛选范围下暂无排课。
-      </div>
     </article>
 
     <!-- 月/季档:服务端聚合,展开班级行是按月小计;要看单节课切回日档 -->
@@ -179,7 +182,13 @@
         </div>
       </div>
 
-      <el-table :data="summaryRows" border :row-key="summaryRowKey" v-loading="loading">
+      <el-table
+        :data="summaryRows"
+        border
+        :row-key="summaryRowKey"
+        v-loading="loading"
+        :empty-text="loading ? '' : '当前区间与筛选范围下暂无考勤课次。'"
+      >
         <el-table-column v-if="groupMode === 'class'" type="expand">
           <template #default="{ row }">
             <div class="lesson-expand">
@@ -250,9 +259,6 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!loading && summaryRows.length === 0" class="education-empty">
-        当前区间与筛选范围下暂无考勤课次。
-      </div>
     </article>
 
     <AttendanceDialog

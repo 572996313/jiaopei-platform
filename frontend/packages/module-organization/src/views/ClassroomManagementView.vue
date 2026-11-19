@@ -24,6 +24,7 @@
           highlight-current-row
           :height="height"
           v-loading="tableLoading"
+          :empty-text="tableLoading ? '' : '该范围下暂无教室数据。'"
         >
           <!-- 收成「全部校区」时整表混着几个校区的教室,靠这一列分得开;单选一个校区时整列同值,就收掉 -->
           <el-table-column v-if="!campusId" label="校区" width="130" prop="campusId" sortable>
@@ -76,9 +77,6 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!tableLoading && classrooms.length === 0" class="education-empty">
-        该范围下暂无教室数据。
-      </div>
     </article>
 
     <el-dialog

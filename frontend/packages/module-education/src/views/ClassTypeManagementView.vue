@@ -24,6 +24,7 @@
           highlight-current-row
           v-loading="loading"
           :height="height"
+          :empty-text="loading ? '' : '当前机构还没有班型，点击「新增班型」录入。'"
         >
           <el-table-column prop="typeCode" label="班型编码" width="150" fixed="left" sortable />
           <el-table-column
@@ -59,9 +60,6 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!loading && classTypes.length === 0" class="education-empty">
-        当前机构还没有班型，点击「新增班型」录入。
-      </div>
     </article>
 
     <el-dialog

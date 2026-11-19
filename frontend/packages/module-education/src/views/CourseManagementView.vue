@@ -83,6 +83,7 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :empty-text="tableLoading ? '' : '当前筛选范围下暂无课程，点击「新增课程」录入。'"
           :cell-class-name="courseSort.cellClass"
           @sort-change="courseSort.onSortChange"
         >
@@ -126,10 +127,6 @@
           </el-table-column>
         </el-table>
       </TableFillBox>
-
-      <div v-if="!tableLoading && courses.length === 0" class="education-empty">
-        当前筛选范围下暂无课程，点击"新增课程"录入。
-      </div>
 
       <el-pagination
         v-model:current-page="coursePage"

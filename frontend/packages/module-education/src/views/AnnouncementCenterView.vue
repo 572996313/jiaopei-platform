@@ -67,6 +67,9 @@
           highlight-current-row
           v-loading="loading"
           :height="height"
+          :empty-text="
+            loading ? '' : '当前筛选范围下还没有公告。新建一条草稿后，用「发布」才会让接收端看到。'
+          "
           :cell-class-name="sort.cellClass"
           @sort-change="sort.onSortChange"
         >
@@ -136,10 +139,6 @@
           </el-table-column>
         </el-table>
       </TableFillBox>
-
-      <div v-if="!loading && records.length === 0" class="education-empty">
-        当前筛选范围下还没有公告。新建一条草稿后，用「发布」才会让接收端看到。
-      </div>
 
       <el-pagination
         v-model:current-page="page"

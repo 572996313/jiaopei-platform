@@ -40,6 +40,9 @@
           highlight-current-row
           :height="height"
           v-loading="loading"
+          :empty-text="
+            loading ? '' : sourceFilter ? '当前来源筛选下没有节次。' : '当前范围暂无节次数据。'
+          "
         >
           <el-table-column prop="slotCode" label="节次编码" width="150" fixed="left" sortable />
           <el-table-column
@@ -103,9 +106,6 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!loading && filteredTimeSlots.length === 0" class="education-empty">
-        {{ sourceFilter ? '当前来源筛选下没有节次。' : '当前范围暂无节次数据。' }}
-      </div>
     </article>
 
     <el-dialog
@@ -205,7 +205,13 @@
         :closable="false"
         class="education-alert"
       />
-      <el-table :data="refs" border max-height="330" v-loading="refsLoading">
+      <el-table
+        :data="refs"
+        border
+        max-height="330"
+        v-loading="refsLoading"
+        :empty-text="refsLoading ? '' : '没有课次引用这个节次，可以直接删除。'"
+      >
         <el-table-column label="上课日期" width="120" prop="lessonDate" />
         <el-table-column label="星期" width="90">
           <template #default="{ row }">{{ weekdayLabel(row.lessonWeekday) }}</template>
@@ -228,10 +234,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="!refsLoading && refs.length === 0" class="education-empty">
-        没有课次引用这个节次，可以直接删除。
-      </div>
-      <div v-else-if="!refsLoading" class="education-context-text">
+      <div v-if="!refsLoading && refs.length > 0" class="education-context-text">
         {{
           liveRefCount > 0
             ? `在排课中的 ${liveRefCount} 节要请到排课或课表与点名页处理${

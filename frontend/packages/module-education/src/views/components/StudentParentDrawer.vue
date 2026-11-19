@@ -26,6 +26,7 @@
       row-key="id"
       v-loading="loading"
       :max-height="TABLE_STACK_MAX_HEIGHT"
+      :empty-text="loading ? '' : '该学员下暂无家长联系人。'"
     >
       <el-table-column prop="parentName" label="联系人" min-width="140" show-overflow-tooltip />
       <el-table-column label="关系" width="110" prop="relationType">
@@ -61,9 +62,6 @@
       </el-table-column>
     </el-table>
 
-    <div v-if="!loading && parents.length === 0" class="education-empty">
-      该学员下暂无家长联系人。
-    </div>
 
     <!-- 学员由行上带进来，表单里不再选：省一格高度，也防把联系人记到别人孩子名下 -->
     <el-dialog

@@ -79,6 +79,11 @@
           highlight-current-row
           v-loading="reportLoading"
           :height="height"
+          :empty-text="
+            reportLoading
+              ? ''
+              : '当前筛选范围内没有启用中的周期排课计划，先到「排课管理 - 周期计划」新建计划，再回来看完成度。'
+          "
         >
           <el-table-column label="班级" min-width="230" fixed="left">
             <template #default="{ row }">
@@ -152,14 +157,16 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!reportLoading && (report?.classes.length ?? 0) === 0" class="education-empty">
-        当前筛选范围内没有启用中的周期排课计划，先到「排课管理 -
-        周期计划」新建计划，再回来看完成度。
-      </div>
     </article>
 
     <el-dialog v-model="gapDetailVisible" :title="gapDetailTitle" width="620px">
-      <el-table :data="gapDetailRows" border row-key="key" max-height="360">
+      <el-table
+        :data="gapDetailRows"
+        border
+        row-key="key"
+        max-height="360"
+        :empty-text="gapTargetOnly > 0 ? '这一周没有计划内的空格子。' : '这一周没有缺口。'"
+      >
         <el-table-column prop="lessonDate" label="上课日期" width="120" />
         <el-table-column label="星期" width="90">
           <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
@@ -175,9 +182,6 @@
         还有
         {{ gapTargetOnly }} 节没排上，但这一周的计划格子里没有对应空位（班级按每周课时目标统计）。
         挑这一周的任意空闲时段加排即可。
-      </div>
-      <div v-if="gapDetailRows.length === 0" class="education-empty">
-        {{ gapTargetOnly > 0 ? '这一周没有计划内的空格子。' : '这一周没有缺口。' }}
       </div>
     </el-dialog>
 

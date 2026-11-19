@@ -37,3 +37,4 @@ docker/deploy.log
 /.claude/
 /.zcode/
 gui-test-screenshots/
+/.zcode/

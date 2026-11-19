@@ -51,6 +51,7 @@
       row-key="rowKey"
       max-height="420"
       :row-class-name="rowClassName"
+      :empty-text="loading ? '' : '本机构暂无可比对的教师档案：要么都已绑定账号，要么档案里没填手机号。'"
     >
       <el-table-column label="绑定" width="70">
         <template #default="{ row }">
@@ -81,9 +82,6 @@
       </el-table-column>
     </el-table>
 
-    <div v-if="!loading && rows.length === 0" class="education-empty">
-      本机构暂无可比对的教师档案：要么都已绑定账号，要么档案里没填手机号。
-    </div>
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>

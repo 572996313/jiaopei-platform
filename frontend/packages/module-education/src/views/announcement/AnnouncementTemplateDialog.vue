@@ -18,7 +18,16 @@
         <el-button v-if="canWrite" type="primary" @click="openCreate">新增模板</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="templates" border row-key="id" max-height="380">
+      <el-table
+        v-loading="loading"
+        :data="templates"
+        border
+        row-key="id"
+        max-height="380"
+        :empty-text="
+          loading ? '' : '还没有模板。建一条把常用的标题、正文和接收范围填进去，之后新建公告直接套用。'
+        "
+      >
         <el-table-column
           label="模板名称"
           min-width="150"
@@ -61,9 +70,6 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!loading && templates.length === 0" class="education-empty">
-        还没有模板。建一条把常用的标题、正文和接收范围填进去，之后新建公告直接套用。
-      </div>
     </template>
 
     <!-- 编辑态在同一个弹窗里换内容，而不是弹窗套弹窗：叠两层后遮罩和 esc 都会关掉外层 -->

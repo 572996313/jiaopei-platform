@@ -158,7 +158,14 @@
       </div>
 
       <TableFillBox v-if="currentClass" v-slot="{ height }">
-        <el-table :data="classTeachers" border row-key="id" highlight-current-row :height="height">
+        <el-table
+          :data="classTeachers"
+          border
+          row-key="id"
+          highlight-current-row
+          :height="height"
+          empty-text="当前班级下暂无班级教师关系。"
+        >
           <el-table-column label="教师" min-width="180" fixed="left">
             <template #default="{ row }">
               {{ formatTeacher(row.teacherId) }}
@@ -204,9 +211,6 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="currentClass && classTeachers.length === 0" class="education-empty">
-        当前班级下暂无班级教师关系。
-      </div>
     </article>
 
     <el-dialog

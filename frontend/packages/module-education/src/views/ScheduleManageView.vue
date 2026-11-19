@@ -65,6 +65,7 @@
           highlight-current-row
           v-loading="lessonsLoading"
           :height="height"
+          :empty-text="lessonsLoading ? '' : '当前筛选范围下暂无排课记录。'"
           :cell-class-name="lessonSort.cellClass"
           @sort-change="lessonSort.onSortChange"
         >
@@ -161,10 +162,6 @@
           </el-table-column>
         </el-table>
       </TableFillBox>
-
-      <div v-if="!lessonsLoading && lessons.length === 0" class="education-empty">
-        当前筛选范围下暂无排课记录。
-      </div>
 
       <el-pagination
         v-model:current-page="lessonPage"

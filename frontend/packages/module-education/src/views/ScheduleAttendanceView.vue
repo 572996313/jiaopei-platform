@@ -288,6 +288,7 @@
         border
         v-loading="dayLoading"
         :max-height="TABLE_STACK_MAX_HEIGHT"
+        :empty-text="dayLoading ? '' : '当前日期与筛选范围下暂无排课。'"
       >
         <!-- 日课表是一次性全量加载的客户端表,排序走 Element Plus 本地比较,不发请求 -->
         <el-table-column label="时段" min-width="170" prop="startTime" sortable>
@@ -382,9 +383,6 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="!dayLoading && filteredDayLessons.length === 0" class="education-empty">
-        当前日期与筛选范围下暂无排课。
-      </div>
     </article>
 
     <ScheduleLessonFormDialog

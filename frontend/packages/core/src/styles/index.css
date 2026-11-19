@@ -624,7 +624,13 @@ body {
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
-  margin-bottom: 14px;
+  /*
+   * 页签是「正在开哪几页」的导航层，下面才是当前页内容。之前只有 14px 间距，
+   * 页签胶囊和页面里第一行按钮贴在一起像同一排工具栏；用一条通栏细线把两层分开。
+   */
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 /* 只有页签这一段横向滚,行尾的「最近查看」入口不参与滚动 */
@@ -1194,19 +1200,36 @@ body {
   width: 200px;
 }
 
-/* 面板底部分页条:右对齐,不参与表格伸缩 */
+/*
+ * 面板底部分页条:右对齐,不参与表格伸缩。
+ * 列表页的主角是表格,分页条按紧凑档收一档(默认 32px 高一整行太占纵向空间),
+ * 只改 EP 的分页变量和行内 select/输入框高度,不换组件形态。
+ */
 .education-panel > .el-pagination,
-.resource-card > .el-pagination {
-  flex-shrink: 0;
-  justify-content: flex-end;
-  padding-top: 4px;
-}
-
-/* 通用分页条类:挂在 tabs 等嵌套容器内时也生效 */
+.resource-card > .el-pagination,
 .panel-pagination {
   flex-shrink: 0;
   justify-content: flex-end;
-  padding-top: 4px;
+  padding-top: 0;
+  --el-pagination-button-height: 26px;
+  --el-pagination-button-width: 26px;
+  --el-pagination-font-size: 12.5px;
+  --el-pagination-item-gap: 8px;
+}
+
+/* 每页条数下拉与跳页输入框不跟分页变量走,单独压到同一档高度 */
+.education-panel > .el-pagination .el-select__wrapper,
+.resource-card > .el-pagination .el-select__wrapper,
+.panel-pagination .el-select__wrapper {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12.5px;
+}
+
+.education-panel > .el-pagination .el-pagination__editor.el-input,
+.resource-card > .el-pagination .el-pagination__editor.el-input,
+.panel-pagination .el-pagination__editor.el-input {
+  --el-input-height: 26px;
 }
 
 .education-empty {

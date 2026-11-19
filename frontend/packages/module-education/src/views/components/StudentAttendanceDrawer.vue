@@ -62,6 +62,7 @@
       row-key="lessonId"
       v-loading="loading"
       :max-height="TABLE_STACK_MAX_HEIGHT"
+      :empty-text="loading ? '' : '统计区间内没有这位学员的应到课次。'"
     >
       <el-table-column prop="lessonDate" label="日期" width="110" sortable />
       <el-table-column prop="className" label="班级" min-width="130" show-overflow-tooltip />
@@ -81,9 +82,6 @@
       <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
     </el-table>
 
-    <div v-if="!loading && (detail?.lessons ?? []).length === 0" class="education-empty">
-      统计区间内没有这位学员的应到课次。
-    </div>
   </el-drawer>
 </template>
 

@@ -65,6 +65,7 @@
           highlight-current-row
           v-loading="tableLoading"
           :height="height"
+          :empty-text="tableLoading ? '' : '当前筛选范围下暂无教师数据。'"
           :cell-class-name="teacherSort.cellClass"
           @sort-change="teacherSort.onSortChange"
         >
@@ -126,10 +127,6 @@
           </el-table-column>
         </el-table>
       </TableFillBox>
-
-      <div v-if="!tableLoading && teachers.length === 0" class="education-empty">
-        当前筛选范围下暂无教师数据。
-      </div>
 
       <el-pagination
         v-model:current-page="teacherPage"

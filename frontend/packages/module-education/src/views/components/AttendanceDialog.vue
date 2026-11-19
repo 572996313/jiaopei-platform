@@ -78,7 +78,12 @@
           </div>
         </div>
 
-        <el-table :data="rows" border max-height="420">
+        <el-table
+          :data="rows"
+          border
+          max-height="420"
+          empty-text="当前课次未找到可点名学员。"
+        >
           <el-table-column label="学号" min-width="140">
             <template #default="{ row }">
               {{ row.studentNo || `学员 #${row.studentId}` }}
@@ -118,8 +123,6 @@
             </template>
           </el-table-column>
         </el-table>
-
-        <div v-if="rows.length === 0" class="education-empty">当前课次未找到可点名学员。</div>
       </div>
     </div>
 

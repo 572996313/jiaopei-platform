@@ -50,6 +50,13 @@
           row-key="userId"
           highlight-current-row
           :height="height"
+          :empty-text="
+            tableLoading
+              ? ''
+              : campusId
+                ? '当前校区下暂无设为默认的账号。'
+                : '默认校区按校区成组维护，请先在顶部把范围收到具体校区。'
+          "
         >
           <el-table-column prop="username" label="账号" width="180" fixed="left" sortable />
           <el-table-column
@@ -67,13 +74,6 @@
         </el-table>
       </TableFillBox>
 
-      <div v-if="!tableLoading && preferences.length === 0" class="education-empty">
-        {{
-          campusId
-            ? '当前校区下暂无设为默认的账号。'
-            : '默认校区按校区成组维护，请先在顶部把范围收到具体校区。'
-        }}
-      </div>
     </article>
   </section>
 </template>
