@@ -531,7 +531,11 @@ body {
   border: 0;
   background: transparent;
   text-align: left;
-  font: inherit;
+  /* 只继承字体族，不写 `font: inherit`：那是简写，会把 .nav-item 的 13.5px 重置成
+     :root 的 16px，可展开父项就比直达页(今日教务)大一号 */
+  font-family: inherit;
+  /* 按钮的 UA 行高是 normal，钉回与直达页链接一致的 1.5，行盒高度才相同 */
+  line-height: inherit;
   cursor: pointer;
 }
 
