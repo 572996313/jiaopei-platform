@@ -10,6 +10,7 @@ import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.dto.MenuCreateRequest;
 import com.cornerstone.core.system.dto.MenuUpdateRequest;
 import com.cornerstone.core.system.dto.MenuView;
+import com.cornerstone.core.system.dto.RoleAuthorizationView;
 import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
 import com.cornerstone.core.system.service.SystemMenuService;
 import com.cornerstone.core.system.service.SystemConfigService;
@@ -163,6 +164,16 @@ public class WebMvcSecurityTestConfig {
             @Override
             public List<Long> updateRoleMenus(Long roleId, RoleMenuUpdateRequest request) {
                 return request.menuIds();
+            }
+
+            @Override
+            public RoleAuthorizationView getRoleAuthorization(Long roleId) {
+                return new RoleAuthorizationView(roleId, List.of(), List.of());
+            }
+
+            @Override
+            public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request) {
+                return new RoleAuthorizationView(roleId, request.menuIds(), List.of());
             }
 
             @Override

@@ -2,9 +2,10 @@
   <section class="education-page permission-overview">
     <div class="table-toolbar">
       <el-button :icon="Refresh" circle :loading="loading" @click="loadAll" />
+      <el-button @click="openActionCatalog">按钮目录</el-button>
       <div class="education-context-text">
         权限码来自后端 @RequiresPermission 注解扫描,这里把它与受控接口、持有角色、菜单节点、列表按钮的关系一次看全。
-        数据实时聚合,页面只读;要改授权去「角色管理-分配菜单」或「菜单管理」。
+        数据实时聚合,页面只读;要改授权去「角色管理-授权页面与按钮」或「菜单管理」。
       </div>
     </div>
 
@@ -217,6 +218,61 @@
         </div>
       </div>
     </template>
+
+    <!-- 按钮授权目录：代码侧登记 + sys_menu 节点现状，正常缺口为 0 -->
+    <el-drawer v-model="catalogVisible" title="按钮授权目录" size="640px">
+      <el-alert
+        v-if="catalogError"
+        :title="catalogError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      />
+
+      <el-alert
+        v-if="actionCatalog && actionCatalog.gaps.length > 0"
+        :title="`${actionCatalog.gaps.length} 处配置缺口`"
+        type="warning"
+        show-icon
+        :closable="false"
+        class="education-alert"
+      >
+        <div v-for="(gap, index) in actionCatalog.gaps" :key="index" class="permission-catalog-gap">
+          {{ gap.message }}
+          <small>{{ gap.pageMenuCode }} / {{ gap.grantMenuCode || '-' }}</small>
+        </div>
+      </el-alert>
+
+      <div v-loading="catalogLoading" class="permission-catalog">
+        <article
+          v-for="page in actionCatalog?.pages || []"
+          :key="page.menuId"
+          class="permission-catalog-page"
+        >
+          <header class="permission-catalog-head">
+            <strong>{{ page.menuName }}</strong>
+            <code>{{ page.menuCode }}</code>
+            <span class="permission-catalog-count">{{ page.actions.length }} 项</span>
+          </header>
+          <p v-if="page.actions.length === 0" class="permission-muted">
+            只读页：勾选页面即可进入查看，没有独立操作。
+          </p>
+          <div v-for="action in page.actions" :key="action.actionKey" class="permission-catalog-action">
+            <span class="permission-catalog-label">{{ action.label }}</span>
+            <el-tag v-if="action.sensitive" size="small" type="danger" effect="plain">敏感</el-tag>
+            <el-tag v-if="action.mode === 'linked'" size="small" effect="plain">同码联动</el-tag>
+            <el-tag v-if="action.mode === 'uiOnly'" size="small" type="info" effect="plain"
+              >跟随页面</el-tag
+            >
+            <code class="permission-catalog-code">{{ action.permissionCode || '无需权限码' }}</code>
+          </div>
+        </article>
+        <div v-if="actionCatalog && actionCatalog.pages.length === 0" class="permission-muted">
+          还没有登记任何页面动作。
+        </div>
+      </div>
+    </el-drawer>
   </section>
 </template>
 
@@ -225,8 +281,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
+  fetchActionCatalog,
   fetchPermissionOverview,
   fetchSystemMenusTree,
+  type ActionCatalog,
   type PermissionEndpointInfo,
   type PermissionOverview,
   type PermissionRoleRef,
@@ -276,6 +334,12 @@ const selectedCode = ref('')
 const method = ref('ALL')
 const expanded = ref(false)
 const treeRef = ref<{ filter: (value: string) => void } | null>(null)
+
+/** 按钮授权目录（代码侧登记 + 节点现状），按需加载 */
+const catalogVisible = ref(false)
+const catalogLoading = ref(false)
+const catalogError = ref('')
+const actionCatalog = ref<ActionCatalog | null>(null)
 
 /** 权限码 → 菜单节点信息(取类型与路由,并还原面包屑);菜单树没加载成功时为空 */
 const menuIndex = computed(() => {
@@ -505,6 +569,20 @@ async function copyCode() {
   } catch {
     // 非安全上下文或浏览器不允许脚本写剪贴板:不静默失败,让用户能手动复制
     ElMessage.warning(`复制失败,请手动选中复制:${code}`)
+  }
+}
+
+/** 按钮目录是独立接口（system:role:manage），按需加载，403 时只在抽屉里提示，不打断总览 */
+async function openActionCatalog() {
+  catalogVisible.value = true
+  catalogLoading.value = true
+  catalogError.value = ''
+  try {
+    actionCatalog.value = await fetchActionCatalog()
+  } catch (error) {
+    catalogError.value = toMessage(error, '按钮目录加载失败')
+  } finally {
+    catalogLoading.value = false
   }
 }
 
@@ -949,5 +1027,62 @@ onMounted(() => {
 .permission-muted {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+}
+
+.permission-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.permission-catalog-page {
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+}
+
+.permission-catalog-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.permission-catalog-head code {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.permission-catalog-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.permission-catalog-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.permission-catalog-label {
+  flex: 1 1 auto;
+}
+
+.permission-catalog-code {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.permission-catalog-gap {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.permission-catalog-gap small {
+  margin-left: 6px;
+  color: var(--el-text-color-placeholder);
 }
 </style>

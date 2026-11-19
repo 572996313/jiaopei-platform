@@ -19,7 +19,12 @@
           <div class="panel-title">校区列表</div>
         </div>
         <div class="table-toolbar">
-          <el-button type="primary" @click="openCampusDialog('create')">新增校区</el-button>
+          <el-button
+            v-permission="'organization:write'"
+            type="primary"
+            @click="openCampusDialog('create')"
+            >新增校区</el-button
+          >
         </div>
         <TableFillBox v-slot="{ height }">
           <el-table :data="campuses" border row-key="id" highlight-current-row :height="height">
@@ -52,10 +57,20 @@
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openCampusDialog('edit', row)"
+                <el-button
+                  v-permission="'organization:write'"
+                  link
+                  type="primary"
+                  @click="openCampusDialog('edit', row)"
                   >编辑</el-button
                 >
-                <el-button link type="danger" @click="confirmDeleteCampus(row)">删除</el-button>
+                <el-button
+                  v-permission="'organization:write'"
+                  link
+                  type="danger"
+                  @click="confirmDeleteCampus(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>
@@ -67,7 +82,12 @@
           <div class="panel-title">学期列表</div>
         </div>
         <div class="table-toolbar">
-          <el-button type="primary" @click="openTermDialog('create')">新增学期</el-button>
+          <el-button
+            v-permission="'organization:write'"
+            type="primary"
+            @click="openTermDialog('create')"
+            >新增学期</el-button
+          >
         </div>
         <TableFillBox v-slot="{ height }">
           <el-table :data="terms" border row-key="id" highlight-current-row :height="height">
@@ -95,8 +115,20 @@
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openTermDialog('edit', row)">编辑</el-button>
-                <el-button link type="danger" @click="confirmDeleteTerm(row)">删除</el-button>
+                <el-button
+                  v-permission="'organization:write'"
+                  link
+                  type="primary"
+                  @click="openTermDialog('edit', row)"
+                  >编辑</el-button
+                >
+                <el-button
+                  v-permission="'organization:write'"
+                  link
+                  type="danger"
+                  @click="confirmDeleteTerm(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>

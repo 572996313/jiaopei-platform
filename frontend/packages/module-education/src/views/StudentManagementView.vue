@@ -6,7 +6,12 @@
 
     <!-- 这一页只管学员本身：报名去「学员报名」，进班去「分班与名册」 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openStudentDialog('create')">新增学员</el-button>
+      <el-button
+        v-permission="'education:profile:write'"
+        type="primary"
+        @click="openStudentDialog('create')"
+        >新增学员</el-button
+      >
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
       <el-button @click="goEnrollments">学员报名</el-button>
       <span class="education-context-text">
@@ -87,10 +92,20 @@
               <el-button link type="primary" @click="openParentDrawer(row)">联系人</el-button>
               <el-button link type="primary" @click="openAttendanceDrawer(row)">考勤</el-button>
               <el-button link type="primary" @click="goStudentEnrollments(row)">报名</el-button>
-              <el-button link type="primary" @click="openStudentDialog('edit', row)"
+              <el-button
+                v-permission="'education:profile:write'"
+                link
+                type="primary"
+                @click="openStudentDialog('edit', row)"
                 >编辑</el-button
               >
-              <el-button link type="danger" @click="confirmDeleteStudent(row)">删除</el-button>
+              <el-button
+                v-permission="'education:profile:write'"
+                link
+                type="danger"
+                @click="confirmDeleteStudent(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>

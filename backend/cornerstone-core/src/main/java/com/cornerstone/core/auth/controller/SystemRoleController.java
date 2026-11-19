@@ -8,6 +8,9 @@ import com.cornerstone.core.auth.dto.RoleView;
 import com.cornerstone.core.auth.service.SystemRoleService;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.api.PageResult;
+import com.cornerstone.core.system.dto.RoleAuthorizationView;
+import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
+import com.cornerstone.core.system.service.SystemMenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,9 +30,11 @@ import org.springdoc.core.annotations.ParameterObject;
 public class SystemRoleController {
 
     private final SystemRoleService systemRoleService;
+    private final SystemMenuService systemMenuService;
 
-    public SystemRoleController(SystemRoleService systemRoleService) {
+    public SystemRoleController(SystemRoleService systemRoleService, SystemMenuService systemMenuService) {
         this.systemRoleService = systemRoleService;
+        this.systemMenuService = systemMenuService;
     }
 
     @Operation(summary = "获取角色列表")
@@ -58,5 +63,21 @@ public class SystemRoleController {
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleView> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {
         return ApiResponse.success("角色已更新", systemRoleService.updateRole(id, request));
+    }
+
+    @Operation(summary = "获取角色授权", description = "返回角色已勾选的页面/操作节点与历史预设权限码")
+    @GetMapping("/{roleId}/authorizations")
+    @RequiresPermission("system:role:manage")
+    public ApiResponse<RoleAuthorizationView> authorizations(@PathVariable Long roleId) {
+        return ApiResponse.success("角色授权已加载", systemMenuService.getRoleAuthorization(roleId));
+    }
+
+    @Operation(summary = "保存角色授权",
+        description = "只接受按钮授权目录内的页面与操作节点；自动补目录祖先，保存后该角色在线会话立即失效")
+    @PutMapping("/{roleId}/authorizations")
+    @RequiresPermission("system:role:manage")
+    public ApiResponse<RoleAuthorizationView> updateAuthorizations(
+        @PathVariable Long roleId, @Valid @RequestBody RoleMenuUpdateRequest request) {
+        return ApiResponse.success("角色授权已更新", systemMenuService.updateRoleAuthorization(roleId, request));
     }
 }

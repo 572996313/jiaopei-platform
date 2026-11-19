@@ -7,6 +7,7 @@ import App from './App.vue'
 import { router } from './router'
 import { store } from '@cornerstone/core/stores'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { permissionDirective } from '@cornerstone/core/directives/permission'
 // 只为副作用 import:模块加载即把 html.dark 类刷上,首帧外观就正确,不等 AppLayout onMounted
 import '@cornerstone/core/composables/use-theme'
 import '@cornerstone/core/styles/index.css'
@@ -16,6 +17,7 @@ async function bootstrap() {
   app.use(store)
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })
+  app.directive('permission', permissionDirective)
 
   const auth = useAuthStore(store)
   await auth.bootstrap()

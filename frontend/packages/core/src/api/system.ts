@@ -196,6 +196,55 @@ export interface RoleMenuUpdatePayload {
   menuIds: string[]
 }
 
+/** 授权模式：standalone=可独立勾选；linked=同码联动（勾一个全开）；uiOnly=跟随页面，不可单独授权 */
+export type ActionAuthorizationMode = 'standalone' | 'linked' | 'uiOnly'
+
+/** 按钮授权目录中的一个操作项（代码侧登记 + sys_menu 节点现状，只读） */
+export interface ActionCatalogAction {
+  actionKey: string
+  label: string
+  description?: string | null
+  permissionCode?: string | null
+  grantMenuId?: string | null
+  grantMenuCode?: string | null
+  mode: ActionAuthorizationMode
+  sensitive?: boolean | null
+  sortNo?: number | null
+  /** 是否已通过勾选按钮节点授予；未按角色查询时为空 */
+  grantedByNode?: boolean | null
+  /** 权限来自角色历史预设权限码 CSV：普通视图锁定，需去高级视图清理 */
+  grantedByCsv?: boolean | null
+  /** 配置缺口说明（节点缺失、类型不符或码不一致时非空） */
+  gap?: string | null
+}
+
+export interface ActionCatalogPage {
+  menuId: string
+  menuCode: string
+  menuName: string
+  path?: string | null
+  readPermissionCode?: string | null
+  actions: ActionCatalogAction[]
+}
+
+export interface ActionCatalogGap {
+  actionKey?: string | null
+  pageMenuCode?: string | null
+  grantMenuCode?: string | null
+  message: string
+}
+
+export interface ActionCatalog {
+  pages: ActionCatalogPage[]
+  gaps: ActionCatalogGap[]
+}
+
+export interface RoleAuthorization {
+  roleId: string
+  menuIds: string[]
+  presetPermissionCodes: string[]
+}
+
 export interface SystemConfigSummary {
   id: string
   configKey: string
@@ -377,6 +426,61 @@ export function fetchSystemRoleMenuIds(roleId: string) {
 export function updateSystemRoleMenus(roleId: string, payload: RoleMenuUpdatePayload) {
   return requestPut<Array<string | number>>(`/system/roles/${roleId}/menus`, payload).then(
     (items) => items.map((item) => String(item))
+  )
+}
+
+function normalizeActionCatalogAction(action: ActionCatalogAction): ActionCatalogAction {
+  return {
+    ...action,
+    grantMenuId:
+      action.grantMenuId === null || action.grantMenuId === undefined
+        ? null
+        : String(action.grantMenuId),
+  }
+}
+
+function normalizeActionCatalogPage(page: ActionCatalogPage): ActionCatalogPage {
+  return {
+    ...page,
+    menuId: String(page.menuId),
+    actions: (page.actions || []).map(normalizeActionCatalogAction),
+  }
+}
+
+/** 按钮授权目录：按页面分组的可授权操作；传 roleId 时附带该角色当前勾选状态 */
+export function fetchActionCatalog(roleId?: string) {
+  return requestGet<ActionCatalog>(
+    '/system/action-catalog',
+    roleId ? { roleId } : undefined
+  ).then((catalog) => ({
+    pages: (catalog.pages || []).map(normalizeActionCatalogPage),
+    gaps: catalog.gaps || [],
+  }))
+}
+
+export function fetchRoleAuthorization(roleId: string) {
+  return requestGet<RoleAuthorization>(`/system/roles/${roleId}/authorizations`).then(
+    (result) => ({
+      ...result,
+      roleId: String(result.roleId),
+      menuIds: (result.menuIds || []).map((item) => String(item)),
+      presetPermissionCodes: result.presetPermissionCodes || [],
+    })
+  )
+}
+
+/**
+ * 保存角色授权：只提交页面节点与按钮节点 id，后端自动补目录祖先。
+ * 注意：本接口不接收 permissionCodes，历史 CSV 不会被它改动。
+ */
+export function updateRoleAuthorization(roleId: string, payload: RoleMenuUpdatePayload) {
+  return requestPut<RoleAuthorization>(`/system/roles/${roleId}/authorizations`, payload).then(
+    (result) => ({
+      ...result,
+      roleId: String(result.roleId),
+      menuIds: (result.menuIds || []).map((item) => String(item)),
+      presetPermissionCodes: result.presetPermissionCodes || [],
+    })
   )
 }
 

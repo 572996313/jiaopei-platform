@@ -6,7 +6,12 @@
 
     <!-- 档案页只管"这个班是怎么搭的"：入班、退班和家长联系人在「分班与名册」 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openClassCreateDialog">新增班级</el-button>
+      <el-button
+        v-permission="'education:class:write'"
+        type="primary"
+        @click="openClassCreateDialog"
+        >新增班级</el-button
+      >
       <el-button @click="statsVisible = !statsVisible">
         统计
         <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
@@ -51,8 +56,20 @@
         <div class="education-table-head">
           <div class="panel-title">班级主档</div>
           <div class="table-actions">
-            <el-button link type="primary" @click="openClassProfileDialog">编辑</el-button>
-            <el-button link type="danger" @click="confirmDeleteClass">删除</el-button>
+            <el-button
+              v-permission="'education:class:write'"
+              link
+              type="primary"
+              @click="openClassProfileDialog"
+              >编辑</el-button
+            >
+            <el-button
+              v-permission="'education:class:write'"
+              link
+              type="danger"
+              @click="confirmDeleteClass"
+              >删除</el-button
+            >
           </div>
         </div>
 
@@ -153,7 +170,13 @@
       <div class="education-table-head">
         <div class="panel-title">班级教师</div>
         <div v-if="currentClass" class="table-actions">
-          <el-button link type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+          <el-button
+            v-permission="'education:class:write'"
+            link
+            type="primary"
+            @click="openTeacherDialog('create')"
+            >新增教师</el-button
+          >
         </div>
       </div>
 
@@ -195,16 +218,27 @@
             <template #default="{ row }">
               <div class="table-actions">
                 <el-button
+                  v-permission="'education:class:write'"
                   link
                   type="warning"
                   :disabled="row.isPrimary"
                   @click="promotePrimaryTeacher(row)"
                   >设为主讲</el-button
                 >
-                <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+                <el-button
+                  v-permission="'education:class:write'"
+                  link
+                  type="primary"
+                  @click="openTeacherDialog('edit', row)"
                   >编辑</el-button
                 >
-                <el-button link type="danger" @click="removeClassTeacher(row)">删除</el-button>
+                <el-button
+                  v-permission="'education:class:write'"
+                  link
+                  type="danger"
+                  @click="removeClassTeacher(row)"
+                  >删除</el-button
+                >
               </div>
             </template>
           </el-table-column>

@@ -6,7 +6,12 @@
 
     <!-- 主操作行:按钮靠左、当前范围回显靠右。校区不在本页选,统一在横幅那颗芯片 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openClassroomDialog('create')">新增教室</el-button>
+      <el-button
+        v-permission="'organization:write'"
+        type="primary"
+        @click="openClassroomDialog('create')"
+        >新增教室</el-button
+      >
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       <div class="education-context-text">
         当前机构：{{ formatInstitution(institutionId) }}，当前校区：{{
@@ -68,10 +73,20 @@
           />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openClassroomDialog('edit', row)"
+              <el-button
+                v-permission="'organization:write'"
+                link
+                type="primary"
+                @click="openClassroomDialog('edit', row)"
                 >编辑</el-button
               >
-              <el-button link type="danger" @click="confirmDeleteClassroom(row)">删除</el-button>
+              <el-button
+                v-permission="'organization:write'"
+                link
+                type="danger"
+                @click="confirmDeleteClassroom(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>

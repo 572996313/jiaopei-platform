@@ -6,7 +6,9 @@
 
     <!-- 这一页只管报名：学员本人的档案去「学员档案」维护 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openDialog">新增报名</el-button>
+      <el-button v-permission="'education:class:write'" type="primary" @click="openDialog"
+        >新增报名</el-button
+      >
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
       <el-button @click="goStudents">学员档案</el-button>
       <span class="education-context-text">

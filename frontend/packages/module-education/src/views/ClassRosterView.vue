@@ -6,7 +6,9 @@
 
     <!-- 名册只管"班里有哪些人"：班级怎么搭的去「班级档案」页维护 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openDialog">新增入班</el-button>
+      <el-button v-permission="'education:class:write'" type="primary" @click="openDialog"
+        >新增入班</el-button
+      >
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       <el-button @click="goClassProfile">班级档案</el-button>
       <span class="education-context-text">
@@ -81,7 +83,13 @@
             <template #default="{ row }">
               <div class="table-actions">
                 <el-button link type="primary" @click="openParentDrawer(row)">联系人</el-button>
-                <el-button link type="danger" @click="removeClassStudent(row)">移除</el-button>
+                <el-button
+                  v-permission="'education:class:write'"
+                  link
+                  type="danger"
+                  @click="removeClassStudent(row)"
+                  >移除</el-button
+                >
               </div>
             </template>
           </el-table-column>

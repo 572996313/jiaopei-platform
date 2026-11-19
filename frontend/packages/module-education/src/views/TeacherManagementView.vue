@@ -6,11 +6,22 @@
 
     <!-- 主操作行:按钮靠左、当前范围回显靠右,筛选行在它下面;「统计」是整页视图开关,也在这一行 -->
     <div class="table-toolbar">
-      <el-button type="primary" @click="openTeacherDialog('create')">新增教师</el-button>
+      <el-button
+        v-permission="'education:profile:write'"
+        type="primary"
+        @click="openTeacherDialog('create')"
+        >新增教师</el-button
+      >
       <el-button v-if="canManage" :icon="Upload" @click="importVisible = true">
         导入档案
       </el-button>
-      <el-button :icon="Download" :loading="exporting" @click="handleExport">导出</el-button>
+      <el-button
+        v-permission="'education:profile:write'"
+        :icon="Download"
+        :loading="exporting"
+        @click="handleExport"
+        >导出</el-button
+      >
       <el-button v-if="canManage" :icon="Link" @click="linkVisible = true">匹配账号</el-button>
       <el-button @click="statsVisible = !statsVisible">
         统计
@@ -119,10 +130,20 @@
           />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openTeacherDialog('edit', row)"
+              <el-button
+                v-permission="'education:profile:write'"
+                link
+                type="primary"
+                @click="openTeacherDialog('edit', row)"
                 >编辑</el-button
               >
-              <el-button link type="danger" @click="confirmDeleteTeacher(row)">删除</el-button>
+              <el-button
+                v-permission="'education:profile:write'"
+                link
+                type="danger"
+                @click="confirmDeleteTeacher(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>

@@ -13,9 +13,11 @@ import com.cornerstone.core.system.domain.SystemRoleMenuEntity;
 import com.cornerstone.core.system.dto.MenuCreateRequest;
 import com.cornerstone.core.system.dto.MenuUpdateRequest;
 import com.cornerstone.core.system.dto.MenuView;
+import com.cornerstone.core.system.dto.RoleAuthorizationView;
 import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
 import com.cornerstone.core.system.mapper.SystemMenuMapper;
 import com.cornerstone.core.system.mapper.SystemRoleMenuMapper;
+import com.cornerstone.core.system.service.ActionCatalogService;
 import com.cornerstone.core.system.service.SystemMenuService;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,9 +37,15 @@ public class SystemMenuServiceImpl implements SystemMenuService {
 
     private static final String ACTIVE = "active";
 
+    private static final String PLATFORM_ADMIN_MENU_PERMISSION = "system:menu:manage";
+    private static final String PLATFORM_ROOT_MENU_CODE = "system";
+    private static final String PORTAL_ADMIN = "admin";
+    private static final String TYPE_MENU = "menu";
+
     private final SystemMenuMapper menuMapper;
     private final SystemRoleMenuMapper roleMenuMapper;
     private final RoleMapper roleMapper;
+    private final ActionCatalogService actionCatalogService;
     /**
      * 会话失效入口。用 ObjectProvider 延迟解析而不是直接构造注入：
      * AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService 已经成环，
@@ -46,10 +54,12 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     private final ObjectProvider<AuthApplicationService> authApplicationService;
 
     public SystemMenuServiceImpl(SystemMenuMapper menuMapper, SystemRoleMenuMapper roleMenuMapper,
-                                 RoleMapper roleMapper, ObjectProvider<AuthApplicationService> authApplicationService) {
+                                 RoleMapper roleMapper, ActionCatalogService actionCatalogService,
+                                 ObjectProvider<AuthApplicationService> authApplicationService) {
         this.menuMapper = menuMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.roleMapper = roleMapper;
+        this.actionCatalogService = actionCatalogService;
         this.authApplicationService = authApplicationService;
     }
 
@@ -96,6 +106,8 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     public MenuView updateMenu(Long id, MenuUpdateRequest request) {
         SystemMenuEntity entity = requireMenu(id);
         validateParent(request.parentId(), id);
+        String previousPermissionCode = entity.getPermissionCode();
+        String previousStatus = entity.getStatus();
         entity.setParentId(request.parentId());
         entity.setMenuName(normalize(request.menuName()));
         entity.setMenuType(normalize(request.menuType()));
@@ -108,6 +120,12 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         entity.setStatus(normalize(request.status()));
         entity.setRemark(request.remark());
         menuMapper.updateById(entity);
+        // 改权限码或停用节点会改变持有者的权限快照；底座此前没覆盖这条路径，
+        // 不踢会话会让旧权限在令牌过期前继续可用（AGENTS「安全与数据一致性约定」第 2 条）。
+        if (!java.util.Objects.equals(previousPermissionCode, entity.getPermissionCode())
+            || !java.util.Objects.equals(previousStatus, entity.getStatus())) {
+            invalidateRolesHoldingMenu(id);
+        }
         return toView(entity, List.of());
     }
 
@@ -120,6 +138,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         if (childCount != null && childCount > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "菜单存在子节点，不能删除");
         }
+        invalidateRolesHoldingMenu(id);
         menuMapper.physicalDeleteById(id);
     }
 
@@ -174,6 +193,82 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         // 菜单授权决定权限快照，改完必须踢掉该角色的在线会话，否则收回的权限在令牌过期前仍然可用
         authApplicationService.getObject().invalidateUserSessionsByRole(roleId);
         return new ArrayList<>(menuIds);
+    }
+
+    @Override
+    public RoleAuthorizationView getRoleAuthorization(Long roleId) {
+        RoleEntity role = requireRole(roleId);
+        return new RoleAuthorizationView(roleId, getRoleMenuIds(roleId),
+            splitPermissionCodes(role.getPermissionCodes()));
+    }
+
+    @Override
+    @Transactional
+    public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request) {
+        RoleEntity role = requireRole(roleId);
+        Set<Long> requested = new LinkedHashSet<>(request.menuIds() == null ? List.of() : request.menuIds());
+        Set<Long> managed = actionCatalogService.managedMenuIds();
+
+        Set<Long> outsideCatalog = new LinkedHashSet<>(requested);
+        outsideCatalog.removeAll(managed);
+        if (!outsideCatalog.isEmpty()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "授权项不在可授权目录内，请刷新页面后重试");
+        }
+
+        Map<Long, SystemMenuEntity> menuById = menuMapper.selectList(new LambdaQueryWrapper<SystemMenuEntity>())
+            .stream()
+            .collect(Collectors.toMap(SystemMenuEntity::getId, Function.identity(), (left, right) -> left));
+        Set<Long> pageIds = menuById.values().stream()
+            .filter(menu -> PORTAL_ADMIN.equals(menu.getPortal()) && TYPE_MENU.equals(menu.getMenuType()))
+            .map(SystemMenuEntity::getId)
+            .collect(Collectors.toSet());
+
+        // 只有页面节点需要补祖先目录；按钮节点的 parent 不一定就是它的业务页面
+        // （如「档案维护」挂在教师页下，却同时给学员页的写操作授权）。
+        Set<Long> touchedPageIds = new LinkedHashSet<>();
+        Map<Long, Long> pageIdByGrant = actionCatalogService.pageMenuIdByGrantMenuId();
+        for (Long menuId : requested) {
+            if (pageIds.contains(menuId)) {
+                touchedPageIds.add(menuId);
+            }
+            Long pageId = pageIdByGrant.get(menuId);
+            if (pageId != null) {
+                touchedPageIds.add(pageId);
+            }
+        }
+
+        // 目录之外的既有权（如小程序端节点）界面看不到，保存时原样保留，避免静默收权。
+        Set<Long> existingMenuIds = new LinkedHashSet<>(getRoleMenuIds(roleId));
+        Set<Long> finalMenuIds = new LinkedHashSet<>();
+        for (Long menuId : existingMenuIds) {
+            if (!managed.contains(menuId)) {
+                finalMenuIds.add(menuId);
+            }
+        }
+
+        // 只拦"新增"系统设置子树的页面：历史授权原样保存或撤销都不该被 403 挡住，
+        // 否则非平台管理员连改一下角色名称都会失败。
+        Set<Long> addedPageIds = new LinkedHashSet<>(touchedPageIds);
+        addedPageIds.removeAll(existingMenuIds);
+        requirePlatformSubtreePermission(addedPageIds, menuById);
+
+        Set<Long> desired = new LinkedHashSet<>(requested);
+        for (Long pageId : touchedPageIds) {
+            addAncestors(pageId, menuById, desired);
+        }
+        finalMenuIds.addAll(desired);
+
+        roleMenuMapper.physicalDeleteByRoleId(roleId);
+        for (Long menuId : finalMenuIds) {
+            SystemRoleMenuEntity relation = new SystemRoleMenuEntity();
+            relation.setRoleId(roleId);
+            relation.setMenuId(menuId);
+            relation.setDeleted(Boolean.FALSE);
+            roleMenuMapper.insert(relation);
+        }
+        authApplicationService.getObject().invalidateUserSessionsByRole(roleId);
+        return new RoleAuthorizationView(roleId, new ArrayList<>(finalMenuIds),
+            splitPermissionCodes(role.getPermissionCodes()));
     }
 
     @Override
@@ -270,6 +365,64 @@ public class SystemMenuServiceImpl implements SystemMenuService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "上级菜单不能选择自己");
         }
         requireMenu(parentId);
+    }
+
+    /**
+     * 补祖先目录：`buildTree` 会把父节点未授权的子节点提升成根，
+     * 只勾页面不勾目录的表现是"分组消失、入口散在顶层"。
+     */
+    private void addAncestors(Long menuId, Map<Long, SystemMenuEntity> menuById, Set<Long> target) {
+        SystemMenuEntity current = menuById.get(menuId);
+        Set<Long> visited = new LinkedHashSet<>();
+        while (current != null && current.getParentId() != null && visited.add(current.getId())) {
+            Long parentId = current.getParentId();
+            target.add(parentId);
+            current = menuById.get(parentId);
+        }
+    }
+
+    /**
+     * 非平台管理员不能给角色授予「系统设置」子树：底座用户/角色/机构三条链路尚未按机构范围校验，
+     * 勾上即跨机构读写（AGENTS「安全与数据一致性约定」第 8 条）。
+     */
+    private void requirePlatformSubtreePermission(Set<Long> pageIds, Map<Long, SystemMenuEntity> menuById) {
+        if (pageIds.isEmpty() || AuthContext.hasPermission(PLATFORM_ADMIN_MENU_PERMISSION)) {
+            return;
+        }
+        for (Long pageId : pageIds) {
+            SystemMenuEntity current = menuById.get(pageId);
+            Set<Long> visited = new LinkedHashSet<>();
+            while (current != null && visited.add(current.getId())) {
+                if (PLATFORM_ROOT_MENU_CODE.equals(current.getMenuCode())) {
+                    throw new BusinessException(ResultCode.FORBIDDEN,
+                        "「系统设置」下的页面只能由平台管理员授权");
+                }
+                current = current.getParentId() == null ? null : menuById.get(current.getParentId());
+            }
+        }
+    }
+
+    private void invalidateRolesHoldingMenu(Long menuId) {
+        List<Long> roleIds = roleMenuMapper.selectList(new LambdaQueryWrapper<SystemRoleMenuEntity>()
+                .eq(SystemRoleMenuEntity::getMenuId, menuId))
+            .stream()
+            .map(SystemRoleMenuEntity::getRoleId)
+            .distinct()
+            .toList();
+        for (Long roleId : roleIds) {
+            authApplicationService.getObject().invalidateUserSessionsByRole(roleId);
+        }
+    }
+
+    private List<String> splitPermissionCodes(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(raw.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
     }
 
     private void validateMenus(Set<Long> menuIds) {
