@@ -598,13 +598,15 @@ body {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  /* 内容卡尽量贴边：外圈 8px 是视觉缝，内侧留白够放页签与表格即可，把宽度和高度都让给内容 */
-  margin: 8px;
+  /*
+   * 内容区与导航列、横幅直接拼合：不留外圈缝、不画自己的边框和圆角。
+   * 页签以下就是一块整白底，宽度和高度全部让给内容，不再像浮在页面上的卡片。
+   */
+  margin: 0;
   padding: 10px 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border: 0;
+  border-radius: 0;
   background: var(--card-bg);
-  box-shadow: var(--shadow-panel);
   overflow: hidden;
 }
 
@@ -1316,6 +1318,20 @@ body {
 .stat-hint {
   margin-top: 6px;
   color: var(--text-muted);
+}
+
+/*
+ * 列表页的表格面板不再套第二层框：外层 .app-main 已经是整块白底，
+ * 再给表格卡加边框、圆角和 20px 内边距，等于把表格又圈进一个小盒子里，
+ * 四周还白吃一圈高度和宽度。表格直接落在页面留白里，与上方工具栏同轴。
+ */
+.panel-card.education-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .panel-card-wide {
