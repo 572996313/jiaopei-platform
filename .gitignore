@@ -28,7 +28,11 @@ Thumbs.db
 /.kilo/**
 
 # docker prod secrets & runtime data
+# docker-compose.prod.yml 是各服务器私有的运行实例（由 .example 复制生成），永远不进 git；
+# 仓库只维护 docker/docker-compose.prod.yml.example 模板。
 docker/prod.env
+docker/docker-compose.prod.yml
+docker/docker-compose.prod.yml.bak.*
 .deps-stamp
 docker/data/
 docker/backups/

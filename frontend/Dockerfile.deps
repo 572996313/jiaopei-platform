@@ -6,7 +6,7 @@
 # 日常部署直接复用。node_modules 与 pnpm store 被固化进镜像层，
 # 不会随 BuildKit 缓存回收而丢失，源码变更后无需重新下载依赖。
 #
-# 手动构建：
+# 手动构建（docker-compose.prod.yml 为本地运行实例，首次需从 .example 复制）：
 #   docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
 
 FROM node:22-alpine

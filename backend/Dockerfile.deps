@@ -6,7 +6,7 @@
 # 依赖被固化进镜像层后，不会像 BuildKit cache mount 那样被 builder GC 回收，
 # 因此源码变更触发重新编译时不需要再联网下载依赖。
 #
-# 手动构建：
+# 手动构建（docker-compose.prod.yml 为本地运行实例，首次需从 .example 复制）：
 #   docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
 
 FROM maven:3.9.9-eclipse-temurin-21

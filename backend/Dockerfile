@@ -5,7 +5,7 @@
 # 依赖(整个 ~/.m2/repository)已固化在 jiaopei-platform-backend-deps:prod 里，
 # 本文件只做「拷源码 -> 编译打包 -> 装 jar」，源码变更不会触发依赖重新下载。
 # 构建前必须先有依赖镜像：deploy.sh 会自动按 pom.xml 哈希判断是否需要重建；
-# 手动构建时请先执行：
+# 手动构建时请先执行（docker-compose.prod.yml 为本地运行实例，首次需从 .example 复制）：
 #   docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
 
 ARG DEPS_IMAGE=jiaopei-platform-backend-deps:prod

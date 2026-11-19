@@ -1,3 +1,28 @@
+# ============================================================================
+# 生产环境编排模板（总部维护）
+#
+# 本文件只是模板，不直接在服务器上运行。首次部署时复制为本地运行实例：
+#     cp docker/docker-compose.prod.yml.example docker/docker-compose.prod.yml
+# 然后按服务器实际情况修改 docker/docker-compose.prod.yml。
+#
+# docker/docker-compose.prod.yml 已写入 .gitignore，是各服务器私有的运行配置，
+# git pull / deploy.sh 永远不会覆盖它；总部更新本模板后，手动对比合并：
+#     diff -u docker/docker-compose.prod.yml.example docker/docker-compose.prod.yml
+#
+# 需要按环境调整的常见项（改本地实例，不要改本模板）：
+#   - 复用宿主机/面板上已有的 MySQL、Redis（如 1Panel）：删除 mysql、redis 两个
+#     服务块，删除 backend.depends_on 中的 mysql/redis，并把 backend 的
+#     DB_HOST / DB_AUDIT_HOST / REDIS_HOST 指向真实中间件地址。
+#     若中间件与 backend 同在一个外部网络，按《生产部署排障手册》场景 D 配置 networks；
+#     若中间件监听宿主机端口，可用 host.docker.internal（需附 extra_hosts:
+#     ["host.docker.internal:host-gateway"]）或宿主机桥接网卡地址。
+#   - 端口：MYSQL_PORT / REDIS_PORT / FRONTEND_PORT（在 docker/prod.env 中配置）。
+#   - 数据目录：MYSQL_DATA_DIR / REDIS_DATA_DIR（在 docker/prod.env 中配置）。
+#   - 镜像/容器名一般不需要改，deploy.sh 与备份脚本按 jiaopei-prod-* 识别。
+#
+# 自检：
+#     docker compose -f docker/docker-compose.prod.yml --env-file docker/prod.env config
+# ============================================================================
 services:
   mysql:
     image: mysql:8.4

@@ -615,5 +615,5 @@ grep -rlE "ENGINE=InnoDB" backend/app/src/main/resources/db/migration | xargs gr
 - `docs/前端页面开发手册.md` — 前端规范的执行细则（落点表 / 反模式对照 / 四型骨架 / 新建页 checklist），写页面前先读
 - `docs/miniapp.md`、`docs/list-config-guide.md`、`docs/config-contract.md`
 - `docs/操作留痕与敏感数据说明.md` — 审计与脱敏链路
-- `docs/生产部署说明.md`、`docker/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml` + `deploy.sh`）
+- `docs/生产部署说明.md`、`docker/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml.example` 模板 + 各服务器本地实例 `docker-compose.prod.yml`（gitignore）+ `deploy.sh`）
 - `docs/archive/` — 历史过程方案归档（首批建模、菜单重组、班级变动提示范围等），勿作为现行口径引用

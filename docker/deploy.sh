@@ -13,7 +13,10 @@ set -euo pipefail
 
 # ---------- 配置区 ----------
 PROJECT_DIR="/mnt/software/jiaopei"
+# 本地运行实例：由 docker/docker-compose.prod.yml.example 复制生成，已 gitignore，
+# git pull 不会覆盖；可按服务器环境自由修改（如删除内置 mysql/redis 服务）。
 COMPOSE_FILE="docker/docker-compose.prod.yml"
+COMPOSE_TEMPLATE="docker/docker-compose.prod.yml.example"
 BRANCH="master"
 REMOTE_URL="https://gitee.com/liu-xiaofei001/educational-training-gateway.git"
 # 私有仓库需要凭据时使用 HTTPS 内嵌账号(可选)
@@ -110,15 +113,16 @@ log_info "[0/9] 预检..."
 
 # 0.0 自我保护:检测本地有未提交的部署相关改动
 # 服务器上 chmod +x 后会触发 "modified" 标记,导致 git pull 失败。
-# 这里把 deploy.sh / docker-compose.prod.yml 之类的"部署机器本地"改动 stash 起来,
+# 这里把 deploy.sh / *.example 之类的"部署机器本地"改动 stash 起来,
 # pull 之后再 pop 回来(见脚本顶部的 EXIT trap)。
 #
-# 注意: 只 stash 受版本控制的文件。docker/prod.env 被 .gitignore 忽略、git 不跟踪,
-# 裸 pathspec 传给 git stash push 会报 "pathspec ... did not match" 并让整个 stash 失败;
-# 而且它本来就不会被 git pull 覆盖,不需要保护。
+# 注意: 只 stash 受版本控制的文件。docker/prod.env、docker/docker-compose.prod.yml
+# 都被 .gitignore 忽略、git 不跟踪,裸 pathspec 传给 git stash push 会报
+# "pathspec ... did not match" 并让整个 stash 失败;而且它们本来就不会被 git pull
+# 覆盖(compose 运行实例见下方 1.1 检查),不需要保护。
 if [ -d ".git" ] && [ "${SKIP_PULL}" != "true" ]; then
     STASH_PATHS=()
-    for LOCAL_FILE in docker/deploy.sh docker/docker-compose.prod.yml docker/prod.env.example; do
+    for LOCAL_FILE in docker/deploy.sh docker/docker-compose.prod.yml.example docker/prod.env.example; do
         # 先确认文件被 git 跟踪,再确认确有改动,两者都满足才加入 stash 清单
         if git ls-files --error-unmatch "${LOCAL_FILE}" >/dev/null 2>&1 \
             && ! git diff --quiet -- "${LOCAL_FILE}" 2>/dev/null; then
@@ -266,12 +270,27 @@ fi
 NEW_COMMIT=$(git rev-parse --short HEAD)
 log_ok "新版本: ${NEW_COMMIT}"
 
+# 1.1 本地 compose 运行实例存在性
+# 该文件是各服务器私有配置（见 .gitignore），git pull 不会创建/恢复它，
+# 所以必须放在 pull 之后检查，并给出可直接执行的初始化命令。
+if [ ! -f "${COMPOSE_FILE}" ]; then
+    log_err "${COMPOSE_FILE} 不存在。它是各服务器私有的运行配置，不进 git，pull 不会生成。"
+    echo "  首次部署请复制模板后按本机环境修改："
+    echo "    cp ${COMPOSE_TEMPLATE} ${COMPOSE_FILE}"
+    echo "  若服务器复用已有 MySQL/Redis，请按《生产部署排障手册》场景 D 删除内置 mysql/redis 服务。"
+    exit 1
+fi
+
 # ---------- 2. 备份 ----------
 log_info "[2/9] 备份配置与数据库..."
 mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}"
 if [ -f "docker/prod.env" ]; then
     cp "docker/prod.env" "${BACKUP_DIR}/prod.env.${TIMESTAMP}"
     log_ok "配置已备份: ${BACKUP_DIR}/prod.env.${TIMESTAMP}"
+fi
+if [ -f "${COMPOSE_FILE}" ]; then
+    cp "${COMPOSE_FILE}" "${BACKUP_DIR}/docker-compose.prod.yml.${TIMESTAMP}"
+    log_ok "编排配置已备份: ${BACKUP_DIR}/docker-compose.prod.yml.${TIMESTAMP}"
 fi
 
 if [ "${SKIP_BACKUP}" = "true" ]; then
@@ -389,9 +408,26 @@ ALL_HEALTHY=true
 HEALTH_TIMEOUT=180
 HEALTH_ELAPSED=0
 HEALTH_INTERVAL=5
+# 只检查编排里实际存在的服务：复用宿主机/面板 MySQL、Redis 的服务器会删掉
+# mysql/redis 服务定义，若仍按固定清单检查，会空等满 180 秒并误判部署失败。
+DEPLOY_SERVICES=$(docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" config --services 2>/dev/null || true)
+if [ -z "${DEPLOY_SERVICES}" ]; then
+    log_warn "无法从 compose 解析服务清单(如 prod.env 缺少必填变量),健康检查回退为 backend/frontend"
+fi
+HEALTH_SERVICES=""
+for SERVICE in mysql redis backend frontend; do
+    if printf '%s\n' "${DEPLOY_SERVICES}" | grep -qx "${SERVICE}"; then
+        HEALTH_SERVICES="${HEALTH_SERVICES} ${SERVICE}"
+    fi
+done
+# 解析失败或编排里四个服务都不存在时兜底（正常至少会有 backend/frontend）
+if [ -z "${HEALTH_SERVICES// /}" ]; then
+    HEALTH_SERVICES="backend frontend"
+fi
+log_info "健康检查服务:${HEALTH_SERVICES}"
 while [ "${HEALTH_ELAPSED}" -lt "${HEALTH_TIMEOUT}" ]; do
     PENDING=0
-    for SERVICE in mysql redis backend frontend; do
+    for SERVICE in ${HEALTH_SERVICES}; do
         STATE=$(docker compose -f "${COMPOSE_FILE}" ps "${SERVICE}" --format "{{.Health}}" 2>/dev/null | head -1 || echo "")
         if [ "${STATE}" != "healthy" ]; then
             PENDING=$((PENDING + 1))
@@ -405,7 +441,7 @@ while [ "${HEALTH_ELAPSED}" -lt "${HEALTH_TIMEOUT}" ]; do
     echo "  ⏳ 等待中... (${HEALTH_ELAPSED}s / ${HEALTH_TIMEOUT}s,剩余 ${PENDING} 个服务)"
 done
 
-for SERVICE in mysql redis backend frontend; do
+for SERVICE in ${HEALTH_SERVICES}; do
     STATE=$(docker compose -f "${COMPOSE_FILE}" ps "${SERVICE}" --format "{{.Health}}" 2>/dev/null | head -1 || echo "unknown")
     if [ "${STATE}" = "healthy" ]; then
         log_ok "${SERVICE}: healthy"
