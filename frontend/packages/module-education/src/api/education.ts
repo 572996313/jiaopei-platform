@@ -135,8 +135,9 @@ export interface StudentParentRecord {
   parentPhone?: string | null
   relationType?: string | null
   wechatNo?: string | null
-  primaryContact?: boolean | null
-  emergencyContact?: boolean | null
+  alipayPhone?: string | null
+  isPrimary?: boolean | null
+  isEmergencyContact?: boolean | null
   status?: string | null
   remark?: string | null
 }
@@ -472,6 +473,7 @@ export interface StudentParentCreatePayload {
   relationType?: string
   parentPhone?: string
   wechatNo?: string
+  alipayPhone?: string
   isPrimary?: boolean
   isEmergencyContact?: boolean
   status?: string
@@ -1217,6 +1219,7 @@ export interface StudentParentViewRecord {
   relationType?: string | null
   parentPhone?: string | null
   wechatNo?: string | null
+  alipayPhone?: string | null
   isPrimary?: boolean | null
   isEmergencyContact?: boolean | null
   status?: string | null

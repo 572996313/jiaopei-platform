@@ -78,6 +78,16 @@ export const educationRoutes: RouteRecordRaw[] = [
     name: 'announcements',
     component: () => import('@cornerstone/module-education/views/AnnouncementCenterView.vue'),
   },
+  {
+    path: 'fee-ledger',
+    name: 'fee-ledger',
+    component: () => import('@cornerstone/module-education/views/FeeLedgerView.vue'),
+  },
+  {
+    path: 'fee-items',
+    name: 'fee-items',
+    component: () => import('@cornerstone/module-education/views/FeeItemManagementView.vue'),
+  },
 ]
 
 /**
@@ -92,6 +102,8 @@ registerPermissionLabels([
   { code: 'education:class:write', label: '班级与学员维护', group: '教务管理' },
   { code: 'education:profile:write', label: '师生档案维护', group: '教务管理' },
   { code: 'education:catalog:write', label: '课程档案维护', group: '教务管理' },
+  { code: 'education:fee:write', label: '收费台账与收款', group: '收费与财务' },
+  { code: 'education:fee:config:write', label: '收费项目与价目', group: '收费与财务' },
   { code: 'announcement:read', label: '公告查看', group: '公告中心' },
   { code: 'announcement:write', label: '公告维护', group: '公告中心' },
   { code: 'miniapp:access', label: '小程序端访问', group: '小程序端' },

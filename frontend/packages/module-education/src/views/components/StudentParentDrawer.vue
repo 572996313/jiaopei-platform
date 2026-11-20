@@ -39,11 +39,14 @@
         <template #default="{ row }">{{ relationLabel(row.relationType) }}</template>
       </el-table-column>
       <el-table-column prop="parentPhone" label="联系电话" width="150" />
-      <el-table-column label="主联系人" width="100" prop="primaryContact">
-        <template #default="{ row }">{{ row.primaryContact ? '是' : '否' }}</template>
+      <el-table-column prop="alipayPhone" label="支付宝电话" width="150">
+        <template #default="{ row }">{{ row.alipayPhone || '-' }}</template>
       </el-table-column>
-      <el-table-column label="紧急联系" width="100" prop="emergencyContact">
-        <template #default="{ row }">{{ row.emergencyContact ? '是' : '否' }}</template>
+      <el-table-column label="主联系人" width="100" prop="isPrimary">
+        <template #default="{ row }">{{ row.isPrimary ? '是' : '否' }}</template>
+      </el-table-column>
+      <el-table-column label="紧急联系" width="100" prop="isEmergencyContact">
+        <template #default="{ row }">{{ row.isEmergencyContact ? '是' : '否' }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100" prop="status">
         <template #default="{ row }">
@@ -57,7 +60,7 @@
               v-permission="'education:profile:write'"
               link
               type="warning"
-              :disabled="row.primaryContact"
+              :disabled="row.isPrimary"
               @click="promotePrimary(row)"
             >
               设为主联系人
@@ -110,6 +113,9 @@
         </el-form-item>
         <el-form-item label="微信号">
           <el-input v-model="form.wechatNo" placeholder="可选" />
+        </el-form-item>
+        <el-form-item label="支付宝绑定电话">
+          <el-input v-model="form.alipayPhone" placeholder="用于核对该家长的收款，可选" />
         </el-form-item>
         <el-form-item label="联系人状态">
           <el-select v-model="form.status">
@@ -183,6 +189,7 @@ const form = reactive({
   relationType: '',
   parentPhone: '',
   wechatNo: '',
+  alipayPhone: '',
   isPrimary: true,
   isEmergencyContact: false,
   status: 'active',
@@ -239,8 +246,9 @@ function resetForm(row?: StudentParentRecord) {
   form.relationType = row?.relationType ?? ''
   form.parentPhone = row?.parentPhone ?? ''
   form.wechatNo = row?.wechatNo ?? ''
-  form.isPrimary = Boolean(row?.primaryContact ?? true)
-  form.isEmergencyContact = Boolean(row?.emergencyContact ?? false)
+  form.alipayPhone = row?.alipayPhone ?? ''
+  form.isPrimary = Boolean(row?.isPrimary ?? true)
+  form.isEmergencyContact = Boolean(row?.isEmergencyContact ?? false)
   form.status = row?.status ?? 'active'
   form.remark = row?.remark ?? ''
   formError.value = ''
@@ -261,6 +269,7 @@ function buildPayload(): StudentParentCreatePayload {
     relationType: trimToUndefined(form.relationType),
     parentPhone: trimToUndefined(form.parentPhone),
     wechatNo: trimToUndefined(form.wechatNo),
+    alipayPhone: trimToUndefined(form.alipayPhone),
     isPrimary: form.isPrimary,
     isEmergencyContact: form.isEmergencyContact,
     status: trimToUndefined(form.status),
@@ -316,7 +325,7 @@ async function promotePrimary(row: StudentParentRecord) {
       parentPhone: trimToUndefined(row.parentPhone || ''),
       wechatNo: trimToUndefined(row.wechatNo || ''),
       isPrimary: true,
-      isEmergencyContact: Boolean(row.emergencyContact),
+      isEmergencyContact: Boolean(row.isEmergencyContact),
       status: row.status || 'active',
       remark: trimToUndefined(row.remark || ''),
     })

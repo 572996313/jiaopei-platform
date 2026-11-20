@@ -992,7 +992,8 @@ class EducationThirdMainlineValidationTest {
     }
 
     private StudentParentCreateRequest studentParentRequest() {
-        return new StudentParentCreateRequest(1L, 10L, "李妈妈", null, "13900000000", null, Boolean.TRUE, Boolean.FALSE, null, null);
+        return new StudentParentCreateRequest(1L, 10L, "李妈妈", null, "13900000000", null, null,
+            Boolean.TRUE, Boolean.FALSE, null, null);
     }
 
     private StudentEntity student() {

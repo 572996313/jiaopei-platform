@@ -1,6 +1,7 @@
 import { http } from '@cornerstone/core/api/http'
 import { ApiError, requestGet, requestPost, type ApiResponse } from '@cornerstone/core/api/request'
 import type { TeacherPageParams } from '@cornerstone/module-education/api/education'
+import { saveBlob } from './download'
 
 /** 导入结果的一行，对应后端 TeacherImportRowView */
 export interface TeacherImportRowView {
@@ -105,38 +106,3 @@ export function exportTeachers(
   return saveBlob(`${TEACHER_BASE}/export`, '教师档案.xlsx', { ...filters })
 }
 
-async function saveBlob(path: string, filename: string, params?: Record<string, unknown>) {
-  let blob: Blob
-  try {
-    const response = await http.get<Blob>(path, {
-      params,
-      responseType: 'blob',
-      timeout: UPLOAD_TIMEOUT,
-    })
-    blob = response.data
-  } catch (error) {
-    // blob 请求里后端的失败响应也是 Blob，不先读出来就只能给一句通用文案
-    throw new ApiError(await messageOfBlob(error))
-  }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-async function messageOfBlob(error: unknown): Promise<string> {
-  const data = (error as { response?: { data?: unknown } })?.response?.data
-  if (data instanceof Blob) {
-    try {
-      const json = JSON.parse(await data.text())
-      if (typeof json?.message === 'string') {
-        return json.message
-      }
-    } catch {
-      // 不是 JSON 就落通用文案
-    }
-  }
-  return '下载失败，请稍后重试'
-}

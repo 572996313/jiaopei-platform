@@ -32,6 +32,9 @@ public record StudentParentCreateRequest(
     @Schema(description = "微信号")
     @JsonAlias("wechat_no")
     String wechatNo,
+    @Schema(description = "支付宝绑定电话")
+    @JsonAlias("alipay_phone")
+    String alipayPhone,
     @Schema(description = "是否主联系人")
     @JsonAlias("is_primary")
     Boolean isPrimary,

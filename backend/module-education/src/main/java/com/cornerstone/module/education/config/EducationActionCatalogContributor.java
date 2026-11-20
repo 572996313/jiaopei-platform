@@ -31,6 +31,8 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
     private static final String PAGE_EXECUTION = "education_execution";
     private static final String PAGE_ATTENDANCE_OVERVIEW = "education_attendance_overview";
     private static final String PAGE_ANNOUNCEMENTS = "announcement_center";
+    private static final String PAGE_FEE_LEDGER = "education_fee_ledger";
+    private static final String PAGE_FEE_ITEMS = "education_fee_items";
 
     private static final String GRANT_PROFILE = "education_profile_write";
     private static final String GRANT_CLASS = "education_class_write";
@@ -39,6 +41,8 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
     private static final String GRANT_ATTENDANCE = "education_execution_write";
     private static final String GRANT_ATTENDANCE_MANAGE = "education_attendance_manage";
     private static final String GRANT_ANNOUNCEMENT = "announcement_write";
+    private static final String GRANT_FEE_WRITE = "education_fee_write";
+    private static final String GRANT_FEE_CONFIG = "education_fee_config_write";
 
     private static final String PROFILE_WRITE = "education:profile:write";
     private static final String CLASS_WRITE = "education:class:write";
@@ -47,6 +51,8 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
     private static final String ATTENDANCE_WRITE = "education:attendance:write";
     private static final String ATTENDANCE_MANAGE = "education:attendance:manage";
     private static final String ANNOUNCEMENT_WRITE = "announcement:write";
+    private static final String FEE_WRITE = "education:fee:write";
+    private static final String FEE_CONFIG_WRITE = "education:fee:config:write";
 
     @Override
     public String moduleKey() {
@@ -194,7 +200,55 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
             linked(PAGE_ANNOUNCEMENTS, "announcement-template-edit", GRANT_ANNOUNCEMENT, ANNOUNCEMENT_WRITE,
                 "编辑公告模板", "修改模板标题与正文", 70),
             linked(PAGE_ANNOUNCEMENTS, "announcement-template-delete", GRANT_ANNOUNCEMENT, ANNOUNCEMENT_WRITE,
-                "删除公告模板", "删除未被引用的模板", 80)
+                "删除公告模板", "删除未被引用的模板", 80),
+
+            // 收费台账
+            linked(PAGE_FEE_LEDGER, "fee-ledger-create", GRANT_FEE_WRITE, FEE_WRITE,
+                "新建台账", "为单个学员建档并录入收费项目、月数与标准", 10),
+            linked(PAGE_FEE_LEDGER, "fee-ledger-edit", GRANT_FEE_WRITE, FEE_WRITE,
+                "编辑台账", "修改收费项目行、覆盖逐月发生额与出勤天数", 20),
+            sensitive(PAGE_FEE_LEDGER, "fee-ledger-delete", GRANT_FEE_WRITE, FEE_WRITE,
+                "删除台账", "删除没有收款流水的收费台账", 30),
+            sensitive(PAGE_FEE_LEDGER, "fee-ledger-generate", GRANT_FEE_WRITE, FEE_WRITE,
+                "按名册建账", "按班级在读名册批量生成台账，已有台账跳过", 40),
+            linked(PAGE_FEE_LEDGER, "fee-payment-create", GRANT_FEE_WRITE, FEE_WRITE,
+                "登记收款", "登记一笔或多笔收款流水", 50),
+            linked(PAGE_FEE_LEDGER, "fee-payment-edit", GRANT_FEE_WRITE, FEE_WRITE,
+                "修改收款", "修改收款金额、日期、方式与备注", 60),
+            sensitive(PAGE_FEE_LEDGER, "fee-payment-delete", GRANT_FEE_WRITE, FEE_WRITE,
+                "删除收款", "删除收款流水，实收合计随之减少", 70),
+            linked(PAGE_FEE_LEDGER, "fee-monthly-override", GRANT_FEE_WRITE, FEE_WRITE,
+                "覆盖当月发生额", "手工改写某月发生额，重算不再覆盖该行", 80),
+            linked(PAGE_FEE_LEDGER, "fee-monthly-revert", GRANT_FEE_WRITE, FEE_WRITE,
+                "撤销发生额覆盖", "把某月发生额恢复为引擎自动值", 85),
+            linked(PAGE_FEE_LEDGER, "fee-attendance-sync", GRANT_FEE_WRITE, FEE_WRITE,
+                "同步出勤", "从点名记录汇总月度出勤天数并按天重算发生额", 90),
+            linked(PAGE_FEE_LEDGER, "fee-attendance-override", GRANT_FEE_WRITE, FEE_WRITE,
+                "改出勤天数", "手工覆盖某月出勤天数，按月同步不再覆盖该月", 100),
+            linked(PAGE_FEE_LEDGER, "fee-attendance-revert", GRANT_FEE_WRITE, FEE_WRITE,
+                "撤销出勤覆盖", "把某月出勤天数恢复为考勤汇总值", 105),
+            sensitive(PAGE_FEE_LEDGER, "fee-ledger-recalculate", GRANT_FEE_WRITE, FEE_WRITE,
+                "重算发生额", "按当前出勤与标准重算全部逐月发生额", 110),
+            linked(PAGE_FEE_LEDGER, "fee-ledger-resolve-prices", GRANT_FEE_WRITE, FEE_WRITE,
+                "重新取价", "按当前价目表覆盖台账标准并重算", 120),
+            uiOnly(PAGE_FEE_LEDGER, "fee-ledger-export-matrix", "导出收费出勤表",
+                "导出与财务手工表同构的矩阵表，只读", 130),
+            uiOnly(PAGE_FEE_LEDGER, "fee-ledger-export-detail", "导出明细",
+                "导出一维台账明细，只读", 140),
+
+            // 收费项目与价目
+            linked(PAGE_FEE_ITEMS, "fee-item-create", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "新增收费项目", "新建按月或按天的收费项目", 10),
+            linked(PAGE_FEE_ITEMS, "fee-item-edit", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "编辑收费项目", "修改项目名称、计费方式与排序", 20),
+            sensitive(PAGE_FEE_ITEMS, "fee-item-delete", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "删除收费项目", "删除未被价目与台账引用的项目", 30),
+            linked(PAGE_FEE_ITEMS, "fee-price-create", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "新增价目", "按校区/班级/学期/学员配置月标准与日标准", 40),
+            linked(PAGE_FEE_ITEMS, "fee-price-edit", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "编辑价目", "修改价目的标准与启停状态", 50),
+            sensitive(PAGE_FEE_ITEMS, "fee-price-delete", GRANT_FEE_CONFIG, FEE_CONFIG_WRITE,
+                "删除价目", "删除一行价目，已建台账的标准快照不受影响", 60)
         );
     }
 

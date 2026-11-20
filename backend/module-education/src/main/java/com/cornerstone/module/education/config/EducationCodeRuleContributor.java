@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * 教务模块的编号资源登记：教师、学员、班级、报名、课程、课程分类、班型。
+ * 教务模块的编号资源登记：教师、学员、班级、报名、课程、课程分类、班型、收费项目。
  *
  * <p>与组织模块同口径：行业名词只出现在登记方模块，底座不认得"学号""工号"。
  * 这里给的是默认格式与"编号存在哪张表哪一列"，操作员改过之后以 {@code sys_code_rule}
@@ -36,6 +36,8 @@ public class EducationCodeRuleContributor implements CodeRuleContributor {
             new CodeRuleSpec("course_category", "课程分类编码", "jp_course_category", "category_code",
                 "CAT", "-", "", 2),
             new CodeRuleSpec("class_type", "班型编码", "jp_class_type", "type_code",
-                "TYP", "-", "", 2));
+                "TYP", "-", "", 2),
+            new CodeRuleSpec("fee_item", "收费项目编码", "jp_fee_item", "item_code",
+                "FE", "-", "", 3));
     }
 }

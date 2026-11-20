@@ -14,6 +14,7 @@ import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
+import com.cornerstone.module.education.fee.domain.entity.FeeItemEntity;
 import com.cornerstone.module.organization.config.OrganizationCodeRuleContributor;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
@@ -54,11 +55,12 @@ class CodeRuleContributionTest {
         InstitutionEntity.class,
         CampusEntity.class, ClassroomEntity.class, TermEntity.class, TimeSlotEntity.class,
         TeacherEntity.class, StudentEntity.class, TeachingClassEntity.class, EnrollmentEntity.class,
-        CourseEntity.class, CourseCategoryEntity.class, ClassTypeEntity.class);
+        CourseEntity.class, CourseCategoryEntity.class, ClassTypeEntity.class, FeeItemEntity.class);
 
     private static final Set<String> EXPECTED_RESOURCES = Set.of(
         "institution", "campus", "classroom", "term", "time_slot",
-        "teacher", "student", "class", "enrollment", "course", "course_category", "class_type");
+        "teacher", "student", "class", "enrollment", "course", "course_category", "class_type",
+        "fee_item");
 
     private final CodeRuleRegistry registry = new CodeRuleRegistry(
         providersOf(new InstitutionCodeRuleContributor(),

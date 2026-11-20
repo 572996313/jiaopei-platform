@@ -20,6 +20,7 @@ import com.cornerstone.module.education.dto.EnrollmentCreateRequest;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.TeacherCreateRequest;
 import com.cornerstone.module.education.dto.TeachingClassCreateRequest;
+import com.cornerstone.module.education.fee.dto.FeeItemCreateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.mapper.CourseMapper;
@@ -91,7 +92,8 @@ class CodeRuleWiringTest {
         Map.entry("enrollment", EnrollmentCreateRequest.class),
         Map.entry("course", CourseCreateRequest.class),
         Map.entry("course_category", CourseCategoryCreateRequest.class),
-        Map.entry("class_type", ClassTypeCreateRequest.class));
+        Map.entry("class_type", ClassTypeCreateRequest.class),
+        Map.entry("fee_item", FeeItemCreateRequest.class));
 
     private final InstitutionMapper institutionMapper = mock(InstitutionMapper.class);
     private final CampusMapper campusMapper = mock(CampusMapper.class);

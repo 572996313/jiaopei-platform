@@ -16,6 +16,7 @@ public record StudentParentView(
     @Schema(description = "家长关系字典(parent_relation:mother=母亲,father=父亲,guardian=监护人,relative=其他亲属)") String relationType,
     @Schema(description = "家长联系电话") String parentPhone,
     @Schema(description = "微信号") String wechatNo,
+    @Schema(description = "支付宝绑定电话") String alipayPhone,
     @Schema(description = "是否主联系人") Boolean isPrimary,
     @Schema(description = "是否紧急联系人") Boolean isEmergencyContact,
     @Schema(description = "状态(active=启用,inactive=停用)") String status,

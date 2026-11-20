@@ -121,6 +121,7 @@ public class StudentParentServiceImpl implements StudentParentService {
                     entity.getRelationType(),
                     entity.getParentPhone(),
                     entity.getWechatNo(),
+                    entity.getAlipayPhone(),
                     entity.getIsPrimary(),
                     entity.getIsEmergencyContact(),
                     entity.getStatus(),
@@ -175,6 +176,7 @@ public class StudentParentServiceImpl implements StudentParentService {
         entity.setRelationType(dictValueValidator.validate("parent_relation", "家长关系", request.relationType()));
         entity.setParentPhone(parentPhone);
         entity.setWechatNo(normalizeToNull(request.wechatNo()));
+        entity.setAlipayPhone(normalizeToNull(request.alipayPhone()));
         entity.setIsPrimary(Boolean.TRUE.equals(request.isPrimary()));
         entity.setIsEmergencyContact(Boolean.TRUE.equals(request.isEmergencyContact()));
         entity.setStatus(isBlank(request.status()) ? "active" : request.status().trim());

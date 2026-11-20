@@ -30,6 +30,9 @@ public class StudentParentEntity extends BaseEntity {
     @Schema(description = "微信号")
     private String wechatNo;
 
+    @Schema(description = "支付宝绑定电话")
+    private String alipayPhone;
+
     @Schema(description = "是否主联系人")
     private Boolean isPrimary;
 
