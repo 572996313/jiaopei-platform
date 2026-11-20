@@ -41,6 +41,7 @@ import { fetchLoginPage } from '@cornerstone/core/api/auth'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { useBranding } from '@cornerstone/core/composables/use-branding'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -65,11 +66,6 @@ onMounted(async () => {
     // 提示语是装饰性信息，接口不可用时保持不展示
   }
 })
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 async function submitLogin() {
   const username = trimToUndefined(form.username)

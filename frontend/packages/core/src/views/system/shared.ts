@@ -15,10 +15,9 @@ export function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
+// 文本归一收口在 core 公共工具里：可清空控件（el-select 等）清空后是 undefined，
+// 本文件不再单独维护一份签名只收 string 的实现
+export { trimToUndefined } from '@cornerstone/core/utils/text'
 
 export function parseCustomPermissionCodes(raw: string) {
   return raw

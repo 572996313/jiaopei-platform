@@ -70,6 +70,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,11 +83,6 @@ const form = reactive({
   newPassword: '',
   confirmPassword: '',
 })
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function resolveRedirect() {
   if (typeof route.query.redirect === 'string' && route.query.redirect !== '/change-password') {

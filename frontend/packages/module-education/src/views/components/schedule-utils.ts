@@ -102,10 +102,8 @@ export function compactDateLabel(value?: string | null) {
   return value.length >= 10 ? value.slice(5) : value
 }
 
-export function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
+// 文本归一收口在 core 公共工具:可清空控件(el-select 等)清空后是 undefined,不是空串
+export { trimToUndefined } from '@cornerstone/core/utils/text'
 
 export function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
