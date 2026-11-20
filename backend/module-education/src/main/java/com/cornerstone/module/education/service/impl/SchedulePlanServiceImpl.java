@@ -35,6 +35,7 @@ import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -109,8 +110,10 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
         wrapper.eq(SchedulePlanEntity::getInstitutionId,
             ScheduleInstitutionGuard.resolveForQuery(query.getInstitutionId(), SUBJECT));
         if (query.getCampusId() != null) {
+            CampusScopeGuard.assertCampus(query.getCampusId(), "排课计划");
             wrapper.eq(SchedulePlanEntity::getCampusId, query.getCampusId());
         }
+        CampusScopeGuard.apply(wrapper, SchedulePlanEntity::getCampusId);
         if (query.getClassId() != null) {
             wrapper.eq(SchedulePlanEntity::getClassId, query.getClassId());
         }
@@ -284,6 +287,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课计划不存在：" + id);
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
+        CampusScopeGuard.assertCampus(entity.getCampusId(), "排课计划");
         return entity;
     }
 
@@ -442,6 +446,7 @@ public class SchedulePlanServiceImpl implements SchedulePlanService {
     private ResolvedPlan resolve(SchedulePlanRequest request) {
         // 预览/提交/更新都先过这一关：请求声明的机构必须就是登录机构，下面的资料归属校验才成立
         ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
+        CampusScopeGuard.assertCampus(request.campusId(), "排课计划");
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + request.classId());

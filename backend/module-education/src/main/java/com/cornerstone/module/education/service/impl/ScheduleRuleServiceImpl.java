@@ -26,12 +26,14 @@ import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,6 +88,7 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         if (query.getTargetId() != null) {
             wrapper.eq(ScheduleRuleEntity::getTargetId, query.getTargetId());
         }
+        applyTargetScope(wrapper);
         if (notBlank(query.getStatus())) {
             wrapper.eq(ScheduleRuleEntity::getStatus, query.getStatus().trim());
         }
@@ -137,7 +140,59 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课规则不存在：" + id);
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
+        assertTargetVisible(entity);
         return entity;
+    }
+
+    /** 规则表没有校区列，可见性由目标对象（班级/教师/教室）的校区决定；教师未分配校区视为机构通用。 */
+    private void assertTargetVisible(ScheduleRuleEntity entity) {
+        Set<Long> campusIds = CampusScopeGuard.campusIds();
+        if (campusIds == null) {
+            return;
+        }
+        if (campusIds.isEmpty()) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前角色没有任何可访问校区");
+        }
+        Long campusId;
+        if (ScheduleRuleSupport.TARGET_CLASS.equals(entity.getTargetType())) {
+            TeachingClassEntity teachingClass = classMapper.selectById(entity.getTargetId());
+            campusId = teachingClass == null ? null : teachingClass.getCampusId();
+        } else if (ScheduleRuleSupport.TARGET_TEACHER.equals(entity.getTargetType())) {
+            TeacherEntity teacher = teacherMapper.selectById(entity.getTargetId());
+            campusId = teacher == null ? null : teacher.getCampusId();
+            if (campusId == null) {
+                // 与列表口径一致：未分配校区的教师是机构通用档案
+                return;
+            }
+        } else {
+            ClassroomEntity classroom = classroomMapper.selectById(entity.getTargetId());
+            campusId = classroom == null ? null : classroom.getCampusId();
+        }
+        if (campusId == null || !campusIds.contains(campusId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他校区的排课规则");
+        }
+    }
+
+    /** 受限角色按目标对象的校区收窄列表，用子查询避免把几百个目标 ID 拉到内存。 */
+    private void applyTargetScope(LambdaQueryWrapper<ScheduleRuleEntity> wrapper) {
+        Set<Long> campusIds = CampusScopeGuard.campusIds();
+        if (campusIds == null) {
+            return;
+        }
+        if (campusIds.isEmpty()) {
+            wrapper.apply("1 = 0");
+            return;
+        }
+        String campusList = campusIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        wrapper.and(w -> w
+            .apply("(target_type = 'class' AND target_id IN (SELECT id FROM jp_class"
+                + " WHERE deleted = 0 AND campus_id IN (" + campusList + ")))")
+            .or()
+            .apply("(target_type = 'teacher' AND target_id IN (SELECT id FROM jp_teacher"
+                + " WHERE deleted = 0 AND (campus_id IS NULL OR campus_id IN (" + campusList + "))))")
+            .or()
+            .apply("(target_type = 'classroom' AND target_id IN (SELECT id FROM jp_classroom"
+                + " WHERE deleted = 0 AND campus_id IN (" + campusList + ")))"));
     }
 
     private void applyDefinition(ScheduleRuleEntity entity, ScheduleRuleRequest request, ResolvedRule resolved) {
@@ -196,6 +251,8 @@ public class ScheduleRuleServiceImpl implements ScheduleRuleService {
         } else {
             throw new BusinessException(ResultCode.BAD_REQUEST, "规则对象类型只能是班级、教师或教室");
         }
+        // 受限角色只能给授权校区内的对象建/改规则；教师未分配校区（NULL）属于机构通用，同样不允许
+        CampusScopeGuard.assertNullableCampus(targetCampusId, "排课规则");
 
         List<ScheduleSlotCell> slots = request.slots().stream()
             .filter(slot -> slot != null && slot.weekday() != null && slot.timeSlotId() != null)

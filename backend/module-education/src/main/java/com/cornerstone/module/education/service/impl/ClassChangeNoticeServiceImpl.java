@@ -8,6 +8,7 @@ import com.cornerstone.module.education.mapper.ClassTeacherMapper;
 import com.cornerstone.module.education.mapper.ClassChangeNoticeMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ public class ClassChangeNoticeServiceImpl implements ClassChangeNoticeService {
         if (noticeStatus != null && !noticeStatus.isBlank()) {
             wrapper.eq(ClassChangeNoticeEntity::getNoticeStatus, noticeStatus.trim());
         }
+        // 通知的校区由班级带出；未带校区的历史行按机构通用处理，受限角色仍可见
+        CampusScopeGuard.applyIncludingNull(wrapper, ClassChangeNoticeEntity::getCampusId);
         return classChangeNoticeMapper.selectList(wrapper);
     }
 
@@ -87,6 +90,8 @@ public class ClassChangeNoticeServiceImpl implements ClassChangeNoticeService {
         } else {
             return List.of();
         }
+        // 同步会写通知行，必须先按可访问校区收窄班级，避免受限角色借同步接口触达其他校区
+        CampusScopeGuard.apply(wrapper, TeachingClassEntity::getCampusId);
         return teachingClassMapper.selectList(wrapper);
     }
 

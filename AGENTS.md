@@ -203,6 +203,17 @@ pnpm dev:h5            # H5 调试
 
 自查：`功能权限总览` 页（`/system/permission-overview`）的「未登记码」和「已登记未挂菜单」两组必须都是空的；非空即说明有码只存在于 CSV/列表按钮配置而没有节点承载，或反之。
 
+## 角色数据范围：按校区授权（必填，2026-11-20 落地）
+
+权限码回答"能不能做"，数据范围回答"能对哪些校区做"。两者是叠加关系，**权限码不能替代服务端范围校验**。
+
+- **存储**：`sys_role_data_scope(role_id, institution_id, scope_type, scope_value)`，`scope_value=0` 表示该维度全部；唯一键含 `deleted`（与 `sys_role_menu` 同口径）。保存按 `(role_id, institution_id, scope_type)` 物理删旧行再插入，与角色授权同一事务。
+- **口径**：未配置 = 不限制；显式 0 = 不限制；多角色并集，任一角色未配置或含 0 则整体不限制；白名单为空 = 拒绝（`1=0` / 403），**绝不能退化成"看全部"**。小程序端（`portal != admin`）与 `PLATFORM_ADMIN` 不受限。
+- **快照**：`AuthenticatedUser.dataScopeKey / dataScopeIds` 由 `UserAccessTokenService` 登录时解析并写入 Redis；`AuthApplicationServiceImpl.authenticateToken` 每次请求重建用户对象时**必须原样带回这两个字段**（漏传 = 登录后受限、刷新又变全部）。JWT 不加 claim，Redis 会话是唯一事实源。新增字段必须是引用类型，旧 Redis JSON 缺字段才能反序列化为 null（= 不限制）。
+- **强制点**：受校区限制的读写一律走 `CampusScopeGuard`（module-organization，静态读 `AuthContext`）。列语义：非空归属列用 `apply`，NULL=机构通用用 `applyIncludingNull`，0=全校区用 `applyWithAllSentinel`，无校区列经班级推导用 `applyClassIds` / `EducationCampusScopeSupport`。写侧用 `assertCampus` / `assertNullableCampus` / `assertUnrestricted`。客户端传来的 `campusId` 只是额外筛选，为 null 绝不放宽服务端范围。
+- **新增带校区维度（或可经班级推导）的查询/写入时，必须同时接上对应 Guard**：只做前端筛选等于没做。公告的 `campus_scope=all` 对受限角色不可见写入（`assertUnrestricted`），读取按 `campus_ids` / 班级所在校区与可访问校区求交集。
+- 角色范围变更沿用 `invalidateUserSessionsByRole`，在线用户需重登生效；删除校区前会检查 `sys_role_data_scope` 引用并拒绝。
+
 ## 统一响应与全局异常
 
 - `ApiResponseAdvice`（`@ControllerAdvice`）自动把 controller 返回值包成 `ApiResponse{code/success/message/data/timestamp/traceId/path}`，controller 直接返回数据对象即可，不要手动包 `ApiResponse`。`null` 与 `Resource` 不包装。

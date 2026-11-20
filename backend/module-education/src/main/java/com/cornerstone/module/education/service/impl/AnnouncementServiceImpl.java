@@ -29,6 +29,7 @@ import com.cornerstone.module.education.mapper.MsgAnnouncementTemplateMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.AnnouncementService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import java.time.LocalDateTime;
@@ -120,6 +121,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (hasText(query.getKeyword())) {
             wrapper.like(MsgAnnouncementEntity::getTitle, query.getKeyword().trim());
         }
+        applyCampusVisibility(wrapper, institutionId);
         if (!PageSortSupport.apply(wrapper, query, ANNOUNCEMENT_SORTABLE, MsgAnnouncementEntity::getId)) {
             wrapper.orderByDesc(MsgAnnouncementEntity::getCreatedAt);
         }
@@ -263,9 +265,11 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     @Override
     public List<AnnouncementTemplateView> listTemplates() {
         Long institutionId = institutionOf(AuthContext.requireUser());
-        return templateMapper.selectList(new LambdaQueryWrapper<MsgAnnouncementTemplateEntity>()
-                .eq(MsgAnnouncementTemplateEntity::getInstitutionId, institutionId)
-                .orderByDesc(MsgAnnouncementTemplateEntity::getCreatedAt))
+        LambdaQueryWrapper<MsgAnnouncementTemplateEntity> wrapper = new LambdaQueryWrapper<MsgAnnouncementTemplateEntity>()
+            .eq(MsgAnnouncementTemplateEntity::getInstitutionId, institutionId)
+            .orderByDesc(MsgAnnouncementTemplateEntity::getCreatedAt);
+        applyScopeVisibility(wrapper, institutionId, "jp_msg_announcement_template");
+        return templateMapper.selectList(wrapper)
             .stream()
             .map(this::toTemplateView)
             .toList();
@@ -377,7 +381,76 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (!Objects.equals(entity.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的公告");
         }
+        assertAnnouncementVisible(entity);
         return entity;
+    }
+
+    /**
+     * 受限角色只看目标校区与可访问校区有交集的公告：全校区公告人人可见（只要还有至少一个可访问校区），
+     * 指定校区看 campus_ids 交集，指定班级看班级所在校区交集。空白名单时一律不可见。
+     */
+    private void assertAnnouncementVisible(MsgAnnouncementEntity entity) {
+        assertScopeVisible(entity.getCampusScope(), entity.getCampusIds(), entity.getClassIds(),
+            entity.getInstitutionId(), "公告");
+    }
+
+    private void assertTemplateVisible(MsgAnnouncementTemplateEntity entity) {
+        assertScopeVisible(entity.getCampusScope(), entity.getCampusIds(), entity.getClassIds(),
+            entity.getInstitutionId(), "公告模板");
+    }
+
+    private void assertScopeVisible(String campusScope, String campusCsv, String classCsv,
+                                    Long institutionId, String subject) {
+        Set<Long> campusIds = CampusScopeGuard.campusIds();
+        if (campusIds == null) {
+            return;
+        }
+        if (campusIds.isEmpty()) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前角色没有任何可访问校区");
+        }
+        if (SCOPE_ALL.equals(campusScope)) {
+            return;
+        }
+        if (splitIds(campusCsv).stream().anyMatch(campusIds::contains)) {
+            return;
+        }
+        List<Long> classIds = splitIds(classCsv);
+        if (!classIds.isEmpty()) {
+            Long visible = classMapper.selectCount(new LambdaQueryWrapper<TeachingClassEntity>()
+                .eq(TeachingClassEntity::getInstitutionId, institutionId)
+                .in(TeachingClassEntity::getId, classIds)
+                .in(TeachingClassEntity::getCampusId, campusIds));
+            if (visible != null && visible > 0) {
+                return;
+            }
+        }
+        throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他校区的" + subject);
+    }
+
+    /** 公告与模板共用同一套可见性 SQL：全校区可见，或所选校区/班级与可访问校区有交集。 */
+    private <T> void applyScopeVisibility(LambdaQueryWrapper<T> wrapper, Long institutionId, String tableName) {
+        Set<Long> campusIds = CampusScopeGuard.campusIds();
+        if (campusIds == null) {
+            return;
+        }
+        if (campusIds.isEmpty()) {
+            wrapper.apply("1 = 0");
+            return;
+        }
+        String campusIdList = campusIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        String classSql = CampusScopeGuard.accessibleClassIdSql(institutionId, campusIds);
+        wrapper.and(w -> w
+            .apply("campus_scope = 'all'")
+            .or()
+            .apply("EXISTS (SELECT 1 FROM jp_campus c WHERE c.deleted = 0 AND c.id IN (" + campusIdList + ")"
+                + " AND FIND_IN_SET(c.id, " + tableName + ".campus_ids) > 0)")
+            .or()
+            .apply("EXISTS (SELECT 1 FROM jp_class cl WHERE cl.deleted = 0 AND cl.id IN (" + classSql + ")"
+                + " AND FIND_IN_SET(cl.id, " + tableName + ".class_ids) > 0)"));
+    }
+
+    private void applyCampusVisibility(LambdaQueryWrapper<MsgAnnouncementEntity> wrapper, Long institutionId) {
+        applyScopeVisibility(wrapper, institutionId, "jp_msg_announcement");
     }
 
     private Long institutionOf(AuthenticatedUser user) {
@@ -423,6 +496,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (!Objects.equals(entity.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的模板");
         }
+        assertTemplateVisible(entity);
         return entity;
     }
 
@@ -474,6 +548,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         List<Long> classIds = rawClassIds == null ? List.of()
             : rawClassIds.stream().filter(Objects::nonNull).distinct().toList();
         if (SCOPE_ALL.equals(campusScope)) {
+            // 全校区公告对所有人可见，只有不受校区范围限制的角色能发
+            CampusScopeGuard.assertUnrestricted("发布全校区公告");
             campusIds = List.of();
         } else if (campusIds.isEmpty()) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "指定校区范围至少要选一个校区");
@@ -492,6 +568,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             if (nullToZero(owned) != campusIds.size()) {
                 throw new BusinessException(ResultCode.FORBIDDEN, "所选校区不属于当前机构");
             }
+            // 受限角色只能把公告投到自己能访问的校区
+            campusIds.forEach(id -> CampusScopeGuard.assertCampus(id, "公告范围"));
         }
         if (!classIds.isEmpty()) {
             requireJoinedLength(classIds, "班级");
@@ -501,6 +579,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             if (nullToZero(owned) != classIds.size()) {
                 throw new BusinessException(ResultCode.FORBIDDEN, "所选班级不属于当前机构");
             }
+            // 班级没有独立的授权项，按其归属校区判断；受限角色的班级必须都落在可访问校区内
+            classMapper.selectList(new LambdaQueryWrapper<TeachingClassEntity>()
+                    .select(TeachingClassEntity::getId, TeachingClassEntity::getCampusId)
+                    .eq(TeachingClassEntity::getInstitutionId, institutionId)
+                    .in(TeachingClassEntity::getId, classIds))
+                .forEach(entity -> CampusScopeGuard.assertCampus(entity.getCampusId(), "公告班级范围"));
         }
     }
 

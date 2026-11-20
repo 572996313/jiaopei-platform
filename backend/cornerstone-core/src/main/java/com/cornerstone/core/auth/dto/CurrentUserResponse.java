@@ -15,6 +15,10 @@ public record CurrentUserResponse(
     @Schema(description = "密码重置标记") Boolean passwordResetRequired,
     @Schema(description = "强制改密生效值") Boolean forceChangePassword,
     @Schema(description = "所属端(admin=平台用户/管理后台;其余取值由业务模块注册的 PortalResolver 判定,本项目小程序端为 student/parent)")
-    String portal
+    String portal,
+    @Schema(description = "数据范围维度(null=不限制;当前管理后台为 CAMPUS)")
+    String dataScopeKey,
+    @Schema(description = "数据范围白名单(null=不限制;空数组=没有任何可见节点)")
+    List<Long> dataScopeIds
 ) {
 }

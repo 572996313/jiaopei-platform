@@ -15,6 +15,7 @@ import com.cornerstone.module.education.dto.TeacherAccountLinkRequest;
 import com.cornerstone.module.education.dto.TeacherAccountLinkResult;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.TeacherAccountLinkService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -57,10 +58,13 @@ public class TeacherAccountLinkServiceImpl implements TeacherAccountLinkService 
     @Override
     public TeacherAccountLinkCandidateResult previewCandidates() {
         Long institutionId = requireInstitution();
-        List<TeacherEntity> unlinked = teacherMapper.selectList(new LambdaQueryWrapper<TeacherEntity>()
+        LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
             .eq(TeacherEntity::getInstitutionId, institutionId)
             .isNull(TeacherEntity::getUserId)
-            .orderByAsc(TeacherEntity::getTeacherCode));
+            .orderByAsc(TeacherEntity::getTeacherCode);
+        // 与教师列表同口径：机构通用（未分配校区）+ 可访问校区
+        CampusScopeGuard.applyIncludingNull(wrapper, TeacherEntity::getCampusId);
+        List<TeacherEntity> unlinked = teacherMapper.selectList(wrapper);
         if (unlinked.isEmpty()) {
             return new TeacherAccountLinkCandidateResult(0, 0, 0, List.of());
         }
@@ -138,6 +142,7 @@ public class TeacherAccountLinkServiceImpl implements TeacherAccountLinkService 
                 errors.add("教师档案不属于当前机构或不存在");
                 continue;
             }
+            CampusScopeGuard.assertNullableCampus(teacher.getCampusId(), "教师账号关联");
             if (teacher.getUserId() != null) {
                 errors.add("教师 " + teacher.getTeacherName() + " 已绑定账号，需先解除原关联");
                 continue;

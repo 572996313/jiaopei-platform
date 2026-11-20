@@ -17,6 +17,8 @@ import com.cornerstone.module.education.dto.TeacherPageQuery;
 import com.cornerstone.module.education.dto.TeacherUpdateRequest;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.TeacherService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
@@ -79,16 +81,20 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public List<TeacherEntity> listTeachers(Long institutionId, Long campusId) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "教师");
         LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<TeacherEntity>()
             .orderByAsc(TeacherEntity::getInstitutionId)
             .orderByAsc(TeacherEntity::getCampusId)
             .orderByAsc(TeacherEntity::getTeacherCode);
-        if (institutionId != null) {
-            wrapper.eq(TeacherEntity::getInstitutionId, institutionId);
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(TeacherEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "教师");
             wrapper.eq(TeacherEntity::getCampusId, campusId);
         }
+        // 未分配校区的教师属于机构通用档案，受限角色仍可见
+        CampusScopeGuard.applyIncludingNull(wrapper, TeacherEntity::getCampusId);
         return teacherMapper.selectList(wrapper);
     }
 
@@ -148,13 +154,16 @@ public class TeacherServiceImpl implements TeacherService {
 
     /** 列表、分页与导出共用同一套筛选条件，三处各拼一遍迟早查出不同结果 */
     private LambdaQueryWrapper<TeacherEntity> buildWrapper(TeacherPageQuery query) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(query.getInstitutionId(), "教师");
         LambdaQueryWrapper<TeacherEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(TeacherEntity::getInstitutionId, query.getInstitutionId());
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(TeacherEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (query.getCampusId() != null) {
+            CampusScopeGuard.assertCampus(query.getCampusId(), "教师");
             wrapper.eq(TeacherEntity::getCampusId, query.getCampusId());
         }
+        CampusScopeGuard.applyIncludingNull(wrapper, TeacherEntity::getCampusId);
         String keyword = normalize(query.getKeyword());
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w
@@ -210,9 +219,13 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public TeacherEntity createTeacher(TeacherCreateRequest request) {
+        InstitutionScopeGuard.assertOwn(request.institutionId(), "教师");
         requireInstitution(request.institutionId());
         if (request.campusId() != null) {
             requireCampusInInstitution(request.campusId(), request.institutionId());
+            CampusScopeGuard.assertCampus(request.campusId(), "教师");
+        } else {
+            CampusScopeGuard.assertUnrestricted("维护机构通用的教师档案");
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入职日期不能晚于当前日期");
@@ -254,8 +267,13 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     public TeacherEntity updateTeacher(Long id, TeacherUpdateRequest request) {
         TeacherEntity existing = requireTeacher(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "教师");
+        CampusScopeGuard.assertNullableCampus(existing.getCampusId(), "教师档案");
         if (request.campusId() != null) {
             requireCampusInInstitution(request.campusId(), existing.getInstitutionId());
+            CampusScopeGuard.assertCampus(request.campusId(), "教师");
+        } else {
+            CampusScopeGuard.assertUnrestricted("维护机构通用的教师档案");
         }
         if (request.hiredAt() != null && request.hiredAt().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入职日期不能晚于当前日期");
@@ -299,7 +317,9 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public void deleteTeacher(Long id) {
-        requireTeacher(id);
+        TeacherEntity existing = requireTeacher(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "教师");
+        CampusScopeGuard.assertNullableCampus(existing.getCampusId(), "教师档案");
         teacherMapper.softDeleteAndUnlink(id);
     }
 

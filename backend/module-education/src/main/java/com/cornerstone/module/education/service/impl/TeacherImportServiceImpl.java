@@ -20,6 +20,7 @@ import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.service.support.TeacherImportTemplate;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -341,9 +342,12 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     /** 校区按编码解析：雪花校区 ID 不该让人手抄进 Excel，与底座的角色编码同一口径 */
     private Map<String, Long> loadCampusIds(Long institutionId) {
         Map<String, Long> idsByCode = new LinkedHashMap<>();
-        campusMapper.selectList(new LambdaQueryWrapper<CampusEntity>()
-                .eq(CampusEntity::getInstitutionId, institutionId)
-                .orderByAsc(CampusEntity::getCampusCode))
+        LambdaQueryWrapper<CampusEntity> wrapper = new LambdaQueryWrapper<CampusEntity>()
+            .eq(CampusEntity::getInstitutionId, institutionId)
+            .orderByAsc(CampusEntity::getCampusCode);
+        // 导入只能落到可访问校区；其他校区的编码不出现在提示里
+        CampusScopeGuard.apply(wrapper, CampusEntity::getId);
+        campusMapper.selectList(wrapper)
             .forEach(campus -> idsByCode.putIfAbsent(campus.getCampusCode(), campus.getId()));
         return idsByCode;
     }

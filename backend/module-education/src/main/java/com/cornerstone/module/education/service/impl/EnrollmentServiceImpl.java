@@ -22,6 +22,9 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassStudentService;
 import com.cornerstone.module.education.service.EnrollmentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import java.time.LocalDate;
@@ -70,9 +73,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public List<EnrollmentEntity> listEnrollments(Long institutionId, Long classId, Long studentId) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "报名");
         LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (institutionId != null) {
-            wrapper.eq(EnrollmentEntity::getInstitutionId, institutionId);
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(EnrollmentEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (classId != null) {
             wrapper.eq(EnrollmentEntity::getClassId, classId);
@@ -80,6 +84,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         if (studentId != null) {
             wrapper.eq(EnrollmentEntity::getStudentId, studentId);
         }
+        EducationCampusScopeSupport.applyClassVisible(wrapper, EnrollmentEntity::getClassId);
         applyDefaultOrder(wrapper);
         return enrollmentMapper.selectList(wrapper);
     }
@@ -93,9 +98,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public PageResult<EnrollmentView> pageEnrollments(EnrollmentPageQuery query) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(query.getInstitutionId(), "报名");
         LambdaQueryWrapper<EnrollmentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(EnrollmentEntity::getInstitutionId, query.getInstitutionId());
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(EnrollmentEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (query.getClassId() != null) {
             wrapper.eq(EnrollmentEntity::getClassId, query.getClassId());
@@ -103,6 +109,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         if (query.getStudentId() != null) {
             wrapper.eq(EnrollmentEntity::getStudentId, query.getStudentId());
         }
+        EducationCampusScopeSupport.applyClassVisible(wrapper, EnrollmentEntity::getClassId);
         if (!PageSortSupport.apply(wrapper, query, ENROLLMENT_SORTABLE, EnrollmentEntity::getId)) {
             applyDefaultOrder(wrapper);
         }
@@ -155,9 +162,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     @Transactional
     public EnrollmentEntity createEnrollment(EnrollmentCreateRequest request) {
+        InstitutionScopeGuard.assertOwn(request.institutionId(), "报名");
         requireInstitution(request.institutionId());
         requireStudentInInstitution(request.studentId(), request.institutionId());
         TeachingClassEntity teachingClass = requireClassInInstitution(request.classId(), request.institutionId());
+        CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "报名");
         if (request.enrolledAt() != null && request.enrolledAt().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "入学日期不能晚于当前日期");
         }

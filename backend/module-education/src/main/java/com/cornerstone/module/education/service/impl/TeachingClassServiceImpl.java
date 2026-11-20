@@ -22,6 +22,8 @@ import com.cornerstone.module.education.service.support.LessonTargetConverter;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.mapper.TermMapper;
@@ -120,20 +122,29 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     @Override
     public TeachingClassEntity getClassDetail(Long id, Long institutionId) {
         TeachingClassEntity teachingClass = requireClass(id);
-        if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
+        InstitutionScopeGuard.assertOwn(teachingClass.getInstitutionId(), "班级");
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(
+            institutionId, "班级");
+        if (resolvedInstitutionId != null
+            && !Objects.equals(teachingClass.getInstitutionId(), resolvedInstitutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + teachingClass.getClassCode());
         }
+        CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "班级");
         return teachingClass;
     }
 
     /** 班级查询的统一筛选口径：三个范围参数都是"传了才过滤"。 */
     private void applyScope(LambdaQueryWrapper<TeachingClassEntity> wrapper, Long institutionId, Long campusId, Long termId) {
-        if (institutionId != null) {
-            wrapper.eq(TeachingClassEntity::getInstitutionId, institutionId);
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "班级");
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(TeachingClassEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "班级");
             wrapper.eq(TeachingClassEntity::getCampusId, campusId);
         }
+        // 客户端 campusId 只是额外收窄；受限角色即使不传也要按白名单过滤
+        CampusScopeGuard.apply(wrapper, TeachingClassEntity::getCampusId);
         if (termId != null) {
             wrapper.eq(TeachingClassEntity::getTermId, termId);
         }
@@ -142,6 +153,8 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     @Override
     @Transactional
     public TeachingClassEntity createClass(TeachingClassCreateRequest request) {
+        InstitutionScopeGuard.assertOwn(request.institutionId(), "班级");
+        CampusScopeGuard.assertCampus(request.campusId(), "班级");
         validateRequest(request);
         int capacityLimit = normalizeCapacityLimit(request.capacityLimit());
         String classCode = codeRuleService.resolveForCreate("class", request.classCode());
@@ -180,6 +193,9 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     @Transactional
     public TeachingClassEntity updateClass(Long id, TeachingClassCreateRequest request) {
         TeachingClassEntity existing = requireClass(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "班级");
+        CampusScopeGuard.assertCampus(existing.getCampusId(), "班级");
+        CampusScopeGuard.assertCampus(request.campusId(), "班级");
         validateRequest(request);
         if (!Objects.equals(existing.getInstitutionId(), request.institutionId())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + existing.getClassCode());
@@ -225,6 +241,8 @@ public class TeachingClassServiceImpl implements TeachingClassService {
     @Transactional
     public void deleteClass(Long id) {
         TeachingClassEntity existing = requireClass(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "班级");
+        CampusScopeGuard.assertCampus(existing.getCampusId(), "班级");
         Long activeStudents = classStudentMapper.selectCount(new LambdaQueryWrapper<ClassStudentEntity>()
             .eq(ClassStudentEntity::getClassId, id)
             .eq(ClassStudentEntity::getStatus, "active"));

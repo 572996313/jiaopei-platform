@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springdoc.core.annotations.ParameterObject;
 
@@ -65,11 +66,14 @@ public class SystemRoleController {
         return ApiResponse.success("角色已更新", systemRoleService.updateRole(id, request));
     }
 
-    @Operation(summary = "获取角色授权", description = "返回角色已勾选的页面/操作节点与历史预设权限码")
+    @Operation(summary = "获取角色授权", description = "返回角色已勾选的页面/操作节点、历史预设权限码与当前机构的数据范围")
     @GetMapping("/{roleId}/authorizations")
     @RequiresPermission("system:role:manage")
-    public ApiResponse<RoleAuthorizationView> authorizations(@PathVariable Long roleId) {
-        return ApiResponse.success("角色授权已加载", systemMenuService.getRoleAuthorization(roleId));
+    public ApiResponse<RoleAuthorizationView> authorizations(
+        @PathVariable Long roleId,
+        @RequestParam(required = false) Long institutionId) {
+        return ApiResponse.success("角色授权已加载",
+            systemMenuService.getRoleAuthorization(roleId, institutionId));
     }
 
     @Operation(summary = "保存角色授权",
@@ -77,7 +81,10 @@ public class SystemRoleController {
     @PutMapping("/{roleId}/authorizations")
     @RequiresPermission("system:role:manage")
     public ApiResponse<RoleAuthorizationView> updateAuthorizations(
-        @PathVariable Long roleId, @Valid @RequestBody RoleMenuUpdateRequest request) {
-        return ApiResponse.success("角色授权已更新", systemMenuService.updateRoleAuthorization(roleId, request));
+        @PathVariable Long roleId,
+        @RequestParam(required = false) Long institutionId,
+        @Valid @RequestBody RoleMenuUpdateRequest request) {
+        return ApiResponse.success("角色授权已更新",
+            systemMenuService.updateRoleAuthorization(roleId, request, institutionId));
     }
 }

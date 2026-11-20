@@ -416,6 +416,42 @@ class AnnouncementServiceImplTest {
         return account;
     }
 
+    @Test
+    void restrictedUserCannotOpenAnnouncementOfAnotherCampus() {
+        authenticateScoped(Set.of(11L));
+        when(announcementMapper.selectById(5L)).thenReturn(draft(5L, "teacher", "part", "12", null));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.getAnnouncement(5L));
+
+        assertEquals(ResultCode.FORBIDDEN, error.getResultCode());
+    }
+
+    @Test
+    void restrictedUserCanOpenIntersectingPartAndAllScopeAnnouncements() {
+        authenticateScoped(Set.of(11L));
+        when(announcementMapper.selectById(5L)).thenReturn(draft(5L, "teacher", "part", "10,11", null));
+        when(announcementMapper.selectById(6L)).thenReturn(draft(6L, "teacher", "all", null, null));
+        when(receiverMapper.selectMaps(any())).thenReturn(List.of());
+
+        assertDoesNotThrow(() -> service.getAnnouncement(5L));
+        assertDoesNotThrow(() -> service.getAnnouncement(6L));
+    }
+
+    @Test
+    void emptyCampusWhitelistHidesEvenAllScopeAnnouncements() {
+        authenticateScoped(Set.of());
+        when(announcementMapper.selectById(5L)).thenReturn(draft(5L, "teacher", "all", null, null));
+
+        assertThrows(BusinessException.class, () -> service.getAnnouncement(5L));
+    }
+
+    private void authenticateScoped(Set<Long> campusIds) {
+        AuthenticatedUser user = new AuthenticatedUser(1L, 1L, "admin", Set.of("ADMIN"),
+            Set.of("announcement:read", "announcement:write"), false, "admin", "CAMPUS", campusIds);
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", Set.of()));
+    }
+
     private void authenticate(Long userId, Long institutionId) {
         AuthenticatedUser user = new AuthenticatedUser(userId, institutionId, "admin",
             Set.of("ADMIN"), Set.of("announcement:read", "announcement:write"), false, "admin");

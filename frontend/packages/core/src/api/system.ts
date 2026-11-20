@@ -192,8 +192,35 @@ export interface SystemRoleUpdatePayload {
   remark?: string
 }
 
+export interface RoleDataScopeUpdatePayload {
+  dimensionKey: string
+  scopeMode: 'ALL' | 'PART'
+  values: string[]
+}
+
 export interface RoleMenuUpdatePayload {
   menuIds: string[]
+  /** 不传=不改动数据范围；传了=按维度整组替换 */
+  dataScopes?: RoleDataScopeUpdatePayload[]
+}
+
+export interface RoleDataScopeOption {
+  value: string
+  code?: string | null
+  name: string
+  status?: string | null
+  selectable?: boolean | null
+}
+
+export interface RoleDataScopeView {
+  dimensionKey: string
+  dimensionLabel: string
+  allOptionLabel: string
+  partOptionLabel: string
+  scopeMode: 'ALL' | 'PART'
+  configured: boolean
+  values: string[]
+  options: RoleDataScopeOption[]
 }
 
 /** 授权模式：standalone=可独立勾选；linked=同码联动（勾一个全开）；uiOnly=跟随页面，不可单独授权 */
@@ -243,6 +270,7 @@ export interface RoleAuthorization {
   roleId: string
   menuIds: string[]
   presetPermissionCodes: string[]
+  dataScopes: RoleDataScopeView[]
 }
 
 export interface SystemConfigSummary {
@@ -458,30 +486,48 @@ export function fetchActionCatalog(roleId?: string) {
   }))
 }
 
-export function fetchRoleAuthorization(roleId: string) {
-  return requestGet<RoleAuthorization>(`/system/roles/${roleId}/authorizations`).then(
-    (result) => ({
-      ...result,
-      roleId: String(result.roleId),
-      menuIds: (result.menuIds || []).map((item) => String(item)),
-      presetPermissionCodes: result.presetPermissionCodes || [],
-    })
-  )
+function normalizeRoleDataScope(scope: RoleDataScopeView): RoleDataScopeView {
+  return {
+    ...scope,
+    values: (scope.values || []).map((item) => String(item)),
+    options: (scope.options || []).map((option) => ({
+      ...option,
+      value: String(option.value),
+    })),
+  }
+}
+
+function normalizeRoleAuthorization(result: RoleAuthorization): RoleAuthorization {
+  return {
+    ...result,
+    roleId: String(result.roleId),
+    menuIds: (result.menuIds || []).map((item) => String(item)),
+    presetPermissionCodes: result.presetPermissionCodes || [],
+    dataScopes: (result.dataScopes || []).map(normalizeRoleDataScope),
+  }
+}
+
+export function fetchRoleAuthorization(roleId: string, institutionId?: string | null) {
+  return requestGet<RoleAuthorization>(
+    `/system/roles/${roleId}/authorizations`,
+    institutionId ? { institutionId } : undefined
+  ).then(normalizeRoleAuthorization)
 }
 
 /**
- * 保存角色授权：只提交页面节点与按钮节点 id，后端自动补目录祖先。
+ * 保存角色授权：提交页面/按钮节点与数据范围，后端同事务保存并自动补目录祖先。
  * 注意：本接口不接收 permissionCodes，历史 CSV 不会被它改动。
  */
-export function updateRoleAuthorization(roleId: string, payload: RoleMenuUpdatePayload) {
-  return requestPut<RoleAuthorization>(`/system/roles/${roleId}/authorizations`, payload).then(
-    (result) => ({
-      ...result,
-      roleId: String(result.roleId),
-      menuIds: (result.menuIds || []).map((item) => String(item)),
-      presetPermissionCodes: result.presetPermissionCodes || [],
-    })
-  )
+export function updateRoleAuthorization(
+  roleId: string,
+  payload: RoleMenuUpdatePayload,
+  institutionId?: string | null
+) {
+  return requestPut<RoleAuthorization>(
+    `/system/roles/${roleId}/authorizations`,
+    payload,
+    institutionId ? { institutionId } : undefined
+  ).then(normalizeRoleAuthorization)
 }
 
 function normalizeSystemConfig(item: SystemConfigSummary): SystemConfigSummary {

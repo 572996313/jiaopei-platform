@@ -226,9 +226,12 @@
           </el-form-item>
           <el-form-item label="校区范围">
             <el-radio-group v-model="form.campusScope">
-              <el-radio value="all">全部校区</el-radio>
+              <el-radio v-if="!campusRestricted" value="all">全部校区</el-radio>
               <el-radio value="part">指定校区</el-radio>
             </el-radio-group>
+            <div v-if="campusRestricted" class="ann-field-hint">
+              当前角色只能向已授权的校区发布公告。
+            </div>
           </el-form-item>
           <el-form-item v-if="form.campusScope === 'part'" label="指定校区">
             <el-select
@@ -366,6 +369,7 @@ import {
   fetchCampuses,
   type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import ClassMultiSelect from './components/ClassMultiSelect.vue'
 import {
   ANNOUNCEMENT_STATUS_OPTIONS,
@@ -388,6 +392,8 @@ import {
 const auth = useAuthStore()
 const dictStore = useDictStore()
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const campusRestricted = computed(() => scopeStore.campusRestricted)
 
 const institutionId = computed(() => institutionStore.currentInstitutionId)
 const canWrite = computed(() => auth.hasPermission('announcement:write'))
@@ -533,7 +539,8 @@ function resetForm(row?: AnnouncementRecord) {
   form.content = row?.content ?? ''
   form.typeCode = row?.typeCode ?? ''
   form.audienceCodes = [...(row?.audienceCodes ?? [])]
-  form.campusScope = row?.campusScope === 'part' ? 'part' : 'all'
+  // 受限角色不能发布/保持全校区公告：编辑历史 all 公告时强制改为指定校区，由用户重新选择
+  form.campusScope = campusRestricted.value || row?.campusScope === 'part' ? 'part' : 'all'
   form.campusIds = [...(row?.campusIds ?? [])]
   form.classIds = [...(row?.classIds ?? [])]
   form.top = Boolean(row?.top)

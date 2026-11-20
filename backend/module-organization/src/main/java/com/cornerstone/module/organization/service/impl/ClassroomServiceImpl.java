@@ -11,7 +11,9 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.ClassroomService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +38,8 @@ public class ClassroomServiceImpl implements ClassroomService {
 
     @Override
     public List<ClassroomEntity> listClassrooms(Long operatorInstitutionId, Long campusId) {
-        List<Long> campusIds = listInstitutionCampusIds(operatorInstitutionId);
+        Long institutionId = InstitutionScopeGuard.resolveForQuery(operatorInstitutionId, "教室");
+        List<Long> campusIds = listInstitutionCampusIds(institutionId);
         LambdaQueryWrapper<ClassroomEntity> wrapper = new LambdaQueryWrapper<ClassroomEntity>()
             .orderByAsc(ClassroomEntity::getCampusId)
             .orderByAsc(ClassroomEntity::getClassroomCode);
@@ -45,6 +48,7 @@ public class ClassroomServiceImpl implements ClassroomService {
             if (!campusIds.contains(campusId)) {
                 throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的教室数据");
             }
+            CampusScopeGuard.assertCampus(campusId, "教室");
             wrapper.eq(ClassroomEntity::getCampusId, campusId);
         } else if (!campusIds.isEmpty()) {
             // 不传校区 = 本机构全部校区的汇总；本机构还没建校区就没有教室可列
@@ -52,6 +56,8 @@ public class ClassroomServiceImpl implements ClassroomService {
         } else {
             return List.of();
         }
+        // 受限角色只能看到被授权校区的教室；空白名单时这里是 1=0
+        CampusScopeGuard.apply(wrapper, ClassroomEntity::getCampusId);
         return classroomMapper.selectList(wrapper);
     }
 
@@ -61,6 +67,8 @@ public class ClassroomServiceImpl implements ClassroomService {
         if (campus == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());
         }
+        InstitutionScopeGuard.assertOwn(campus.getInstitutionId(), "教室");
+        CampusScopeGuard.assertCampus(campus.getId(), "教室");
         String classroomCode = codeRuleService.resolveForCreate("classroom", request.classroomCode());
         String classroomName = normalize(request.classroomName());
         assertUniqueClassroomCode(request.campusId(), classroomCode, null);
@@ -94,7 +102,15 @@ public class ClassroomServiceImpl implements ClassroomService {
     @Override
     public ClassroomEntity updateClassroom(Long id, ClassroomUpdateRequest request) {
         ClassroomEntity existing = requireClassroom(id);
+        CampusEntity existingCampus = requireCampus(existing.getCampusId());
+        InstitutionScopeGuard.assertOwn(existingCampus.getInstitutionId(), "教室");
+        CampusScopeGuard.assertCampus(existing.getCampusId(), "教室");
         Long campusId = request.campusId() == null ? existing.getCampusId() : request.campusId();
+        if (request.campusId() != null) {
+            CampusEntity targetCampus = requireCampus(request.campusId());
+            InstitutionScopeGuard.assertOwn(targetCampus.getInstitutionId(), "教室");
+            CampusScopeGuard.assertCampus(targetCampus.getId(), "教室");
+        }
         if (request.campusId() != null && !Objects.equals(existing.getCampusId(), request.campusId())) {
             CampusEntity campus = campusMapper.selectById(request.campusId());
             if (campus == null) {
@@ -154,8 +170,19 @@ public class ClassroomServiceImpl implements ClassroomService {
 
     @Override
     public void deleteClassroom(Long id) {
-        requireClassroom(id);
+        ClassroomEntity existing = requireClassroom(id);
+        CampusEntity campus = requireCampus(existing.getCampusId());
+        InstitutionScopeGuard.assertOwn(campus.getInstitutionId(), "教室");
+        CampusScopeGuard.assertCampus(existing.getCampusId(), "教室");
         classroomMapper.deleteById(id);
+    }
+
+    private CampusEntity requireCampus(Long campusId) {
+        CampusEntity campus = campusMapper.selectById(campusId);
+        if (campus == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + campusId);
+        }
+        return campus;
     }
 
     private ClassroomEntity requireClassroom(Long id) {

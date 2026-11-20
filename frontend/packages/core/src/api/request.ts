@@ -101,9 +101,13 @@ export async function requestPost<T>(url: string, body: object): Promise<T> {
   }
 }
 
-export async function requestPut<T>(url: string, body: object): Promise<T> {
+export async function requestPut<T>(
+  url: string,
+  body: object,
+  params?: Record<string, unknown>
+): Promise<T> {
   try {
-    return unwrap(await http.put<ApiResponse<T>>(url, body))
+    return unwrap(await http.put<ApiResponse<T>>(url, body, { params: sanitizeParams(params) }))
   } catch (error) {
     throw normalizeError(error)
   }

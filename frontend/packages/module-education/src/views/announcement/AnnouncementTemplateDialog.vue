@@ -106,9 +106,12 @@
         </el-form-item>
         <el-form-item label="校区范围">
           <el-radio-group v-model="form.campusScope">
-            <el-radio value="all">全部校区</el-radio>
+            <el-radio v-if="!campusRestricted" value="all">全部校区</el-radio>
             <el-radio value="part">指定校区</el-radio>
           </el-radio-group>
+          <div v-if="campusRestricted" class="tpl-field-hint">
+            当前角色只能维护已授权校区的公告模板。
+          </div>
         </el-form-item>
         <el-form-item v-if="form.campusScope === 'part'" label="指定校区">
           <el-select v-model="form.campusIds" multiple filterable placeholder="选择一个或多个校区">
@@ -156,6 +159,7 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { fetchCampuses, type CampusSummary } from '@cornerstone/module-organization/api/organization'
+import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import ClassMultiSelect from '../components/ClassMultiSelect.vue'
 import {
   AUDIENCE_OPTIONS,
@@ -173,6 +177,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const auth = useAuthStore()
 const dictStore = useDictStore()
 const institutionStore = useInstitutionStore()
+const scopeStore = useEducationScopeStore()
+const campusRestricted = computed(() => scopeStore.campusRestricted)
 
 // 写操作仍由后端 @RequiresPermission 硬拦，这里只是不给没有写权限的人看按钮
 const canWrite = computed(() => auth.hasPermission('announcement:write'))
@@ -261,7 +267,8 @@ function resetForm(row?: AnnouncementTemplate) {
   form.content = row?.content ?? ''
   form.typeCode = row?.typeCode ?? ''
   form.audienceCodes = [...(row?.audienceCodes ?? [])]
-  form.campusScope = row?.campusScope === 'part' ? 'part' : 'all'
+  // 受限角色不能维护全校区模板：历史 all 模板打开时强制改为指定校区
+  form.campusScope = campusRestricted.value || row?.campusScope === 'part' ? 'part' : 'all'
   form.campusIds = [...(row?.campusIds ?? [])]
   form.classIds = [...(row?.classIds ?? [])]
   form.top = Boolean(row?.top)

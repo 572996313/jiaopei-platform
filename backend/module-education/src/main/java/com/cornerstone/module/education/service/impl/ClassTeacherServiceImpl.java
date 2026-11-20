@@ -14,6 +14,8 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassChangeNoticeService;
 import com.cornerstone.module.education.service.ClassTeacherService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.time.LocalDate;
 import java.util.List;
@@ -63,6 +65,8 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         if (teacherId != null) {
             wrapper.eq(ClassTeacherEntity::getTeacherId, teacherId);
         }
+        // 任课关系没有校区列，经班级推导；受限角色看不到其他校区班级的教师安排
+        EducationCampusScopeSupport.applyClassVisible(wrapper, ClassTeacherEntity::getClassId);
         return classTeacherMapper.selectList(wrapper);
     }
 
@@ -81,6 +85,9 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
     public void deleteClassTeacher(Long id) {
         ClassTeacherEntity entity = requireClassTeacher(id);
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(entity.getClassId());
+        if (teachingClass != null) {
+            CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "班级教师关系");
+        }
         Long previousPrimaryTeacherId = teachingClass == null ? null : teachingClass.getTeacherId();
         classTeacherMapper.deleteById(id);
         if (teachingClass != null) {
@@ -211,6 +218,7 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "班级不属于该机构：" + teachingClass.getClassCode());
         }
+        CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "班级教师关系");
         return teachingClass;
     }
 

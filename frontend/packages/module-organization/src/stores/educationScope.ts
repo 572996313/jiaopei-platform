@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useTabsStore } from '@cornerstone/core/stores/tabs'
 import {
   fetchCampuses,
@@ -20,6 +21,16 @@ import {
  * 机构切换/退出登录时由 institution store 经 onInstitutionReset 调用 reset()。
  */
 export const useEducationScopeStore = defineStore('educationScope', () => {
+  const authStore = useAuthStore()
+  /** 角色被授了校区范围：后端已按白名单收窄，前端只需调整「全部」的文案与选项 */
+  const campusRestricted = computed(
+    () =>
+      authStore.currentUser?.dataScopeKey === 'CAMPUS' &&
+      Array.isArray(authStore.currentUser?.dataScopeIds)
+  )
+  const allCampusesLabel = computed(() =>
+    campusRestricted.value ? '全部可访问校区' : '全部校区'
+  )
   const campusId = ref<string | null>(null)
   const campuses = ref<CampusSummary[]>([])
   const preferredCampusId = ref<string | null>(null)
@@ -110,6 +121,11 @@ export const useEducationScopeStore = defineStore('educationScope', () => {
       if (!force && campusId.value && campuses.value.some((item) => item.id === campusId.value)) {
         return
       }
+      // 只有一个可访问校区时没有「全部」这一档，直接落到唯一校区
+      if (campusRestricted.value && campuses.value.length === 1) {
+        campusId.value = campuses.value[0].id
+        return
+      }
       campusId.value =
         campuses.value.find((item) => item.id === preferredCampusId.value)?.id || null
     })().finally(() => {
@@ -123,7 +139,7 @@ export const useEducationScopeStore = defineStore('educationScope', () => {
 
   function campusName(id: string | null): string {
     if (!id) {
-      return '全部校区'
+      return allCampusesLabel.value
     }
     const matched = campuses.value.find((item) => item.id === id)
     return matched?.campusName || matched?.campusCode || `校区 #${id}`
@@ -140,6 +156,8 @@ export const useEducationScopeStore = defineStore('educationScope', () => {
   }
 
   return {
+    campusRestricted,
+    allCampusesLabel,
     campusId,
     campuses,
     preferredCampusId,

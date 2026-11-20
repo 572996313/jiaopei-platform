@@ -14,6 +14,7 @@ import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.TimeSlotService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -54,6 +55,8 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             wrapper.and(scope -> scope.eq(TimeSlotEntity::getCampusId, campusId)
                 .or().isNull(TimeSlotEntity::getCampusId));
         }
+        // 受限角色：机构通用时段 + 授权校区的时段
+        CampusScopeGuard.applyIncludingNull(wrapper, TimeSlotEntity::getCampusId);
         wrapper.orderByAsc(TimeSlotEntity::getWeekday)
             .orderByAsc(TimeSlotEntity::getSortNo)
             .orderByAsc(TimeSlotEntity::getStartTime);
@@ -69,6 +72,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的时间段数据");
         }
+        CampusScopeGuard.assertCampus(campusId, "时间段");
     }
 
     @Override
@@ -86,6 +90,10 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             if (!Objects.equals(campus.getInstitutionId(), request.institutionId())) {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
             }
+            CampusScopeGuard.assertCampus(request.campusId(), "时间段");
+        } else {
+            // campus_id 为空是机构通用时段，所有校区都会用到，受限角色不能动
+            CampusScopeGuard.assertUnrestricted("维护机构通用的时间段");
         }
         if (!request.startTime().isBefore(request.endTime())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "开始时间必须早于结束时间");
@@ -136,6 +144,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             if (!Objects.equals(campus.getInstitutionId(), existing.getInstitutionId())) {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
             }
+            CampusScopeGuard.assertCampus(request.campusId(), "时间段");
             existing.setCampusId(request.campusId());
         }
         LocalTime startTime = request.startTime() == null ? existing.getStartTime() : request.startTime();
@@ -227,6 +236,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
             throw new BusinessException(ResultCode.NOT_FOUND, "时间段不存在：" + id);
         }
         assertSameInstitution(operatorInstitutionId, entity.getInstitutionId());
+        CampusScopeGuard.assertNullableCampus(entity.getCampusId(), "时间段");
         return entity;
     }
 

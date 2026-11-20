@@ -17,6 +17,9 @@ import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassStudentService;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -59,14 +62,16 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         if (studentId != null) {
             wrapper.eq(ClassStudentEntity::getStudentId, studentId);
         }
+        EducationCampusScopeSupport.applyClassVisible(wrapper, ClassStudentEntity::getClassId);
         return classStudentMapper.selectList(wrapper);
     }
 
     @Override
     public PageResult<ClassStudentView> pageClassStudents(ClassStudentPageQuery query) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(query.getInstitutionId(), "班级学员");
         LambdaQueryWrapper<ClassStudentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(ClassStudentEntity::getInstitutionId, query.getInstitutionId());
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(ClassStudentEntity::getInstitutionId, resolvedInstitutionId);
         }
         if (query.getClassId() != null) {
             wrapper.eq(ClassStudentEntity::getClassId, query.getClassId());
@@ -78,10 +83,11 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             wrapper.eq(ClassStudentEntity::getStatus, query.getStatus().trim());
         }
         if (query.getCampusId() != null) {
+            CampusScopeGuard.assertCampus(query.getCampusId(), "班级学员");
             // 班级学员关系表没有校区列,只能先按校区取班级 ID 再限定
             List<Long> campusClassIds = teachingClassMapper.selectList(new LambdaQueryWrapper<TeachingClassEntity>()
                     .select(TeachingClassEntity::getId)
-                    .eq(query.getInstitutionId() != null, TeachingClassEntity::getInstitutionId, query.getInstitutionId())
+                    .eq(resolvedInstitutionId != null, TeachingClassEntity::getInstitutionId, resolvedInstitutionId)
                     .eq(TeachingClassEntity::getCampusId, query.getCampusId()))
                 .stream()
                 .map(TeachingClassEntity::getId)
@@ -91,6 +97,8 @@ public class ClassStudentServiceImpl implements ClassStudentService {
             }
             wrapper.in(ClassStudentEntity::getClassId, campusClassIds);
         }
+        // 客户端 campusId 只是额外筛选；受限角色即使不传也要按可访问班级收窄
+        EducationCampusScopeSupport.applyClassVisible(wrapper, ClassStudentEntity::getClassId);
         if (!PageSortSupport.apply(wrapper, query, CLASS_STUDENT_SORTABLE, ClassStudentEntity::getId)) {
             wrapper.orderByAsc(ClassStudentEntity::getClassId).orderByAsc(ClassStudentEntity::getStudentId);
         }
@@ -155,6 +163,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
     @Transactional
     public ClassStudentEntity createClassStudent(ClassStudentCreateRequest request) {
         TeachingClassEntity teachingClass = requireClass(request.classId());
+        CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "班级学员");
         StudentEntity student = requireStudent(request.studentId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
         if (!Objects.equals(teachingClass.getInstitutionId(), institutionId) || !Objects.equals(student.getInstitutionId(), institutionId)) {
@@ -196,6 +205,8 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         if (existing == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级学员关系不存在：" + id);
         }
+        TeachingClassEntity owningClass = requireClass(existing.getClassId());
+        CampusScopeGuard.assertCampus(owningClass.getCampusId(), "班级学员");
         classStudentMapper.deletePhysicallyById(id);
         TeachingClassEntity teachingClass = teachingClassMapper.selectById(existing.getClassId());
         if (teachingClass != null) {

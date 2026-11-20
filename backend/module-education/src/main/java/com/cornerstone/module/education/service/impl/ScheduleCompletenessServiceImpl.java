@@ -18,6 +18,7 @@ import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -97,7 +98,10 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
         int weekCount = (int) ChronoUnit.WEEKS.between(weekFrom, weekTo) + 1;
         List<ScheduleCompletenessResponse.WeekColumn> weeks = buildWeeks(weekFrom, weekCount);
 
-        List<SchedulePlanEntity> plans = planMapper.selectList(new LambdaQueryWrapper<SchedulePlanEntity>()
+        if (query.getCampusId() != null) {
+            CampusScopeGuard.assertCampus(query.getCampusId(), "排课完成度");
+        }
+        LambdaQueryWrapper<SchedulePlanEntity> planWrapper = new LambdaQueryWrapper<SchedulePlanEntity>()
             .eq(SchedulePlanEntity::getInstitutionId, institutionId)
             .eq(SchedulePlanEntity::getStatus, STATUS_ACTIVE)
             .eq(query.getCampusId() != null, SchedulePlanEntity::getCampusId, query.getCampusId())
@@ -105,7 +109,10 @@ public class ScheduleCompletenessServiceImpl implements ScheduleCompletenessServ
             .eq(query.getClassId() != null, SchedulePlanEntity::getClassId, query.getClassId())
             .ge(SchedulePlanEntity::getEndDate, weekFrom)
             .le(SchedulePlanEntity::getStartDate, weekTo)
-            .orderByAsc(SchedulePlanEntity::getStartDate));
+            .orderByAsc(SchedulePlanEntity::getStartDate);
+        // 报表按计划校区收窄，受限角色看不到其他校区的完成度
+        CampusScopeGuard.apply(planWrapper, SchedulePlanEntity::getCampusId);
+        List<SchedulePlanEntity> plans = planMapper.selectList(planWrapper);
         if (plans.isEmpty()) {
             return new ScheduleCompletenessResponse(weekFrom, weekTo, weeks, List.of(),
                 new ScheduleCompletenessResponse.Summary(0, 0, 0, 0, 0, 0, 0, 0));

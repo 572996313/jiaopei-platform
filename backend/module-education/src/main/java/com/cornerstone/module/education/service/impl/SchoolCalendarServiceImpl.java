@@ -9,6 +9,7 @@ import com.cornerstone.module.education.dto.SchoolCalendarView;
 import com.cornerstone.module.education.mapper.SchoolCalendarDayMapper;
 import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import java.time.LocalDate;
@@ -44,11 +45,14 @@ public class SchoolCalendarServiceImpl implements SchoolCalendarService {
             .eq(SchoolCalendarDayEntity::getInstitutionId, scopedInstitution)
             .orderByAsc(SchoolCalendarDayEntity::getDayDate);
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "校区日历");
             // 与 closedDays 同口径：选了校区也要把机构级(0)那批一起列出。
             // 写成 eq 的话，面板按校区筛选就看不见"全校区"的记录，而排课时它们照样提示——
             // 操作员会以为没登记上，再登记一次还会因为 campus_id 不同而真插出一条重复日子。
             wrapper.in(SchoolCalendarDayEntity::getCampusId, List.of(CAMPUS_ALL, campusId));
         }
+        // 受限角色：全校区记录 + 授权校区记录；空白名单时是 1=0
+        CampusScopeGuard.applyWithAllSentinel(wrapper, SchoolCalendarDayEntity::getCampusId, CAMPUS_ALL);
         if (year != null) {
             wrapper.between(SchoolCalendarDayEntity::getDayDate, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31));
         }
@@ -105,6 +109,9 @@ public class SchoolCalendarServiceImpl implements SchoolCalendarService {
         if (institutionId == null || startDate == null || endDate == null || startDate.isAfter(endDate)) {
             return Map.of();
         }
+        if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "校区日历");
+        }
         // 只认机构级(0)与本校区的记录：别的校区的停排日本校区照常上课
         List<Long> campuses = campusId == null ? List.of(CAMPUS_ALL) : List.of(CAMPUS_ALL, campusId);
         List<SchoolCalendarDayEntity> rows = calendarMapper.selectList(
@@ -134,6 +141,11 @@ public class SchoolCalendarServiceImpl implements SchoolCalendarService {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区日历记录不存在：" + id);
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
+        if (entity.getCampusId() == CAMPUS_ALL) {
+            CampusScopeGuard.assertUnrestricted("维护全校区停排日");
+        } else {
+            CampusScopeGuard.assertCampus(entity.getCampusId(), "校区日历");
+        }
         return entity;
     }
 
@@ -145,6 +157,9 @@ public class SchoolCalendarServiceImpl implements SchoolCalendarService {
             if (campus == null || !Objects.equals(campus.getInstitutionId(), request.institutionId())) {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "校区不存在或不属于该机构：" + campusId);
             }
+            CampusScopeGuard.assertCampus(campusId, "校区日历");
+        } else {
+            CampusScopeGuard.assertUnrestricted("维护全校区停排日");
         }
         entity.setInstitutionId(request.institutionId());
         entity.setCampusId(campusId);

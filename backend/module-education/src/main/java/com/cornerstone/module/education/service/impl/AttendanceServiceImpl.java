@@ -34,6 +34,8 @@ import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.AttendanceService;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -127,6 +129,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (attendanceDate != null) {
             wrapper.eq(AttendanceEntity::getAttendanceDate, attendanceDate);
         }
+        EducationCampusScopeSupport.applyClassVisible(wrapper, AttendanceEntity::getClassId);
         return attendanceMapper.selectList(wrapper);
     }
 
@@ -135,7 +138,10 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (lessonIds == null || lessonIds.isEmpty()) {
             return List.of();
         }
-        List<ScheduleLessonEntity> lessons = scheduleLessonMapper.selectBatchIds(lessonIds);
+        List<ScheduleLessonEntity> lessons = scheduleLessonMapper.selectBatchIds(lessonIds).stream()
+            // 调用方可能传入未按范围收窄的课次 id，这里再兜一层，避免回显到其他校区
+            .filter(lesson -> CampusScopeGuard.canAccess(lesson.getCampusId()))
+            .toList();
         if (lessons.isEmpty()) {
             return List.of();
         }
@@ -200,6 +206,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public AttendanceEntity createAttendance(AttendanceCreateRequest request) {
         TeachingClassEntity teachingClass = requireClass(request.classId());
+        CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "考勤");
         StudentEntity student = requireStudent(request.studentId());
         ScheduleLessonEntity lesson = request.lessonId() == null ? null : requireAttendanceAllowedLesson(request.lessonId());
         Long institutionId = request.institutionId() == null ? teachingClass.getInstitutionId() : request.institutionId();
@@ -233,6 +240,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public AttendanceLessonPageView getLessonAttendancePage(Long lessonId) {
         ScheduleLessonEntity lesson = requireAttendanceAllowedLesson(lessonId);
+        CampusScopeGuard.assertCampus(lesson.getCampusId(), "考勤");
         return buildLessonAttendancePage(lesson);
     }
 
@@ -240,6 +248,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public AttendanceLessonPageView saveLessonAttendance(AttendanceLessonBatchSaveRequest request) {
         ScheduleLessonEntity lesson = requireAttendanceAllowedLesson(request.lessonId());
+        CampusScopeGuard.assertCampus(lesson.getCampusId(), "考勤");
         assertLessonMarkableByCurrentUser(lesson);
         List<ClassStudentEntity> classStudents = listActiveClassStudents(lesson.getClassId(), lesson.getLessonDate());
         Map<Long, ClassStudentEntity> classStudentMap = classStudents.stream()
@@ -485,6 +494,16 @@ public class AttendanceServiceImpl implements AttendanceService {
             return new AttendanceStudentDetailResponse(studentId, student.getStudentNo(), student.getStudentName(),
                 dateFrom, dateTo, EMPTY_TOTALS, List.of());
         }
+        if (CampusScopeGuard.restricted()) {
+            // 与学员列表同口径：没有任何班级落在可访问校区的学员，对外表现为"不存在"
+            LambdaQueryWrapper<TeachingClassEntity> visibleClasses = new LambdaQueryWrapper<TeachingClassEntity>()
+                .in(TeachingClassEntity::getId, classIds);
+            CampusScopeGuard.apply(visibleClasses, TeachingClassEntity::getCampusId);
+            Long visible = teachingClassMapper.selectCount(visibleClasses);
+            if (visible == null || visible == 0) {
+                throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
+            }
+        }
 
         List<ScheduleLessonEntity> lessons = listStudentRangeLessons(institutionId, classIds, dateFrom, dateTo);
         if (lessons.isEmpty()) {
@@ -550,7 +569,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private List<ScheduleLessonEntity> listAttendanceRangeLessons(Long institutionId, LocalDate dateFrom,
                                                                   LocalDate dateTo, Long campusId, Long classId) {
-        return scheduleLessonMapper.selectList(new LambdaQueryWrapper<ScheduleLessonEntity>()
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<ScheduleLessonEntity>()
             .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
             .ge(ScheduleLessonEntity::getLessonDate, dateFrom)
             .le(ScheduleLessonEntity::getLessonDate, dateTo)
@@ -558,19 +577,27 @@ public class AttendanceServiceImpl implements AttendanceService {
             .eq(classId != null, ScheduleLessonEntity::getClassId, classId)
             .in(ScheduleLessonEntity::getLessonStatus, ATTENDANCE_ALLOWED_LESSON_STATUSES)
             .orderByAsc(ScheduleLessonEntity::getLessonDate)
-            .orderByAsc(ScheduleLessonEntity::getStartTime));
+            .orderByAsc(ScheduleLessonEntity::getStartTime);
+        if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "考勤汇总");
+        }
+        CampusScopeGuard.apply(wrapper, ScheduleLessonEntity::getCampusId);
+        return scheduleLessonMapper.selectList(wrapper);
     }
 
     private List<ScheduleLessonEntity> listStudentRangeLessons(Long institutionId, List<Long> classIds,
                                                                LocalDate dateFrom, LocalDate dateTo) {
-        return scheduleLessonMapper.selectList(new LambdaQueryWrapper<ScheduleLessonEntity>()
+        LambdaQueryWrapper<ScheduleLessonEntity> wrapper = new LambdaQueryWrapper<ScheduleLessonEntity>()
             .eq(ScheduleLessonEntity::getInstitutionId, institutionId)
             .in(ScheduleLessonEntity::getClassId, classIds)
             .ge(ScheduleLessonEntity::getLessonDate, dateFrom)
             .le(ScheduleLessonEntity::getLessonDate, dateTo)
             .in(ScheduleLessonEntity::getLessonStatus, ATTENDANCE_ALLOWED_LESSON_STATUSES)
             .orderByAsc(ScheduleLessonEntity::getLessonDate)
-            .orderByAsc(ScheduleLessonEntity::getStartTime));
+            .orderByAsc(ScheduleLessonEntity::getStartTime);
+        // 学员的全部归属关系可能横跨校区，明细只能取可访问校区内的课次
+        CampusScopeGuard.apply(wrapper, ScheduleLessonEntity::getCampusId);
+        return scheduleLessonMapper.selectList(wrapper);
     }
 
     /** 批量构建课次点名快照:一次取齐名册与考勤行,内存里按课次日期过滤在班学员(口径同 listLessonProgress) */

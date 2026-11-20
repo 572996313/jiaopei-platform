@@ -10,8 +10,45 @@
     <div class="education-dialog-context">
       <div><strong>角色:</strong>{{ role?.roleName || '-' }}</div>
       <div><strong>角色编码:</strong>{{ role?.roleCode || '-' }}</div>
+      <div><strong>机构:</strong>{{ institutionStore.currentInstitutionName }}</div>
       <div class="role-auth-summary">
         已授权 {{ grantedPageCount }} 个页面、{{ grantedActionCount }} 项操作
+      </div>
+    </div>
+
+    <div v-if="dataScopes.length" class="role-auth-scopes">
+      <div
+        v-for="scope in dataScopes"
+        :key="scope.dimensionKey"
+        class="role-auth-scope"
+      >
+        <div class="role-auth-scope-head">
+          <span class="role-auth-scope-title">{{ scope.dimensionLabel }}</span>
+          <span v-if="!scope.configured" class="role-auth-scope-hint">
+            未配置时等同{{ scope.allOptionLabel }}
+          </span>
+        </div>
+        <el-radio-group v-model="scope.scopeMode" size="small">
+          <el-radio value="ALL">{{ scope.allOptionLabel }}</el-radio>
+          <el-radio value="PART">{{ scope.partOptionLabel }}</el-radio>
+        </el-radio-group>
+        <el-select
+          v-if="scope.scopeMode === 'PART'"
+          v-model="scope.values"
+          multiple
+          filterable
+          collapse-tags
+          class="role-auth-scope-select"
+          :placeholder="`请选择${scope.partOptionLabel}`"
+        >
+          <el-option
+            v-for="option in scope.options"
+            :key="option.value"
+            :label="option.name || option.code || option.value"
+            :value="option.value"
+            :disabled="option.selectable === false && !scope.values.includes(option.value)"
+          />
+        </el-select>
       </div>
     </div>
 
@@ -169,8 +206,10 @@ import type {
   ActionCatalog,
   ActionCatalogAction,
   ActionCatalogPage,
+  RoleDataScopeView,
   SystemRoleSummary,
 } from '@cornerstone/core/api/system'
+import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { toMessage } from './shared'
 
 const props = defineProps<{
@@ -184,6 +223,9 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+const institutionStore = useInstitutionStore()
+const institutionId = computed(() => institutionStore.currentInstitutionId)
+
 const loading = ref(false)
 const saving = ref(false)
 const errorText = ref('')
@@ -191,6 +233,8 @@ const catalog = ref<ActionCatalog | null>(null)
 /** 当前勾选的节点 id（页面、按钮与目录；目录只在打开时存在，保存时由后端补齐） */
 const grantedIds = ref<string[]>([])
 const presetCodes = ref<string[]>([])
+/** 角色在当前机构下的数据范围（一期只有校区一个维度） */
+const dataScopes = ref<RoleDataScopeView[]>([])
 const activePageId = ref('')
 const pageKeyword = ref('')
 
@@ -371,16 +415,18 @@ async function load() {
   catalog.value = null
   grantedIds.value = []
   presetCodes.value = []
+  dataScopes.value = []
   activePageId.value = ''
   pageKeyword.value = ''
   try {
     const [catalogResult, authorization] = await Promise.all([
       fetchActionCatalog(role.id),
-      fetchRoleAuthorization(role.id),
+      fetchRoleAuthorization(role.id, institutionId.value),
     ])
     catalog.value = catalogResult
     grantedIds.value = authorization.menuIds
     presetCodes.value = authorization.presetPermissionCodes
+    dataScopes.value = authorization.dataScopes
     activePageId.value = catalogResult.pages[0]?.menuId ?? ''
   } catch (error) {
     errorText.value = toMessage(error, '角色授权加载失败')
@@ -389,14 +435,33 @@ async function load() {
   }
 }
 
+function collectDataScopes() {
+  return dataScopes.value.map((scope) => ({
+    dimensionKey: scope.dimensionKey,
+    scopeMode: scope.scopeMode,
+    values: scope.scopeMode === 'PART' ? [...scope.values] : [],
+  }))
+}
+
 async function submit() {
   if (!props.role) {
+    return
+  }
+  const emptyScope = dataScopes.value.find(
+    (scope) => scope.scopeMode === 'PART' && scope.values.length === 0
+  )
+  if (emptyScope) {
+    errorText.value = `${emptyScope.partOptionLabel}至少要选择一个`
     return
   }
   saving.value = true
   errorText.value = ''
   try {
-    await updateRoleAuthorization(props.role.id, { menuIds: collectMenuIds() })
+    await updateRoleAuthorization(
+      props.role.id,
+      { menuIds: collectMenuIds(), dataScopes: collectDataScopes() },
+      institutionId.value
+    )
     ElMessage.success('角色授权已保存，相关用户需重新登录后生效')
     emit('saved')
     emit('update:modelValue', false)
@@ -408,7 +473,7 @@ async function submit() {
 }
 
 watch(
-  () => [props.modelValue, props.role?.id] as const,
+  () => [props.modelValue, props.role?.id, institutionId.value] as const,
   ([visible]) => {
     if (visible) {
       void load()
@@ -420,6 +485,43 @@ watch(
 <style scoped>
 .role-auth-summary {
   color: var(--text-secondary);
+}
+
+.role-auth-scopes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+}
+
+.role-auth-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.role-auth-scope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-auth-scope-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.role-auth-scope-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.role-auth-scope-select {
+  max-width: 100%;
 }
 
 .role-auth-layout {

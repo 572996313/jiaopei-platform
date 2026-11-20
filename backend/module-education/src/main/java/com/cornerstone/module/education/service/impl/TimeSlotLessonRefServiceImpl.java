@@ -13,6 +13,7 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.TimeSlotLessonRefService;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,7 +43,11 @@ public class TimeSlotLessonRefServiceImpl implements TimeSlotLessonRefService {
     @Override
     public List<TimeSlotLessonRefView> listRefsByTimeSlot(Long operatorInstitutionId, Long timeSlotId) {
         requireTimeSlot(operatorInstitutionId, timeSlotId);
-        List<ScheduleLessonEntity> lessons = lessonMapper.selectRefsByTimeSlot(operatorInstitutionId, timeSlotId);
+        // 机构通用节次被各校区共用，引用列表仍需按可访问校区过滤，避免看到其他校区的课次
+        List<ScheduleLessonEntity> lessons = lessonMapper.selectRefsByTimeSlot(operatorInstitutionId, timeSlotId)
+            .stream()
+            .filter(lesson -> CampusScopeGuard.canAccess(lesson.getCampusId()))
+            .toList();
         Map<Long, String> classNames = classNames(lessons);
         return lessons.stream()
             .map(lesson -> new TimeSlotLessonRefView(lesson.getId(), lesson.getLessonDate(), lesson.getLessonWeekday(),
@@ -55,7 +60,9 @@ public class TimeSlotLessonRefServiceImpl implements TimeSlotLessonRefService {
     @Override
     @Transactional
     public TimeSlotLessonCleanupResponse purgeTombstoneLessons(Long operatorInstitutionId, Long timeSlotId) {
-        requireTimeSlot(operatorInstitutionId, timeSlotId);
+        TimeSlotEntity timeSlot = requireTimeSlot(operatorInstitutionId, timeSlotId);
+        // 清理是物理删除，机构通用节次牵涉所有校区，只有不受限角色能操作
+        CampusScopeGuard.assertNullableCampus(timeSlot.getCampusId(), "节次课次清理");
         List<ScheduleLessonEntity> tombstones = lessonMapper.selectRefsByTimeSlot(operatorInstitutionId, timeSlotId)
             .stream()
             .filter(lesson -> Boolean.TRUE.equals(lesson.getDeleted()))
@@ -95,7 +102,7 @@ public class TimeSlotLessonRefServiceImpl implements TimeSlotLessonRefService {
                 (first, second) -> first));
     }
 
-    private void requireTimeSlot(Long operatorInstitutionId, Long timeSlotId) {
+    private TimeSlotEntity requireTimeSlot(Long operatorInstitutionId, Long timeSlotId) {
         TimeSlotEntity timeSlot = timeSlotMapper.selectById(timeSlotId);
         if (timeSlot == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "节次不存在：" + timeSlotId);
@@ -103,5 +110,6 @@ public class TimeSlotLessonRefServiceImpl implements TimeSlotLessonRefService {
         if (!Objects.equals(timeSlot.getInstitutionId(), operatorInstitutionId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无权访问其他机构的节次");
         }
+        return timeSlot;
     }
 }

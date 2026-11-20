@@ -9,7 +9,7 @@
       <el-button :icon="Refresh" circle :loading="lookupLoading" @click="refreshAll" />
       <el-button @click="goCampus">校区与学期</el-button>
       <span class="education-context-text">
-        当前校区：{{ campusId ? scopeStore.campusName(campusId) : '全部校区' }}；偏好按校区成组维护，改完对方下次进工作台生效。
+        当前校区：{{ campusId ? scopeStore.campusName(campusId) : scopeStore.allCampusesLabel }}；偏好按校区成组维护，改完对方下次进工作台生效。
       </span>
     </div>
 

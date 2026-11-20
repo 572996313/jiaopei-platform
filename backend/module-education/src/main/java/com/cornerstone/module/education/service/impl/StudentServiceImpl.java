@@ -12,9 +12,14 @@ import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentPageQuery;
 import com.cornerstone.module.education.dto.StudentOptionView;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
+import com.cornerstone.module.education.mapper.ClassStudentMapper;
+import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
+import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.StudentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import java.time.LocalDate;
@@ -52,21 +57,32 @@ public class StudentServiceImpl implements StudentService {
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
     private final CodeRuleService codeRuleService;
+    /** 学员没有 campus_id，写侧要经班级/报名反查归属，读侧由 EducationCampusScopeSupport 用子查询收窄 */
+    private final ClassStudentMapper classStudentMapper;
+    private final EnrollmentMapper enrollmentMapper;
+    private final TeachingClassMapper teachingClassMapper;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
-                              DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
+                              DictValueValidator dictValueValidator, CodeRuleService codeRuleService,
+                              ClassStudentMapper classStudentMapper, EnrollmentMapper enrollmentMapper,
+                              TeachingClassMapper teachingClassMapper) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
         this.codeRuleService = codeRuleService;
+        this.classStudentMapper = classStudentMapper;
+        this.enrollmentMapper = enrollmentMapper;
+        this.teachingClassMapper = teachingClassMapper;
     }
 
     @Override
     public List<StudentEntity> listStudents(Long institutionId, String keyword) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "学员");
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (institutionId != null) {
-            wrapper.eq(StudentEntity::getInstitutionId, institutionId);
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(StudentEntity::getInstitutionId, resolvedInstitutionId);
         }
+        EducationCampusScopeSupport.applyStudentVisible(wrapper);
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w
                 .like(StudentEntity::getStudentName, keyword)
@@ -79,11 +95,13 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<StudentOptionView> listStudentOptions(Long institutionId, String keyword) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "学员");
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
             .select(StudentEntity::getId, StudentEntity::getStudentNo, StudentEntity::getStudentName);
-        if (institutionId != null) {
-            wrapper.eq(StudentEntity::getInstitutionId, institutionId);
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(StudentEntity::getInstitutionId, resolvedInstitutionId);
         }
+        EducationCampusScopeSupport.applyStudentVisible(wrapper);
         String normalizedKeyword = normalizeToNull(keyword);
         if (normalizedKeyword != null) {
             wrapper.and(w -> w
@@ -100,10 +118,12 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public PageResult<StudentEntity> pageStudents(StudentPageQuery query) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(query.getInstitutionId(), "学员");
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(StudentEntity::getInstitutionId, query.getInstitutionId());
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(StudentEntity::getInstitutionId, resolvedInstitutionId);
         }
+        EducationCampusScopeSupport.applyStudentVisible(wrapper);
         String keyword = normalize(query.getKeyword());
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w
@@ -131,6 +151,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public StudentEntity createStudent(StudentCreateRequest request) {
+        InstitutionScopeGuard.assertOwn(request.institutionId(), "学员");
         requireInstitution(request.institutionId());
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
@@ -166,6 +187,9 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public StudentEntity updateStudent(Long id, StudentUpdateRequest request) {
         StudentEntity existing = requireStudent(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "学员");
+        EducationCampusScopeSupport.assertStudentWritable(
+            classStudentMapper, enrollmentMapper, teachingClassMapper, id);
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
@@ -201,7 +225,10 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public void deleteStudent(Long id) {
-        requireStudent(id);
+        StudentEntity existing = requireStudent(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "学员");
+        EducationCampusScopeSupport.assertStudentWritable(
+            classStudentMapper, enrollmentMapper, teachingClassMapper, id);
         studentMapper.deleteById(id);
     }
 

@@ -27,6 +27,7 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.SchoolCalendarService;
 import com.cornerstone.module.education.service.ScheduleLessonService;
 import com.cornerstone.module.education.service.support.ScheduleInstitutionGuard;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
 import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
@@ -111,8 +112,10 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         wrapper.eq(ScheduleLessonEntity::getInstitutionId,
             ScheduleInstitutionGuard.resolveForQuery(institutionId, SUBJECT));
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "课次");
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
         }
+        CampusScopeGuard.apply(wrapper, ScheduleLessonEntity::getCampusId);
         if (classId != null) {
             wrapper.eq(ScheduleLessonEntity::getClassId, classId);
         }
@@ -162,8 +165,10 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
         wrapper.eq(ScheduleLessonEntity::getInstitutionId,
             ScheduleInstitutionGuard.resolveForQuery(query.getInstitutionId(), SUBJECT));
         if (query.getCampusId() != null) {
+            CampusScopeGuard.assertCampus(query.getCampusId(), "课次");
             wrapper.eq(ScheduleLessonEntity::getCampusId, query.getCampusId());
         }
+        CampusScopeGuard.apply(wrapper, ScheduleLessonEntity::getCampusId);
         if (query.getClassId() != null) {
             wrapper.eq(ScheduleLessonEntity::getClassId, query.getClassId());
         }
@@ -246,8 +251,10 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             .eq(ScheduleLessonEntity::getInstitutionId,
                 ScheduleInstitutionGuard.resolveForQuery(institutionId, SUBJECT));
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "课次");
             wrapper.eq(ScheduleLessonEntity::getCampusId, campusId);
         }
+        CampusScopeGuard.apply(wrapper, ScheduleLessonEntity::getCampusId);
         if (classId != null) {
             wrapper.eq(ScheduleLessonEntity::getClassId, classId);
         }
@@ -278,6 +285,8 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
     private ScheduleMaterial validateMaterial(ScheduleLessonRequest request, Long currentLessonId) {
         // 写入口的机构一律先与登录机构比对，下面所有"资料归属"校验才有意义
         ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
+        // 课次的校区由班级决定，写入口直接按课次校区校验
+        CampusScopeGuard.assertCampus(request.campusId(), "课次");
         TeachingClassEntity teachingClass = classMapper.selectById(request.classId());
         if (teachingClass == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "班级不存在：" + request.classId());
@@ -770,6 +779,7 @@ public class ScheduleLessonServiceImpl implements ScheduleLessonService {
             throw new BusinessException(ResultCode.NOT_FOUND, "排课课次不存在：" + id);
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
+        CampusScopeGuard.assertCampus(entity.getCampusId(), "课次");
         return entity;
     }
 

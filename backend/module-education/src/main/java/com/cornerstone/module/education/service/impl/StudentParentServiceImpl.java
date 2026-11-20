@@ -16,6 +16,9 @@ import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.StudentParentMapper;
 import com.cornerstone.module.education.service.StudentParentService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.util.List;
 import java.util.Map;
@@ -54,13 +57,15 @@ public class StudentParentServiceImpl implements StudentParentService {
 
     @Override
     public List<StudentParentEntity> listStudentParents(Long institutionId, Long studentId) {
+        Long scopedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "家长档案");
         LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (institutionId != null) {
-            wrapper.eq(StudentParentEntity::getInstitutionId, institutionId);
+        if (scopedInstitutionId != null) {
+            wrapper.eq(StudentParentEntity::getInstitutionId, scopedInstitutionId);
         }
         if (studentId != null) {
             wrapper.eq(StudentParentEntity::getStudentId, studentId);
         }
+        EducationCampusScopeSupport.applyStudentIdVisible(wrapper, StudentParentEntity::getStudentId);
         applyDefaultOrder(wrapper);
         return studentParentMapper.selectList(wrapper);
     }
@@ -74,13 +79,15 @@ public class StudentParentServiceImpl implements StudentParentService {
 
     @Override
     public PageResult<StudentParentView> pageStudentParents(StudentParentPageQuery query) {
+        Long scopedInstitutionId = InstitutionScopeGuard.resolveForQuery(query.getInstitutionId(), "家长档案");
         LambdaQueryWrapper<StudentParentEntity> wrapper = new LambdaQueryWrapper<>();
-        if (query.getInstitutionId() != null) {
-            wrapper.eq(StudentParentEntity::getInstitutionId, query.getInstitutionId());
+        if (scopedInstitutionId != null) {
+            wrapper.eq(StudentParentEntity::getInstitutionId, scopedInstitutionId);
         }
         if (query.getStudentId() != null) {
             wrapper.eq(StudentParentEntity::getStudentId, query.getStudentId());
         }
+        EducationCampusScopeSupport.applyStudentIdVisible(wrapper, StudentParentEntity::getStudentId);
         if (!PageSortSupport.apply(wrapper, query, PARENT_SORTABLE, StudentParentEntity::getId)) {
             applyDefaultOrder(wrapper);
         }
@@ -138,6 +145,9 @@ public class StudentParentServiceImpl implements StudentParentService {
     public void deleteStudentParent(Long id) {
         StudentParentEntity entity = requireStudentParent(id);
         StudentEntity student = studentMapper.selectById(entity.getStudentId());
+        if (student != null) {
+            assertStudentVisible(student.getId());
+        }
         studentParentMapper.deleteById(id);
         if (student != null) {
             StudentParentEntity currentPrimary = syncPrimaryParent(student.getId());
@@ -199,7 +209,22 @@ public class StudentParentServiceImpl implements StudentParentService {
         if (!Objects.equals(student.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "学员不属于该机构：" + student.getStudentNo());
         }
+        assertStudentVisible(studentId);
         return student;
+    }
+
+    /** 与学员列表同口径：没有任何班级落在可访问校区的学员，对外表现为"不存在"。 */
+    private void assertStudentVisible(Long studentId) {
+        if (!CampusScopeGuard.restricted()) {
+            return;
+        }
+        LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
+            .eq(StudentEntity::getId, studentId);
+        EducationCampusScopeSupport.applyStudentVisible(wrapper);
+        Long visible = studentMapper.selectCount(wrapper);
+        if (visible == null || visible == 0) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "学员不存在：" + studentId);
+        }
     }
 
     private void assertUniqueParentPhone(Long studentId, String parentPhone, Long excludeId) {

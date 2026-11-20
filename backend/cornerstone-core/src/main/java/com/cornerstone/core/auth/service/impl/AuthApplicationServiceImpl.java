@@ -100,7 +100,10 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             user.roles(),
             user.permissions(),
             Boolean.TRUE.equals(userAccount.getForceChangePassword()),
-            user.portal()
+            user.portal(),
+            // 数据范围是登录快照的一部分，这里每次请求都会重新构造 principal，漏传会让范围在第二次请求起丢失
+            user.dataScopeKey(),
+            user.dataScopeIds()
         );
     }
 
@@ -118,7 +121,11 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             new ArrayList<>(authenticatedUser.permissions()),
             user.getPasswordResetRequired(),
             userAccessTokenService.effectiveForceChangePassword(user),
-            authenticatedUser.portal()
+            authenticatedUser.portal(),
+            authenticatedUser.dataScopeKey(),
+            authenticatedUser.dataScopeIds() == null
+                ? null
+                : new ArrayList<>(authenticatedUser.dataScopeIds())
         );
     }
 

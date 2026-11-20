@@ -9,6 +9,8 @@ import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
+import com.cornerstone.core.auth.scope.ResolvedDataScope;
+import com.cornerstone.core.auth.scope.RoleDataScopeResolver;
 import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.core.auth.service.PortalResolver;
 import com.cornerstone.core.auth.service.TokenCacheService;
@@ -29,6 +31,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserAccessTokenService {
 
+    private static final String PLATFORM_ADMIN_ROLE = "PLATFORM_ADMIN";
+
     private final UserAccountMapper userAccountMapper;
     private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
@@ -38,12 +42,15 @@ public class UserAccessTokenService {
     private final SystemMenuService systemMenuService;
     /** 各业务模块提供的端判定，按装配顺序取第一个非空结果 */
     private final List<PortalResolver> portalResolvers;
+    /** 各业务模块提供的数据范围解析；没有实现 = 不限制（模块未装配时行为不变） */
+    private final List<RoleDataScopeResolver> roleDataScopeResolvers;
 
     public UserAccessTokenService(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
                                   UserRoleRelMapper userRoleRelMapper, TokenCacheService tokenCacheService,
                                   JwtTokenService jwtTokenService, SystemConfigService systemConfigService,
                                   SystemMenuService systemMenuService,
-                                  List<PortalResolver> portalResolvers) {
+                                  List<PortalResolver> portalResolvers,
+                                  List<RoleDataScopeResolver> roleDataScopeResolvers) {
         this.userAccountMapper = userAccountMapper;
         this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
@@ -52,6 +59,7 @@ public class UserAccessTokenService {
         this.systemConfigService = systemConfigService;
         this.systemMenuService = systemMenuService;
         this.portalResolvers = portalResolvers;
+        this.roleDataScopeResolvers = roleDataScopeResolvers;
     }
 
     public LoginResponse issue(UserAccountEntity user) {
@@ -59,6 +67,8 @@ public class UserAccessTokenService {
 
         Integer tokenExpireHours = systemConfigService.getIntConfig("auth.token.expire_hours", 12);
         String portal = resolvePortal(user.getRegisterSource(), snapshot.roleCodes());
+        ResolvedDataScope dataScope = resolveDataScope(
+            user.getInstitutionId(), snapshot.roleIds(), snapshot.roleCodes(), portal);
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
             user.getId(),
             user.getInstitutionId(),
@@ -66,7 +76,9 @@ public class UserAccessTokenService {
             snapshot.roleCodes(),
             snapshot.permissionCodes(),
             Boolean.TRUE.equals(user.getForceChangePassword()),
-            portal
+            portal,
+            dataScope == null ? null : dataScope.dimensionKey(),
+            dataScope == null ? null : Set.copyOf(dataScope.values())
         );
         String accessToken = jwtTokenService.issue(authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
         tokenCacheService.storeToken(accessToken, authenticatedUser, tokenExpireHours, TimeUnit.HOURS);
@@ -113,15 +125,37 @@ public class UserAccessTokenService {
 
     public record RolePermissionSnapshot(
         Set<String> roleCodes,
-        Set<String> permissionCodes
+        Set<String> permissionCodes,
+        List<Long> roleIds
     ) {
+        public RolePermissionSnapshot(Set<String> roleCodes, Set<String> permissionCodes) {
+            this(roleCodes, permissionCodes, List.of());
+        }
+    }
+
+    /**
+     * 数据范围只对管理后台生效：小程序家长/学生端按绑定关系看数据，不套角色范围。
+     * 平台管理员不受限；其余角色由业务模块的解析器给出并集结果。
+     */
+    private ResolvedDataScope resolveDataScope(Long institutionId, List<Long> roleIds,
+                                               Set<String> roleCodes, String portal) {
+        if (!PortalResolver.ADMIN.equals(portal) || roleCodes.contains(PLATFORM_ADMIN_ROLE)) {
+            return null;
+        }
+        for (RoleDataScopeResolver resolver : roleDataScopeResolvers) {
+            ResolvedDataScope scope = resolver.resolve(institutionId, roleIds);
+            if (scope != null && scope.restricted()) {
+                return scope;
+            }
+        }
+        return null;
     }
 
     private RolePermissionSnapshot loadRolePermissionSnapshot(Long userId) {
         List<UserRoleRelEntity> relations = userRoleRelMapper.selectList(new LambdaQueryWrapper<UserRoleRelEntity>()
             .eq(UserRoleRelEntity::getUserId, userId));
         if (relations.isEmpty()) {
-            return new RolePermissionSnapshot(Set.of(), Set.of());
+            return new RolePermissionSnapshot(Set.of(), Set.of(), List.of());
         }
         List<Long> roleIds = relations.stream()
             .map(UserRoleRelEntity::getRoleId)
@@ -140,7 +174,7 @@ public class UserAccessTokenService {
         }
         // 按钮权限模型：角色勾选的菜单/按钮节点上的权限码与角色 CSV 码取并集
         permissionCodes.addAll(systemMenuService.getPermissionCodesByRoleIds(activeRoleIds));
-        return new RolePermissionSnapshot(roleCodes, permissionCodes);
+        return new RolePermissionSnapshot(roleCodes, permissionCodes, List.copyOf(activeRoleIds));
     }
 
     private List<String> splitPermissionCodes(String raw) {

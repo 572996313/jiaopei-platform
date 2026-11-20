@@ -28,6 +28,11 @@ export interface CurrentUserResponse {
   permissions: string[]
   passwordResetRequired?: boolean | null
   forceChangePassword?: boolean | null
+  portal?: string | null
+  /** 数据范围维度；null=不限制，当前管理后台为 CAMPUS */
+  dataScopeKey?: string | null
+  /** 数据范围白名单；null=不限制，空数组=没有任何可见校区 */
+  dataScopeIds?: string[] | null
 }
 
 export interface ChangePasswordPayload {

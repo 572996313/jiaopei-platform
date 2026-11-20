@@ -3,12 +3,12 @@
   <div v-if="campuses.length" class="banner-chip campus-chip">
     <el-icon class="campus-chip-icon"><Location /></el-icon>
     <el-select
-      :model-value="campusId || ALL_CAMPUS"
-      :placeholder="ALL_LABEL"
+      :model-value="campusId || (showAllOption ? ALL_CAMPUS : '')"
+      :placeholder="allCampusesLabel"
       class="campus-chip-select"
       @change="choose"
     >
-      <el-option :label="ALL_LABEL" :value="ALL_CAMPUS" />
+      <el-option v-if="showAllOption" :label="allCampusesLabel" :value="ALL_CAMPUS" />
       <el-option
         v-for="item in campuses"
         :key="item.id"
@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Location } from '@element-plus/icons-vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
@@ -32,11 +32,13 @@ import { useEducationScopeStore } from '@cornerstone/module-organization/stores/
 
 /** el-select 的 v-model 不接 null，用哨兵值承载「全部校区」这一档 */
 const ALL_CAMPUS = '__all__'
-const ALL_LABEL = '全部校区'
 
 const scopeStore = useEducationScopeStore()
 const institutionStore = useInstitutionStore()
-const { campusId, campuses, preferredCampusId } = storeToRefs(scopeStore)
+const { campusId, campuses, preferredCampusId, campusRestricted, allCampusesLabel } =
+  storeToRefs(scopeStore)
+/** 受限且只有一个可访问校区时，「全部」与那个校区是同一份数据，不再给无意义的下拉档 */
+const showAllOption = computed(() => !campusRestricted.value || campuses.value.length > 1)
 
 function campusLabel(item: CampusSummary) {
   return item.campusName || item.campusCode || `校区 #${item.id}`

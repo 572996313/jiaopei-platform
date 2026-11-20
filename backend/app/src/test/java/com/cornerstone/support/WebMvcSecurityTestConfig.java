@@ -72,7 +72,9 @@ public class WebMvcSecurityTestConfig {
                     new ArrayList<>(user.permissions()),
                     false,
                     false,
-                    user.portal()
+                    user.portal(),
+                    user.dataScopeKey(),
+                    user.dataScopeIds() == null ? null : new ArrayList<>(user.dataScopeIds())
                 );
             }
 
@@ -167,13 +169,14 @@ public class WebMvcSecurityTestConfig {
             }
 
             @Override
-            public RoleAuthorizationView getRoleAuthorization(Long roleId) {
-                return new RoleAuthorizationView(roleId, List.of(), List.of());
+            public RoleAuthorizationView getRoleAuthorization(Long roleId, Long institutionId) {
+                return new RoleAuthorizationView(roleId, List.of(), List.of(), List.of());
             }
 
             @Override
-            public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request) {
-                return new RoleAuthorizationView(roleId, request.menuIds(), List.of());
+            public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request,
+                                                                Long institutionId) {
+                return new RoleAuthorizationView(roleId, request.menuIds(), List.of(), List.of());
             }
 
             @Override

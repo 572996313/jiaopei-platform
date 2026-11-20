@@ -28,6 +28,7 @@ import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -171,8 +172,10 @@ public class ScheduleAutoBatchServiceImpl implements ScheduleAutoBatchService {
             .orderByDesc(ScheduleAutoBatchEntity::getCreatedAt)
             .last("LIMIT " + BATCH_LIST_LIMIT);
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "自动排课批次");
             wrapper.eq(ScheduleAutoBatchEntity::getCampusId, campusId);
         }
+        CampusScopeGuard.apply(wrapper, ScheduleAutoBatchEntity::getCampusId);
         return batchMapper.selectList(wrapper).stream().map(this::toView).toList();
     }
 
@@ -216,6 +219,7 @@ public class ScheduleAutoBatchServiceImpl implements ScheduleAutoBatchService {
             throw new BusinessException(ResultCode.NOT_FOUND, "自动排课批次不存在：" + id);
         }
         ScheduleInstitutionGuard.assertOwn(entity.getInstitutionId(), SUBJECT);
+        CampusScopeGuard.assertCampus(entity.getCampusId(), "自动排课批次");
         return entity;
     }
 
@@ -227,6 +231,7 @@ public class ScheduleAutoBatchServiceImpl implements ScheduleAutoBatchService {
      */
     private Scoped prepare(ScheduleAutoBatchRequest request) {
         ScheduleInstitutionGuard.assertOwn(request.institutionId(), SUBJECT);
+        CampusScopeGuard.assertCampus(request.campusId(), "自动排课批次");
         CampusEntity campus = campusMapper.selectById(request.campusId());
         if (campus == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + request.campusId());

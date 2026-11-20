@@ -60,6 +60,8 @@ class AuthApplicationServiceImplTest {
         systemConfigService,
         mock(SystemMenuService.class),
         // 无业务模块注册端判定时，签发结果落回 admin
+        List.of(),
+        // 无业务模块注册数据范围时，登录快照不限制
         List.of()
     );
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
@@ -96,6 +98,24 @@ class AuthApplicationServiceImplTest {
 
         assertThrows(BadCredentialsException.class,
             () -> service.authenticateToken(first.accessToken() + "forged"));
+    }
+
+    @Test
+    void authenticateTokenPreservesDataScopeFromSessionSnapshot() {
+        // 回归:每个请求都会用 7 参重新 new AuthenticatedUser，漏传范围字段会表现为
+        //「登录后受限，翻页/刷新又变全部」
+        UserAccountEntity user = user();
+        user.setStatus("active");
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+        AuthenticatedUser scoped = new AuthenticatedUser(1L, 1L, "admin", Set.of("ORG_ADMIN"), Set.of(),
+            Boolean.FALSE, "admin", "CAMPUS", Set.of(11L, 12L));
+        String token = jwtTokenService.issue(scoped, 12, TimeUnit.HOURS);
+        when(tokenCacheService.getUser(token)).thenReturn(scoped);
+
+        AuthenticatedUser authenticated = service.authenticateToken(token);
+
+        assertEquals("CAMPUS", authenticated.dataScopeKey());
+        assertEquals(Set.of(11L, 12L), authenticated.dataScopeIds());
     }
 
     /**

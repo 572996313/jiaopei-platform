@@ -23,6 +23,7 @@ import com.cornerstone.module.education.dto.TeachingClassCreateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.mapper.CourseMapper;
+import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
@@ -249,7 +250,8 @@ class CodeRuleWiringTest {
 
     private StudentServiceImpl student(CodeRuleService codeRuleService) {
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
-        return new StudentServiceImpl(studentMapper, institutionMapper, educationDict, codeRuleService);
+        return new StudentServiceImpl(studentMapper, institutionMapper, educationDict, codeRuleService,
+            mock(ClassStudentMapper.class), mock(EnrollmentMapper.class), teachingClassMapper);
     }
 
     private TeachingClassServiceImpl classService(CodeRuleService codeRuleService) {

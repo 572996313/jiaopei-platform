@@ -19,7 +19,8 @@ import {
  * 排课两页（课表与点名、课表总览）共用的名称反查与格式化。
  *
  * 教师/教室/时段三份是课次行上的名称反查字典：课次可以来自任何校区，
- * 一律按机构全量拉，不跟横幅的校区范围收窄——收窄会让外校区课次渲染成「教师 #裸id」。
+ * 一律按机构全量拉（后端会按角色的可访问校区收窄），不跟横幅的校区范围收窄——
+ * 收窄会让同一机构其他校区的课次渲染成「教师 #裸id」。
  */
 export function useLessonFormatters() {
   const institutionStore = useInstitutionStore()
@@ -98,7 +99,8 @@ export function useLessonFormatters() {
 
   function formatCampus(id?: string | null) {
     if (!id) {
-      return '全部校区'
+      // 受限角色看到的是「全部可访问校区」，不能写成「全部校区」误导操作员
+      return scopeStore.allCampusesLabel
     }
     return campusMap.value.get(id) || `校区 #${id}`
   }

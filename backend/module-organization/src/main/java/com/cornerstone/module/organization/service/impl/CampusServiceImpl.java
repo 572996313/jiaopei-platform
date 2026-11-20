@@ -1,6 +1,8 @@
 package com.cornerstone.module.organization.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cornerstone.core.auth.domain.RoleDataScopeEntity;
+import com.cornerstone.core.auth.mapper.RoleDataScopeMapper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
@@ -11,9 +13,12 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.core.system.service.CodeRuleService;
 import com.cornerstone.module.organization.service.CampusService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
+import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -24,29 +29,43 @@ public class CampusServiceImpl implements CampusService {
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
     private final CodeRuleService codeRuleService;
+    private final RoleDataScopeMapper roleDataScopeMapper;
 
+    /** 四参构造保留给纯单测：没有角色范围表时跳过删除前的引用检查。 */
     public CampusServiceImpl(CampusMapper campusMapper, InstitutionMapper institutionMapper,
                              DictValueValidator dictValueValidator, CodeRuleService codeRuleService) {
+        this(campusMapper, institutionMapper, dictValueValidator, codeRuleService, null);
+    }
+
+    @Autowired
+    public CampusServiceImpl(CampusMapper campusMapper, InstitutionMapper institutionMapper,
+                             DictValueValidator dictValueValidator, CodeRuleService codeRuleService,
+                             RoleDataScopeMapper roleDataScopeMapper) {
         this.campusMapper = campusMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
         this.codeRuleService = codeRuleService;
+        this.roleDataScopeMapper = roleDataScopeMapper;
     }
 
     @Override
     public List<CampusEntity> listCampuses(Long institutionId) {
+        Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "校区");
         LambdaQueryWrapper<CampusEntity> wrapper = new LambdaQueryWrapper<CampusEntity>()
-            .orderByAsc(CampusEntity::getInstitutionId)
             .orderByAsc(CampusEntity::getSortNo)
             .orderByAsc(CampusEntity::getCampusCode);
-        if (institutionId != null) {
-            wrapper.eq(CampusEntity::getInstitutionId, institutionId);
+        if (resolvedInstitutionId != null) {
+            wrapper.eq(CampusEntity::getInstitutionId, resolvedInstitutionId);
         }
+        // 受限角色只能看到被授权的校区；空白名单时这里是 1=0，不能放开成全部
+        CampusScopeGuard.apply(wrapper, CampusEntity::getId);
         return campusMapper.selectList(wrapper);
     }
 
     @Override
     public CampusEntity createCampus(CampusCreateRequest request) {
+        CampusScopeGuard.assertUnrestricted("新建校区");
+        InstitutionScopeGuard.assertOwn(request.institutionId(), "校区");
         InstitutionEntity institution = institutionMapper.selectById(request.institutionId());
         if (institution == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "机构不存在：" + request.institutionId());
@@ -85,6 +104,8 @@ public class CampusServiceImpl implements CampusService {
     @Override
     public CampusEntity updateCampus(Long id, CampusUpdateRequest request) {
         CampusEntity existing = requireCampus(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "校区");
+        CampusScopeGuard.assertCampus(existing.getId(), "校区");
         if (request.campusCode() != null && !request.campusCode().isBlank()) {
             String campusCode = normalize(request.campusCode());
             if (!Objects.equals(existing.getCampusCode(), campusCode)) {
@@ -146,7 +167,20 @@ public class CampusServiceImpl implements CampusService {
 
     @Override
     public void deleteCampus(Long id) {
-        requireCampus(id);
+        CampusEntity existing = requireCampus(id);
+        InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "校区");
+        CampusScopeGuard.assertCampus(existing.getId(), "校区");
+        // 被角色授权引用的校区不能删：删掉后授权行只剩一个查不到的 ID，角色会静默变成"少一个校区"
+        if (roleDataScopeMapper != null) {
+            Long refs = roleDataScopeMapper.selectCount(new LambdaQueryWrapper<RoleDataScopeEntity>()
+                .eq(RoleDataScopeEntity::getInstitutionId, existing.getInstitutionId())
+                .eq(RoleDataScopeEntity::getScopeType, CampusScopeGuard.DIMENSION_KEY)
+                .eq(RoleDataScopeEntity::getScopeValue, id));
+            if (refs != null && refs > 0) {
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                    "该校区仍被 " + refs + " 个角色授权引用，请先在角色授权里移除后再删除");
+            }
+        }
         campusMapper.deleteById(id);
     }
 

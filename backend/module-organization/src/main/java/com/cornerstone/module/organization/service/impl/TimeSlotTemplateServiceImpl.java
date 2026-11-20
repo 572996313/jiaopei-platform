@@ -20,6 +20,7 @@ import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotMapper;
 import com.cornerstone.module.organization.mapper.TimeSlotTemplateMapper;
 import com.cornerstone.module.organization.service.TimeSlotTemplateService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -63,8 +64,11 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
             .eq(TimeSlotTemplateEntity::getInstitutionId, effectiveInstitutionId)
             .orderByAsc(TimeSlotTemplateEntity::getCreatedAt);
         if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "时段模板");
             wrapper.eq(TimeSlotTemplateEntity::getCampusId, campusId);
         }
+        // 受限角色：机构通用模板 + 授权校区的模板
+        CampusScopeGuard.applyIncludingNull(wrapper, TimeSlotTemplateEntity::getCampusId);
         return templateMapper.selectList(wrapper).stream().map(this::toView).toList();
     }
 
@@ -72,6 +76,10 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
     public TimeSlotTemplateView createTemplate(Long operatorInstitutionId, TimeSlotTemplateCreateRequest request) {
         assertSameInstitution(operatorInstitutionId, request.institutionId());
         validateCampusScope(request.institutionId(), request.campusId());
+        if (request.campusId() == null) {
+            // 机构通用模板所有校区都会用到，受限角色不能建
+            CampusScopeGuard.assertUnrestricted("维护机构通用的时段模板");
+        }
         assertConfigIsObject(request.config());
         String templateName = requireText(request.templateName(), "模板名称不能为空");
         assertUniqueTemplateName(request.institutionId(), request.campusId(), templateName, null);
@@ -312,6 +320,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
             throw new BusinessException(ResultCode.NOT_FOUND, "时段模板不存在：" + id);
         }
         assertSameInstitution(operatorInstitutionId, entity.getInstitutionId());
+        CampusScopeGuard.assertNullableCampus(entity.getCampusId(), "时段模板");
         return entity;
     }
 
@@ -326,6 +335,7 @@ public class TimeSlotTemplateServiceImpl implements TimeSlotTemplateService {
         if (!Objects.equals(campus.getInstitutionId(), institutionId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "校区不属于该机构：" + campus.getCampusCode());
         }
+        CampusScopeGuard.assertCampus(campusId, "时段模板");
     }
 
     private void assertUniqueTemplateName(Long institutionId, Long campusId, String templateName, Long excludeId) {

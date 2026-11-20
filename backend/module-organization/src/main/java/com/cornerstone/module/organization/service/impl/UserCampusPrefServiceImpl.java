@@ -12,6 +12,7 @@ import com.cornerstone.module.organization.dto.UserCampusPrefView;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.UserCampusPrefMapper;
 import com.cornerstone.module.organization.service.UserCampusPrefService;
+import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -36,9 +37,15 @@ public class UserCampusPrefServiceImpl implements UserCampusPrefService {
 
     @Override
     public List<UserCampusPrefView> listByCampus(Long institutionId, Long campusId) {
-        List<UserCampusPrefEntity> prefs = prefMapper.selectList(new LambdaQueryWrapper<UserCampusPrefEntity>()
+        if (campusId != null) {
+            CampusScopeGuard.assertCampus(campusId, "校区默认账号");
+        }
+        LambdaQueryWrapper<UserCampusPrefEntity> wrapper = new LambdaQueryWrapper<UserCampusPrefEntity>()
             .eq(UserCampusPrefEntity::getInstitutionId, institutionId)
-            .eq(campusId != null, UserCampusPrefEntity::getCampusId, campusId));
+            .eq(campusId != null, UserCampusPrefEntity::getCampusId, campusId);
+        // 未设置默认校区（NULL）不暴露具体校区信息，照常可见；已设置的按可访问校区收窄
+        CampusScopeGuard.applyIncludingNull(wrapper, UserCampusPrefEntity::getCampusId);
+        List<UserCampusPrefEntity> prefs = prefMapper.selectList(wrapper);
         if (prefs.isEmpty()) {
             return List.of();
         }
@@ -111,6 +118,8 @@ public class UserCampusPrefServiceImpl implements UserCampusPrefService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "校区不属于当前机构：" + (campus == null ? campusId : campus.getCampusCode()));
         }
+        // 受限角色不能把别人的默认校区指到自己无权访问的校区
+        CampusScopeGuard.assertCampus(campusId, "校区默认账号");
     }
 
     private UserCampusPrefView toView(Long userId, UserAccountEntity user, Long campusId) {

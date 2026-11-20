@@ -12,6 +12,7 @@ import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
 import com.cornerstone.core.system.mapper.SystemMenuMapper;
 import com.cornerstone.core.system.mapper.SystemRoleMenuMapper;
 import com.cornerstone.core.system.service.ActionCatalogService;
+import com.cornerstone.core.system.service.RoleDataScopeService;
 import com.cornerstone.core.system.service.impl.SystemMenuServiceImpl;
 import java.util.Collection;
 import java.util.List;
@@ -44,7 +45,7 @@ class SystemMenuServiceImplTest {
         AuthApplicationService authApplicationService = mock(AuthApplicationService.class);
         SystemMenuServiceImpl service = new SystemMenuServiceImpl(
             menuMapper, roleMenuMapper, roleMapper, mock(ActionCatalogService.class),
-            authApplicationServiceProvider(authApplicationService));
+            mock(RoleDataScopeService.class), authApplicationServiceProvider(authApplicationService));
 
         RoleEntity role = new RoleEntity();
         role.setId(1L);
@@ -80,7 +81,7 @@ class SystemMenuServiceImplTest {
         ActionCatalogService actionCatalogService = mock(ActionCatalogService.class);
         SystemMenuServiceImpl service = new SystemMenuServiceImpl(
             menuMapper, roleMenuMapper, roleMapper, actionCatalogService,
-            authApplicationServiceProvider(authApplicationService));
+            mock(RoleDataScopeService.class), authApplicationServiceProvider(authApplicationService));
 
         RoleEntity role = new RoleEntity();
         role.setId(1L);
@@ -102,7 +103,7 @@ class SystemMenuServiceImplTest {
             .thenReturn(List.of(roleMenu(1L, 210L), roleMenu(1L, 3L)));
 
         RoleAuthorizationView result = service.updateRoleAuthorization(
-            1L, new RoleMenuUpdateRequest(List.of(2L)));
+            1L, new RoleMenuUpdateRequest(List.of(2L)), 1L);
 
         // 界面看不到的目录外授权(210)必须原样保留;目录内未勾的写节点(3)被撤销
         assertEquals(Set.of(2L, 210L), Set.copyOf(result.menuIds()));
@@ -122,6 +123,7 @@ class SystemMenuServiceImplTest {
             mock(SystemRoleMenuMapper.class),
             mock(RoleMapper.class),
             mock(ActionCatalogService.class),
+            mock(RoleDataScopeService.class),
             authApplicationServiceProvider(mock(AuthApplicationService.class))
         );
         SystemMenuEntity root = menu(1L, null, "root", 1);
@@ -139,6 +141,7 @@ class SystemMenuServiceImplTest {
         RoleMapper roleMapper = mock(RoleMapper.class);
         SystemMenuServiceImpl service = new SystemMenuServiceImpl(
             menuMapper, roleMenuMapper, roleMapper, mock(ActionCatalogService.class),
+            mock(RoleDataScopeService.class),
             authApplicationServiceProvider(mock(AuthApplicationService.class)));
 
         // 家长端用户:角色 MINIAPP_PARENT → role id 102 → 已授权菜单 id 210

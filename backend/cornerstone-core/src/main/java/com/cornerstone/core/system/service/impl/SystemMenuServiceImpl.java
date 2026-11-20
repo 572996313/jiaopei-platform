@@ -18,6 +18,7 @@ import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
 import com.cornerstone.core.system.mapper.SystemMenuMapper;
 import com.cornerstone.core.system.mapper.SystemRoleMenuMapper;
 import com.cornerstone.core.system.service.ActionCatalogService;
+import com.cornerstone.core.system.service.RoleDataScopeService;
 import com.cornerstone.core.system.service.SystemMenuService;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,6 +47,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     private final SystemRoleMenuMapper roleMenuMapper;
     private final RoleMapper roleMapper;
     private final ActionCatalogService actionCatalogService;
+    private final RoleDataScopeService roleDataScopeService;
     /**
      * 会话失效入口。用 ObjectProvider 延迟解析而不是直接构造注入：
      * AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService 已经成环，
@@ -55,11 +57,13 @@ public class SystemMenuServiceImpl implements SystemMenuService {
 
     public SystemMenuServiceImpl(SystemMenuMapper menuMapper, SystemRoleMenuMapper roleMenuMapper,
                                  RoleMapper roleMapper, ActionCatalogService actionCatalogService,
+                                 RoleDataScopeService roleDataScopeService,
                                  ObjectProvider<AuthApplicationService> authApplicationService) {
         this.menuMapper = menuMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.roleMapper = roleMapper;
         this.actionCatalogService = actionCatalogService;
+        this.roleDataScopeService = roleDataScopeService;
         this.authApplicationService = authApplicationService;
     }
 
@@ -196,15 +200,17 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     }
 
     @Override
-    public RoleAuthorizationView getRoleAuthorization(Long roleId) {
+    public RoleAuthorizationView getRoleAuthorization(Long roleId, Long institutionId) {
         RoleEntity role = requireRole(roleId);
         return new RoleAuthorizationView(roleId, getRoleMenuIds(roleId),
-            splitPermissionCodes(role.getPermissionCodes()));
+            splitPermissionCodes(role.getPermissionCodes()),
+            roleDataScopeService.list(roleId, institutionId));
     }
 
     @Override
     @Transactional
-    public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request) {
+    public RoleAuthorizationView updateRoleAuthorization(Long roleId, RoleMenuUpdateRequest request,
+                                                        Long institutionId) {
         RoleEntity role = requireRole(roleId);
         Set<Long> requested = new LinkedHashSet<>(request.menuIds() == null ? List.of() : request.menuIds());
         Set<Long> managed = actionCatalogService.managedMenuIds();
@@ -266,9 +272,12 @@ public class SystemMenuServiceImpl implements SystemMenuService {
             relation.setDeleted(Boolean.FALSE);
             roleMenuMapper.insert(relation);
         }
+        // 数据范围与页面/按钮授权同事务保存；null 表示旧前端未提交这一块，保持原范围不动
+        roleDataScopeService.replace(roleId, institutionId, request.dataScopes());
         authApplicationService.getObject().invalidateUserSessionsByRole(roleId);
         return new RoleAuthorizationView(roleId, new ArrayList<>(finalMenuIds),
-            splitPermissionCodes(role.getPermissionCodes()));
+            splitPermissionCodes(role.getPermissionCodes()),
+            roleDataScopeService.list(roleId, institutionId));
     }
 
     @Override

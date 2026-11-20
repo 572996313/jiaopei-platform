@@ -20,6 +20,7 @@
         </div>
         <div class="table-toolbar">
           <el-button
+            v-if="!campusRestricted"
             v-permission="'organization:write'"
             type="primary"
             @click="openCampusDialog('create')"
@@ -278,6 +279,8 @@ const institutionStore = useInstitutionStore()
 const dictStore = useDictStore()
 const scopeStore = useEducationScopeStore()
 const institutionId = computed(() => institutionStore.currentInstitutionId)
+// 受限角色只能维护自己名下的校区，新建校区会改变机构结构，后端也会拒
+const campusRestricted = computed(() => scopeStore.campusRestricted)
 const campuses = ref<CampusSummary[]>([])
 const terms = ref<TermSummary[]>([])
 
