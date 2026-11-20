@@ -310,7 +310,7 @@ const campusForm = reactive({
   phone: '',
   address: '',
   capacityLimit: 100,
-  status: 'planning',
+  status: 'active',
 })
 
 const termForm = reactive({
@@ -384,7 +384,7 @@ function resetCampusForm() {
   campusForm.phone = ''
   campusForm.address = ''
   campusForm.capacityLimit = 100
-  campusForm.status = 'planning'
+  campusForm.status = 'active'
   campusFormError.value = ''
 }
 
@@ -441,7 +441,7 @@ function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
     campusForm.phone = row.phone ?? ''
     campusForm.address = row.address ?? ''
     campusForm.capacityLimit = row.capacityLimit ?? 100
-    campusForm.status = row.status ?? 'planning'
+    campusForm.status = row.status ?? 'active'
   } else {
     editingCampusId.value = null
     resetCampusForm()

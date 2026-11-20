@@ -24,6 +24,7 @@ public class CampusEntity extends BaseEntity {
     private String districtCode;
     private String address;
     private Integer capacityLimit;
+    @Schema(description = "状态(planning=规划中,active=启用中,suspended=暂停中,closed=已关闭)", allowableValues = {"planning", "active", "suspended", "closed"})
     private String status;
     private LocalDate openedAt;
     private Integer sortNo;

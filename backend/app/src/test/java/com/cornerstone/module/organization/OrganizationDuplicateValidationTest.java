@@ -15,9 +15,11 @@ import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -74,6 +76,20 @@ class OrganizationDuplicateValidationTest {
         assertThrows(BusinessException.class, () -> service.createCampus(campusRequest("CMP002", "东区校区")));
 
         verify(campusMapper, never()).insert(any(CampusEntity.class));
+    }
+
+    @Test
+    void createCampusDefaultsToActiveWhenStatusMissing() {
+        // 新建校区是「马上要用」的：默认规划中会让它在改成启用中之前无法自动排课
+        CampusServiceImpl service = new CampusServiceImpl(campusMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(campusMapper.selectCount(any())).thenReturn(0L);
+        ArgumentCaptor<CampusEntity> captor = ArgumentCaptor.forClass(CampusEntity.class);
+
+        service.createCampus(campusRequest("CMP003", "西区校区"));
+
+        verify(campusMapper).insert(captor.capture());
+        assertEquals("active", captor.getValue().getStatus());
     }
 
     private InstitutionCreateRequest institutionRequest(String orgCode, String orgName) {

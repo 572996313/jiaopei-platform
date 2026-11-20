@@ -88,7 +88,7 @@ public class CampusServiceImpl implements CampusService {
         entity.setDistrictCode(request.districtCode());
         entity.setAddress(request.address());
         entity.setCapacityLimit(request.capacityLimit());
-        entity.setStatus(request.status() == null || request.status().isBlank() ? "planning" : request.status());
+        entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
         entity.setOpenedAt(request.openedAt());
         entity.setSortNo(request.sortNo());
         entity.setRemark(request.remark());

@@ -25,6 +25,7 @@ public record CampusCreateRequest(
     @NotBlank(message = "地址不能为空")
     String address,
     Integer capacityLimit,
+    @Schema(description = "状态(planning=规划中,active=启用中,suspended=暂停中,closed=已关闭;不传默认启用中)", allowableValues = {"planning", "active", "suspended", "closed"})
     String status,
     LocalDate openedAt,
     Integer sortNo,
