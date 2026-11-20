@@ -802,10 +802,11 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
         Map<Long, String> ordered = new LinkedHashMap<>();
         feeItemMapper.selectList(new LambdaQueryWrapper<FeeItemEntity>()
                 .eq(FeeItemEntity::getInstitutionId, institutionId)
+                .eq(FeeItemEntity::getStatus, "active")
                 .orderByAsc(FeeItemEntity::getSortNo)
                 .orderByAsc(FeeItemEntity::getId))
             .forEach(item -> ordered.put(item.getId(), item.getItemName()));
-        // 台账里还引用着、但项目表已查不到（或已跨机构）的行也要保留，否则金额凭空消失
+        // 台账里还引用着的行也要保留：项目后来被停用、删除或跨机构时，金额不能凭空消失
         for (FeeLedgerDetailView detail : details) {
             for (FeeLedgerItemView item : detail.items()) {
                 ordered.putIfAbsent(item.feeItemId(),

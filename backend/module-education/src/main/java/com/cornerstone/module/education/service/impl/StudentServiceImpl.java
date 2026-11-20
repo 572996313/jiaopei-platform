@@ -41,6 +41,9 @@ public class StudentServiceImpl implements StudentService {
      */
     private static final int STUDENT_OPTION_LIMIT = 30;
 
+    /** 按 id 批量回查名称的上限：表格一屏几十行,200 条足够覆盖且不会把响应撑大 */
+    private static final int STUDENT_LABEL_LIMIT = 200;
+
     /** 学员列表可排序字段 */
     private static final Map<String, SFunction<StudentEntity, ?>> STUDENT_SORTABLE = Map.of(
         "studentNo", StudentEntity::getStudentNo,
@@ -94,7 +97,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public List<StudentOptionView> listStudentOptions(Long institutionId, String keyword) {
+    public List<StudentOptionView> listStudentOptions(Long institutionId, String keyword, List<Long> ids) {
         Long resolvedInstitutionId = InstitutionScopeGuard.resolveForQuery(institutionId, "学员");
         LambdaQueryWrapper<StudentEntity> wrapper = new LambdaQueryWrapper<StudentEntity>()
             .select(StudentEntity::getId, StudentEntity::getStudentNo, StudentEntity::getStudentName);
@@ -102,15 +105,20 @@ public class StudentServiceImpl implements StudentService {
             wrapper.eq(StudentEntity::getInstitutionId, resolvedInstitutionId);
         }
         EducationCampusScopeSupport.applyStudentVisible(wrapper);
+        List<Long> distinctIds = ids == null ? List.of()
+            : ids.stream().filter(Objects::nonNull).distinct().toList();
         String normalizedKeyword = normalizeToNull(keyword);
-        if (normalizedKeyword != null) {
+        if (!distinctIds.isEmpty()) {
+            // 按 id 回查用于给表格行补名称，关键字让位，否则传了 ids 也可能一条都查不到
+            wrapper.in(StudentEntity::getId, distinctIds);
+        } else if (normalizedKeyword != null) {
             wrapper.and(w -> w
                 .like(StudentEntity::getStudentName, normalizedKeyword)
                 .or()
                 .like(StudentEntity::getStudentNo, normalizedKeyword));
         }
         applyDefaultOrder(wrapper);
-        wrapper.last("LIMIT " + STUDENT_OPTION_LIMIT);
+        wrapper.last("LIMIT " + (distinctIds.isEmpty() ? STUDENT_OPTION_LIMIT : STUDENT_LABEL_LIMIT));
         return studentMapper.selectList(wrapper).stream()
             .map(item -> new StudentOptionView(item.getId(), item.getStudentNo(), item.getStudentName()))
             .toList();

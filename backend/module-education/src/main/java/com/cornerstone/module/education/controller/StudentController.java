@@ -51,10 +51,12 @@ public class StudentController {
     @GetMapping("/options")
     @RequiresPermission("education:read")
     public ApiResponse<List<StudentOptionView>> options(@RequestParam(required = false) String institutionId,
-                                                        @RequestParam(required = false) String keyword) {
+                                                        @RequestParam(required = false) String keyword,
+                                                        @RequestParam(required = false) List<Long> ids) {
         return ApiResponse.success("学员下拉选项已加载", studentService.listStudentOptions(
             ExternalIdParser.parseOptional(institutionId, "institutionId"),
-            keyword
+            keyword,
+            ids
         ));
     }
 

@@ -538,6 +538,8 @@ export interface StudentOption {
 export function fetchStudentOptions(params: {
   institutionId?: string | null
   keyword?: string | null
+  /** 按 id 批量回查名称用（表格行只有 id 时补回显），传了它后端会忽略 keyword */
+  ids?: string
 }) {
   return requestGet<StudentOption[]>('/education/students/options', params)
 }
