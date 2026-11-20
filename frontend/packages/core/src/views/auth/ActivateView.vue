@@ -31,14 +31,21 @@
       class="education-alert"
     />
 
-    <el-form label-position="top" @submit.prevent="submitActivate">
-      <el-form-item label="激活码">
+    <el-form
+      ref="activateFormRef"
+      :model="form"
+      :rules="activateRules"
+      label-position="top"
+      scroll-to-error
+      @submit.prevent="submitActivate"
+    >
+      <el-form-item label="激活码" prop="code">
         <div class="invitation-code-row">
           <el-input v-model="form.code" placeholder="请输入激活码" @blur="runPrecheck" />
           <el-button :loading="prechecking" @click="runPrecheck">预检</el-button>
         </div>
       </el-form-item>
-      <el-form-item label="初始密码">
+      <el-form-item label="初始密码" prop="password">
         <el-input
           v-model="form.password"
           type="password"
@@ -46,7 +53,7 @@
           placeholder="请输入新密码"
         />
       </el-form-item>
-      <el-form-item label="确认密码">
+      <el-form-item label="确认密码" prop="confirmPassword">
         <el-input
           v-model="form.confirmPassword"
           type="password"
@@ -71,9 +78,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import {
   activateAccount,
@@ -96,6 +104,37 @@ const form = reactive({
   password: '',
   confirmPassword: '',
 })
+
+const activateFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const activateRules: FormRules = {
+  code: [{ required: true, whitespace: true, message: '请输入激活码', trigger: 'blur' }],
+  password: [{ required: true, whitespace: true, message: '请输入新密码', trigger: 'blur' }],
+  confirmPassword: [
+    { required: true, whitespace: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value: string, callback) => {
+        if (value && form.password !== value) {
+          callback(new Error('两次输入的新密码不一致'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
+// 改新密码时要重新比对确认密码那一格，别等到再点一次提交才提示不一致
+watch(
+  () => form.password,
+  () => {
+    if (form.confirmPassword) {
+      void activateFormRef.value?.validateField('confirmPassword').catch(() => undefined)
+    }
+  }
+)
 
 onMounted(() => {
   // 链接里带码（管理员分享的激活链接）时自动预检一次
@@ -135,13 +174,14 @@ function goLogin() {
 }
 
 async function submitActivate() {
-  const code = form.code.trim()
-  if (!code || !form.password || !form.confirmPassword) {
-    formError.value = '请填写激活码并两次输入新密码'
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await activateFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (form.password !== form.confirmPassword) {
-    formError.value = '两次输入的新密码不一致'
+  const code = form.code.trim()
+  // required 规则已保证非空，这里只为类型收窄
+  if (!code) {
     return
   }
 

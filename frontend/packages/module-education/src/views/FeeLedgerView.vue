@@ -111,8 +111,16 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="学期" required>
+      <el-form
+        ref="generateFormRef"
+        :model="generateForm"
+        :rules="generateRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="学期" prop="termId">
           <el-select v-model="generateForm.termId" placeholder="选择学期" style="width: 100%">
             <el-option
               v-for="term in terms"
@@ -122,7 +130,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="班级" required>
+        <el-form-item label="班级" prop="classId">
           <ClassSelect
             v-model="generateForm.classId"
             :institution-id="institutionId"
@@ -170,8 +178,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
@@ -218,6 +227,13 @@ const generateVisible = ref(false)
 const generateError = ref('')
 const generating = ref(false)
 const generateForm = reactive({ termId: '', classId: '' })
+const generateFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const generateRules: FormRules = {
+  termId: [{ required: true, message: '请选择学期', trigger: 'change' }],
+  classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+}
 
 const ledgerDialogVisible = ref(false)
 const ledgerDialogMode = ref<'create' | 'edit'>('create')
@@ -336,6 +352,8 @@ function openGenerateDialog() {
   generateForm.termId = termId.value || ''
   generateForm.classId = classId.value || ''
   generateVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次操作
+  void nextTick(() => generateFormRef.value?.clearValidate())
 }
 
 async function submitGenerate() {
@@ -343,8 +361,13 @@ async function submitGenerate() {
     generateError.value = '请先选择机构范围'
     return
   }
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await generateFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
+    return
+  }
+  // required 规则已保证非空，这里只为类型收窄
   if (!generateForm.termId || !generateForm.classId) {
-    generateError.value = '请选择学期与班级'
     return
   }
   generating.value = true

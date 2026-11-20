@@ -114,16 +114,24 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="dataSourceFormRef"
+        :model="dataSourceForm"
+        :rules="dataSourceRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <div class="source-form-grid">
-          <el-form-item label="数据源编码">
+          <el-form-item label="数据源编码" prop="sourceCode">
             <el-input
               v-model="dataSourceForm.sourceCode"
               :disabled="dataSourceDialogMode === 'edit'"
               placeholder="如 institutions,建后不可改"
             />
           </el-form-item>
-          <el-form-item label="名称">
+          <el-form-item label="名称" prop="sourceName">
             <el-input
               v-model="dataSourceForm.sourceName"
               maxlength="64"
@@ -139,7 +147,7 @@
         </el-form-item>
 
         <template v-if="dataSourceForm.sourceType === 'api'">
-          <el-form-item label="接口路径">
+          <el-form-item label="接口路径" prop="endpoint">
             <el-input
               v-model="dataSourceForm.endpoint"
               maxlength="128"
@@ -154,7 +162,7 @@
               <el-input v-model="dataSourceForm.labelKey" maxlength="64" placeholder="如 orgName" />
             </el-form-item>
           </div>
-          <el-form-item label="请求参数定义(JSON 数组,选填)">
+          <el-form-item label="请求参数定义(JSON 数组,选填)" prop="paramDefs">
             <el-input
               v-model="dataSourceForm.paramDefs"
               type="textarea"
@@ -164,7 +172,7 @@
           </el-form-item>
         </template>
         <template v-else>
-          <el-form-item label="字典类型编码">
+          <el-form-item label="字典类型编码" prop="dictType">
             <el-input
               v-model="dataSourceForm.dictType"
               maxlength="64"
@@ -241,8 +249,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import {
   createDataSource,
@@ -281,6 +290,8 @@ const seedDataSourceIds = new Set(['1', '2', '3', '4', '5', '6'])
 
 const guideDialogVisible = ref(false)
 
+const dataSourceFormRef = ref<FormInstance | null>(null)
+
 const dataSourceForm = reactive({
   sourceCode: '',
   sourceName: '',
@@ -293,6 +304,76 @@ const dataSourceForm = reactive({
   description: '',
   status: 'active',
 })
+
+const dataSourceRules: FormRules = {
+  // 编码只在新建时填写，编辑态输入框禁用且必带回显值，统一规则即可通过
+  sourceCode: [{ required: true, whitespace: true, message: '请填写数据源编码', trigger: 'blur' }],
+  sourceName: [{ required: true, whitespace: true, message: '请填写名称', trigger: 'blur' }],
+  // 接口路径与字典类型编码二选一必填，依赖 sourceType 在下方 watch 里重校验
+  endpoint: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (dataSourceForm.sourceType === 'api' && !value.trim()) {
+          callback(new Error('请填写接口路径'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+  dictType: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (dataSourceForm.sourceType === 'dict' && !value.trim()) {
+          callback(new Error('请填写字典类型编码'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+  paramDefs: [
+    {
+      // JSON 合法性校验挂在字段上，空串表示不配置直接通过
+      validator: (_rule, value: string, callback) => {
+        const trimmed = value.trim()
+        if (!trimmed) {
+          callback()
+          return
+        }
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(trimmed)
+        } catch {
+          callback(new Error('请求参数定义不是合法的 JSON'))
+          return
+        }
+        if (!Array.isArray(parsed)) {
+          callback(
+            new Error('请求参数定义必须是 JSON 数组,如 [{"name":"institutionId","required":false}]')
+          )
+          return
+        }
+        for (let i = 0; i < parsed.length; i++) {
+          const item = parsed[i]
+          if (
+            typeof item !== 'object' ||
+            item === null ||
+            typeof (item as { name?: unknown }).name !== 'string' ||
+            !(item as { name: string }).name.trim()
+          ) {
+            callback(new Error(`请求参数定义[${i}] 缺少必填字段 name`))
+            return
+          }
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
 
 function sourceTypeLabel(type: string) {
   return type === 'dict' ? '字典' : '接口'
@@ -330,6 +411,8 @@ function openCreateDialog() {
   dataSourceForm.status = 'active'
   dataSourceFormError.value = ''
   dataSourceDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => dataSourceFormRef.value?.clearValidate())
 }
 
 function openEditDialog(row: DataSourceSummary) {
@@ -347,62 +430,21 @@ function openEditDialog(row: DataSourceSummary) {
   dataSourceForm.status = row.status || 'active'
   dataSourceFormError.value = ''
   dataSourceDialogVisible.value = true
+  void nextTick(() => dataSourceFormRef.value?.clearValidate())
 }
 
-/** 校验 paramDefs 是合法 JSON 数组(空串跳过);每项需含 name */
-function validateParamDefs(raw: string) {
+/** paramDefs 的 JSON 合法性已交给 el-form 规则，提交时只需取出修剪后的值（空串表示不配置） */
+function normalizedParamDefs(raw: string) {
   const trimmed = raw.trim()
-  if (!trimmed) {
-    return undefined
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(trimmed)
-  } catch (error) {
-    throw new Error(toMessage(error, '请求参数定义不是合法的 JSON'))
-  }
-  if (!Array.isArray(parsed)) {
-    throw new Error('请求参数定义必须是 JSON 数组,如 [{"name":"institutionId","required":false}]')
-  }
-  for (let i = 0; i < parsed.length; i++) {
-    const item = parsed[i]
-    if (
-      typeof item !== 'object' ||
-      item === null ||
-      typeof item.name !== 'string' ||
-      !item.name.trim()
-    ) {
-      throw new Error(`请求参数定义[${i}] 缺少必填字段 name`)
-    }
-  }
-  return trimmed
+  return trimmed ? trimmed : undefined
 }
 
 /* ---------------- 提交 ---------------- */
 
 async function submit() {
-  if (dataSourceDialogMode.value === 'create' && !trimToUndefined(dataSourceForm.sourceCode)) {
-    dataSourceFormError.value = '请填写数据源编码'
-    return
-  }
-  if (!trimToUndefined(dataSourceForm.sourceName)) {
-    dataSourceFormError.value = '请填写名称'
-    return
-  }
-  if (dataSourceForm.sourceType === 'api' && !trimToUndefined(dataSourceForm.endpoint)) {
-    dataSourceFormError.value = '请填写接口路径'
-    return
-  }
-  if (dataSourceForm.sourceType === 'dict' && !trimToUndefined(dataSourceForm.dictType)) {
-    dataSourceFormError.value = '请填写字典类型编码'
-    return
-  }
-
-  let paramDefs: string | undefined
-  try {
-    paramDefs = validateParamDefs(dataSourceForm.paramDefs)
-  } catch (error) {
-    dataSourceFormError.value = toMessage(error, '校验失败')
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await dataSourceFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -411,7 +453,7 @@ async function submit() {
     endpoint: trimToUndefined(dataSourceForm.endpoint),
     valueKey: trimToUndefined(dataSourceForm.valueKey),
     labelKey: trimToUndefined(dataSourceForm.labelKey),
-    paramDefs,
+    paramDefs: normalizedParamDefs(dataSourceForm.paramDefs),
     sourceType: dataSourceForm.sourceType,
     dictType: trimToUndefined(dataSourceForm.dictType),
     description: trimToUndefined(dataSourceForm.description),
@@ -469,6 +511,21 @@ async function handleDelete(row: DataSourceSummary) {
 onMounted(async () => {
   await Promise.allSettled([ensureStatusDictLoaded(), loadDataSources()])
 })
+
+watch(
+  () => dataSourceForm.sourceType,
+  () => {
+    // 弹窗未打开时（打开弹窗前给 sourceType 赋默认值）不要触发校验
+    if (!dataSourceDialogVisible.value) {
+      return
+    }
+    // 接口/字典两种形态切换后，原来那格的红框状态对新的必填口径可能是错的，两格都重校验；
+    // v-if 刚换过 DOM，要等下一帧新挂载的字段才接得到校验
+    void nextTick(() => {
+      void dataSourceFormRef.value?.validateField(['endpoint', 'dictType']).catch(() => undefined)
+    })
+  }
+)
 </script>
 
 <style scoped>

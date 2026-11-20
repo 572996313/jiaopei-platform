@@ -118,15 +118,23 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="入班班级" required>
+      <el-form
+        ref="rosterFormRef"
+        :model="form"
+        :rules="rosterRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="入班班级" prop="classId">
           <ClassSelect
             v-model="form.classId"
             :institution-id="institutionId"
             :campus-id="campusId"
           />
         </el-form-item>
-        <el-form-item label="学员" required>
+        <el-form-item label="学员" prop="studentId">
           <StudentSelect v-model="form.studentId" :institution-id="institutionId" />
         </el-form-item>
         <el-form-item label="状态">
@@ -145,7 +153,7 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="离班日期">
+        <el-form-item label="离班日期" prop="leftAt">
           <el-date-picker
             v-model="form.leftAt"
             type="date"
@@ -178,9 +186,10 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -251,6 +260,36 @@ const form = reactive({
   leftAt: '',
   remark: '',
 })
+
+const rosterFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const rosterRules: FormRules = {
+  classId: [{ required: true, message: '请选择入班班级', trigger: 'change' }],
+  studentId: [{ required: true, message: '请选择学员', trigger: 'change' }],
+  leftAt: [
+    {
+      // 起止日期是跨字段关系：改入班日期时也要重新校验离班日期那一格
+      validator: (_rule, value: string, callback) => {
+        if (value && form.joinedAt && form.joinedAt > value) {
+          callback(new Error('离班日期不能早于入班日期'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+watch(
+  () => form.joinedAt,
+  () => {
+    if (form.leftAt) {
+      void rosterFormRef.value?.validateField('leftAt').catch(() => undefined)
+    }
+  }
+)
 
 const courseMap = computed(() => {
   return new Map(
@@ -413,6 +452,8 @@ async function resetFilters() {
 function openDialog() {
   resetForm()
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => rosterFormRef.value?.clearValidate())
 }
 
 /** 从行上进入联系人抽屉：行自带学员名称，先记进缓存供抽屉标题回显 */
@@ -431,16 +472,13 @@ async function submitClassStudent() {
     formError.value = '请先选择机构范围'
     return
   }
-  if (!form.classId) {
-    formError.value = '请选择入班班级'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await rosterFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (!form.studentId) {
-    formError.value = '请选择学员'
-    return
-  }
-  if (form.leftAt && form.joinedAt && form.leftAt < form.joinedAt) {
-    formError.value = '离班日期不能早于入班日期'
+  // required 规则已保证非空，这里只为类型收窄
+  if (!form.classId || !form.studentId) {
     return
   }
 

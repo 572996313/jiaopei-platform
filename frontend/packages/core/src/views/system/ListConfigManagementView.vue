@@ -141,12 +141,21 @@
         <el-button :disabled="!copySourceCode" @click="copyFromExisting">复制</el-button>
       </div>
 
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="listConfigFormRef"
+        :model="listConfigForm"
+        :rules="listConfigRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <!-- 基本信息:横排紧凑条,节省纵向空间给配置编辑 -->
         <div class="config-meta-bar">
           <el-form-item
             v-if="listConfigDialogMode === 'create'"
             label="资源编码"
+            prop="resourceCode"
             class="meta-item meta-code"
           >
             <el-input
@@ -154,14 +163,14 @@
               placeholder="如 system-users,建后不可改"
             />
           </el-form-item>
-          <el-form-item label="资源名称" class="meta-item">
+          <el-form-item label="资源名称" prop="resourceName" class="meta-item">
             <el-input
               v-model="listConfigForm.resourceName"
               maxlength="64"
               placeholder="如 用户管理"
             />
           </el-form-item>
-          <el-form-item label="分页接口路径" class="meta-item meta-endpoint">
+          <el-form-item label="分页接口路径" prop="endpoint" class="meta-item meta-endpoint">
             <el-input
               v-model="listConfigForm.endpoint"
               maxlength="128"
@@ -395,8 +404,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import {
@@ -481,6 +491,28 @@ const listConfigForm = reactive({
   status: 'active',
   remark: '',
 })
+
+const listConfigFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const listConfigRules: FormRules = {
+  resourceCode: [
+    {
+      // required 只负责标签红星；真正的判定在 validator 里，因为编辑时这一格不渲染、不该拦
+      required: true,
+      validator: (_rule, value: string, callback) => {
+        if (listConfigDialogMode.value === 'create' && !(value ?? '').trim()) {
+          callback(new Error('请填写资源编码'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+  resourceName: [{ required: true, whitespace: true, message: '请填写资源名称', trigger: 'blur' }],
+  endpoint: [{ required: true, whitespace: true, message: '请填写分页接口路径', trigger: 'blur' }],
+}
 
 const guideDialogVisible = ref(false)
 const copySourceCode = ref('')
@@ -949,6 +981,8 @@ function openCreateListConfigDialog() {
   serializeFormStateToJson(blank)
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => listConfigFormRef.value?.clearValidate())
 }
 
 function openEditListConfigDialog(row: ListConfigSummary) {
@@ -971,6 +1005,8 @@ function openEditListConfigDialog(row: ListConfigSummary) {
   )
   listConfigFormError.value = ''
   listConfigDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => listConfigFormRef.value?.clearValidate())
 }
 
 function copyFromExisting() {
@@ -1018,16 +1054,9 @@ function onEditTabChange(tab: string | number) {
 /* ---------------- 提交 ---------------- */
 
 async function submitListConfig() {
-  if (listConfigDialogMode.value === 'create' && !trimToUndefined(listConfigForm.resourceCode)) {
-    listConfigFormError.value = '请填写资源编码'
-    return
-  }
-  if (!trimToUndefined(listConfigForm.resourceName)) {
-    listConfigFormError.value = '请填写资源名称'
-    return
-  }
-  if (!trimToUndefined(listConfigForm.endpoint)) {
-    listConfigFormError.value = '请填写分页接口路径'
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await listConfigFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 

@@ -102,7 +102,15 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="ruleFormRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <el-form-item label="启用自动编号">
           <el-switch v-model="form.enabled" />
           <span class="rule-switch-hint">
@@ -115,7 +123,7 @@
         </el-form-item>
 
         <div class="rule-form-grid">
-          <el-form-item label="编号前缀">
+          <el-form-item label="编号前缀" prop="prefix">
             <el-input v-model="form.prefix" maxlength="16" placeholder="如 STU" />
           </el-form-item>
           <el-form-item label="段间分隔符">
@@ -180,8 +188,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import NoteHint from '@cornerstone/core/components/NoteHint.vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -219,6 +228,8 @@ const submitting = ref(false)
 const formError = ref('')
 const editingResource = ref('')
 
+const ruleFormRef = ref<FormInstance | null>(null)
+
 const form = reactive({
   label: '',
   enabled: false,
@@ -228,6 +239,11 @@ const form = reactive({
   serialLength: 3,
   remark: '',
 })
+
+const rules: FormRules = {
+  // 编码始终必填，规则只决定「生成」按钮是否存在
+  prefix: [{ required: true, whitespace: true, message: '请填写编号前缀', trigger: 'blur' }],
+}
 
 /**
  * 只把各段按分隔符连起来给人看一眼形态，日期段显示的是格式本身而不是当天的值。
@@ -281,11 +297,14 @@ function openEditDialog(row: CodeRuleSummary) {
   form.remark = row.remark || ''
   formError.value = ''
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => ruleFormRef.value?.clearValidate())
 }
 
 async function submit() {
-  if (!form.prefix.trim()) {
-    formError.value = '请填写编号前缀'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await ruleFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   submitting.value = true

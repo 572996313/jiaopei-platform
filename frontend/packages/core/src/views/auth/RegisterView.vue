@@ -29,23 +29,30 @@
       class="education-alert"
     />
 
-    <el-form label-position="top" @submit.prevent="submitRegister">
-      <el-form-item label="邀请码">
+    <el-form
+      ref="registerFormRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      scroll-to-error
+      @submit.prevent="submitRegister"
+    >
+      <el-form-item label="邀请码" prop="code">
         <div class="invitation-code-row">
           <el-input v-model="form.code" placeholder="请输入邀请码" @blur="runPrecheck" />
           <el-button :loading="prechecking" @click="runPrecheck">预检</el-button>
         </div>
       </el-form-item>
-      <el-form-item label="登录账号">
+      <el-form-item label="登录账号" prop="username">
         <el-input v-model="form.username" placeholder="请输入登录账号" />
       </el-form-item>
-      <el-form-item label="显示名称">
+      <el-form-item label="显示名称" prop="displayName">
         <el-input v-model="form.displayName" placeholder="请输入姓名或显示名" />
       </el-form-item>
-      <el-form-item label="手机号">
+      <el-form-item label="手机号" prop="phone">
         <el-input v-model="form.phone" placeholder="选填" />
       </el-form-item>
-      <el-form-item label="密码">
+      <el-form-item label="密码" prop="password">
         <el-input
           v-model="form.password"
           type="password"
@@ -73,6 +80,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import {
   precheckInvitation,
@@ -90,6 +98,9 @@ const prechecking = ref(false)
 const formError = ref('')
 const precheck = ref<InvitationPrecheck | null>(null)
 const precheckError = ref('')
+
+const registerFormRef = ref<FormInstance | null>(null)
+
 const form = reactive({
   code: typeof route.query.code === 'string' ? route.query.code : '',
   username: '',
@@ -97,6 +108,13 @@ const form = reactive({
   phone: '',
   password: '',
 })
+
+const rules: FormRules = {
+  code: [{ required: true, whitespace: true, message: '请填写邀请码', trigger: 'blur' }],
+  username: [{ required: true, whitespace: true, message: '请填写登录账号', trigger: 'blur' }],
+  displayName: [{ required: true, whitespace: true, message: '请填写显示名称', trigger: 'blur' }],
+  password: [{ required: true, whitespace: true, message: '请填写密码', trigger: 'blur' }],
+}
 
 onMounted(() => {
   // 链接里带码（管理员分享的注册链接）时自动预检一次
@@ -132,15 +150,15 @@ function goLogin() {
 }
 
 async function submitRegister() {
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await registerFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
+    return
+  }
   const code = form.code.trim()
   const username = form.username.trim()
   const displayName = form.displayName.trim()
   const password = form.password
-
-  if (!code || !username || !displayName || !password) {
-    formError.value = '请完整填写邀请码、登录账号、显示名称和密码'
-    return
-  }
 
   submitting.value = true
   formError.value = ''

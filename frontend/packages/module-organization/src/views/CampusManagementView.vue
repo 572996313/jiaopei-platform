@@ -150,11 +150,21 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="校区编码">
+      <el-form
+        ref="campusFormRef"
+        :model="campusForm"
+        :rules="campusRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="校区编码" prop="campusCode">
           <CodeInput v-model="campusForm.campusCode" resource="campus" :mode="campusDialogMode" />
         </el-form-item>
-        <el-form-item label="校区名称"><el-input v-model="campusForm.campusName" /></el-form-item>
+        <el-form-item label="校区名称" prop="campusName"
+          ><el-input v-model="campusForm.campusName"
+        /></el-form-item>
         <el-form-item label="校区类型">
           <DictSelect
             v-model="campusForm.campusType"
@@ -164,7 +174,7 @@
         </el-form-item>
         <el-form-item label="负责人"><el-input v-model="campusForm.principalName" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="campusForm.phone" /></el-form-item>
-        <el-form-item label="地址"
+        <el-form-item label="地址" prop="address"
           ><el-input v-model="campusForm.address" type="textarea" :rows="2"
         /></el-form-item>
         <el-form-item label="容量上限"
@@ -203,18 +213,28 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="学期编码">
+      <el-form
+        ref="termFormRef"
+        :model="termForm"
+        :rules="termRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="学期编码" prop="termCode">
           <CodeInput v-model="termForm.termCode" resource="term" :mode="termDialogMode" />
         </el-form-item>
-        <el-form-item label="学期名称"><el-input v-model="termForm.termName" /></el-form-item>
-        <el-form-item label="学年"
+        <el-form-item label="学期名称" prop="termName"
+          ><el-input v-model="termForm.termName"
+        /></el-form-item>
+        <el-form-item label="学年" prop="academicYear"
           ><el-input v-model="termForm.academicYear" placeholder="例如 2026-2027"
         /></el-form-item>
         <el-form-item label="学季"
           ><DictSelect v-model="termForm.season" type-code="term_season"
         /></el-form-item>
-        <el-form-item label="开始日期">
+        <el-form-item label="开始日期" prop="startDate">
           <el-date-picker
             v-model="termForm.startDate"
             type="date"
@@ -223,7 +243,7 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="结束日期">
+        <el-form-item label="结束日期" prop="endDate">
           <el-date-picker
             v-model="termForm.endDate"
             type="date"
@@ -252,9 +272,10 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import {
   createCampus,
@@ -301,6 +322,41 @@ const termSubmitting = ref(false)
 
 const campusFormError = ref('')
 const termFormError = ref('')
+
+const campusFormRef = ref<FormInstance | null>(null)
+const termFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+function requiredText(label: string): FormRules[string] {
+  return [{ required: true, whitespace: true, message: `请填写${label}`, trigger: 'blur' }]
+}
+
+const campusRules: FormRules = {
+  campusCode: requiredText('校区编码'),
+  campusName: requiredText('校区名称'),
+  address: requiredText('地址'),
+}
+
+const termRules: FormRules = {
+  termCode: requiredText('学期编码'),
+  termName: requiredText('学期名称'),
+  academicYear: requiredText('学年'),
+  startDate: [{ required: true, message: '请选择开始日期', trigger: 'change' }],
+  endDate: [
+    { required: true, message: '请选择结束日期', trigger: 'change' },
+    {
+      // 起止日期是跨字段关系：改开始日期时也要重新校验结束日期那一格
+      validator: (_rule, value: string, callback) => {
+        if (value && termForm.startDate && termForm.startDate > value) {
+          callback(new Error('结束日期不能早于开始日期'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
 
 const campusForm = reactive({
   campusCode: '',
@@ -448,6 +504,8 @@ function openCampusDialog(mode: 'create' | 'edit', row?: CampusSummary) {
   }
   campusFormError.value = ''
   campusDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => campusFormRef.value?.clearValidate())
 }
 
 function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
@@ -467,6 +525,7 @@ function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
   }
   termFormError.value = ''
   termDialogVisible.value = true
+  void nextTick(() => termFormRef.value?.clearValidate())
 }
 
 async function submitCampus() {
@@ -474,12 +533,9 @@ async function submitCampus() {
     campusFormError.value = '请先选择机构范围'
     return
   }
-  if (
-    !trimToUndefined(campusForm.campusCode) ||
-    !trimToUndefined(campusForm.campusName) ||
-    !trimToUndefined(campusForm.address)
-  ) {
-    campusFormError.value = '请完整填写校区编码、名称和地址'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await campusFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -552,20 +608,8 @@ async function submitTerm() {
     termFormError.value = '请先选择机构范围'
     return
   }
-  if (
-    !trimToUndefined(termForm.termCode) ||
-    !trimToUndefined(termForm.termName) ||
-    !trimToUndefined(termForm.academicYear)
-  ) {
-    termFormError.value = '请完整填写学期编码、名称和学年'
-    return
-  }
-  if (!termForm.startDate || !termForm.endDate) {
-    termFormError.value = '请选择学期开始和结束日期'
-    return
-  }
-  if (termForm.startDate > termForm.endDate) {
-    termFormError.value = '开始日期不能晚于结束日期'
+  const valid = await termFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -652,6 +696,16 @@ async function initializePage() {
   }
   await refreshAll()
 }
+
+watch(
+  () => termForm.startDate,
+  () => {
+    // 开始日期提前到结束日期之后时，结束日期那一格的红框要立刻跟上，不用等再次提交
+    if (termForm.endDate) {
+      void termFormRef.value?.validateField('endDate').catch(() => undefined)
+    }
+  }
+)
 
 watch(
   () => institutionStore.currentInstitutionId,

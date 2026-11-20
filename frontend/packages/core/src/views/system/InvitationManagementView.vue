@@ -147,8 +147,15 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top">
-        <el-form-item label="机构" required>
+      <el-form
+        ref="inviteFormRef"
+        :model="inviteForm"
+        :rules="inviteRules"
+        label-position="top"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="机构" prop="institutionId">
           <el-select v-model="inviteForm.institutionId" filterable placeholder="选择机构">
             <el-option
               v-for="item in institutions"
@@ -158,7 +165,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="注册后分配的角色" required>
+        <el-form-item label="注册后分配的角色" prop="roleCode">
           <el-select v-model="inviteForm.roleCode" filterable placeholder="选择角色">
             <el-option
               v-for="role in roles"
@@ -206,8 +213,15 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top">
-        <el-form-item label="待激活账号" required>
+      <el-form
+        ref="activationFormRef"
+        :model="activationForm"
+        :rules="activationRules"
+        label-position="top"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="待激活账号" prop="userId">
           <el-select
             v-model="activationForm.userId"
             filterable
@@ -239,7 +253,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -304,6 +319,7 @@ const pendingLoading = ref(false)
 const inviteDialogVisible = ref(false)
 const inviteSubmitting = ref(false)
 const inviteFormError = ref('')
+const inviteFormRef = ref<FormInstance | null>(null)
 const inviteForm = reactive({
   institutionId: '',
   roleCode: '',
@@ -312,10 +328,20 @@ const inviteForm = reactive({
   remark: '',
 })
 
+const inviteRules: FormRules = {
+  institutionId: [{ required: true, message: '请选择机构', trigger: 'change' }],
+  roleCode: [{ required: true, message: '请选择注册后分配的角色', trigger: 'change' }],
+}
+
 const activationDialogVisible = ref(false)
 const activationSubmitting = ref(false)
 const activationFormError = ref('')
+const activationFormRef = ref<FormInstance | null>(null)
 const activationForm = reactive({ userId: '' })
+
+const activationRules: FormRules = {
+  userId: [{ required: true, message: '请选择待激活账号', trigger: 'change' }],
+}
 
 /** 派生"可用性"展示:凭证是否还能用,比原始 status 更贴近使用者视角 */
 function availabilityLabel(row: InvitationSummary) {
@@ -402,6 +428,8 @@ function openInviteDialog() {
   inviteForm.remark = ''
   inviteFormError.value = ''
   inviteDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => inviteFormRef.value?.clearValidate())
 }
 
 function inviteDialogModeGuard() {
@@ -412,8 +440,9 @@ function inviteDialogModeGuard() {
 }
 
 async function submitInvite() {
-  if (!inviteForm.institutionId || !inviteForm.roleCode) {
-    inviteFormError.value = '请选择机构与角色'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await inviteFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   inviteSubmitting.value = true
@@ -441,11 +470,14 @@ function openActivationDialog() {
   activationFormError.value = ''
   activationDialogVisible.value = true
   void loadPendingUsers()
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => activationFormRef.value?.clearValidate())
 }
 
 async function submitActivation() {
-  if (!activationForm.userId) {
-    activationFormError.value = '请选择待激活账号'
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await activationFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   activationSubmitting.value = true

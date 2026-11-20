@@ -137,8 +137,16 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="学号" required>
+      <el-form
+        ref="studentFormRef"
+        :model="studentForm"
+        :rules="studentRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="学号" prop="studentNo">
           <CodeInput
             v-model="studentForm.studentNo"
             resource="student"
@@ -146,7 +154,7 @@
             placeholder="例如 STU-20260902-001"
           />
         </el-form-item>
-        <el-form-item label="姓名" required>
+        <el-form-item label="姓名" prop="studentName">
           <el-input v-model="studentForm.studentName" placeholder="学员真实姓名" />
         </el-form-item>
         <el-form-item label="性别">
@@ -219,8 +227,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -266,6 +275,13 @@ const studentDialogMode = ref<'create' | 'edit'>('create')
 const editingStudentId = ref<string | null>(null)
 const studentSubmitting = ref(false)
 const studentFormError = ref('')
+const studentFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const studentRules: FormRules = {
+  studentNo: [{ required: true, whitespace: true, message: '请填写学号', trigger: 'blur' }],
+  studentName: [{ required: true, whitespace: true, message: '请填写学员姓名', trigger: 'blur' }],
+}
 
 const parentDrawerVisible = ref(false)
 const contactStudentId = ref<string | null>(null)
@@ -355,6 +371,8 @@ function openStudentDialog(mode: 'create' | 'edit', row?: StudentSummary) {
   }
   studentFormError.value = ''
   studentDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => studentFormRef.value?.clearValidate())
 }
 
 async function submitStudent() {
@@ -362,12 +380,9 @@ async function submitStudent() {
     studentFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(studentForm.studentNo)) {
-    studentFormError.value = '请填写学号'
-    return
-  }
-  if (!trimToUndefined(studentForm.studentName)) {
-    studentFormError.value = '请填写学员姓名'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await studentFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 

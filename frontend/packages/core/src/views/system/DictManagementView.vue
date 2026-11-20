@@ -154,15 +154,23 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="类型编码">
+      <el-form
+        ref="dictTypeFormRef"
+        :model="dictTypeForm"
+        :rules="dictTypeRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="类型编码" prop="typeCode">
           <el-input
             v-model="dictTypeForm.typeCode"
             :disabled="dictTypeDialogMode === 'edit'"
             placeholder="如 order_status"
           />
         </el-form-item>
-        <el-form-item label="类型名称">
+        <el-form-item label="类型名称" prop="typeName">
           <el-input v-model="dictTypeForm.typeName" placeholder="请输入字典类型名称" />
         </el-form-item>
         <el-form-item label="状态">
@@ -207,18 +215,26 @@
         class="education-alert"
       />
       <div class="education-context-text">所属类型:{{ selectedDictTypeCode || '未选择' }}</div>
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="条目编码">
+      <el-form
+        ref="dictItemFormRef"
+        :model="dictItemForm"
+        :rules="dictItemRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="条目编码" prop="itemCode">
           <el-input
             v-model="dictItemForm.itemCode"
             :disabled="dictItemDialogMode === 'edit'"
             placeholder="如 enabled"
           />
         </el-form-item>
-        <el-form-item label="条目名称">
+        <el-form-item label="条目名称" prop="itemName">
           <el-input v-model="dictItemForm.itemName" placeholder="展示名称,如 启用" />
         </el-form-item>
-        <el-form-item label="条目值">
+        <el-form-item label="条目值" prop="itemValue">
           <el-input v-model="dictItemForm.itemValue" placeholder="业务存储值,一般与编码一致" />
         </el-form-item>
         <el-form-item label="排序">
@@ -256,8 +272,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import {
@@ -302,6 +319,7 @@ const dictTypeDialogVisible = ref(false)
 const dictTypeDialogMode = ref<'create' | 'edit'>('create')
 const dictTypeSubmitting = ref(false)
 const dictTypeFormError = ref('')
+const dictTypeFormRef = ref<FormInstance | null>(null)
 const dictTypeForm = reactive({
   typeCode: '',
   typeName: '',
@@ -309,10 +327,21 @@ const dictTypeForm = reactive({
   remark: '',
 })
 
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+function requiredText(label: string): FormRules[string] {
+  return [{ required: true, whitespace: true, message: `请填写${label}`, trigger: 'blur' }]
+}
+
+const dictTypeRules: FormRules = {
+  typeCode: requiredText('类型编码'),
+  typeName: requiredText('类型名称'),
+}
+
 const dictItemDialogVisible = ref(false)
 const dictItemDialogMode = ref<'create' | 'edit'>('create')
 const dictItemSubmitting = ref(false)
 const dictItemFormError = ref('')
+const dictItemFormRef = ref<FormInstance | null>(null)
 const dictItemForm = reactive({
   itemCode: '',
   itemName: '',
@@ -321,6 +350,12 @@ const dictItemForm = reactive({
   status: 'active',
   remark: '',
 })
+
+const dictItemRules: FormRules = {
+  itemCode: requiredText('条目编码'),
+  itemName: requiredText('条目名称'),
+  itemValue: requiredText('条目值'),
+}
 
 async function loadDictItems(typeCode: string) {
   const items = await fetchSystemDictItems(typeCode)
@@ -353,6 +388,8 @@ function openCreateDictTypeDialog() {
   dictTypeForm.remark = ''
   dictTypeFormError.value = ''
   dictTypeDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => dictTypeFormRef.value?.clearValidate())
 }
 
 function openEditDictTypeDialog(row: DictTypeSummary) {
@@ -364,26 +401,24 @@ function openEditDictTypeDialog(row: DictTypeSummary) {
   dictTypeForm.remark = row.remark || ''
   dictTypeFormError.value = ''
   dictTypeDialogVisible.value = true
+  void nextTick(() => dictTypeFormRef.value?.clearValidate())
 }
 
 async function submitDictType() {
-  const typeCode = trimToUndefined(dictTypeForm.typeCode)
-  const typeName = trimToUndefined(dictTypeForm.typeName)
-  if (dictTypeDialogMode.value === 'create' && !typeCode) {
-    dictTypeFormError.value = '请填写类型编码'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await dictTypeFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (!typeName) {
-    dictTypeFormError.value = '请填写类型名称'
-    return
-  }
+  const typeCode = dictTypeForm.typeCode.trim()
+  const typeName = dictTypeForm.typeName.trim()
 
   dictTypeSubmitting.value = true
   dictTypeFormError.value = ''
   try {
     if (dictTypeDialogMode.value === 'create') {
       const created = await createSystemDictType({
-        typeCode: typeCode!,
+        typeCode,
         typeName,
         status: dictTypeForm.status || 'active',
         remark: trimToUndefined(dictTypeForm.remark),
@@ -452,6 +487,7 @@ function openCreateDictItemDialog() {
   dictItemForm.remark = ''
   dictItemFormError.value = ''
   dictItemDialogVisible.value = true
+  void nextTick(() => dictItemFormRef.value?.clearValidate())
 }
 
 function openEditDictItemDialog(row: DictItemSummary) {
@@ -465,24 +501,13 @@ function openEditDictItemDialog(row: DictItemSummary) {
   dictItemForm.remark = row.remark || ''
   dictItemFormError.value = ''
   dictItemDialogVisible.value = true
+  void nextTick(() => dictItemFormRef.value?.clearValidate())
 }
 
 async function submitDictItem() {
-  const itemCode = trimToUndefined(dictItemForm.itemCode)
-  const itemName = trimToUndefined(dictItemForm.itemName)
-  const itemValue = trimToUndefined(dictItemForm.itemValue)
-  if (dictItemDialogMode.value === 'create' && !itemCode) {
-    dictItemFormError.value = '请填写条目编码'
-    return
-  }
-  if (!itemName) {
-    dictItemFormError.value = '请填写条目名称'
-    return
-  }
-  if (!itemValue) {
-    dictItemFormError.value = '请填写条目值'
-    return
-  }
+  const itemCode = dictItemForm.itemCode.trim()
+  const itemName = dictItemForm.itemName.trim()
+  const itemValue = dictItemForm.itemValue.trim()
 
   const targetType = dictTypes.value.find((item) => item.typeCode === selectedDictTypeCode.value)
   if (!targetType) {
@@ -496,7 +521,7 @@ async function submitDictItem() {
     if (dictItemDialogMode.value === 'create') {
       await createSystemDictItem({
         typeId: targetType.id,
-        itemCode: itemCode!,
+        itemCode,
         itemName,
         itemValue,
         sortNo: dictItemForm.sortNo ?? 0,

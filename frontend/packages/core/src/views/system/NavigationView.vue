@@ -252,8 +252,16 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="分组名称">
+      <el-form
+        ref="catalogFormRef"
+        :model="catalogForm"
+        :rules="catalogRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="分组名称" prop="menuName">
           <el-input v-model="catalogForm.menuName" maxlength="128" placeholder="如「招生与续费」" />
         </el-form-item>
         <el-form-item label="分组图标">
@@ -278,9 +286,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import type { Component } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowDown, ArrowUp, Menu as MenuIcon, Refresh } from '@element-plus/icons-vue'
 import NoteHint from '@cornerstone/core/components/NoteHint.vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -329,7 +338,12 @@ const dropTargetId = ref('')
 const catalogDialog = ref(false)
 const creating = ref(false)
 const catalogError = ref('')
+const catalogFormRef = ref<FormInstance | null>(null)
 const catalogForm = reactive({ menuName: '', icon: '' })
+
+const catalogRules: FormRules = {
+  menuName: [{ required: true, whitespace: true, message: '请填写分组名称', trigger: 'blur' }],
+}
 
 function toDraft(node: NavigationNode): DraftNode {
   return { ...node, sortNo: node.sortNo ?? 0, visible: node.visible !== false }
@@ -663,11 +677,14 @@ function openCatalogDialog() {
   catalogForm.icon = ''
   catalogError.value = ''
   catalogDialog.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => catalogFormRef.value?.clearValidate())
 }
 
 async function submitCatalog() {
-  if (!catalogForm.menuName.trim()) {
-    catalogError.value = '请填写分组名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await catalogFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   creating.value = true

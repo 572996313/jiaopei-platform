@@ -90,7 +90,7 @@ export function useCrudModal(options: () => CrudModalOptions) {
   ): Promise<void> {
     const valid = await validate()
     if (!valid) {
-      formError.value = '请检查表单填写是否完整'
+      // el-form 校验失败时已经在各字段上标红并给出提示，不再补一条顶部总文案
       return
     }
     const form = buildForm()

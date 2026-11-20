@@ -57,7 +57,15 @@
           </article>
         </div>
 
-        <el-form label-position="top" class="education-form">
+        <el-form
+          ref="institutionFormRef"
+          :model="institutionForm"
+          :rules="institutionRules"
+          label-position="top"
+          class="education-form"
+          scroll-to-error
+          @submit.prevent
+        >
           <div class="system-form-grid">
             <el-form-item label="机构 ID">
               <el-input v-model="institutionForm.id" disabled placeholder="后端返回机构 ID" />
@@ -65,7 +73,7 @@
             <el-form-item label="机构编码">
               <el-input v-model="institutionForm.orgCode" disabled placeholder="后端返回机构编码" />
             </el-form-item>
-            <el-form-item label="机构名称">
+            <el-form-item label="机构名称" prop="name">
               <el-input
                 v-model="institutionForm.name"
                 maxlength="120"
@@ -129,7 +137,8 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { fetchCurrentInstitution, updateCurrentInstitution } from '@cornerstone/core/api/system'
@@ -155,6 +164,8 @@ const institutionLoading = ref(false)
 const institutionSubmitting = ref(false)
 const currentInstitution = ref<CurrentInstitutionProfile | null>(null)
 
+const institutionFormRef = ref<FormInstance | null>(null)
+
 const institutionForm = reactive({
   id: '',
   orgCode: '',
@@ -166,6 +177,10 @@ const institutionForm = reactive({
   status: 'active',
   remark: '',
 })
+
+const institutionRules: FormRules = {
+  name: [{ required: true, whitespace: true, message: '请填写机构名称', trigger: 'blur' }],
+}
 
 const currentInstitutionTitle = computed(() => {
   const profile = currentInstitution.value
@@ -206,6 +221,8 @@ async function loadCurrentInstitutionProfile() {
     const profile = await fetchCurrentInstitution()
     currentInstitution.value = profile
     populateInstitutionForm(profile)
+    // 重新拉取资料后清掉上次保存失败留下的红框
+    void nextTick(() => institutionFormRef.value?.clearValidate())
   } catch (error) {
     currentInstitution.value = null
     populateInstitutionForm(null)
@@ -216,11 +233,12 @@ async function loadCurrentInstitutionProfile() {
 }
 
 async function submitInstitutionProfile() {
-  const name = trimToUndefined(institutionForm.name)
-  if (!name) {
-    institutionSectionError.value = '请填写机构名称'
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await institutionFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
+  const name = institutionForm.name.trim()
 
   institutionSubmitting.value = true
   institutionSectionError.value = ''

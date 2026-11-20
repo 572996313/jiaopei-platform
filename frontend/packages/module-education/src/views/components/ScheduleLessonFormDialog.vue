@@ -68,7 +68,16 @@
       class="schedule-dialog-alert"
     />
 
-    <el-form v-loading="detailLoading" label-position="top" class="education-form">
+    <el-form
+      ref="lessonFormRef"
+      :model="form"
+      :rules="lessonRules"
+      v-loading="detailLoading"
+      label-position="top"
+      class="education-form"
+      scroll-to-error
+      @submit.prevent
+    >
       <div class="schedule-form-grid">
         <el-form-item label="机构">
           <el-select v-model="form.institutionId" disabled>
@@ -80,7 +89,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="校区">
+        <el-form-item label="校区" prop="campusId">
           <el-select
             v-model="form.campusId"
             placeholder="选择校区"
@@ -96,7 +105,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="学期">
+        <el-form-item label="学期" prop="termId">
           <el-select
             v-model="form.termId"
             placeholder="选择学期"
@@ -111,7 +120,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="班级">
+        <el-form-item label="班级" prop="classId">
           <ClassSelect
             v-model="form.classId"
             :institution-id="form.institutionId"
@@ -119,7 +128,7 @@
             :disabled="lockScopeFields"
           />
         </el-form-item>
-        <el-form-item label="教室">
+        <el-form-item label="教室" prop="classroomId">
           <el-select
             v-model="form.classroomId"
             placeholder="选择教室"
@@ -134,7 +143,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="上课日期">
+        <el-form-item label="上课日期" prop="lessonDate">
           <el-date-picker
             v-model="form.lessonDate"
             type="date"
@@ -144,7 +153,7 @@
             :disabled="lockLessonFields"
           />
         </el-form-item>
-        <el-form-item label="节次">
+        <el-form-item label="节次" prop="timeSlotId">
           <el-select
             v-model="form.timeSlotId"
             :placeholder="slotPlaceholder"
@@ -172,7 +181,7 @@
             <el-option :label="lessonStatusLabel(form.lessonStatus)" :value="form.lessonStatus" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="mode === 'makeup'" label="关联停课原课" required>
+        <el-form-item v-if="mode === 'makeup'" label="关联停课原课" prop="relatedLessonId">
           <el-select
             v-model="form.relatedLessonId"
             filterable
@@ -189,7 +198,7 @@
         </el-form-item>
       </div>
 
-      <el-form-item label="授课教师（可多选）">
+      <el-form-item label="授课教师（可多选）" prop="teacherIds">
         <el-select
           v-model="form.teacherIds"
           multiple
@@ -216,7 +225,7 @@
         />
       </el-form-item>
 
-      <el-form-item label="备注" :required="isExecutionMode">
+      <el-form-item label="备注" prop="remark">
         <el-input
           v-model="form.remark"
           type="textarea"
@@ -243,8 +252,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import {
   checkScheduleConflicts,
   createScheduleLesson,
@@ -325,6 +335,7 @@ const targetLesson = computed(() => props.lesson ?? null)
 const formError = ref('')
 const submitting = ref(false)
 const detailLoading = ref(false)
+const lessonFormRef = ref<FormInstance | null>(null)
 const conflictResult = ref<ScheduleConflictCheckResult | null>(null)
 const teachers = ref<TeacherSummary[]>([])
 const classrooms = ref<ClassroomSummary[]>([])
@@ -493,6 +504,42 @@ const remarkPlaceholder = computed(() => {
 const lockScopeFields = computed(() => isExecutionMode.value)
 const lockLessonFields = computed(() => props.mode === 'cancel')
 
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案。
+    教室/节次/日期/教师在停课模式锁定后不再校验；备注只在执行变更（调课/停课/补课）时必填。 */
+const lessonRules = computed<FormRules>(() => ({
+  campusId: [{ required: true, message: '缺少校区信息', trigger: 'change' }],
+  termId: [{ required: true, message: '缺少学期信息', trigger: 'change' }],
+  classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+  classroomId: lockLessonFields.value ? [] : [{ required: true, message: '请选择教室', trigger: 'change' }],
+  lessonDate: lockLessonFields.value
+    ? []
+    : [{ required: true, message: '请选择上课日期', trigger: 'change' }],
+  timeSlotId: lockLessonFields.value ? [] : [{ required: true, message: '请选择时间段', trigger: 'change' }],
+  teacherIds: lockLessonFields.value
+    ? []
+    : [{ required: true, type: 'array', message: '请至少选择一位教师', trigger: 'change' }],
+  remark: isExecutionMode.value
+    ? [{ required: true, whitespace: true, message: '请填写执行变更备注', trigger: 'blur' }]
+    : [],
+  relatedLessonId:
+    props.mode === 'makeup'
+      ? [
+          { required: true, message: '请选择关联的停课原课', trigger: 'change' },
+          {
+            // 补课改挂时不能选到当前课次本身
+            validator: (_rule, value: string, callback) => {
+              if (!makeupAsCreate.value && value && value === editingLessonId.value) {
+                callback(new Error('关联的原课次不能是当前课次本身'))
+                return
+              }
+              callback()
+            },
+            trigger: 'change',
+          },
+        ]
+      : [],
+}))
+
 const statusLockedHint = computed(() => {
   if (props.mode === 'edit' && form.lessonStatus !== 'scheduled') {
     return `该课次当前状态为「${lessonStatusLabel(form.lessonStatus)}」，编辑仅调整基本信息，保存不会改变状态`
@@ -605,6 +652,8 @@ watch(
     if (!target?.id || props.mode === 'create') {
       resetForm()
       await loadCampusOptions()
+      // 上一次弹窗留下的红框不能带给新一次填写
+      void nextTick(() => lessonFormRef.value?.clearValidate())
       return
     }
 
@@ -639,47 +688,14 @@ watch(
     } finally {
       detailLoading.value = false
     }
+    // 上一次弹窗留下的红框不能带给新一次填写
+    void nextTick(() => lessonFormRef.value?.clearValidate())
   }
 )
 
 function validate() {
   if (!form.institutionId) {
     return '缺少机构信息'
-  }
-  if (!form.campusId) {
-    return '缺少校区信息'
-  }
-  if (!form.termId) {
-    return '缺少学期信息'
-  }
-  if (!form.classId) {
-    return '请选择班级'
-  }
-  if (isExecutionMode.value && !form.remark.trim()) {
-    return '请填写执行变更备注'
-  }
-  if (props.mode === 'cancel') {
-    return ''
-  }
-  if (!form.classroomId) {
-    return '请选择教室'
-  }
-  if (!form.timeSlotId) {
-    return '请选择时间段'
-  }
-  if (!form.lessonDate) {
-    return '请选择上课日期'
-  }
-  if (form.teacherIds.length === 0) {
-    return '请至少选择一位教师'
-  }
-  if (props.mode === 'makeup') {
-    if (!form.relatedLessonId) {
-      return '请选择关联的停课原课'
-    }
-    if (!makeupAsCreate.value && form.relatedLessonId === editingLessonId.value) {
-      return '关联的原课次不能是当前课次本身'
-    }
   }
   return ''
 }
@@ -731,6 +747,11 @@ async function runConflictCheck() {
 }
 
 async function submit() {
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await lessonFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
+    return
+  }
   const validationError = validate()
   if (validationError) {
     formError.value = validationError

@@ -155,7 +155,15 @@
           当前范围：{{ formScopeLevel.label }}
         </el-tag>
       </div>
-      <el-form label-position="top" class="education-form price-form-grid">
+      <el-form
+        ref="priceFormRef"
+        :model="form"
+        :rules="priceRules"
+        label-position="top"
+        class="education-form price-form-grid"
+        scroll-to-error
+        @submit.prevent
+      >
         <el-form-item label="校区">
           <el-select v-model="form.campusId" :disabled="Boolean(editingId)" clearable placeholder="不限（所有校区）">
             <el-option label="不限（所有校区）" value="" />
@@ -205,7 +213,7 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="日标准">
+        <el-form-item label="日标准" prop="dailyPrice">
           <el-input-number
             v-model="form.dailyPrice"
             :min="0"
@@ -237,6 +245,7 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh, RefreshLeft } from '@element-plus/icons-vue'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import ClassSelect from './ClassSelect.vue'
@@ -291,6 +300,9 @@ const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const copyFromText = ref('')
 const formSection = ref<HTMLElement | null>(null)
+const priceFormRef = ref<FormInstance | null>(null)
+/** 表单区就绪标记：openForm/copyPrice 的程序化赋值不触发跨字段重校验，只有用户手改才算 */
+const priceFormReady = ref(false)
 const tableHeight = 'clamp(300px, calc(100vh - 560px), 520px)'
 
 const filters = reactive({
@@ -311,6 +323,34 @@ const form = reactive({
   status: 'active',
   remark: '',
 })
+
+/** 必填/关系校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const priceRules: FormRules = {
+  dailyPrice: [
+    {
+      // 月/日标准至少填一个是跨字段关系：校验挂在后一个字段（日标准）上
+      validator: (_rule, value: number | null, callback) => {
+        if (form.monthlyPrice === null && value === null) {
+          callback(new Error('月标准与日标准至少填一个'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+// 月标准清空/填上时，日标准那一格「至少填一个」的红框要立刻跟上；
+// 表单未就绪（程序化 reset/预填）时不标红
+watch(
+  () => form.monthlyPrice,
+  () => {
+    if (priceFormReady.value) {
+      void priceFormRef.value?.validateField('dailyPrice').catch(() => undefined)
+    }
+  }
+)
 
 const campusMap = computed(
   () =>
@@ -544,6 +584,12 @@ function openForm(row?: FeePriceRecord) {
     fillFormFrom(row)
   }
   formVisible.value = true
+  priceFormReady.value = false
+  // 上一次填写留下的红框不能带给新一次填写；就绪标记放开在下一拍，跳过程序化赋值
+  void nextTick(() => {
+    priceFormRef.value?.clearValidate()
+    priceFormReady.value = true
+  })
   scrollToForm()
 }
 
@@ -554,6 +600,12 @@ function copyPrice(row: FeePriceRecord) {
   fillFormFrom(row)
   copyFromText.value = dimensionText(row)
   formVisible.value = true
+  priceFormReady.value = false
+  // 上一次填写留下的红框不能带给新一次填写；就绪标记放开在下一拍，跳过程序化赋值
+  void nextTick(() => {
+    priceFormRef.value?.clearValidate()
+    priceFormReady.value = true
+  })
   scrollToForm()
 }
 
@@ -581,8 +633,9 @@ async function submitForm() {
     formError.value = '请先选择收费项目'
     return
   }
-  if (form.monthlyPrice === null && form.dailyPrice === null) {
-    formError.value = '月标准与日标准至少填一个'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await priceFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   const payload = {

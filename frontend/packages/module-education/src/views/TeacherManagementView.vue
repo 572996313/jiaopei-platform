@@ -175,8 +175,16 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="教师编码">
+      <el-form
+        ref="teacherFormRef"
+        :model="form"
+        :rules="teacherRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="教师编码" prop="teacherCode">
           <CodeInput
             v-model="form.teacherCode"
             resource="teacher"
@@ -184,7 +192,7 @@
             placeholder="例如 TCH-20260609-001"
           />
         </el-form-item>
-        <el-form-item label="教师姓名">
+        <el-form-item label="教师姓名" prop="teacherName">
           <el-input v-model="form.teacherName" placeholder="请输入教师姓名" />
         </el-form-item>
         <el-form-item label="归属校区">
@@ -210,7 +218,7 @@
         <el-form-item label="状态">
           <DictSelect v-model="form.status" type-code="teacher_status" placeholder="选择教师状态" />
         </el-form-item>
-        <el-form-item label="入职日期">
+        <el-form-item label="入职日期" prop="hiredAt">
           <el-date-picker
             v-model="form.hiredAt"
             type="date"
@@ -258,12 +266,13 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import TeacherAccountLinkDialog from '@cornerstone/module-education/views/components/TeacherAccountLinkDialog.vue'
 import TeacherImportDialog from '@cornerstone/module-education/views/components/TeacherImportDialog.vue'
 import { ArrowDown, Download, Link, Refresh, Upload } from '@element-plus/icons-vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   createTeacher,
   deleteTeacher,
@@ -319,6 +328,26 @@ const teacherDialogMode = ref<'create' | 'edit'>('create')
 const editingTeacherId = ref<string | null>(null)
 const pageError = ref('')
 const formError = ref('')
+const teacherFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const teacherRules: FormRules = {
+  teacherCode: [{ required: true, whitespace: true, message: '请填写教师编码', trigger: 'blur' }],
+  teacherName: [{ required: true, whitespace: true, message: '请填写教师姓名', trigger: 'blur' }],
+  hiredAt: [
+    {
+      // 入职日期选填，但选了就不能是未来：这个关系能定位到具体字段，搬进 rules
+      validator: (_rule, value: string, callback) => {
+        if (value && value > new Date().toISOString().slice(0, 10)) {
+          callback(new Error('入职日期不能晚于今天'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
 const lookupLoading = ref(false)
 const tableLoading = ref(false)
 const submitting = ref(false)
@@ -490,6 +519,8 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: TeacherSummary) {
   }
   formError.value = ''
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => teacherFormRef.value?.clearValidate())
 }
 
 async function submitTeacher() {
@@ -497,16 +528,9 @@ async function submitTeacher() {
     formError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(form.teacherCode)) {
-    formError.value = '请填写教师编码'
-    return
-  }
-  if (!trimToUndefined(form.teacherName)) {
-    formError.value = '请填写教师姓名'
-    return
-  }
-  if (form.hiredAt && form.hiredAt > new Date().toISOString().slice(0, 10)) {
-    formError.value = '入职日期不能晚于今天'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await teacherFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 

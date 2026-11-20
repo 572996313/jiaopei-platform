@@ -89,7 +89,15 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="menuFormRef"
+        :model="menuForm"
+        :rules="menuRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <div class="system-form-grid">
           <el-form-item label="父节点">
             <el-tree-select
@@ -113,17 +121,17 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="编码">
+          <el-form-item label="编码" prop="menuCode">
             <el-input
               v-model="menuForm.menuCode"
               :disabled="menuDialogMode === 'edit'"
               placeholder="如 system_users_manage"
             />
           </el-form-item>
-          <el-form-item label="名称">
+          <el-form-item label="名称" prop="menuName">
             <el-input v-model="menuForm.menuName" placeholder="按钮节点请填写中文权限名" />
           </el-form-item>
-          <el-form-item label="权限码">
+          <el-form-item label="权限码" prop="permissionCode">
             <el-select
               v-model="menuForm.permissionCode"
               filterable
@@ -224,8 +232,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import {
@@ -274,6 +283,8 @@ const menuSubmitting = ref(false)
 const menuFormError = ref('')
 const selectedMenuNode = ref<SystemMenuTreeNode | null>(null)
 
+const menuFormRef = ref<FormInstance | null>(null)
+
 const menuTypeOptions = [
   { value: 'catalog', label: '目录' },
   { value: 'menu', label: '菜单' },
@@ -296,6 +307,27 @@ const menuForm = reactive({
   status: 'active',
   remark: '',
 })
+
+const menuRules: FormRules = {
+  // 编码只在新建时填写，编辑态输入框禁用且必带回显值，统一规则即可通过
+  menuCode: [{ required: true, whitespace: true, message: '请填写菜单编码', trigger: 'blur' }],
+  menuName: [{ required: true, whitespace: true, message: '请填写菜单名称', trigger: 'blur' }],
+  // 跨字段联动：只有按钮节点必须绑定权限码，依赖 menuType 在下方 watch 里重校验
+  permissionCode: [
+    {
+      // 可清空的 el-select 清空后值是 undefined，先归一成字符串再判空
+      validator: (_rule, value: string | undefined, callback) => {
+        const text = typeof value === 'string' ? value : ''
+        if (menuForm.menuType === 'button' && !text.trim()) {
+          callback(new Error('按钮节点必须绑定权限码'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
 
 const flattenedMenus = computed(() => flattenMenuTree(menuTree.value))
 
@@ -323,6 +355,8 @@ function openCreateMenuDialog() {
   menuForm.remark = ''
   menuFormError.value = ''
   menuDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => menuFormRef.value?.clearValidate())
 }
 
 function openEditMenuDialog(node: SystemMenuTreeNode) {
@@ -342,6 +376,7 @@ function openEditMenuDialog(node: SystemMenuTreeNode) {
   menuForm.remark = node.remark || ''
   menuFormError.value = ''
   menuDialogVisible.value = true
+  void nextTick(() => menuFormRef.value?.clearValidate())
 }
 
 async function loadMenuTree() {
@@ -362,16 +397,9 @@ async function reloadMenuTree() {
 }
 
 async function submitMenu() {
-  if (menuDialogMode.value === 'create' && !trimToUndefined(menuForm.menuCode)) {
-    menuFormError.value = '请填写菜单编码'
-    return
-  }
-  if (!trimToUndefined(menuForm.menuName)) {
-    menuFormError.value = '请填写菜单名称'
-    return
-  }
-  if (menuForm.menuType === 'button' && !trimToUndefined(menuForm.permissionCode)) {
-    menuFormError.value = '按钮节点必须绑定权限码'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await menuFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -451,4 +479,16 @@ onMounted(async () => {
     loadMenuTree(),
   ])
 })
+
+watch(
+  () => menuForm.menuType,
+  () => {
+    // 弹窗未打开时（打开弹窗前给 menuType 赋默认值）不要触发校验
+    if (!menuDialogVisible.value) {
+      return
+    }
+    // 类型在目录/菜单/按钮之间切换时，权限码那一格的必填红框要立刻跟上
+    void menuFormRef.value?.validateField('permissionCode').catch(() => undefined)
+  }
+)
 </script>

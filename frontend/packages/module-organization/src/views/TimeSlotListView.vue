@@ -121,7 +121,15 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="timeSlotFormRef"
+        :model="timeSlotForm"
+        :rules="timeSlotRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <el-form-item label="适用校区">
           <el-select v-model="timeSlotForm.campusId" placeholder="选择校区" clearable filterable>
             <el-option
@@ -132,14 +140,16 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="节次编码">
+        <el-form-item label="节次编码" prop="slotCode">
           <CodeInput
             v-model="timeSlotForm.slotCode"
             resource="time_slot"
             :mode="timeSlotDialogMode"
           />
         </el-form-item>
-        <el-form-item label="节次名称"><el-input v-model="timeSlotForm.slotName" /></el-form-item>
+        <el-form-item label="节次名称" prop="slotName"
+          ><el-input v-model="timeSlotForm.slotName"
+        /></el-form-item>
         <el-form-item label="节次类型">
           <DictSelect
             v-model="timeSlotForm.slotType"
@@ -157,14 +167,14 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="开始时间"
+        <el-form-item label="开始时间" prop="startTime"
           ><el-time-picker
             v-model="timeSlotForm.startTime"
             value-format="HH:mm:ss"
             placeholder="选择开始时间"
             style="width: 100%"
         /></el-form-item>
-        <el-form-item label="结束时间"
+        <el-form-item label="结束时间" prop="endTime"
           ><el-time-picker
             v-model="timeSlotForm.endTime"
             value-format="HH:mm:ss"
@@ -264,9 +274,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
@@ -429,6 +440,37 @@ const timeSlotSubmitting = ref(false)
 const timeSlotFormError = ref('')
 const editingTimeSlotId = ref<string | null>(null)
 
+const timeSlotFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+function requiredText(label: string): FormRules[string] {
+  return [{ required: true, whitespace: true, message: `请填写${label}`, trigger: 'blur' }]
+}
+
+const timeSlotRules: FormRules = {
+  slotCode: requiredText('节次编码'),
+  slotName: requiredText('节次名称'),
+  startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
+  endTime: [
+    { required: true, message: '请选择结束时间', trigger: 'change' },
+    {
+      // 起止时间是跨字段关系：改开始时间时也要重新校验结束时间那一格
+      validator: (_rule, value: string, callback) => {
+        if (
+          value &&
+          timeSlotForm.startTime &&
+          timeSlotMinutes(value) <= timeSlotMinutes(timeSlotForm.startTime)
+        ) {
+          callback(new Error('结束时间必须晚于开始时间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
 const timeSlotForm = reactive({
   campusId: '' as string | null,
   slotCode: '',
@@ -456,6 +498,11 @@ watch(
     const diff = timeSlotMinutes(end) - timeSlotMinutes(start)
     if (Number.isFinite(diff) && diff > 0) {
       timeSlotForm.durationMinutes = diff
+    }
+    // 开始时间变化后结束时间那一格的红框要立刻跟上，不用等再次提交；
+    // 弹窗没开（如 edit 回填）时不触发，避免和 clearValidate 抢时序闪出红框
+    if (timeSlotDialogVisible.value && end) {
+      void timeSlotFormRef.value?.validateField('endTime').catch(() => undefined)
     }
   }
 )
@@ -487,6 +534,8 @@ function openTimeSlotDialog(mode: 'create' | 'edit', row?: TimeSlotSummary) {
   }
   timeSlotFormError.value = ''
   timeSlotDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => timeSlotFormRef.value?.clearValidate())
 }
 
 async function submitTimeSlot() {
@@ -494,16 +543,9 @@ async function submitTimeSlot() {
     timeSlotFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimOrUndefined(timeSlotForm.slotCode) || !trimOrUndefined(timeSlotForm.slotName)) {
-    timeSlotFormError.value = '请完整填写节次编码和名称'
-    return
-  }
-  if (!timeSlotForm.startTime || !timeSlotForm.endTime) {
-    timeSlotFormError.value = '请选择开始和结束时间'
-    return
-  }
-  if (timeSlotMinutes(timeSlotForm.endTime) <= timeSlotMinutes(timeSlotForm.startTime)) {
-    timeSlotFormError.value = '结束时间必须晚于开始时间'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await timeSlotFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 

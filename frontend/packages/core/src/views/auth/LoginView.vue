@@ -13,11 +13,18 @@
       class="education-alert"
     />
 
-    <el-form label-position="top" @submit.prevent="submitLogin">
-      <el-form-item label="账号">
+    <el-form
+      ref="loginFormRef"
+      :model="form"
+      :rules="loginRules"
+      label-position="top"
+      scroll-to-error
+      @submit.prevent="submitLogin"
+    >
+      <el-form-item label="账号" prop="username">
         <el-input v-model="form.username" placeholder="请输入账号" />
       </el-form-item>
-      <el-form-item label="密码">
+      <el-form-item label="密码" prop="password">
         <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" />
       </el-form-item>
       <el-button class="login-submit" type="primary" :loading="submitting" @click="submitLogin">
@@ -37,6 +44,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { fetchLoginPage } from '@cornerstone/core/api/auth'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { useBranding } from '@cornerstone/core/composables/use-branding'
@@ -59,6 +67,14 @@ const form = reactive({
   password: import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_PASSWORD ?? '') : '',
 })
 
+const loginFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const loginRules: FormRules = {
+  username: [{ required: true, whitespace: true, message: '请输入账号', trigger: 'blur' }],
+  password: [{ required: true, whitespace: true, message: '请输入密码', trigger: 'blur' }],
+}
+
 onMounted(async () => {
   try {
     loginPageTip.value = (await fetchLoginPage()).tip.trim()
@@ -68,11 +84,15 @@ onMounted(async () => {
 })
 
 async function submitLogin() {
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await loginFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
+    return
+  }
   const username = trimToUndefined(form.username)
   const password = trimToUndefined(form.password)
-
+  // required 规则已保证非空，这里只为类型收窄
   if (!username || !password) {
-    formError.value = '请输入账号和密码'
     return
   }
 

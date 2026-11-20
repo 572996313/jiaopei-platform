@@ -101,8 +101,16 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="联系人姓名">
+      <el-form
+        ref="parentFormRef"
+        :model="form"
+        :rules="parentRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="联系人姓名" prop="parentName">
           <el-input v-model="form.parentName" placeholder="例如 学员妈妈" />
         </el-form-item>
         <el-form-item label="关系">
@@ -146,7 +154,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, reactive, ref, watch } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
@@ -195,6 +204,13 @@ const form = reactive({
   status: 'active',
   remark: '',
 })
+
+const parentFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const parentRules: FormRules = {
+  parentName: [{ required: true, whitespace: true, message: '请填写联系人姓名', trigger: 'blur' }],
+}
 
 const contactLabel = computed(() =>
   props.studentId ? studentLabelOf(props.studentId) : '未选择学员'
@@ -259,6 +275,8 @@ function openDialog(mode: 'create' | 'edit', row?: StudentParentRecord) {
   dialogMode.value = mode
   resetForm(mode === 'edit' ? row : undefined)
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => parentFormRef.value?.clearValidate())
 }
 
 function buildPayload(): StudentParentCreatePayload {
@@ -278,8 +296,9 @@ function buildPayload(): StudentParentCreatePayload {
 }
 
 async function submit() {
-  if (!trimToUndefined(form.parentName)) {
-    formError.value = '请填写联系人姓名'
+  // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await parentFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   submitting.value = true

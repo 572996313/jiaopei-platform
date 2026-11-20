@@ -76,17 +76,25 @@
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="error" show-icon :closable="false" class="education-alert" />
 
-      <el-form label-position="top" class="education-form tpl-form-body">
-        <el-form-item label="模板名称" required>
+      <el-form
+        ref="templateFormRef"
+        :model="form"
+        :rules="templateRules"
+        label-position="top"
+        class="education-form tpl-form-body"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="模板名称" prop="name">
           <el-input v-model="form.name" maxlength="60" show-word-limit placeholder="例如：节假日放假通知" />
         </el-form-item>
-        <el-form-item label="预填公告标题" required>
+        <el-form-item label="预填公告标题" prop="title">
           <el-input v-model="form.title" maxlength="120" show-word-limit placeholder="例如：国庆放假安排" />
         </el-form-item>
-        <el-form-item label="公告类型" required>
+        <el-form-item label="公告类型" prop="typeCode">
           <DictSelect v-model="form.typeCode" type-code="announcement_type" placeholder="选择公告类型" />
         </el-form-item>
-        <el-form-item label="预填正文" required>
+        <el-form-item label="预填正文" prop="content">
           <el-input
             v-model="form.content"
             type="textarea"
@@ -113,7 +121,7 @@
             当前角色只能维护已授权校区的公告模板。
           </div>
         </el-form-item>
-        <el-form-item v-if="form.campusScope === 'part'" label="指定校区">
+        <el-form-item v-if="form.campusScope === 'part'" label="指定校区" prop="campusIds">
           <el-select v-model="form.campusIds" multiple filterable placeholder="选择一个或多个校区">
             <el-option
               v-for="item in campuses"
@@ -152,8 +160,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
@@ -190,6 +199,9 @@ const templates = ref<AnnouncementTemplate[]>([])
 const editingId = ref<string | null>(null)
 const formError = ref('')
 const campuses = ref<CampusSummary[]>([])
+const templateFormRef = ref<FormInstance | null>(null)
+/** 表单就绪标记：openCreate/openEdit 的程序化赋值不触发条件必填重校验，只有用户手改才算 */
+const templateFormReady = ref(false)
 
 const form = reactive<AnnouncementTemplatePayload>({
   name: '',
@@ -203,6 +215,46 @@ const form = reactive<AnnouncementTemplatePayload>({
   top: false,
   remark: '',
 })
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const templateRules: FormRules = {
+  name: [{ required: true, whitespace: true, message: '请填写模板名称', trigger: 'blur' }],
+  title: [{ required: true, whitespace: true, message: '请填写预填公告标题', trigger: 'blur' }],
+  typeCode: [{ required: true, message: '请选择公告类型', trigger: 'change' }],
+  content: [
+    {
+      required: true,
+      whitespace: true,
+      message: '请填写预填正文：空正文的模板套出来还要重写，等于没省时间',
+      trigger: 'blur',
+    },
+  ],
+  campusIds: [
+    {
+      // 指定校区只在 campusScope=part 时才渲染，所以在这里直接按必填数组校验
+      required: true,
+      type: 'array',
+      message: '指定校区范围至少要选一个校区',
+      trigger: 'change',
+    },
+  ],
+}
+
+// campusScope 切到「指定校区」时，指定校区那一格的条件必填要立刻参与校验；
+// 表单未就绪（程序化 reset/预填）时不标红
+watch(
+  () => form.campusScope,
+  (scope) => {
+    if (!templateFormReady.value) {
+      return
+    }
+    if (scope === 'part') {
+      void templateFormRef.value?.validateField('campusIds').catch(() => undefined)
+    } else {
+      void templateFormRef.value?.clearValidate('campusIds')
+    }
+  }
+)
 
 function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
@@ -280,12 +332,23 @@ function openCreate() {
   editingId.value = null
   resetForm()
   mode.value = 'form'
+  templateFormReady.value = false
+  // 上一次填写留下的红框不能带给新一次填写；就绪标记放开在下一拍，跳过程序化赋值
+  void nextTick(() => {
+    templateFormRef.value?.clearValidate()
+    templateFormReady.value = true
+  })
 }
 
 function openEdit(row: AnnouncementTemplate) {
   editingId.value = row.id
   resetForm(row)
   mode.value = 'form'
+  templateFormReady.value = false
+  void nextTick(() => {
+    templateFormRef.value?.clearValidate()
+    templateFormReady.value = true
+  })
 }
 
 function backToList() {
@@ -294,35 +357,13 @@ function backToList() {
   formError.value = ''
 }
 
-function validate() {
-  if (!form.name.trim()) {
-    formError.value = '请填写模板名称'
-    return false
-  }
-  if (!form.title.trim()) {
-    formError.value = '请填写预填公告标题'
-    return false
-  }
-  if (!form.content.trim()) {
-    formError.value = '请填写预填正文：空正文的模板套出来还要重写，等于没省时间'
-    return false
-  }
-  if (!form.typeCode) {
-    formError.value = '请选择公告类型'
-    return false
-  }
-  if (form.campusScope === 'part' && !form.campusIds?.length) {
-    formError.value = '指定校区范围至少要选一个校区'
-    return false
-  }
-  formError.value = ''
-  return true
-}
-
 async function submit() {
-  if (!validate()) {
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await templateFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
+  formError.value = ''
   saving.value = true
   try {
     const payload: AnnouncementTemplatePayload = {

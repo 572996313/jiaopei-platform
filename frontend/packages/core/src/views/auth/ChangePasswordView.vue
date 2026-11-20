@@ -23,8 +23,15 @@
       class="education-alert"
     />
 
-    <el-form label-position="top" @submit.prevent="submitChangePassword">
-      <el-form-item label="当前密码">
+    <el-form
+      ref="passwordFormRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      scroll-to-error
+      @submit.prevent="submitChangePassword"
+    >
+      <el-form-item label="当前密码" prop="oldPassword">
         <el-input
           v-model="form.oldPassword"
           type="password"
@@ -32,7 +39,7 @@
           placeholder="请输入当前密码"
         />
       </el-form-item>
-      <el-form-item label="新密码">
+      <el-form-item label="新密码" prop="newPassword">
         <el-input
           v-model="form.newPassword"
           type="password"
@@ -40,7 +47,7 @@
           placeholder="请输入新密码"
         />
       </el-form-item>
-      <el-form-item label="确认新密码">
+      <el-form-item label="确认新密码" prop="confirmPassword">
         <el-input
           v-model="form.confirmPassword"
           type="password"
@@ -65,12 +72,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
-import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const route = useRoute()
 const router = useRouter()
@@ -84,6 +91,27 @@ const form = reactive({
   confirmPassword: '',
 })
 
+const passwordFormRef = ref<FormInstance | null>(null)
+
+const rules: FormRules = {
+  oldPassword: [{ required: true, whitespace: true, message: '请填写当前密码', trigger: 'blur' }],
+  newPassword: [{ required: true, whitespace: true, message: '请填写新密码', trigger: 'blur' }],
+  // 跨字段规则：两次输入一致挂在后一个字段上
+  confirmPassword: [
+    { required: true, whitespace: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value: string, callback) => {
+        if (value && form.newPassword !== value) {
+          callback(new Error('两次输入的新密码不一致'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
 function resolveRedirect() {
   if (typeof route.query.redirect === 'string' && route.query.redirect !== '/change-password') {
     return route.query.redirect
@@ -96,18 +124,14 @@ function goBack() {
 }
 
 async function submitChangePassword() {
-  const oldPassword = trimToUndefined(form.oldPassword)
-  const newPassword = trimToUndefined(form.newPassword)
-  const confirmPassword = trimToUndefined(form.confirmPassword)
-
-  if (!oldPassword || !newPassword || !confirmPassword) {
-    formError.value = '请完整填写当前密码、新密码和确认密码'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await passwordFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (newPassword !== confirmPassword) {
-    formError.value = '两次输入的新密码不一致'
-    return
-  }
+  const oldPassword = form.oldPassword.trim()
+  const newPassword = form.newPassword.trim()
+  const confirmPassword = form.confirmPassword.trim()
 
   submitting.value = true
   formError.value = ''
@@ -125,4 +149,14 @@ async function submitChangePassword() {
     submitting.value = false
   }
 }
+
+watch(
+  () => form.newPassword,
+  () => {
+    // 新密码改动后，确认密码那一格的一致性红框要立刻跟上，不用等再次提交
+    if (form.confirmPassword) {
+      void passwordFormRef.value?.validateField('confirmPassword').catch(() => undefined)
+    }
+  }
+)
 </script>

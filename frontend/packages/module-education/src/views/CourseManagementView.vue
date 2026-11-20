@@ -153,15 +153,23 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="分类编码">
+      <el-form
+        ref="courseCategoryFormRef"
+        :model="courseCategoryForm"
+        :rules="courseCategoryRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="分类编码" prop="categoryCode">
           <CodeInput
             v-model="courseCategoryForm.categoryCode"
             resource="course_category"
             :mode="courseCategoryDialogMode"
           />
         </el-form-item>
-        <el-form-item label="分类名称"
+        <el-form-item label="分类名称" prop="categoryName"
           ><el-input v-model="courseCategoryForm.categoryName"
         /></el-form-item>
         <el-form-item label="状态">
@@ -201,7 +209,15 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="courseFormRef"
+        :model="courseForm"
+        :rules="courseRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <el-form-item label="课程分类">
           <el-select v-model="courseForm.categoryId" clearable filterable>
             <el-option
@@ -212,10 +228,12 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="课程编码">
+        <el-form-item label="课程编码" prop="courseCode">
           <CodeInput v-model="courseForm.courseCode" resource="course" :mode="courseDialogMode" />
         </el-form-item>
-        <el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item>
+        <el-form-item label="课程名称" prop="courseName"
+          ><el-input v-model="courseForm.courseName"
+        /></el-form-item>
         <el-form-item label="学科"><el-input v-model="courseForm.subjectName" /></el-form-item>
         <el-form-item label="授课方式"
           ><DictSelect v-model="courseForm.teachingMethod" type-code="teaching_method"
@@ -242,7 +260,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -321,6 +340,19 @@ const courseSubmitting = ref(false)
 
 const courseCategoryFormError = ref('')
 const courseFormError = ref('')
+const courseCategoryFormRef = ref<FormInstance | null>(null)
+const courseFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const courseCategoryRules: FormRules = {
+  categoryCode: [{ required: true, whitespace: true, message: '请填写分类编码', trigger: 'blur' }],
+  categoryName: [{ required: true, whitespace: true, message: '请填写分类名称', trigger: 'blur' }],
+}
+
+const courseRules: FormRules = {
+  courseCode: [{ required: true, whitespace: true, message: '请填写课程编码', trigger: 'blur' }],
+  courseName: [{ required: true, whitespace: true, message: '请填写课程名称', trigger: 'blur' }],
+}
 
 const courseCategoryForm = reactive({
   categoryCode: '',
@@ -445,6 +477,8 @@ function openCourseCategoryDialog(mode: 'create' | 'edit', row?: CourseCategoryR
   }
   courseCategoryFormError.value = ''
   courseCategoryDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => courseCategoryFormRef.value?.clearValidate())
 }
 
 function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
@@ -464,6 +498,7 @@ function openCourseDialog(mode: 'create' | 'edit', row?: CourseRecord) {
   }
   courseFormError.value = ''
   courseDialogVisible.value = true
+  void nextTick(() => courseFormRef.value?.clearValidate())
 }
 
 async function submitCourseCategory() {
@@ -471,11 +506,9 @@ async function submitCourseCategory() {
     courseCategoryFormError.value = '请先选择机构范围'
     return
   }
-  if (
-    !trimToUndefined(courseCategoryForm.categoryCode) ||
-    !trimToUndefined(courseCategoryForm.categoryName)
-  ) {
-    courseCategoryFormError.value = '请完整填写分类编码和名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await courseCategoryFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   courseCategorySubmitting.value = true
@@ -541,8 +574,9 @@ async function submitCourse() {
     courseFormError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(courseForm.courseCode) || !trimToUndefined(courseForm.courseName)) {
-    courseFormError.value = '请完整填写课程编码和名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await courseFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   courseSubmitting.value = true

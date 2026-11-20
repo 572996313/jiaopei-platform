@@ -79,8 +79,16 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="校区" required>
+      <el-form
+        ref="calendarFormRef"
+        :model="form"
+        :rules="calendarRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="校区">
           <el-select v-model="form.campusId" filterable>
             <el-option label="全校区（机构级停排）" :value="ALL_CAMPUS_ID" />
             <el-option
@@ -91,7 +99,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="日期" required>
+        <el-form-item label="日期" prop="dayDate">
           <el-date-picker
             v-model="form.dayDate"
             type="date"
@@ -100,7 +108,7 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="名称" required>
+        <el-form-item label="名称" prop="dayName">
           <el-input
             v-model="form.dayName"
             maxlength="64"
@@ -128,8 +136,9 @@
 <script setup lang="ts">
 // 校区日历（停排日）：嵌在「排课规则」弹窗的页签里，不另开路数与菜单。
 // campusId=0 表示机构级（全校区停排），后端契约里不是 null。
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import {
   createSchoolCalendarDay,
   deleteSchoolCalendarDay,
@@ -175,6 +184,14 @@ const form = reactive({
   dayName: '',
   remark: '',
 })
+
+const calendarFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const calendarRules: FormRules = {
+  dayDate: [{ required: true, message: '请选择停排日期', trigger: 'change' }],
+  dayName: [{ required: true, whitespace: true, message: '请填写名称', trigger: 'blur' }],
+}
 
 /** 后端按年全量返回，排序与分页都在本地做：整年排完再切当前页，避免只排屏上那 10 行 */
 const sort = useTableSort({ onSorted: () => (page.value = 1) })
@@ -239,6 +256,8 @@ function openDialog(row: SchoolCalendarDayRecord | null) {
   form.remark = row?.remark || ''
   formError.value = ''
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => calendarFormRef.value?.clearValidate())
 }
 
 async function handleSubmit() {
@@ -246,12 +265,9 @@ async function handleSubmit() {
     ElMessage.warning('请先选择机构')
     return
   }
-  if (!form.dayDate) {
-    formError.value = '请选择停排日期'
-    return
-  }
-  if (!form.dayName.trim()) {
-    formError.value = '请填写名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await calendarFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   submitting.value = true

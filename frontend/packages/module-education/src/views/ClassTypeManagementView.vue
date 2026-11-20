@@ -75,18 +75,28 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="班型编码">
+      <el-form
+        ref="classTypeFormRef"
+        :model="form"
+        :rules="classTypeRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="班型编码" prop="typeCode">
           <CodeInput v-model="form.typeCode" resource="class_type" :mode="dialogMode" />
         </el-form-item>
-        <el-form-item label="班型名称"><el-input v-model="form.typeName" /></el-form-item>
+        <el-form-item label="班型名称" prop="typeName"
+          ><el-input v-model="form.typeName"
+        /></el-form-item>
         <el-form-item label="授课方式"
           ><DictSelect v-model="form.teachingMethod" type-code="teaching_method"
         /></el-form-item>
         <el-form-item label="最少人数"
           ><el-input-number v-model="form.minStudents" :min="0" style="width: 100%"
         /></el-form-item>
-        <el-form-item label="最多人数"
+        <el-form-item label="最多人数" prop="maxStudents"
           ><el-input-number v-model="form.maxStudents" :min="0" style="width: 100%"
         /></el-form-item>
         <el-form-item label="状态">
@@ -111,7 +121,8 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -146,6 +157,7 @@ const dialogMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formError = ref('')
+const classTypeFormRef = ref<FormInstance | null>(null)
 
 const form = reactive({
   typeCode: '',
@@ -156,6 +168,33 @@ const form = reactive({
   status: 'active',
   remark: '',
 })
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const classTypeRules: FormRules = {
+  typeCode: [{ required: true, whitespace: true, message: '请填写班型编码', trigger: 'blur' }],
+  typeName: [{ required: true, whitespace: true, message: '请填写班型名称', trigger: 'blur' }],
+  maxStudents: [
+    {
+      // 人数区间是跨字段关系：改最少人数时也要重新校验最多人数那一格
+      validator: (_rule, value: number, callback) => {
+        if (value < form.minStudents) {
+          callback(new Error('最多人数不能小于最少人数'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+// 最少人数提前到最多人数之后时，最多人数那一格的红框要立刻跟上
+watch(
+  () => form.minStudents,
+  () => {
+    void classTypeFormRef.value?.validateField('maxStudents').catch(() => undefined)
+  }
+)
 
 function toMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
@@ -229,6 +268,8 @@ function openDialog(mode: 'create' | 'edit', row?: ClassTypeRecord) {
   }
   formError.value = ''
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => classTypeFormRef.value?.clearValidate())
 }
 
 async function submit() {
@@ -236,8 +277,9 @@ async function submit() {
     formError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(form.typeCode) || !trimToUndefined(form.typeName)) {
-    formError.value = '请完整填写班型编码和名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await classTypeFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   submitting.value = true

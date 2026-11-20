@@ -72,8 +72,16 @@
       <div class="education-table-head">
         <span class="panel-title">{{ editingId ? '编辑收款' : '登记收款' }}</span>
       </div>
-      <el-form label-position="top" class="education-form payment-form-grid">
-        <el-form-item label="收费项目" required>
+      <el-form
+        ref="paymentFormRef"
+        :model="form"
+        :rules="paymentRules"
+        label-position="top"
+        class="education-form payment-form-grid"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="收费项目" prop="ledgerItemId">
           <el-select
             v-model="form.ledgerItemId"
             :disabled="Boolean(editingId)"
@@ -88,7 +96,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="收款金额" required>
+        <el-form-item label="收款金额" prop="amount">
           <el-input-number
             v-model="form.amount"
             :precision="2"
@@ -97,7 +105,7 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="收款日期" required>
+        <el-form-item label="收款日期" prop="paidOn">
           <el-date-picker
             v-model="form.paidOn"
             type="date"
@@ -139,8 +147,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
@@ -180,6 +189,27 @@ const formError = ref('')
 const formVisible = ref(false)
 const editingId = ref<string | null>(null)
 const submitting = ref(false)
+const paymentFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const paymentRules: FormRules = {
+  ledgerItemId: [{ required: true, message: '请选择收费项目', trigger: 'change' }],
+  amount: [
+    {
+      // 金额允许 0（如冲正），只拦空值
+      required: true,
+      validator: (_rule, value: number | null, callback) => {
+        if (value === null || value === undefined) {
+          callback(new Error('请填写收款金额'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+  paidOn: [{ required: true, message: '请选择收款日期', trigger: 'change' }],
+}
 
 const form = reactive({
   ledgerItemId: '' as string | null,
@@ -273,6 +303,8 @@ function openForm(row?: FeePaymentView) {
     editingId.value = null
   }
   formVisible.value = true
+  // 上一次填写留下的红框不能带给新一次填写
+  void nextTick(() => paymentFormRef.value?.clearValidate())
 }
 
 function closeForm() {
@@ -286,16 +318,13 @@ async function submitForm() {
     formError.value = '请先选择收费台账'
     return
   }
-  if (!form.ledgerItemId) {
-    formError.value = '请选择收费项目'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await paymentFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (form.amount === null || form.amount === undefined) {
-    formError.value = '请填写收款金额'
-    return
-  }
-  if (!form.paidOn) {
-    formError.value = '请选择收款日期'
+  // required 规则已保证这两项非空，这里只为类型收窄（金额 0 是合法值，不能当成空）
+  if (!form.ledgerItemId || form.amount === null) {
     return
   }
   submitting.value = true

@@ -261,15 +261,23 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="所属班级" required>
+      <el-form
+        ref="teacherFormRef"
+        :model="teacherForm"
+        :rules="teacherRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="所属班级" prop="classId">
           <ClassSelect
             v-model="teacherForm.classId"
             :institution-id="institutionId"
             :campus-id="campusId"
           />
         </el-form-item>
-        <el-form-item label="教师">
+        <el-form-item label="教师" prop="teacherId">
           <el-select v-model="teacherForm.teacherId" placeholder="选择教师" filterable>
             <el-option
               v-for="item in teachers"
@@ -349,8 +357,16 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="班级编码" required>
+      <el-form
+        ref="classProfileFormRef"
+        :model="classProfileForm"
+        :rules="classProfileRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="班级编码" prop="classCode">
           <CodeInput
             v-model="classProfileForm.classCode"
             resource="class"
@@ -358,7 +374,7 @@
             placeholder="例如 2026S-MATH-A1"
           />
         </el-form-item>
-        <el-form-item label="班级名称" required>
+        <el-form-item label="班级名称" prop="className">
           <el-input v-model="classProfileForm.className" placeholder="例如 周六上午数学A1班" />
         </el-form-item>
         <el-form-item label="学期（可选）">
@@ -406,7 +422,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="容量上限">
+        <el-form-item label="容量上限" prop="capacityLimit">
           <el-input-number
             v-model="classProfileForm.capacityLimit"
             :min="0"
@@ -458,8 +474,16 @@
         class="education-alert"
       />
 
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="所属校区" required>
+      <el-form
+        ref="classCreateFormRef"
+        :model="classCreateForm"
+        :rules="classCreateRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="所属校区" prop="campusId">
           <el-select v-model="classCreateForm.campusId" placeholder="选择校区" filterable>
             <el-option
               v-for="item in campuses"
@@ -469,7 +493,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="班级编码" required>
+        <el-form-item label="班级编码" prop="classCode">
           <CodeInput
             v-model="classCreateForm.classCode"
             resource="class"
@@ -477,7 +501,7 @@
             placeholder="例如 2026S-MATH-A1"
           />
         </el-form-item>
-        <el-form-item label="班级名称" required>
+        <el-form-item label="班级名称" prop="className">
           <el-input v-model="classCreateForm.className" placeholder="例如 周六上午数学A1班" />
         </el-form-item>
         <el-form-item label="学期（可选）">
@@ -582,11 +606,12 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   createClassTeacher,
@@ -676,6 +701,40 @@ const classProfileFormError = ref('')
 const classCreateDialogVisible = ref(false)
 const classCreateSubmitting = ref(false)
 const classCreateFormError = ref('')
+
+const teacherFormRef = ref<FormInstance | null>(null)
+const classProfileFormRef = ref<FormInstance | null>(null)
+const classCreateFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const teacherRules: FormRules = {
+  classId: [{ required: true, message: '请选择所属班级', trigger: 'change' }],
+  teacherId: [{ required: true, message: '请选择教师', trigger: 'change' }],
+}
+
+const classProfileRules: FormRules = {
+  classCode: [{ required: true, whitespace: true, message: '请填写班级编码', trigger: 'blur' }],
+  className: [{ required: true, whitespace: true, message: '请填写班级名称', trigger: 'blur' }],
+  capacityLimit: [
+    {
+      // 容量是数字字段，但校验要看在班人数：这个关系能定位到容量那一格
+      validator: (_rule, value: number, callback) => {
+        if (activeClassStudentCount.value > value) {
+          callback(new Error('容量上限不能小于当前在班人数'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+const classCreateRules: FormRules = {
+  campusId: [{ required: true, message: '请选择所属校区', trigger: 'change' }],
+  classCode: [{ required: true, whitespace: true, message: '请填写班级编码', trigger: 'blur' }],
+  className: [{ required: true, whitespace: true, message: '请填写班级名称', trigger: 'blur' }],
+}
 
 const teacherForm = reactive({
   classId: '' as string | null,
@@ -988,6 +1047,8 @@ function resetClassCreateForm() {
 function openClassCreateDialog() {
   resetClassCreateForm()
   classCreateDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => classCreateFormRef.value?.clearValidate())
 }
 
 function buildTeacherPayload(): ClassTeacherCreatePayload {
@@ -1173,6 +1234,8 @@ function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
   }
 
   teacherDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => teacherFormRef.value?.clearValidate())
 }
 
 function openClassProfileDialog() {
@@ -1183,6 +1246,7 @@ function openClassProfileDialog() {
 
   resetClassProfileForm(currentClass.value)
   classProfileDialogVisible.value = true
+  void nextTick(() => classProfileFormRef.value?.clearValidate())
 }
 
 function buildClassCreatePayload(): TeachingClassCreatePayload {
@@ -1212,16 +1276,9 @@ async function submitClassCreate() {
     classCreateFormError.value = '请先选择机构范围'
     return
   }
-  if (!classCreateForm.campusId) {
-    classCreateFormError.value = '请选择所属校区'
-    return
-  }
-  if (!classCreateForm.classCode.trim()) {
-    classCreateFormError.value = '请填写班级编码'
-    return
-  }
-  if (!classCreateForm.className.trim()) {
-    classCreateFormError.value = '请填写班级名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await classCreateFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -1281,12 +1338,9 @@ async function submitClassTeacher() {
     teacherFormError.value = '请先选择机构范围'
     return
   }
-  if (!teacherForm.classId) {
-    teacherFormError.value = '请选择所属班级'
-    return
-  }
-  if (!teacherForm.teacherId) {
-    teacherFormError.value = '请选择教师'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await teacherFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 
@@ -1323,16 +1377,9 @@ async function submitClassProfileUpdate() {
     classProfileFormError.value = '当前班级缺少机构或校区信息，暂无法更新'
     return
   }
-  if (!trimToUndefined(classProfileForm.classCode)) {
-    classProfileFormError.value = '请填写班级编码'
-    return
-  }
-  if (!trimToUndefined(classProfileForm.className)) {
-    classProfileFormError.value = '请填写班级名称'
-    return
-  }
-  if (activeClassStudentCount.value > classProfileForm.capacityLimit) {
-    classProfileFormError.value = '容量上限不能小于当前在班人数'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await classProfileFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
 

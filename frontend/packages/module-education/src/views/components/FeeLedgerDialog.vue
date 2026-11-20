@@ -14,8 +14,16 @@
       class="education-alert"
     />
 
-    <el-form label-position="top" class="education-form ledger-head">
-      <el-form-item label="班级" required>
+    <el-form
+      ref="ledgerFormRef"
+      :model="form"
+      :rules="ledgerRules"
+      label-position="top"
+      class="education-form ledger-head"
+      scroll-to-error
+      @submit.prevent
+    >
+      <el-form-item label="班级" prop="classId">
         <ClassSelect
           v-model="form.classId"
           :institution-id="institutionId"
@@ -23,7 +31,7 @@
           @change="handleClassChange"
         />
       </el-form-item>
-      <el-form-item label="学期" required>
+      <el-form-item label="学期" prop="termId">
         <el-select
           v-model="form.termId"
           :disabled="mode === 'edit'"
@@ -38,7 +46,7 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="学员" required>
+      <el-form-item label="学员" prop="studentId">
         <StudentSelect
           v-model="form.studentId"
           :institution-id="institutionId"
@@ -186,7 +194,8 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed, reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { computed, nextTick, reactive, ref } from 'vue'
 import ClassSelect from './ClassSelect.vue'
 import StudentSelect from './StudentSelect.vue'
 import {
@@ -237,6 +246,15 @@ const visible = computed({
 const submitting = ref(false)
 const formError = ref('')
 const addFeeItemId = ref('')
+const ledgerFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案。
+    编辑态下班级/学期/学员锁定只改状态与行项目，三个必填规则仍在但值不会变空。 */
+const ledgerRules: FormRules = {
+  classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+  termId: [{ required: true, message: '请选择学期', trigger: 'change' }],
+  studentId: [{ required: true, message: '请选择学员', trigger: 'change' }],
+}
 
 const form = reactive({
   classId: '' as string | null,
@@ -322,6 +340,8 @@ function handleOpen() {
     form.remark = props.ledger.remark ?? ''
     form.items = props.ledger.items.map(rowOf)
   }
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => ledgerFormRef.value?.clearValidate())
 }
 
 function handleClassChange(option: ClassOption | null) {
@@ -370,8 +390,10 @@ async function submit() {
     return
   }
   if (props.mode === 'create') {
-    if (!form.classId || !form.termId || !form.studentId) {
-      formError.value = '请完整选择班级、学期与学员'
+    // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案。
+    // 编辑态班级/学期/学员锁定只改状态与行项目，与原口径一致不再校验这三个归属字段
+    const valid = await ledgerFormRef.value?.validate().catch(() => false)
+    if (valid === false) {
       return
     }
   }

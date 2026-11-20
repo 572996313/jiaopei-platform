@@ -169,7 +169,15 @@
           class="education-alert"
         />
 
-        <el-form label-position="top" class="education-form">
+        <el-form
+          ref="annFormRef"
+          :model="form"
+          :rules="annRules"
+          label-position="top"
+          class="education-form"
+          scroll-to-error
+          @submit.prevent
+        >
           <el-form-item label="套用模板">
             <el-select
               v-model="templateId"
@@ -189,7 +197,7 @@
               套用只把模板的标题、正文与范围预填进下面这张表单，套完照样能改；模板备注不会带进公告。
             </div>
           </el-form-item>
-          <el-form-item label="公告标题" required>
+          <el-form-item label="公告标题" prop="title">
             <el-input
               v-model="form.title"
               maxlength="120"
@@ -197,14 +205,14 @@
               placeholder="例如：国庆放假安排"
             />
           </el-form-item>
-          <el-form-item label="公告类型" required>
+          <el-form-item label="公告类型" prop="typeCode">
             <DictSelect
               v-model="form.typeCode"
               type-code="announcement_type"
               placeholder="选择公告类型"
             />
           </el-form-item>
-          <el-form-item label="正文" required>
+          <el-form-item label="正文" prop="content">
             <el-input
               v-model="form.content"
               type="textarea"
@@ -214,7 +222,7 @@
               placeholder="发布时会按原文冻结快照，不做变量渲染"
             />
           </el-form-item>
-          <el-form-item label="接收对象" required>
+          <el-form-item label="接收对象">
             <el-checkbox-group v-model="form.audienceCodes">
               <el-checkbox v-for="item in AUDIENCE_OPTIONS" :key="item.value" :value="item.value">
                 {{ item.label }}
@@ -233,7 +241,7 @@
               当前角色只能向已授权的校区发布公告。
             </div>
           </el-form-item>
-          <el-form-item v-if="form.campusScope === 'part'" label="指定校区">
+          <el-form-item v-if="form.campusScope === 'part'" label="指定校区" prop="campusIds">
             <el-select
               v-model="form.campusIds"
               multiple
@@ -352,8 +360,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
@@ -440,6 +449,37 @@ const form = reactive<AnnouncementPayload>({
   top: false,
   remark: '',
 })
+
+const annFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const annRules: FormRules = {
+  title: [{ required: true, whitespace: true, message: '请填写公告标题', trigger: 'blur' }],
+  typeCode: [{ required: true, message: '请选择公告类型', trigger: 'change' }],
+  content: [{ required: true, whitespace: true, message: '请填写公告正文', trigger: 'blur' }],
+  campusIds: [
+    {
+      // 指定校区只在 campusScope=part 时才渲染，所以在这里直接按必填数组校验；
+      // 接收对象不在这里拦，后端明确允许草稿先空着、发布前再补
+      required: true,
+      type: 'array',
+      message: '指定校区范围至少要选一个校区',
+      trigger: 'change',
+    },
+  ],
+}
+
+// 切到「指定校区」时立刻校验，别等点保存才告诉用户还差这一步；
+// 表单尚未显示（程序化 reset/预填）时不标红
+watch(
+  () => form.campusScope,
+  (scope) => {
+    if (scope !== 'part' || !formVisible.value) {
+      return
+    }
+    void nextTick(() => annFormRef.value?.validateField('campusIds').catch(() => undefined))
+  }
+)
 
 const formTitle = computed(() => (editingId.value ? '编辑公告草稿' : '新建公告'))
 
@@ -553,6 +593,8 @@ function openForm(row?: AnnouncementRecord) {
   editingId.value = row?.id ?? null
   resetForm(row)
   formVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => annFormRef.value?.clearValidate())
   // 模板可能刚在「模板维护」里改过，每次开表单重拉一次，套用的下拉才不会列出已删的模板
   loadTemplates()
 }
@@ -607,27 +649,17 @@ function payload(): AnnouncementPayload {
   }
 }
 
-function validateForm() {
-  if (!form.title.trim()) {
-    formError.value = '请填写公告标题'
-    return false
-  }
-  if (!form.content.trim()) {
-    formError.value = '请填写公告正文'
-    return false
-  }
-  if (!form.typeCode) {
-    formError.value = '请选择公告类型'
-    return false
-  }
-  formError.value = ''
-  return true
+/** 试算与保存共用：校验失败时 el-form 已经在各字段上标红并给出提示，不再补一条顶部总文案 */
+async function validateForm() {
+  const valid = await annFormRef.value?.validate().catch(() => false)
+  return valid !== false
 }
 
 async function runPreview() {
-  if (!validateForm()) {
+  if (!(await validateForm())) {
     return
   }
+  formError.value = ''
   previewing.value = true
   try {
     preview.value = await previewAnnouncementRecipients(payload())
@@ -640,7 +672,7 @@ async function runPreview() {
 }
 
 async function submit(andPublish: boolean) {
-  if (!validateForm()) {
+  if (!(await validateForm())) {
     return
   }
   const busy = andPublish ? publishing : saving

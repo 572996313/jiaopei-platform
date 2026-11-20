@@ -76,14 +76,22 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
+      <el-form
+        ref="feeItemFormRef"
+        :model="form"
+        :rules="feeItemRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
         <el-form-item label="项目编码">
           <CodeInput v-model="form.itemCode" resource="fee_item" :mode="dialogMode" />
         </el-form-item>
-        <el-form-item label="项目名称" required>
+        <el-form-item label="项目名称" prop="itemName">
           <el-input v-model="form.itemName" placeholder="如：保教费、伙食费" />
         </el-form-item>
-        <el-form-item label="计费方式" required>
+        <el-form-item label="计费方式" prop="billingMode">
           <el-select v-model="form.billingMode" style="width: 100%">
             <el-option label="按月（月标准 × 月份系数）" value="monthly" />
             <el-option label="按天（出勤天数 × 日标准）" value="daily" />
@@ -122,8 +130,9 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
@@ -154,6 +163,13 @@ const dialogMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formError = ref('')
+const feeItemFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const feeItemRules: FormRules = {
+  itemName: [{ required: true, whitespace: true, message: '请填写收费项目名称', trigger: 'blur' }],
+  billingMode: [{ required: true, message: '请选择计费方式', trigger: 'change' }],
+}
 
 const priceDialogVisible = ref(false)
 const priceItem = ref<FeeItemRecord | null>(null)
@@ -237,6 +253,8 @@ function openDialog(mode: 'create' | 'edit', row?: FeeItemRecord) {
     resetForm()
   }
   dialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => feeItemFormRef.value?.clearValidate())
 }
 
 async function submit() {
@@ -244,8 +262,9 @@ async function submit() {
     formError.value = '请先选择机构范围'
     return
   }
-  if (!trimToUndefined(form.itemName)) {
-    formError.value = '请填写收费项目名称'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await feeItemFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   submitting.value = true

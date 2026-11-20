@@ -104,8 +104,15 @@
         :closable="false"
         class="ts-dialog-alert"
       />
-      <el-form label-position="top">
-        <el-form-item label="模板名称" required>
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-position="top"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="模板名称" prop="templateName">
           <el-input
             v-model="createForm.templateName"
             placeholder="如:标准工作日课表"
@@ -140,9 +147,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import {
@@ -371,7 +379,15 @@ async function confirmClearSlots() {
 const createDialogVisible = ref(false)
 const creating = ref(false)
 const createError = ref('')
+const createFormRef = ref<FormInstance | null>(null)
 const createForm = reactive({ templateName: '', campusId: '' as string | null, remark: '' })
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+const createRules: FormRules = {
+  templateName: [
+    { required: true, whitespace: true, message: '请填写模板名称', trigger: 'blur' },
+  ],
+}
 
 function openCreateDialog() {
   createForm.templateName = ''
@@ -379,14 +395,17 @@ function openCreateDialog() {
   createForm.remark = ''
   createError.value = ''
   createDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => createFormRef.value?.clearValidate())
 }
 
 async function submitCreate() {
   if (!institutionId.value) {
     return
   }
-  if (!createForm.templateName.trim()) {
-    createError.value = '请填写模板名称'
+  // 校验失败时 el-form 已经在模板名称上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await createFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
   creating.value = true

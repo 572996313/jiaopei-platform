@@ -107,8 +107,16 @@
         :closable="false"
         class="education-alert"
       />
-      <el-form label-position="top" class="education-form">
-        <el-form-item label="归属校区">
+      <el-form
+        ref="classroomFormRef"
+        :model="classroomForm"
+        :rules="classroomRules"
+        label-position="top"
+        class="education-form"
+        scroll-to-error
+        @submit.prevent
+      >
+        <el-form-item label="归属校区" prop="campusId">
           <el-select v-model="classroomForm.campusId" placeholder="选择校区" filterable>
             <el-option
               v-for="item in campuses"
@@ -118,14 +126,14 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="教室编码">
+        <el-form-item label="教室编码" prop="classroomCode">
           <CodeInput
             v-model="classroomForm.classroomCode"
             resource="classroom"
             :mode="classroomDialogMode"
           />
         </el-form-item>
-        <el-form-item label="教室名称"
+        <el-form-item label="教室名称" prop="classroomName"
           ><el-input v-model="classroomForm.classroomName"
         /></el-form-item>
         <el-form-item label="教室类型"
@@ -155,9 +163,10 @@
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import CodeInput from '@cornerstone/core/components/CodeInput.vue'
@@ -234,6 +243,19 @@ const classroomSubmitting = ref(false)
 const classroomFormError = ref('')
 const editingClassroomId = ref<string | null>(null)
 
+const classroomFormRef = ref<FormInstance | null>(null)
+
+/** 必填校验统一交给 el-form：标签红星 + 输入框红边 + 框下行内提示，不靠顶部一条总文案 */
+function requiredText(label: string): FormRules[string] {
+  return [{ required: true, whitespace: true, message: `请填写${label}`, trigger: 'blur' }]
+}
+
+const classroomRules: FormRules = {
+  campusId: [{ required: true, message: '请选择归属校区', trigger: 'change' }],
+  classroomCode: requiredText('教室编码'),
+  classroomName: requiredText('教室名称'),
+}
+
 const classroomForm = reactive({
   campusId: '' as string | null,
   classroomCode: '',
@@ -273,6 +295,8 @@ function openClassroomDialog(mode: 'create' | 'edit', row?: ClassroomSummary) {
   }
   classroomFormError.value = ''
   classroomDialogVisible.value = true
+  // 上一次弹窗留下的红框不能带给新一次填写
+  void nextTick(() => classroomFormRef.value?.clearValidate())
 }
 
 async function loadClassrooms() {
@@ -289,15 +313,13 @@ async function loadClassrooms() {
 }
 
 async function submitClassroom() {
-  if (!classroomForm.campusId) {
-    classroomFormError.value = '请选择归属校区'
+  // 校验失败时 el-form 已经在各字段上标红并给出提示，这里不再补一条顶部总文案
+  const valid = await classroomFormRef.value?.validate().catch(() => false)
+  if (valid === false) {
     return
   }
-  if (
-    !trimToUndefined(classroomForm.classroomCode) ||
-    !trimToUndefined(classroomForm.classroomName)
-  ) {
-    classroomFormError.value = '请完整填写教室编码和名称'
+  // 纯类型守卫：required 校验已保证非空，这里只为 campusId 收窄出 string 类型
+  if (!classroomForm.campusId) {
     return
   }
 
