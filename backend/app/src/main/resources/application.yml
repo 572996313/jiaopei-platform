@@ -95,3 +95,16 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
+
+logging:
+  # 日志行固定带 TraceIdFilter 写入 MDC 的链路 ID：前端报错提示里的 traceId 可直接 grep。
+  # 以前 MDC 有值但默认 pattern 不打印，响应里的 traceId 在日志里根本搜不到。
+  pattern:
+    level: "%5p [%X{traceId:-}]"
+  file:
+    # 相对进程工作目录；scripts/restart-backend.sh 从仓库根启动，落在 logs/backend.log
+    name: ${LOG_FILE:logs/backend.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 20MB
+      max-history: 14

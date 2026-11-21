@@ -183,23 +183,15 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     // ------------------------------------------------------------------ 校验
 
     private TeacherImportResult validate(List<Plan> plans, Long institutionId) {
-        // 一次取全本机构档案（含软删行）：活行决定"同编码跳过/手机号冲突"，软删行只用来提前报"编码被历史档案占用"
+        // 一次取全本机构未删除档案：活行决定"同编码跳过/手机号冲突"。
+        // V106 起教师编码/手机号唯一键只约束未删除行，删除过的编码与手机号可以重新导入。
         Map<String, TeacherEntity> existingByCode = new LinkedHashMap<>();
         Map<String, Set<String>> teacherCodesByPhone = new LinkedHashMap<>();
-        Set<String> retiredCodes = new LinkedHashSet<>();
-        Set<String> retiredPhones = new LinkedHashSet<>();
         for (TeacherEntity teacher : teacherMapper.selectOccupations(institutionId)) {
-            if (Boolean.TRUE.equals(teacher.getDeleted())) {
-                retiredCodes.add(teacher.getTeacherCode());
-                if (teacher.getPhone() != null) {
-                    retiredPhones.add(teacher.getPhone());
-                }
-            } else {
-                existingByCode.putIfAbsent(teacher.getTeacherCode(), teacher);
-                if (teacher.getPhone() != null) {
-                    teacherCodesByPhone.computeIfAbsent(teacher.getPhone(), key -> new LinkedHashSet<>())
-                        .add(teacher.getTeacherCode());
-                }
+            existingByCode.putIfAbsent(teacher.getTeacherCode(), teacher);
+            if (teacher.getPhone() != null) {
+                teacherCodesByPhone.computeIfAbsent(teacher.getPhone(), key -> new LinkedHashSet<>())
+                    .add(teacher.getTeacherCode());
             }
         }
         Map<String, Long> campusIdsByCode = loadCampusIds(institutionId);
@@ -207,9 +199,9 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         Set<String> seenPhones = new LinkedHashSet<>();
 
         for (Plan plan : plans) {
-            checkCode(plan, existingByCode, retiredCodes, seenCodes);
+            checkCode(plan, existingByCode, seenCodes);
             checkName(plan);
-            checkPhone(plan, teacherCodesByPhone, retiredPhones, seenPhones);
+            checkPhone(plan, teacherCodesByPhone, seenPhones);
             checkCampus(plan, campusIdsByCode);
             checkDict(plan, "gender", "性别", plan.gender);
             checkDict(plan, "employment_type", "用工类型", plan.employmentType);
@@ -221,8 +213,7 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         return TeacherImportResult.of(plans.stream().map(Plan::toView).toList());
     }
 
-    private void checkCode(Plan plan, Map<String, TeacherEntity> existingByCode, Set<String> retiredCodes,
-                           Set<String> seenCodes) {
+    private void checkCode(Plan plan, Map<String, TeacherEntity> existingByCode, Set<String> seenCodes) {
         if (plan.teacherCode == null) {
             plan.errors.add("教师编码不能为空");
             return;
@@ -239,9 +230,6 @@ public class TeacherImportServiceImpl implements TeacherImportService {
             // 同编码 = 这行已经建过了。本模板只负责批量建档，不承担改资料，所以跳过而不是覆盖
             plan.existingTeacherId = existing.getId();
             plan.notices.add("该编码在本机构已存在，本次跳过新建（要改资料请到教师页编辑）");
-        } else if (retiredCodes.contains(plan.teacherCode)) {
-            plan.errors.add("教师编码 " + plan.teacherCode
-                + " 被本机构一条已删除的历史档案占用（编码唯一键不随删除释放），请换一个编码");
         }
     }
 
@@ -257,8 +245,7 @@ public class TeacherImportServiceImpl implements TeacherImportService {
      * 手机号选填但一旦填了就必须能用：它是「匹配账号」唯一的抓手，也是本机构的唯一键。
      * 撞在已有档案上时把对方编码带进消息，比让人回着列表一行行找快得多。
      */
-    private void checkPhone(Plan plan, Map<String, Set<String>> teacherCodesByPhone, Set<String> retiredPhones,
-                            Set<String> seenPhones) {
+    private void checkPhone(Plan plan, Map<String, Set<String>> teacherCodesByPhone, Set<String> seenPhones) {
         if (plan.phone == null) {
             plan.notices.add("未填手机号，后续无法按手机号自动匹配登录账号");
             return;
@@ -275,9 +262,6 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         if (owners != null && plan.existingTeacherId == null) {
             plan.errors.add("手机号 " + plan.phone + " 本机构教师 "
                 + String.join("、", owners) + " 已在使用，请换一个或先改对方资料");
-        } else if (owners == null && retiredPhones.contains(plan.phone)) {
-            plan.errors.add("手机号 " + plan.phone
-                + " 被本机构一条已删除的历史档案占用（手机号唯一键不随删除释放），请换一个手机号");
         }
     }
 

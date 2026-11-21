@@ -208,6 +208,8 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "该台账已有收款流水，不能删除；请先删除收款记录或把台账改为「已结清」");
         }
+        // 收款墓碑仍占着 fk_jp_fee_payment_ledger，父行物理删除前必须只清墓碑（活行上面已拦）
+        feePaymentMapper.deleteTombstonesByLedgerId(id);
         feeMonthlyMapper.deletePhysicallyByLedgerId(id);
         feeAttendanceMonthMapper.deletePhysicallyByLedgerId(id);
         feeLedgerItemMapper.deletePhysicallyByLedgerId(id);
@@ -718,6 +720,8 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "「" + itemName + "」有手工覆盖的逐月发生额，不能移除；请先取消覆盖");
         }
+        // 该项目行下的收款墓碑占着 fk_jp_fee_payment_ledger_item；校验都过了再清，避免失败前先丢墓碑
+        feePaymentMapper.deleteTombstonesByLedgerItemId(item.getId());
         feeMonthlyMapper.deletePhysicallyByLedgerItemId(item.getId());
         feeLedgerItemMapper.physicalDeleteById(item.getId());
     }

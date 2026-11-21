@@ -89,7 +89,8 @@ public class ClassTeacherServiceImpl implements ClassTeacherService {
             CampusScopeGuard.assertCampus(teachingClass.getCampusId(), "班级教师关系");
         }
         Long previousPrimaryTeacherId = teachingClass == null ? null : teachingClass.getTeacherId();
-        classTeacherMapper.deleteById(id);
+        // 物理删除：关系行没有留存价值，删掉后同一「班级/教师/角色/入任日期」可以重新添加
+        classTeacherMapper.physicalDeleteById(id);
         if (teachingClass != null) {
             ClassTeacherEntity currentPrimary = syncPrimaryTeacher(teachingClass);
             syncTeachingClassPrimaryTeacher(teachingClass, currentPrimary);

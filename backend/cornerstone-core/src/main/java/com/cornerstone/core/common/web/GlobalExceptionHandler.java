@@ -3,6 +3,7 @@ package com.cornerstone.core.common.web;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -27,6 +31,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleBusinessException(BusinessException exception) {
+        // 业务拒绝（400）以前只在响应体里出现、控制台一句不留，现场排障只能靠猜；
+        // 打一行 WARN 足够定位（链路 ID 由日志 pattern 从 MDC 带出），不印堆栈避免刷屏
+        log.warn("业务校验未通过 {} -> {}：{}", requestSummary(), exception.getResultCode().getCode(),
+            exception.getMessage());
         return ApiResponse.failure(exception.getResultCode(), exception.getMessage());
     }
 
@@ -36,6 +44,7 @@ public class GlobalExceptionHandler {
         String message = exception.getBindingResult().getFieldErrors().stream()
             .map(this::formatFieldError)
             .collect(Collectors.joining("; "));
+        log.warn("参数校验未通过 {}：{}", requestSummary(), message);
         return ApiResponse.failure(ResultCode.VALIDATION_ERROR, message);
     }
 
@@ -45,6 +54,7 @@ public class GlobalExceptionHandler {
         String message = exception.getBindingResult().getFieldErrors().stream()
             .map(this::formatFieldError)
             .collect(Collectors.joining("; "));
+        log.warn("参数绑定失败 {}：{}", requestSummary(), message);
         return ApiResponse.failure(ResultCode.VALIDATION_ERROR, message);
     }
 
@@ -54,12 +64,14 @@ public class GlobalExceptionHandler {
         String message = exception.getConstraintViolations().stream()
             .map(violation -> violation.getMessage())
             .collect(Collectors.joining("; "));
+        log.warn("参数约束校验未通过 {}：{}", requestSummary(), message);
         return ApiResponse.failure(ResultCode.VALIDATION_ERROR, message);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleNotReadable(HttpMessageNotReadableException exception) {
+        log.warn("请求体无法解析 {}：{}", requestSummary(), exception.getMostSpecificCause().getMessage());
         return ApiResponse.failure(ResultCode.BAD_REQUEST, "请求体缺失或格式不正确");
     }
 
@@ -67,12 +79,14 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleMissingParameter(MissingServletRequestParameterException exception) {
         // 不接这一条就会掉进兜底分支返回 500，操作员看到的是"服务器内部错误"，而真实原因只是少带了参数
+        log.warn("缺少必填参数 {}：{}", requestSummary(), exception.getParameterName());
         return ApiResponse.failure(ResultCode.BAD_REQUEST, "缺少必填参数：" + exception.getParameterName());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        log.warn("参数类型不匹配 {}：{}={}", requestSummary(), exception.getName(), exception.getValue());
         return ApiResponse.failure(ResultCode.BAD_REQUEST,
             "参数 " + exception.getName() + " 取值格式不正确：" + exception.getValue());
     }
@@ -87,12 +101,14 @@ public class GlobalExceptionHandler {
         if (message == null || message.isBlank()) {
             message = ResultCode.UNAUTHORIZED.getDefaultMessage();
         }
+        log.warn("认证失败 {}：{}", requestSummary(), message);
         return ApiResponse.failure(ResultCode.UNAUTHORIZED, message);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiResponse<Void> handleAccessDenied(AccessDeniedException exception) {
+        log.warn("访问被拒绝 {}：{}", requestSummary(), ResultCode.FORBIDDEN.getDefaultMessage());
         return ApiResponse.failure(ResultCode.FORBIDDEN, ResultCode.FORBIDDEN.getDefaultMessage());
     }
 
@@ -108,6 +124,16 @@ public class GlobalExceptionHandler {
         // 兜底异常必须记录完整堆栈,否则线上只剩一句"服务器内部错误"无从排查
         log.error("未捕获的服务器异常", exception);
         return ApiResponse.failure(ResultCode.INTERNAL_ERROR, ResultCode.INTERNAL_ERROR.getDefaultMessage());
+    }
+
+    /** 日志里指认请求：方法 + 路径；脱离 Web 上下文（如定时任务）时回落成占位。 */
+    private String requestSummary() {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (attributes instanceof ServletRequestAttributes servlet) {
+            HttpServletRequest request = servlet.getRequest();
+            return request.getMethod() + " " + request.getRequestURI();
+        }
+        return "-";
     }
 
     private String formatFieldError(FieldError error) {

@@ -179,14 +179,11 @@ public class FeePaymentServiceImpl implements FeePaymentService {
         throw new BusinessException(ResultCode.BAD_REQUEST, "收款单号生成冲突，请稍后重试或手工填写单号");
     }
 
-    /** 单号格式 SK-日期-序号；序号按机构内当天已有流水数 + 1（删掉的行不占号）。 */
+    /** 单号格式 SK-日期-序号；序号取机构当天已用最大号 + 1（含软删墓碑，删掉的号不回收）。 */
     private String nextPaymentNo(Long institutionId, java.time.LocalDate paidOn, int offset) {
         String prefix = "SK-" + paidOn.format(PAYMENT_NO_DATE) + "-";
-        Long used = feePaymentMapper.selectCount(new LambdaQueryWrapper<FeePaymentEntity>()
-            .eq(FeePaymentEntity::getInstitutionId, institutionId)
-            .likeRight(FeePaymentEntity::getPaymentNo, prefix));
-        long sequence = (used == null ? 0 : used) + 1 + offset;
-        return prefix + String.format("%04d", sequence);
+        long used = feePaymentMapper.maxPaymentNoSequence(institutionId, prefix);
+        return prefix + String.format("%04d", used + 1 + offset);
     }
 
     private String paymentMethod(String value) {

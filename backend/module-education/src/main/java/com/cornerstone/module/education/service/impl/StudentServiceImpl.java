@@ -237,7 +237,8 @@ public class StudentServiceImpl implements StudentService {
         InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "学员");
         EducationCampusScopeSupport.assertStudentWritable(
             classStudentMapper, enrollmentMapper, teachingClassMapper, id);
-        studentMapper.deleteById(id);
+        // 与教师侧同口径：软删的同时解绑 user_id，否则账号被墓碑永久占着 uk_jp_student_user_id
+        studentMapper.softDeleteAndUnlink(id);
     }
 
     private StudentEntity requireStudent(Long id) {

@@ -18,10 +18,12 @@ import com.cornerstone.module.organization.service.support.DictValueValidator;
 import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import java.util.List;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class CampusServiceImpl implements CampusService {
 
@@ -96,7 +98,9 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + campusCode);
+            log.warn("创建校区撞唯一键(编码={}, 名称={})：{}", campusCode, campusName,
+                exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, campusCode, campusName);
         }
         return entity;
     }
@@ -160,7 +164,9 @@ public class CampusServiceImpl implements CampusService {
         try {
             campusMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下校区编码或校区名称已存在：" + existing.getCampusCode());
+            log.warn("更新校区撞唯一键(id={}, 编码={}, 名称={})：{}", id, existing.getCampusCode(),
+                existing.getCampusName(), exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, existing.getCampusCode(), existing.getCampusName());
         }
         return existing;
     }
@@ -190,6 +196,24 @@ public class CampusServiceImpl implements CampusService {
             throw new BusinessException(ResultCode.NOT_FOUND, "校区不存在：" + id);
         }
         return entity;
+    }
+
+    /**
+     * 把唯一键冲突翻成操作员看得懂的提示：按撞到的约束名区分编码/名称，并带上冲突的那个值。
+     * 唯一键自 V104 起只约束未删除行，与预检（MyBatis-Plus 自动补 deleted = 0）口径一致；
+     * 这里只兜并发窗口，认不出约束名时把两个值都报出来。
+     */
+    private BusinessException duplicateKeyException(DuplicateKeyException exception, String campusCode, String campusName) {
+        String detail = exception.getMostSpecificCause().getMessage();
+        String raw = detail == null ? "" : detail;
+        if (raw.contains("uk_jp_campus_name")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该机构下已存在校区名称：" + campusName);
+        }
+        if (raw.contains("uk_jp_campus_code")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该机构下已存在校区编码：" + campusCode);
+        }
+        return new BusinessException(ResultCode.BAD_REQUEST,
+            "该机构下校区编码 " + campusCode + " 或名称 " + campusName + " 已存在");
     }
 
     private void assertUniqueCampusCode(Long institutionId, String campusCode, Long excludeId) {

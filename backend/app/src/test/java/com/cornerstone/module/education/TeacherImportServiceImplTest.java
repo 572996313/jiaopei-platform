@@ -183,31 +183,27 @@ class TeacherImportServiceImplTest {
     }
 
     /**
-     * 编码/手机号的唯一键都不含 deleted，软删档案照样占着这两个值。
-     * 预览看不见它们就是"整批校验全绿、提交时 1062 整批回滚"，所以占用方必须在这一轮就报出来。
+     * V106 起教师编码的唯一键换成只约束未删除行的守卫键，墓碑不再占键：
+     * selectOccupations 在 SQL 里过滤 deleted = 0，删除过的编码可以直接重新导入。
      */
     @Test
-    void codeHeldBySoftDeletedArchiveIsRejectedInPreview() {
-        when(teacherMapper.selectOccupations(INSTITUTION_ID)).thenReturn(List.of(
-            retiredTeacher(77L, "T001", "13800000001")));
+    void codeOfDeletedArchiveCanBeImportedAgain() {
+        when(teacherMapper.selectOccupations(INSTITUTION_ID)).thenReturn(List.of());
 
         TeacherImportRowView view = service.preview(workbook(List.of(
             row("T001", "张老师", "13800000009", "", "", "", "", "", "", "")))).rows().get(0);
 
-        assertFalse(view.valid());
-        assertTrue(view.error().contains("已删除的历史档案"), view.error());
+        assertTrue(view.valid(), view.error());
     }
 
     @Test
-    void phoneHeldBySoftDeletedArchiveIsRejectedInPreview() {
-        when(teacherMapper.selectOccupations(INSTITUTION_ID)).thenReturn(List.of(
-            retiredTeacher(77L, "T001", "13800000001")));
+    void phoneOfDeletedArchiveCanBeImportedAgain() {
+        when(teacherMapper.selectOccupations(INSTITUTION_ID)).thenReturn(List.of());
 
         TeacherImportRowView view = service.preview(workbook(List.of(
             row("T002", "李老师", "13800000001", "", "", "", "", "", "", "")))).rows().get(0);
 
-        assertFalse(view.valid());
-        assertTrue(view.error().contains("已删除的历史档案"), view.error());
+        assertTrue(view.valid(), view.error());
     }
 
     @Test
@@ -504,13 +500,6 @@ class TeacherImportServiceImplTest {
         teacher.setInstitutionId(INSTITUTION_ID);
         teacher.setTeacherCode(teacherCode);
         teacher.setPhone(phone);
-        return teacher;
-    }
-
-    /** 软删档案：页面上看不见，但编码与手机号仍被唯一键占着 */
-    private TeacherEntity retiredTeacher(Long id, String teacherCode, String phone) {
-        TeacherEntity teacher = teacher(id, teacherCode, phone);
-        teacher.setDeleted(Boolean.TRUE);
         return teacher;
     }
 

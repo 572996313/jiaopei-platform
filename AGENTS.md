@@ -275,13 +275,52 @@ pnpm dev:h5            # H5 调试
 
 1. **租户隔离**：客户端传入的 `institutionId`/`campusId` 只是筛选条件，服务端必须与当前登录用户所属机构比对（`AuthContext.requireUser()`），不允许拿任意入参直查他机构数据。参照 `SystemInstitutionController` 的正确写法。**整批写入口（批量导入一类）干脆不接受机构参数**，只认登录态所在机构——少一个参数就少一条绕过比对的通道，参照 `SystemUserImportController`（见「底座边界」）。
 2. **权限回收即时生效**：修改角色权限、用户角色、菜单授权后必须让受影响用户下线——**底座已经兜住这三条路径**（阶段五-1e）：`SystemRoleServiceImpl.updateRole` 与 `SystemMenuServiceImpl.updateRoleMenus` 调 `AuthApplicationService.invalidateUserSessionsByRole(roleId)`（按 `sys_user_role_rel` 反查持有用户），`SystemUserServiceImpl.updateRoles` 调 `invalidateUserSessions(userId)`。业务模块新增"改授权"的接口时仍要自己调对应那个方法，权限快照写进 JWT，不清会话则 12 小时内旧权限继续可用。两条约束：**改菜单节点自身权限码（`updateMenu`/`deleteMenu`）底座没覆盖**（两跳反查，见 `docs/底座下游接入说明.md` 第 6 节 15 条）；`SystemMenuServiceImpl` 注 `AuthApplicationService` 必须走 `ObjectProvider`——`AuthApplicationServiceImpl → UserAccessTokenService → SystemMenuService` 已成环，构造注入会让容器启动失败。
-3. **逻辑删除与唯一索引**：配合 `@TableLogic` 的唯一索引必须包含 `deleted` 列（如 `uk(code, deleted)`），否则“删除后重建同名记录”必撞键（V18 已为 `sys_menu` 擦过一次）。但 `(业务键, deleted)` 唯一键下 `deleted` 是 0/1 二值，**每个键只容得下一条软删墓碑**——“删除→重建同键→再删”第二次必撞唯一键。因此**管理端显式删除且重建同键属正常工作流的表**（系统参数、字典类型/条目、数据源、列表配置、菜单），删除一律走 mapper 上的 `physicalDeleteById`（`@Delete` 原生 SQL）物理删除，先例见 `SystemRoleMenuMapper.physicalDeleteByRoleId`；审计由操作日志承担，不留墓碑。新增带唯一键 + 删除入口的表照此办理，不要新写 `deleteById` 逻辑删除。**同一批软删行还会占住外键**：子表逻辑删除后行仍在，父表物理删除被 1451 拒（`jp_time_slot` ↔ `schedule_lesson` 就是这条），所以判"能不能删"的计数**不许带 `deleted = 0`**（`TimeSlotMapper.countLessonRefs`），被引用的父行只能停用或先清墓碑。节次侧的处置是：`TimeSlotServiceImpl#deleteTimeSlot` 在拒绝消息里给出引用总数与其中已删除的数量，`GET|DELETE /api/education/time-slot-lessons` 负责"列出引用（含墓碑）"与"只清 `deleted=1` 的课次连同其考勤与教师关系"（`TimeSlotLessonRefServiceImpl`：删课次的语句写死 `AND deleted = 1`，被未删除补课课次引用的跳过）。新增同类"父行有删除入口、子行是软删"的表照此办理——消息要说清是谁在挡，并给一条只碰墓碑的清理路径，不要只回一句"已被引用，请改为停用"。
+3. **逻辑删除与唯一索引**：配合 `@TableLogic` 的唯一索引必须包含 `deleted` 列（如 `uk(code, deleted)`），否则“删除后重建同名记录”必撞键（V18 已为 `sys_menu` 擦过一次）。但 `(业务键, deleted)` 唯一键下 `deleted` 是 0/1 二值，**每个键只容得下一条软删墓碑**——“删除→重建同键→再删”第二次必撞唯一键。因此**管理端显式删除且重建同键属正常工作流的表**（系统参数、字典类型/条目、数据源、列表配置、菜单），删除一律走 mapper 上的 `physicalDeleteById`（`@Delete` 原生 SQL）物理删除，先例见 `SystemRoleMenuMapper.physicalDeleteByRoleId`；审计由操作日志承担，不留墓碑。新增带唯一键 + 删除入口的表照此办理，不要新写 `deleteById` 逻辑删除。**同一批软删行还会占住外键**：子表逻辑删除后行仍在，父表物理删除被 1451 拒（`jp_time_slot` ↔ `schedule_lesson` 就是这条），所以判"能不能删"的计数**不许带 `deleted = 0`**（`TimeSlotMapper.countLessonRefs`），被引用的父行只能停用或先清墓碑。节次侧的处置是：`TimeSlotServiceImpl#deleteTimeSlot` 在拒绝消息里给出引用总数与其中已删除的数量，`GET|DELETE /api/education/time-slot-lessons` 负责"列出引用（含墓碑）"与"只清 `deleted=1` 的课次连同其考勤与教师关系"（`TimeSlotLessonRefServiceImpl`：删课次的语句写死 `AND deleted = 1`，被未删除补课课次引用的跳过）。新增同类"父行有删除入口、子行是软删"的表照此办理——消息要说清是谁在挡，并给一条只碰墓碑的清理路径，不要只回一句"已被引用，请改为停用"。（守卫列配方与四类判定见本节末尾「逻辑删除唯一键收口」。）
 4. **先查后插必须有兜底**：冲突校验（排课撞教师/教室/班级、绑定唯一性）selectCount 后 insert 存在并发竞态，必须配数据库唯一约束或显式锁；多表写操作必须 `@Transactional`，注意同类内自调用事务不生效。
 5. **MyBatis-Plus 置空字段**：`updateById` 默认忽略 null，想把字段设为 NULL 必须用 `UpdateWrapper.set(col, null)` 或字段加 `@TableField(updateStrategy = FieldStrategy.ALWAYS)`。
 6. **缓存现状**：项目**未启用** `@EnableCaching`，`@Cacheable`/`@CacheEvict` 目前是空注解。启用缓存前先补配置并验证序列化；不要依赖注解暗示“已有缓存”。
 7. **敏感字段**：手机号等敏感数据出入参遵循 `docs/操作留痕与敏感数据说明.md` 的脱敏/加密链路（`SensitiveCipher`），新增明文外泄即视为缺陷。
 8. **底座的机构/账号/角色三处接口不分机构范围，所以"机构侧预设角色"只能给业务页面**（V74 的 `INSTITUTION_ADMIN`，id 110，显示名「机构运营」）：`InstitutionServiceImpl#listInstitutions` 返回全库机构、`tenant:write` 还带无平台侧限制的建机构 POST；`SystemUserServiceImpl#pageUsers` 不加机构条件、`createUser` 只校验"机构存在"（能把账号建进别人机构）；`SystemRoleServiceImpl#updateRole` 按 id 改任意角色（含 `PLATFORM_ADMIN`），而 `sys_role` 本就没有机构列。**结论：在给这三条链路补上 `AuthContext` 机构比对（与上面第 1 条同口径，另批）之前，不许给任何非平台角色勾 1「系统设置」目录、2 用户管理、3 角色管理、8 机构资料、114 机构资料维护**——勾上即跨机构读写。放开时同步在 V74 尾注的号段（7101~7106）补授权行。
 9. **注销账号是物理删，且"先清谁"是硬顺序**：入口 `SystemUserServiceImpl#deregisterUser`（`DELETE /api/system/users/{id}`，权限沿用 `system:user:manage`、不新增权限码；列表按钮走配置，双轨种子教培 `V94` + core `V112` 的 `user-deregister`）。**四道守卫**：不能注销自己、只能注销本机构（持 `PLATFORM_ADMIN` 者豁免，与第 1 条同口径）、**必须先停用再注销**、不能注销最后一个可用的平台管理员。为什么物理删：`uk_jp_user_username(username, deleted)` 含 `deleted`，软删行会永久占住这个账号名（同第 3 条）。执行顺序固定为**失效会话 → 清引用行 → 删账号**，令牌先清是因为账号行没了以后残留 JWT 里的权限快照没人能复核。**指向 `sys_user_account` 的外键共五张表**（拿 `information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME='sys_user_account'` 复核，别信这份清单的时效性）：`sys_user_role_rel`、`sys_auth_invitation` 由底座自己清；`jp_user_student_rel`、`jp_wechat_binding`（education）、`jp_user_campus_pref`（organization）由 `UserAccountDeregisteredEvent` 的监听器清，与底座同事务、任一失败整体回滚。**新增任何指向账号的表必须同批在对应侧补一条 `physicalDeleteByUserId`**，漏了的症状不是静默失败而是注销直接报 1451——`sys_auth_invitation` 与 `jp_user_campus_pref` 就是首批漏掉的：小程序账号压根不会有这两类行，所以自助注销这条路从来没暴露过，PC 代注销一上就撞。业务档案（教师/学员）走**解除归属**（`releaseOwnerByUserId`）不是删除，历史课次与考勤要留得住。小程序自助注销与管理端代注销**共用同一个监听器**，业务侧清理只维护一份；前端对"启用中"只给提示不做置灰，权威校验在后端。
+
+### 逻辑删除唯一键收口：先分类，再选守卫列或物理删除
+
+第 3 条给了两条路，动手前先按「这张表删了之后还要不要被看见/引用」分类，不要一律改物理删除：
+
+| 类型 | 特征 | 处置 |
+| --- | --- | --- |
+| A | 删除入口本来就是物理删（mapper 上有 `physicalDeleteById`） | 不动 |
+| B | 唯一键已含 `deleted`，只容一条墓碑 | 删除改物理删（第 3 条） |
+| C | 唯一键不含 `deleted`，删除走 `@TableLogic`，业务上需要删后重建同键 | 守卫列配方 |
+| D | 唯一键不含 `deleted`，但表根本没有删除入口 | 不动，等真加删除入口再收口 |
+
+C 类不能直接改物理删除：被外键引用的表，软删子行仍占着外键（1451），只能留墓碑。
+
+守卫列配方（先例 `V72`、`V103`~`V106`、`V108`）：
+
+```sql
+ALTER TABLE `jp_xxx`
+    ADD COLUMN `xxx_code_guard` VARCHAR(96) COLLATE utf8mb4_unicode_ci
+        GENERATED ALWAYS AS (
+            CASE WHEN `deleted` = 0 THEN CONCAT_WS('#', `scope_id`, `xxx_code`) END
+        ) STORED COMMENT 'xxx编码防重键(未删除时取 范围ID#编码,软删墓碑为 NULL)',
+    ADD KEY `idx_jp_xxx_code` (`scope_id`, `xxx_code`),
+    ADD UNIQUE KEY `uk_jp_xxx_code_guard` (`xxx_code_guard`);
+
+ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
+```
+
+要点：
+
+- 墓碑取 `NULL`，`NULL` 不参与唯一比对 → 可容纳任意多条墓碑，「删→重建同键→再删」不会像 `(业务键, deleted)` 那样第二次撞键。
+- 业务键可空时（手机号一类）表达式必须写 `CASE WHEN deleted = 0 AND phone IS NOT NULL THEN ... END`，保住「多条空值可共存」的原语义。
+- 先建新键再删旧键；新复合普通索引要能顺带承担旧唯一键原本兼任的外键最左前缀，否则 `DROP` 报 1553（例：`jp_teacher_institution` 靠 `uk_jp_teacher_code` 的最左前缀）。
+- 守卫列长度按 `范围ID + '#' + 业务键` 估算：ID 最长 20 位，编码用 96、名称用 160 足够。
+- `deleted` 目前全库 `NOT NULL`，表达式按 `deleted = 0` 写；将来若出现可空 `deleted`，改成 `deleted IS NOT TRUE`。
+- 应用层预检（MyBatis-Plus 自动补 `deleted = 0`）与守卫键口径就此一致；`DuplicateKeyException` 仍要保留兜并发，日志打印原始约束名，用户提示按命中约束区分字段。
+- **财务凭证类流水（收款单号等）即使唯一键已含 `deleted`（按上表是 B 类）也不要改物理删——墓碑要留痕**。换成守卫列即可；同时把编号生成改成「连墓碑取当天最大序号 + 1」，删掉的号不回收，否则「删除 → 再登记」会把同一个号发给两张单据（先例 `V108` / `FeePaymentMapper#maxPaymentNoSequence`）。父行（台账 / 台账明细）物理删除前只清墓碑（`AND deleted = 1`），活行仍由计数拦截。
+- 生成列不能显式插入（`CREATE TABLE LIKE` 复制后 `INSERT ... SELECT *` 会报 3105）；已应用过的迁移禁止再改，补丁另起新版本号。
+- **档案归属账号（`user_id` 全表唯一键）在逻辑删除时必须同一条语句解绑**：`jp_student` 与 `jp_teacher` 统一用 `softDeleteAndUnlink`（`UPDATE ... SET user_id = NULL, deleted = 1 WHERE id = ? AND deleted = 0`）。唯一键不含 `deleted`，墓碑若留着 `user_id`，这个账号就被一条看不见的档案永久占住，再建档案/再绑定会撞 1062。账号注销走 `releaseOwnerByUserId`，同一口径。存量墓碑由 V107 统一清空 `user_id`；新增任何"档案表 + 归属账号唯一键"的组合照此办理，不要只写 `deleteById`。
 
 ## 大 ID 跨端精度规范
 

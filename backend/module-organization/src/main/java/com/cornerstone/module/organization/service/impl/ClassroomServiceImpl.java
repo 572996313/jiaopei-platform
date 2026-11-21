@@ -17,9 +17,11 @@ import com.cornerstone.module.organization.service.support.InstitutionScopeGuard
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class ClassroomServiceImpl implements ClassroomService {
 
@@ -94,7 +96,9 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + classroomCode);
+            log.warn("创建教室撞唯一键(编码={}, 名称={})：{}", classroomCode, classroomName,
+                exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, classroomCode, classroomName);
         }
         return entity;
     }
@@ -163,7 +167,9 @@ public class ClassroomServiceImpl implements ClassroomService {
         try {
             classroomMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该校区下教室编码或教室名称已存在：" + existing.getClassroomCode());
+            log.warn("更新教室撞唯一键(id={}, 编码={}, 名称={})：{}", id, existing.getClassroomCode(),
+                existing.getClassroomName(), exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, existing.getClassroomCode(), existing.getClassroomName());
         }
         return existing;
     }
@@ -191,6 +197,25 @@ public class ClassroomServiceImpl implements ClassroomService {
             throw new BusinessException(ResultCode.NOT_FOUND, "教室不存在：" + id);
         }
         return entity;
+    }
+
+    /**
+     * 把唯一键冲突翻成操作员看得懂的提示：按撞到的约束名区分编码/名称，并带上冲突的那个值。
+     * 唯一键自 V104 起只约束未删除行，与预检（MyBatis-Plus 自动补 deleted = 0）口径一致；
+     * 这里只兜并发窗口，认不出约束名时把两个值都报出来。
+     */
+    private BusinessException duplicateKeyException(DuplicateKeyException exception, String classroomCode,
+                                                    String classroomName) {
+        String detail = exception.getMostSpecificCause().getMessage();
+        String raw = detail == null ? "" : detail;
+        if (raw.contains("uk_jp_classroom_name")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该校区下已存在教室名称：" + classroomName);
+        }
+        if (raw.contains("uk_jp_classroom_code")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该校区下已存在教室编码：" + classroomCode);
+        }
+        return new BusinessException(ResultCode.BAD_REQUEST,
+            "该校区下教室编码 " + classroomCode + " 或名称 " + classroomName + " 已存在");
     }
 
     private void assertUniqueClassroomCode(Long campusId, String classroomCode, Long excludeId) {

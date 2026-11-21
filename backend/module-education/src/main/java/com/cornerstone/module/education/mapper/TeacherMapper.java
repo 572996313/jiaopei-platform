@@ -29,14 +29,15 @@ public interface TeacherMapper extends BaseMapper<TeacherEntity> {
     List<Long> lockByIdsForUpdate(@Param("teacherIds") List<Long> teacherIds);
 
     /**
-     * 按机构取全部档案，**含已软删行**，只取导入判重需要的列。
+     * 按机构取未删除档案，只取导入判重需要的列。
      *
-     * <p>必须绕过 {@code @TableLogic} 的 deleted=0 过滤：uk_jp_teacher_code 与 uk_jp_teacher_phone
-     * 都不含 deleted，软删档案依旧永久占着这两个值。预览看不见它，就会出现"整批校验全绿、
-     * 提交时撞 1062 整批回滚"。</p>
+     * <p>V106 起 {@code uk_jp_teacher_code} / {@code uk_jp_teacher_phone} 换成只约束未删除行的
+     * 守卫键（`*_guard`），软删档案不再永久占住编码与手机号。这里必须与数据库口径一致地过滤
+     * {@code deleted = 0}：再把墓碑算成占用，就会误报「被已删除的历史档案占用」，而提交时
+     * 其实能正常插入。</p>
      */
-    @Select("SELECT id, institution_id, teacher_code, phone, deleted "
-        + "FROM jp_teacher WHERE institution_id = #{institutionId}")
+    @Select("SELECT id, institution_id, teacher_code, phone "
+        + "FROM jp_teacher WHERE institution_id = #{institutionId} AND deleted = 0")
     List<TeacherEntity> selectOccupations(@Param("institutionId") Long institutionId);
 
     /**

@@ -14,9 +14,11 @@ import com.cornerstone.module.organization.service.TermService;
 import com.cornerstone.module.organization.service.support.DictValueValidator;
 import java.util.List;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class TermServiceImpl implements TermService {
 
@@ -81,7 +83,10 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.insert(entity);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + termCode);
+            // 先查后插仍有并发窗口，撞键时把原始约束名记进日志：只看业务提示分不清是编码还是名称
+            log.warn("创建学期撞唯一键(编码={}, 名称={})：{}", termCode, termName,
+                exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, termCode, termName);
         }
         return entity;
     }
@@ -159,7 +164,9 @@ public class TermServiceImpl implements TermService {
         try {
             termMapper.updateById(existing);
         } catch (DuplicateKeyException exception) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期编码或学期名称已存在：" + existing.getTermCode());
+            log.warn("更新学期撞唯一键(id={}, 编码={}, 名称={})：{}", id, existing.getTermCode(),
+                existing.getTermName(), exception.getMostSpecificCause().getMessage());
+            throw duplicateKeyException(exception, existing.getTermCode(), existing.getTermName());
         }
         return existing;
     }
@@ -202,6 +209,25 @@ public class TermServiceImpl implements TermService {
         if (count != null && count > 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该机构下学期名称已存在：" + termName);
         }
+    }
+
+    /**
+     * 把唯一键冲突翻成操作员看得懂的提示：按撞到的约束名区分编码/名称，并带上冲突的那个值。
+     *
+     * <p>预检走 MyBatis-Plus 会自动补 {@code deleted = 0}，而唯一键自 V103 起也只约束未删除行，
+     * 两边口径一致；这里只兜并发窗口，认不出约束名时把两个值都报出来，免得只报编码误导排查方向。</p>
+     */
+    private BusinessException duplicateKeyException(DuplicateKeyException exception, String termCode, String termName) {
+        String detail = exception.getMostSpecificCause().getMessage();
+        String raw = detail == null ? "" : detail;
+        if (raw.contains("uk_jp_term_name")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该机构下已存在学期名称：" + termName);
+        }
+        if (raw.contains("uk_jp_term_code")) {
+            return new BusinessException(ResultCode.BAD_REQUEST, "该机构下已存在学期编码：" + termCode);
+        }
+        return new BusinessException(ResultCode.BAD_REQUEST,
+            "该机构下学期编码 " + termCode + " 或名称 " + termName + " 已存在");
     }
 
     private String normalize(String value) {
