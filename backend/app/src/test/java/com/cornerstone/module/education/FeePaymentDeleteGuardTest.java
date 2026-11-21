@@ -23,7 +23,6 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
-import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -86,8 +85,6 @@ class FeePaymentDeleteGuardTest {
     @Mock
     private CampusMapper campusMapper;
     @Mock
-    private InstitutionMapper institutionMapper;
-    @Mock
     private DictValueValidator dictValueValidator;
 
     @BeforeAll
@@ -141,7 +138,7 @@ class FeePaymentDeleteGuardTest {
         return new FeeLedgerServiceImpl(feeLedgerMapper, feeLedgerItemMapper, feeMonthlyMapper,
             feeAttendanceMonthMapper, feePaymentMapper, feeItemMapper, feePriceResolver, feeLedgerGuard,
             classStudentMapper, teachingClassMapper, termMapper, studentMapper, studentParentMapper,
-            campusMapper, institutionMapper);
+            campusMapper);
     }
 
     private FeeLedgerEntity ledger() {

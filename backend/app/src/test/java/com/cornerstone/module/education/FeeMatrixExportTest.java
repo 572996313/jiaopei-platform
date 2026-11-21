@@ -49,9 +49,9 @@ class FeeMatrixExportTest {
             assertEquals("收费内容", workbook.getSheetAt(1).getSheetName());
             assertEquals("出勤明细", workbook.getSheetAt(2).getSheetName());
 
-            assertTrue(text(workbook.getSheetAt(0), 0, 0).endsWith("家长情况表"));
-            assertTrue(text(workbook.getSheetAt(1), 0, 0).endsWith("收费内容表"));
-            assertTrue(text(workbook.getSheetAt(2), 0, 0).endsWith("出勤费用表"));
+            assertEquals("国兴校区 雅趣小班 26 年下半年 家长情况表", text(workbook.getSheetAt(0), 0, 0));
+            assertEquals("国兴校区 雅趣小班 26 年下半年 收费内容表", text(workbook.getSheetAt(1), 0, 0));
+            assertEquals("国兴校区 雅趣小班 26 年下半年 出勤费用表", text(workbook.getSheetAt(2), 0, 0));
 
             int[] lastColumns = {6, 11, TOTAL_COLUMN};
             for (int index = 0; index < lastColumns.length; index++) {
@@ -211,21 +211,20 @@ class FeeMatrixExportTest {
     }
 
     @Test
-    void 金额与单价按四位六位小数展示且不丢尾差() throws IOException {
+    void 金额与单价按四位六位小数展示且整数不带小数点() throws IOException {
         try (XSSFWorkbook workbook = open(build())) {
-            // 收费内容：收费标准（月标准）用 6 位格式，金额列用 4 位格式
+            // 整数走整型格式：Excel 的 "0.####" 会渲染成 "600."，财务看到很别扭
             Sheet charge = workbook.getSheetAt(1);
-            assertEquals("#,##0.######", numberFormat(charge, 3, 4), "月标准最多展示 6 位小数");
-            assertEquals("#,##0.####", numberFormat(charge, 3, 7), "应收金额最多展示 4 位小数");
-            assertEquals("#,##0.####", numberFormat(charge, 3, 10), "结余最多展示 4 位小数");
+            assertEquals("#,##0", numberFormat(charge, 3, 4), "整数月标准不应保留小数格式");
+            assertEquals("#,##0", numberFormat(charge, 3, 7), "整数应收金额不应保留小数格式");
+            assertEquals("#,##0", numberFormat(charge, 3, 10), "整数结余不应保留小数格式");
 
-            // 出勤明细：日标准 6 位，逐月发生额与合计 4 位
             Sheet attendance = workbook.getSheetAt(2);
-            assertEquals("#,##0.######", numberFormat(attendance, 5, 3), "日标准最多展示 6 位小数");
-            assertEquals("#,##0.####", numberFormat(attendance, 5, MONTH_START_COLUMN), "按月发生额最多展示 4 位小数");
+            assertEquals("#,##0", numberFormat(attendance, 5, 3), "整数日标准不应保留小数格式");
+            assertEquals("#,##0", numberFormat(attendance, 5, MONTH_START_COLUMN), "整数发生额不应保留小数格式");
 
-            // 4 位小数金额写入后读回不丢精度（旧 DECIMAL(x,2) 会在入库时就截断）
-            byte[] precise = FeeMatrixExportBuilder.build("示例幼儿园", "国兴校区", "雅趣小班", "26 年下半年",
+            // 有小数时才启用 4/6 位格式，且写入值不丢精度（旧 DECIMAL(x,2) 会在入库时就截断）
+            byte[] precise = FeeMatrixExportBuilder.build("国兴校区", "雅趣小班", "26 年下半年",
                 List.of(YearMonth.of(2026, 8)),
                 List.of(new ItemRef(ITEM_TUITION, "保教费")),
                 List.of(new StudentBlock("S009", "尾差学员", List.of(),
@@ -236,8 +235,12 @@ class FeeMatrixExportTest {
                     money("1333.4578"), money("1333.4578"), money("0"),
                     money("1333.4578"), money("0"))));
             try (XSSFWorkbook one = open(precise)) {
-                assertEquals(1000.123456, number(one.getSheetAt(1), 3, 4), 1e-9);
-                assertEquals(1333.4578, number(one.getSheetAt(1), 3, 7), 1e-9);
+                Sheet preciseCharge = one.getSheetAt(1);
+                assertEquals("#,##0.######", numberFormat(preciseCharge, 3, 4), "非整数月标准展示 6 位小数");
+                assertEquals("#,##0.####", numberFormat(preciseCharge, 3, 7), "非整数应收展示 4 位小数");
+                assertEquals("0.####", numberFormat(preciseCharge, 3, 3), "非整数月数展示 4 位小数");
+                assertEquals(1000.123456, number(preciseCharge, 3, 4), 1e-9);
+                assertEquals(1333.4578, number(preciseCharge, 3, 7), 1e-9);
             }
         }
     }
@@ -245,7 +248,7 @@ class FeeMatrixExportTest {
     // ------------------------------------------------------------------ 样例数据
 
     private byte[] build() {
-        return FeeMatrixExportBuilder.build("示例幼儿园", "国兴校区", "雅趣小班", "26 年下半年",
+        return FeeMatrixExportBuilder.build("国兴校区", "雅趣小班", "26 年下半年",
             List.of(YearMonth.of(2026, 8), YearMonth.of(2026, 9), YearMonth.of(2026, 10),
                 YearMonth.of(2026, 11), YearMonth.of(2026, 12), YearMonth.of(2027, 1)),
             List.of(new ItemRef(ITEM_TUITION, "保教费"),

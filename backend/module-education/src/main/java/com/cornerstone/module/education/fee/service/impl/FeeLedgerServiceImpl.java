@@ -7,8 +7,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cornerstone.core.common.api.PageResult;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
-import com.cornerstone.core.tenant.domain.InstitutionEntity;
-import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.StudentParentEntity;
@@ -97,7 +95,6 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
     private final StudentMapper studentMapper;
     private final StudentParentMapper studentParentMapper;
     private final CampusMapper campusMapper;
-    private final InstitutionMapper institutionMapper;
 
     public FeeLedgerServiceImpl(FeeLedgerMapper feeLedgerMapper, FeeLedgerItemMapper feeLedgerItemMapper,
                                 FeeMonthlyMapper feeMonthlyMapper,
@@ -106,8 +103,7 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
                                 FeePriceResolver feePriceResolver, FeeLedgerGuard feeLedgerGuard,
                                 ClassStudentMapper classStudentMapper, TeachingClassMapper teachingClassMapper,
                                 TermMapper termMapper, StudentMapper studentMapper,
-                                StudentParentMapper studentParentMapper, CampusMapper campusMapper,
-                                InstitutionMapper institutionMapper) {
+                                StudentParentMapper studentParentMapper, CampusMapper campusMapper) {
         this.feeLedgerMapper = feeLedgerMapper;
         this.feeLedgerItemMapper = feeLedgerItemMapper;
         this.feeMonthlyMapper = feeMonthlyMapper;
@@ -122,7 +118,6 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
         this.campusMapper = campusMapper;
-        this.institutionMapper = institutionMapper;
     }
 
     @Override
@@ -331,9 +326,7 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
                 detail.receivable(), detail.paid(), detail.unpaid(),
                 detail.totalOccurrence(), detail.balance()));
         }
-        InstitutionEntity institution = institutionMapper.selectById(first.institutionId());
         return FeeMatrixExportBuilder.build(
-            institution == null ? null : institution.getOrgName(),
             first.campusName(), first.className(), first.termName(),
             months, itemRefs, blocks);
     }

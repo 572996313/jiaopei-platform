@@ -79,16 +79,16 @@ public final class FeeMatrixExportBuilder {
     ) {
     }
 
-    public static byte[] build(String institutionName, String campusName, String className,
-                               String termName, List<YearMonth> months, List<ItemRef> itemRefs,
+    public static byte[] build(String campusName, String className, String termName,
+                               List<YearMonth> months, List<ItemRef> itemRefs,
                                List<StudentBlock> students) {
         try (XSSFWorkbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Styles styles = new Styles(workbook);
-            writeParentSheet(workbook, styles, institutionName, campusName, className, termName, students);
-            writeChargeSheet(workbook, styles, institutionName, campusName, className, termName,
+            writeParentSheet(workbook, styles, campusName, className, termName, students);
+            writeChargeSheet(workbook, styles, campusName, className, termName,
                 itemRefs, students);
-            writeAttendanceSheet(workbook, styles, institutionName, campusName, className, termName,
+            writeAttendanceSheet(workbook, styles, campusName, className, termName,
                 months, itemRefs, students);
             workbook.write(out);
             return out.toByteArray();
@@ -99,13 +99,13 @@ public final class FeeMatrixExportBuilder {
 
     // ------------------------------------------------------------------ 第一部分：家长情况
 
-    private static void writeParentSheet(XSSFWorkbook workbook, Styles styles, String institutionName,
+    private static void writeParentSheet(XSSFWorkbook workbook, Styles styles,
                                          String campusName, String className, String termName,
                                          List<StudentBlock> students) {
         Sheet sheet = workbook.createSheet("家长情况");
         String[] header = {"学号", "学员姓名", "家长关系", "家长姓名", "联系电话", "支付宝绑定电话", "主联系人"};
         int lastColumn = header.length - 1;
-        writeTitle(sheet, styles, lastColumn, joinTitle(institutionName, campusName, className, termName, "家长情况表"));
+        writeTitle(sheet, styles, lastColumn, joinTitle(campusName, className, termName, "家长情况表"));
         writeMeta(sheet, styles, lastColumn, className);
         writeHeader(sheet, styles, header);
 
@@ -141,14 +141,14 @@ public final class FeeMatrixExportBuilder {
 
     // ------------------------------------------------------------------ 第二部分：收费内容
 
-    private static void writeChargeSheet(XSSFWorkbook workbook, Styles styles, String institutionName,
+    private static void writeChargeSheet(XSSFWorkbook workbook, Styles styles,
                                          String campusName, String className, String termName,
                                          List<ItemRef> itemRefs, List<StudentBlock> students) {
         Sheet sheet = workbook.createSheet("收费内容");
         String[] header = {"学号", "学员姓名", "收费内容", "收费月数", "收费标准", "上期结余",
             "其他抵扣", "应收金额", "实际收款", "未收费", "结余", "备注"};
         int lastColumn = header.length - 1;
-        writeTitle(sheet, styles, lastColumn, joinTitle(institutionName, campusName, className, termName, "收费内容表"));
+        writeTitle(sheet, styles, lastColumn, joinTitle(campusName, className, termName, "收费内容表"));
         writeMeta(sheet, styles, lastColumn, className);
         writeHeader(sheet, styles, header);
 
@@ -226,7 +226,7 @@ public final class FeeMatrixExportBuilder {
 
     // ------------------------------------------------------------------ 第三部分：出勤明细
 
-    private static void writeAttendanceSheet(XSSFWorkbook workbook, Styles styles, String institutionName,
+    private static void writeAttendanceSheet(XSSFWorkbook workbook, Styles styles,
                                              String campusName, String className, String termName,
                                              List<YearMonth> months, List<ItemRef> itemRefs,
                                              List<StudentBlock> students) {
@@ -242,7 +242,7 @@ public final class FeeMatrixExportBuilder {
             header[monthStartColumn + index] = months.get(index).format(MONTH_LABEL);
         }
         header[totalColumn] = "合计发生";
-        writeTitle(sheet, styles, totalColumn, joinTitle(institutionName, campusName, className, termName, "出勤费用表"));
+        writeTitle(sheet, styles, totalColumn, joinTitle(campusName, className, termName, "出勤费用表"));
         writeMeta(sheet, styles, totalColumn, className);
         writeHeader(sheet, styles, header);
 
@@ -429,10 +429,11 @@ public final class FeeMatrixExportBuilder {
         }
     }
 
-    private static String joinTitle(String institutionName, String campusName, String className,
+    /** 标题只用校区/班级/学期：机构是系统默认上下文，财务打印时不需要再占一行。 */
+    private static String joinTitle(String campusName, String className,
                                     String termName, String suffix) {
         StringBuilder title = new StringBuilder();
-        for (String part : new String[]{institutionName, campusName, className, termName}) {
+        for (String part : new String[]{campusName, className, termName}) {
             if (part != null && !part.isBlank()) {
                 title.append(part).append(' ');
             }
@@ -526,20 +527,30 @@ public final class FeeMatrixExportBuilder {
         }
     }
 
-    private static void setMoney(Row row, int column, BigDecimal value, CellStyle style) {
+    private static void setMoney(Row row, int column, BigDecimal value, AmountStyle style) {
         Cell cell = row.createCell(column);
         if (value != null) {
             cell.setCellValue(value.doubleValue());
         }
-        cell.setCellStyle(style);
+        cell.setCellStyle(style.pick(value));
     }
 
-    private static void setQty(Row row, int column, BigDecimal value, CellStyle style) {
+    private static void setQty(Row row, int column, BigDecimal value, AmountStyle style) {
         Cell cell = row.createCell(column);
         if (value != null) {
             cell.setCellValue(value.doubleValue());
         }
-        cell.setCellStyle(style);
+        cell.setCellStyle(style.pick(value));
+    }
+
+    /**
+     * 成对数值样式：整数走 "#,##0"，避免 Excel 的 "0.####" 在整数后留一个孤零零的小数点（如 "600."）。
+     */
+    private record AmountStyle(CellStyle decimal, CellStyle integral) {
+
+        private CellStyle pick(BigDecimal value) {
+            return value != null && value.stripTrailingZeros().scale() > 0 ? decimal : integral;
+        }
     }
 
     private static BigDecimal nz(BigDecimal value) {
@@ -555,9 +566,9 @@ public final class FeeMatrixExportBuilder {
         private final CellStyle text;
         private final CellStyle textRight;
         private final CellStyle bold;
-        private final CellStyle money;
-        private final CellStyle price;
-        private final CellStyle qty;
+        private final AmountStyle money;
+        private final AmountStyle price;
+        private final AmountStyle qty;
 
         private Styles(XSSFWorkbook workbook) {
             Font titleFont = workbook.createFont();
@@ -598,17 +609,20 @@ public final class FeeMatrixExportBuilder {
             bold.setFont(boldFont);
             bold.setVerticalAlignment(VerticalAlignment.CENTER);
 
-            money = bordered(workbook);
-            money.setDataFormat(workbook.createDataFormat().getFormat("#,##0.####"));
-            money.setVerticalAlignment(VerticalAlignment.CENTER);
+            money = amountStyle(workbook, "#,##0.####", "#,##0");
+            price = amountStyle(workbook, "#,##0.######", "#,##0");
+            qty = amountStyle(workbook, "0.####", "0");
+        }
 
-            price = bordered(workbook);
-            price.setDataFormat(workbook.createDataFormat().getFormat("#,##0.######"));
-            price.setVerticalAlignment(VerticalAlignment.CENTER);
-
-            qty = bordered(workbook);
-            qty.setDataFormat(workbook.createDataFormat().getFormat("0.####"));
-            qty.setVerticalAlignment(VerticalAlignment.CENTER);
+        private static AmountStyle amountStyle(XSSFWorkbook workbook, String decimalFormat,
+                                               String integerFormat) {
+            CellStyle decimal = bordered(workbook);
+            decimal.setDataFormat(workbook.createDataFormat().getFormat(decimalFormat));
+            decimal.setVerticalAlignment(VerticalAlignment.CENTER);
+            CellStyle integral = bordered(workbook);
+            integral.setDataFormat(workbook.createDataFormat().getFormat(integerFormat));
+            integral.setVerticalAlignment(VerticalAlignment.CENTER);
+            return new AmountStyle(decimal, integral);
         }
 
         private static CellStyle bordered(XSSFWorkbook workbook) {
