@@ -19,9 +19,103 @@
 			}
 		},
 		{
+			"path": "pages/enterprise/login/index",
+			"style": {
+				"navigationBarTitleText": "企业用户登录"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-ledger/index",
+			"style": {
+				"navigationBarTitleText": "收费台账"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-ledger/create",
+			"style": {
+				"navigationBarTitleText": "建账"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-ledger/detail",
+			"style": {
+				"navigationBarTitleText": "台账详情"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-ledger/edit",
+			"style": {
+				"navigationBarTitleText": "编辑台账明细"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-ledger/payment",
+			"style": {
+				"navigationBarTitleText": "收款登记"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-item/index",
+			"style": {
+				"navigationBarTitleText": "收费项目"
+			}
+		},
+		{
+			"path": "pages/enterprise/fee-price/index",
+			"style": {
+				"navigationBarTitleText": "收费价目"
+			}
+		},
+		{
+			"path": "pages/enterprise/student/index",
+			"style": {
+				"navigationBarTitleText": "学员档案",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/enterprise/student/detail",
+			"style": {
+				"navigationBarTitleText": "学员详情"
+			}
+		},
+		{
+			"path": "pages/enterprise/student/form",
+			"style": {
+				"navigationBarTitleText": "学员档案"
+			}
+		},
+		{
+			"path": "pages/enterprise/class/index",
+			"style": {
+				"navigationBarTitleText": "班级与入班",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/enterprise/class/detail",
+			"style": {
+				"navigationBarTitleText": "班级详情",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/enterprise/class/form",
+			"style": {
+				"navigationBarTitleText": "班级档案"
+			}
+		},
+		{
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "首页",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/workbench/index",
+			"style": {
+				"navigationBarTitleText": "工作台",
 				"enablePullDownRefresh": true
 			}
 		},
@@ -78,6 +172,10 @@
 			{
 				"pagePath": "pages/index/index",
 				"text": "首页"
+			},
+			{
+				"pagePath": "pages/workbench/index",
+				"text": "工作台"
 			},
 			{
 				"pagePath": "pages/mine/index",

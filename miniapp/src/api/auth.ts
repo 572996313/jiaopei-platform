@@ -10,6 +10,8 @@ export interface LoginResponse {
   tokenType: string
   accessToken: string
   forceChangePassword: boolean
+  /** 所属端:admin=企业端,student/parent=学生/家长端 */
+  portal?: string | null
 }
 
 export type MiniappRole = 'STUDENT' | 'PARENT'
@@ -29,6 +31,8 @@ export interface CurrentUserResponse {
   permissions: string[]
   passwordResetRequired: boolean
   forceChangePassword: boolean
+  /** 所属端:admin=企业端,student/parent=学生/家长端 */
+  portal?: string | null
 }
 
 export interface InvitationPrecheckView {
@@ -44,6 +48,11 @@ export interface InvitationPrecheckView {
 /** 微信小程序登录:code 换 openid,已注册直接返回令牌,未注册时 registered=false */
 export function wechatLogin(code: string, options?: RecoveryOptions) {
   return requestPost<WechatLoginResponse>('/auth/wechat/login', { code }, options)
+}
+
+/** 企业端账号密码登录:复用管理后台账号,返回 portal=admin 的令牌 */
+export function accountLogin(username: string, password: string) {
+  return requestPost<LoginResponse>('/auth/login', { username, password })
 }
 
 /** 扫码注册入口:校验小程序码 scene 里携带的邀请码 */

@@ -2,8 +2,13 @@
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { fetchUnreadCount } from '@/api/announcement'
 import { fetchHomeOverview, type HomeOverview } from '@/api/miniapp'
+import {
+  fetchFeeLedgerPage,
+  ledgerStatusLabel,
+  moneyText,
+  type FeeLedgerRowView,
+} from '@/api/enterprise'
 import { useBranding } from '@/composables/use-branding'
 import LessonRow from '@/components/LessonRow.vue'
 
@@ -16,16 +21,17 @@ const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '',
 )
 const isStudent = computed(() => authStore.userInfo?.roles?.includes('MINIAPP_STUDENT') ?? false)
+// 企业端=管理后台账号(portal=admin);学生/家长端不渲染任何收费入口
+const isEnterprise = computed(() => authStore.isEnterprise())
+// 冷启动时 /auth/me 还没回来,先按会话里记住的端判断,避免先闪一眼家长首页
+const portalResolved = ref(Boolean(authStore.currentPortal()))
 
-// path 为空的卡片还没做，统一显示"敬请期待"
-const features = [
-  { icon: 'calendar', title: '课程表', desc: '查看孩子的上课安排', path: '/pages/timetable/index' },
-  { icon: 'checkbox-filled', title: '考勤记录', desc: '出勤与请假情况', path: '' },
-  { icon: 'notification-filled', title: '消息通知', desc: '学校发布的公告', path: '/pages/messages/index' },
-  { icon: 'wallet-filled', title: '课耗明细', desc: '课时使用与余额', path: '' },
-]
+// 企业端首页概览:只取台账数量与最近在收台账,不改任何数据
+const ledgerSummary = ref<{ total: number; activeTotal: number; settledTotal: number } | null>(null)
+const recentLedgers = ref<FeeLedgerRowView[]>([])
+const recentLoading = ref(false)
+const recentError = ref('')
 
-const unreadCount = ref(0)
 const overview = ref<HomeOverview | null>(null)
 // 首屏还没拉到数据时不能显示"今天没有课",那是把"不知道"说成结论
 const loaded = computed(() => overview.value !== null)
@@ -49,6 +55,15 @@ const greetSubLine = computed(() => {
   }
   const count = todayLessons.value.length
   return `${dateLine.value} · ${count > 0 ? `今日 ${count} 节课` : '今天没有课'}`
+})
+
+/** 企业端问候语只报台账数量;没读到就只说收费概览,不编数字 */
+const enterpriseSubLine = computed(() => {
+  const summary = ledgerSummary.value
+  if (!summary) {
+    return '收费概览'
+  }
+  return `共 ${summary.total} 份台账 · ${summary.activeTotal} 份在收`
 })
 
 /**
@@ -98,44 +113,77 @@ function loadHome() {
     })
 }
 
+/** 企业端概览:数量 + 最近在收台账,都是只读;读不到就不显示数字,不编造结论 */
+async function loadEnterpriseHome() {
+  recentLoading.value = true
+  recentError.value = ''
+  try {
+    const [all, active, settled, recent] = await Promise.all([
+      fetchFeeLedgerPage({ page: 1, pageSize: 1 }),
+      fetchFeeLedgerPage({ page: 1, pageSize: 1, status: 'active' }),
+      fetchFeeLedgerPage({ page: 1, pageSize: 1, status: 'settled' }),
+      fetchFeeLedgerPage({ page: 1, pageSize: 5, status: 'active' }),
+    ])
+    ledgerSummary.value = {
+      total: all.total,
+      activeTotal: active.total,
+      settledTotal: settled.total,
+    }
+    recentLedgers.value = recent.records
+  } catch (error) {
+    ledgerSummary.value = null
+    recentLedgers.value = []
+    recentError.value = (error as Error)?.message || '收费概览加载失败，下拉重试'
+  } finally {
+    recentLoading.value = false
+  }
+}
+
+function goWorkbench() {
+  uni.switchTab({ url: '/pages/workbench/index' })
+}
+
+function openLedger(item: FeeLedgerRowView) {
+  uni.navigateTo({ url: `/pages/enterprise/fee-ledger/detail?id=${item.id}` })
+}
+
+function enterHome() {
+  if (isEnterprise.value) {
+    void loadEnterpriseHome()
+    return
+  }
+  loadHome()
+}
+
 onShow(() => {
   if (!authStore.isLoggedIn()) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  authStore.refreshUserInfo().catch(() => {
-    // 静默重登也救不回来时,请求层已清掉本地会话并跳回登录页
-  })
-  // 页签是缓存的,PC 侧入班/排课后只能在这里重拉;不依赖"每次进入都重新挂载"
-  loadHome()
-  // 收件箱从详情页返回时会话仍有效，这里只补一次未读数
-  fetchUnreadCount()
-    .then((count) => {
-      unreadCount.value = count
-    })
+  // 先拿实时端信息再决定加载哪套首页:企业账号不能去调 /api/miniapp/**
+  authStore
+    .refreshUserInfo()
     .catch(() => {
-      unreadCount.value = 0
+      // 静默重登也救不回来时,请求层已清掉本地会话并跳回登录页
+    })
+    .finally(() => {
+      portalResolved.value = true
+      enterHome()
     })
 })
 
 onPullDownRefresh(async () => {
-  loadHome()
-  try {
-    unreadCount.value = await fetchUnreadCount()
-  } catch {
-    unreadCount.value = 0
-  } finally {
-    uni.stopPullDownRefresh()
-  }
-})
-
-function openFeature(path: string) {
-  if (!path) {
-    uni.showToast({ title: '功能开发中', icon: 'none' })
+  if (isEnterprise.value) {
+    try {
+      await loadEnterpriseHome()
+    } finally {
+      uni.stopPullDownRefresh()
+    }
     return
   }
-  uni.navigateTo({ url: path })
-}
+  loadHome()
+  uni.stopPullDownRefresh()
+})
 
 function goTimetable() {
   uni.navigateTo({ url: '/pages/timetable/index' })
@@ -152,7 +200,89 @@ function goBind() {
 </script>
 
 <template>
-  <view class="home-page">
+  <view v-if="!portalResolved" class="home-page">
+    <view class="boot-tip">
+      <text>加载中…</text>
+    </view>
+  </view>
+
+  <!-- 企业端(管理后台账号)：只读收费概览，操作入口在「工作台」 -->
+  <view v-else-if="isEnterprise" class="home-page">
+    <view class="greeting">
+      <text class="greet-line">你好,{{ displayName || '企业用户' }}</text>
+      <text class="sub-line">{{ enterpriseSubLine }}</text>
+    </view>
+
+    <view class="today-card">
+      <view class="card-head">
+        <text class="card-title">收费概览</text>
+        <text class="card-link" @click="goWorkbench">进入工作台 ›</text>
+      </view>
+      <view class="ent-summary-grid">
+        <view class="ent-summary-item">
+          <view class="ent-summary-box">
+            <text class="ent-summary-label">台账总数</text>
+            <text class="ent-summary-value">{{ ledgerSummary ? ledgerSummary.total : '-' }}</text>
+          </view>
+        </view>
+        <view class="ent-summary-item">
+          <view class="ent-summary-box">
+            <text class="ent-summary-label">在收台账</text>
+            <text class="ent-summary-value">{{ ledgerSummary ? ledgerSummary.activeTotal : '-' }}</text>
+          </view>
+        </view>
+        <view class="ent-summary-item">
+          <view class="ent-summary-box">
+            <text class="ent-summary-label">已结清</text>
+            <text class="ent-summary-value">{{ ledgerSummary ? ledgerSummary.settledTotal : '-' }}</text>
+          </view>
+        </view>
+      </view>
+      <view class="ent-tip">
+        首页只看汇总与在收台账；新增、收款、维护学员和班级请到「工作台」。
+      </view>
+    </view>
+
+    <view class="section-title">在收台账</view>
+    <view v-if="recentLoading" class="ent-card ent-empty">加载中…</view>
+    <view v-else-if="recentError" class="ent-card ent-empty">{{ recentError }}</view>
+    <view v-else-if="recentLedgers.length === 0" class="ent-card ent-empty">
+      当前没有在收台账，需要建账时去「工作台」。
+    </view>
+    <view
+      v-for="row in recentLedgers"
+      :key="row.id"
+      class="ent-card"
+      hover-class="ent-card-hover"
+      @click="openLedger(row)"
+    >
+      <view class="ent-item-title">
+        <text class="ent-item-name">{{ row.studentName || '未命名学员' }}</text>
+        <text class="ent-tag blue">{{ ledgerStatusLabel(row.status) }}</text>
+      </view>
+      <view class="ent-row">
+        <text class="ent-label">班级</text>
+        <text class="ent-value">{{ row.className || '-' }}</text>
+      </view>
+      <view class="ent-row">
+        <text class="ent-label">应收 / 未收</text>
+        <text class="ent-value">
+          <text class="ent-amount">{{ moneyText(row.receivable) }}</text>
+          /
+          <text class="ent-amount warn">{{ moneyText(row.unpaid) }}</text>
+        </text>
+      </view>
+      <view class="ent-btn-row right">
+        <view class="ent-btn ghost small">查看台账 ›</view>
+      </view>
+    </view>
+
+    <view class="ent-tip">
+      台账金额由服务端实时计算；首页不放入口，避免看数据和改数据混在一起。
+    </view>
+  </view>
+
+  <view v-else class="home-page">
     <view class="greeting">
       <text class="greet-line">你好,{{ displayName || '同学家长' }}</text>
       <text class="sub-line">{{ greetSubLine }}</text>
@@ -193,20 +323,8 @@ function goBind() {
       </view>
     </view>
 
-    <view class="section-title">常用服务</view>
-    <view class="feature-grid">
-      <view
-        v-for="item in features"
-        :key="item.title"
-        class="feature-card"
-        @click="openFeature(item.path)"
-      >
-        <uni-icons :type="item.icon" size="26" color="#2563eb" />
-        <text v-if="item.path && unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
-        <text class="feature-title">{{ item.title }}</text>
-        <text class="feature-desc">{{ item.desc }}</text>
-        <text v-if="!item.path" class="feature-tag">敬请期待</text>
-      </view>
+    <view class="ent-tip">
+      首页只看今天的安排；完整课表、公告、档案和同班名单等需要主动点的服务在「工作台」。
     </view>
   </view>
 </template>
@@ -216,6 +334,15 @@ function goBind() {
   min-height: 100vh;
   padding: 32rpx 32rpx 48rpx;
   box-sizing: border-box;
+}
+
+.boot-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200rpx;
+  font-size: 26rpx;
+  color: #9ca3af;
 }
 
 .greeting {
@@ -308,63 +435,5 @@ function goBind() {
   font-size: 30rpx;
   font-weight: 600;
   color: #111827;
-}
-
-.feature-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-}
-
-.feature-card {
-  position: relative;
-  width: 48.5%;
-  box-sizing: border-box;
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 32rpx 28rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 16rpx rgba(17, 24, 39, 0.05);
-  display: flex;
-  flex-direction: column;
-}
-
-.feature-title {
-  margin-top: 20rpx;
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #111827;
-}
-
-.feature-desc {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.feature-tag {
-  position: absolute;
-  top: 24rpx;
-  right: 24rpx;
-  font-size: 20rpx;
-  color: #9ca3af;
-  background: #f3f4f6;
-  border-radius: 999rpx;
-  padding: 4rpx 14rpx;
-}
-
-.badge {
-  position: absolute;
-  top: 24rpx;
-  right: 24rpx;
-  min-width: 34rpx;
-  height: 34rpx;
-  line-height: 34rpx;
-  padding: 0 8rpx;
-  text-align: center;
-  font-size: 20rpx;
-  color: #ffffff;
-  background: #dc2626;
-  border-radius: 999rpx;
 }
 </style>

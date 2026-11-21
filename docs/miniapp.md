@@ -1,7 +1,7 @@
 # 微信小程序端（miniapp）
 
 本项目新增的微信小程序端 **「教培学堂」**,基于 **uni-app(Vue 3 + TypeScript + Vite)** 构建,定位
-**家长/学生移动端服务**;与管理后台(frontend,「教培管理平台」)并行,复用同一套 Spring Boot 后端接口。
+**家长/学生移动端服务 + 企业端收费与档案工作台**;与管理后台(frontend,「教培管理平台」)并行,复用同一套 Spring Boot 后端接口。
 
 > 小程序名称在 `miniapp/src/manifest.json`(name)与 `miniapp/src/pages.json`(navigationBarTitleText)统一维护。
 
@@ -23,13 +23,31 @@ miniapp/src/
 ├── utils/
 │   ├── auth-session.ts     # 登录态存取(uni storage,key: cornerstone.mini.auth.session)
 │   └── request.ts          # uni.request 封装:ApiResponse 信封解包 + 雪花 ID 精度保护 + 401 统一处理
-├── api/auth.ts             # 微信登录 / 自助注册 / 注销 / 当前用户
+├── api/auth.ts             # 微信登录 / 账号密码登录 / 自助注册 / 注销 / 当前用户
 ├── api/miniapp.ts          # 学员档案关联 + 课表/同学名单/首页概览查询
-├── stores/auth.ts          # Pinia 登录态
+├── api/enterprise.ts       # 企业端收费台账/收款/出勤/逐月/收费项目/价目
+├── api/archive.ts          # 企业端学员/家长联系人/班级/入班/课程班型教师下拉
+├── components/PickerField.vue  # 底部搜索选择器(学期/班级/学员/收费项目/校区)
+├── stores/auth.ts          # Pinia 登录态(含 loginMode / portal)
 └── pages/
-    ├── login/index.vue     # 微信一键登录(启动页)
+    ├── login/index.vue     # 微信一键登录(启动页)+「企业用户登录」入口
+    ├── enterprise/login/index.vue  # 企业端账号密码登录
+    ├── enterprise/fee-ledger/index.vue     # 收费台账列表/筛选
+    ├── enterprise/fee-ledger/create.vue    # 单个新增 / 按班批量建账
+    ├── enterprise/fee-ledger/detail.vue    # 台账详情(明细/收款/出勤/逐月/设置)
+    ├── enterprise/fee-ledger/edit.vue      # 台账明细整表编辑
+    ├── enterprise/fee-ledger/payment.vue   # 收款登记/修改/删除
+    ├── enterprise/fee-item/index.vue       # 收费项目维护
+    ├── enterprise/fee-price/index.vue      # 收费价目维护(四维)
+    ├── enterprise/student/index.vue        # 学员分页列表/筛选
+    ├── enterprise/student/form.vue         # 新增/编辑学员档案
+    ├── enterprise/student/detail.vue       # 学员详情 + 家长联系人 + 所在班级
+    ├── enterprise/class/index.vue          # 班级列表/筛选
+    ├── enterprise/class/form.vue           # 新增/编辑班级档案
+    ├── enterprise/class/detail.vue         # 班级详情 + 名册 + 入班/移出
     ├── register/index.vue  # 首次使用选择身份(学生/家长)自动注册
-    ├── index/index.vue     # 首页 tab(欢迎语 + 今日课程卡 + 服务卡)
+    ├── index/index.vue     # 首页 tab(只读:欢迎语 + 今日课程 / 企业收费概览)
+    ├── workbench/index.vue # 工作台 tab(操作入口:企业收费/学员/班级;学生家长学习服务)
     ├── bind-student/index.vue  # 绑定学员档案(按学号/监护人手机号)
     ├── student-profile/index.vue   # 学生端:绑定/新建/编辑自己的档案
     ├── timetable/index.vue     # 课程表(按天列表)
@@ -117,6 +135,38 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 - **给家长/学生的信息按最小化收**:教师只下发**姓 + 老师**(如「王老师」,`MiniappLessonView.teacherName`),**电话不再下发**;同学名单结构上就是 `List<String>` 姓名,接口层带不出学号。**同学名单为什么不给学号**:`POST /api/miniapp/students/bind` 是「学号 + 姓名」双因子校验,名单一旦同时给出这两个因子,等于把绑定凭据整包发出去,任何人都能绑走别人家孩子的档案。
 - **我的同学**:一个学员可在多个班,所以一次返回「班级 → 名单」分组,页面顶部切班不再打接口;名单 200 条封顶。入口在课表页卡片头与学生档案卡。**监护人姓名/电话可由学生在编辑档案页自填或清空**,写入 `jp_student.guardian_name/guardian_phone`(镜像列);家长绑定走的是 `jp_student_parent.parent_phone`,所以这里改动能不能绑到人、由 PC 侧「家长联系人」决定,与它无关。**注意**:PC 维护家长联系人时 `StudentParentServiceImpl#syncStudentGuardian` 会用主家长行覆盖这两列。
 
+## 企业端（收费与档案工作台）
+
+- **不新建账号体系**:企业用户直接用管理后台的账号密码登录(`POST /api/auth/login`),
+  `/api/auth/me` 返回 `portal=admin` 即进入企业工作台;学生/家长端仍是微信一键登录。
+  详细设计与页面矩阵见 [`docs/小程序企业端收费台账.md`](小程序企业端收费台账.md)。
+- **端判定与会话**:登录态快照新增 `loginMode`(`wechat` / `password`)与 `portal`。
+  密码登录的 401 **不静默重登**——同一微信可能还注册过学生/家长账号,静默重登会悄悄换人;
+  只有微信登录才走 `wx.login` 静默恢复。
+- **覆盖的收费台账操作**:台账列表/筛选、单建账、按班建账、明细整表编辑、状态与备注、删除、
+  收款登记/修改/删除、出勤查看/同步/覆盖/撤销、逐月发生额查看/覆盖/撤销/按出勤重算、重新取价、
+  收费项目与四维价目维护。全部复用 PC 已有接口,金额一律服务端现算。
+- **学员 / 家长 / 班级 / 入班**:收费台账依赖的底座也在小程序维护——学员分页列表与档案增删改、
+  家长联系人增删改与主联系人切换、班级增删改、名册与入班/移出。学员列表 → 详情 → 编辑之间
+  用一次性 storage 交接（后端没有按 id 取学员详情的接口）；班级详情走 `GET /education/classes/{id}`。
+- **企业端不调用小程序专属接口**:首页、「我的」按 `portal` 分支,管理后台账号不会去打 `/api/miniapp/**`(那条链路只认 `miniapp:access` 与当前微信用户),避免 403。
+- **权限**:读 `education:read`、台账写 `education:fee:write`、项目/价目配置 `education:fee:config:write`、
+  学员与家长写 `education:profile:write`、班级与入班写 `education:class:write`,
+  基础资料选择另需 `organization:read`;数据范围由后端 `InstitutionScopeGuard` / `CampusScopeGuard` 兜底。
+  学员与班级的新增接口要求显式传 `institutionId`,小程序取 `/auth/me` 的 `institutionId`（为空回落 `orgId`）。
+
+### 底部导航：看与做分开
+
+| Tab | 企业账号 | 学生 / 家长 |
+| --- | --- | --- |
+| 首页 | **只读**：台账总数/在收/已结清 + 最近在收台账（点行进详情） | 今日课程与本周提示 |
+| 工作台 | **操作入口页**：收费台账（含新增/按班建账/收款）、收费项目、价目、学员档案（含新增与家长联系人）、班级与入班 | 课程表、消息通知、同班名单、我的档案 / 绑定孩子 |
+| 我的 | 身份、所属机构、退出 | 学员管理、本人档案、退出/注销 |
+
+- 企业账号登录成功后直接落在**工作台**；学生/家长仍落首页。
+- 首页不再放新增台账、收款、维护学员/班级的按钮；所有写入口集中在工作台及其下一级页面，避免看数据和改数据混在一起。
+- 工作台只放一级入口，不重复列表页里已有的「新增台账 / 按班建账 / 新增学员 / 新增班级」，同一件事只保留一个入口。
+
 ## 登录与注册流程
 
 ```
@@ -167,9 +217,9 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 - **雪花 ID 精度保护**:后端 19 位 Long 以 JSON 数字传输会超出 JS 安全整数范围,
   `utils/request.ts` 关闭自动 JSON.parse,先用与 `frontend/src/api/http.ts` 相同的
   正则把 `id/*Id/*Ids/*By` 字段转字符串再解析。
-- **401 处理**:令牌被服务端判失效(过期或被管理端踢下线)时,请求层先**静默重登一次**
+- **401 处理**:微信登录态在令牌失效(过期或被管理端踢下线)时,请求层先**静默重登一次**
   (`wx.login` + `/auth/wechat/login`,并发请求共用同一次重登)并重放原请求;重登仍失败才
-  清除本地会话并跳回登录页。
+  清除本地会话并跳回登录页。**账号密码登录(企业端)不走静默重登**,401 直接回登录页重新输密码。
 - **未登录回跳**:`goToLogin()` 在跳登录页前把当前页地址存进 storage(`cornerstone.mini.pending-route`),
   登录/注册成功后 `takePendingRoute()` 取回并清除——扫码直达类入口不能把人丢在登录页。
 - **会话只存 storage 一份**:`utils/auth-session.ts` 是唯一真相,`useAuthStore().isLoggedIn()`

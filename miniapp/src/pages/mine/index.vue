@@ -22,12 +22,16 @@ const displayName = computed(
 )
 const avatarChar = computed(() => displayName.value.slice(0, 1) || '客')
 const isStudent = computed(() => authStore.userInfo?.roles?.includes('MINIAPP_STUDENT') ?? false)
+// 企业端=管理后台账号;学生/家长端的绑档案、注销入口对它一律不显示
+const isEnterprise = computed(() => authStore.isEnterprise())
 
 // 角色码转中文展示
 const ROLE_LABELS: Record<string, string> = {
   MINIAPP_STUDENT: '学生',
   MINIAPP_PARENT: '家长',
-  PLATFORM_ADMIN: '管理员',
+  PLATFORM_ADMIN: '平台管理员',
+  INSTITUTION_ADMIN: '机构运营',
+  MINIAPP_ENTERPRISE: '企业用户',
 }
 const roleText = computed(() => {
   const roles = authStore.userInfo?.roles ?? []
@@ -40,15 +44,23 @@ onShow(() => {
   if (!authStore.isLoggedIn()) {
     return
   }
-  // 绑定档案后账号显示名会跟着变，这里重拉一次，不用退出重登才能看到新名字
-  authStore.refreshUserInfo().catch(() => {
-    // 拉取失败继续用本机缓存的登录态展示
-  })
-  if (isStudent.value) {
-    loadMyProfile()
-  } else {
-    loadStudents()
-  }
+  // 绑定档案后账号显示名会跟着变，这里重拉一次，不用退出重登才能看到新名字；
+  // 同时拿到实时端信息，企业账号不去调学生/家长接口
+  authStore
+    .refreshUserInfo()
+    .catch(() => {
+      // 拉取失败继续用本机缓存的登录态展示
+    })
+    .finally(() => {
+      if (isEnterprise.value) {
+        return
+      }
+      if (isStudent.value) {
+        loadMyProfile()
+      } else {
+        loadStudents()
+      }
+    })
 })
 
 async function loadMyProfile() {
@@ -188,8 +200,26 @@ function handleDeregister() {
       </view>
     </view>
 
+    <!-- 企业端:收费入口在首页,这里只说明身份与退出 -->
+    <template v-if="isEnterprise">
+      <view class="section-title">企业工作台</view>
+      <view class="info-card">
+        <view class="ent-row">
+          <text class="ent-label">可用功能</text>
+          <text class="ent-value">收费台账 · 收款登记 · 出勤同步 · 逐月发生额 · 收费项目与价目 · 学员与家长 · 班级与入班</text>
+        </view>
+        <view class="ent-row">
+          <text class="ent-label">入口</text>
+          <text class="ent-value">底部「工作台」</text>
+        </view>
+        <view class="ent-tip">
+          首页只看台账汇总与在收情况；新增、收款、维护学员和班级都在工作台。权限与数据范围以管理后台的角色配置为准。
+        </view>
+      </view>
+    </template>
+
     <!-- 学生端:未绑定档案 -->
-    <template v-if="isStudent && myProfile && myProfile.bound === false">
+    <template v-if="!isEnterprise && isStudent && myProfile && myProfile.bound === false">
       <view class="section-title">我的档案</view>
       <view class="info-card">
         <view class="empty-row">
@@ -206,7 +236,7 @@ function handleDeregister() {
     </template>
 
     <!-- 学生端:已绑定档案 -->
-    <template v-if="isStudent && myProfile && myProfile.bound === true">
+    <template v-if="!isEnterprise && isStudent && myProfile && myProfile.bound === true">
       <view class="section-title">我的档案</view>
       <view class="info-card">
         <view class="profile-row">
@@ -241,7 +271,7 @@ function handleDeregister() {
     </template>
 
     <!-- 家长端:我的学员 -->
-    <template v-if="!isStudent">
+    <template v-if="!isEnterprise && !isStudent">
       <view class="section-title">我的学员</view>
       <view class="info-card">
         <view v-if="boundStudents.length === 0" class="empty-row">
@@ -270,7 +300,7 @@ function handleDeregister() {
     </template>
 
     <button class="logout-btn" @click="handleLogout">退出登录</button>
-    <button class="deregister-btn" @click="handleDeregister">注销账号</button>
+    <button v-if="!isEnterprise" class="deregister-btn" @click="handleDeregister">注销账号</button>
   </view>
 </template>
 

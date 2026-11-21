@@ -216,6 +216,14 @@ export async function requestPost<T>(
   return request<T>(url, { method: 'POST', data: body, ...options })
 }
 
+export async function requestPut<T>(
+  url: string,
+  body: Record<string, unknown>,
+  options?: RecoveryOptions,
+): Promise<T> {
+  return request<T>(url, { method: 'PUT', data: body, ...options })
+}
+
 export async function requestDelete<T>(url: string): Promise<T> {
   return request<T>(url, { method: 'DELETE' })
 }

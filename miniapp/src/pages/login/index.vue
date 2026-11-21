@@ -16,11 +16,16 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 loadBranding()
 
 onShow(() => {
-  // 已登录用户从分享/扫码等入口回到小程序时,直接回到他本来要看的那一页(没有则首页)
+  // 已登录用户从分享/扫码等入口回到小程序时,直接回到他本来要看的那一页(没有则按端进首页/工作台)
   if (authStore.isLoggedIn()) {
-    uni.reLaunch({ url: takePendingRoute() || '/pages/index/index' })
+    uni.reLaunch({ url: takePendingRoute() || landingUrl() })
   }
 })
+
+/** 企业账号看的是工作台，学生/家长看的是首页 */
+function landingUrl() {
+  return authStore.currentPortal() === 'admin' ? '/pages/workbench/index' : '/pages/index/index'
+}
 
 async function handleWechatLogin() {
   if (loading.value) {
@@ -43,6 +48,11 @@ async function handleWechatLogin() {
   } finally {
     loading.value = false
   }
+}
+
+/** 企业用户(管理后台已有账号)走账号密码登录,不参与小程序自助注册 */
+function goEnterpriseLogin() {
+  uni.navigateTo({ url: '/pages/enterprise/login/index' })
 }
 
 /** 主视觉:一周七天的格子,填充位是固定图案,亮波只是装饰,不表示任何真实数据(与 PC 登录页同一份) */
@@ -108,6 +118,7 @@ const motifCells = FILLED_ROWS.flatMap((row, r) =>
         <button class="login-btn" :loading="loading" :disabled="loading" @click="handleWechatLogin">
           微信一键登录
         </button>
+        <button class="enterprise-btn" @click="goEnterpriseLogin">企业用户登录</button>
         <text class="login-hint">首次使用将自动注册,选择学生/家长身份即可</text>
       </view>
     </view>
@@ -386,6 +397,24 @@ const motifCells = FILLED_ROWS.flatMap((row, r) =>
   font-size: 24rpx;
   text-align: center;
   color: rgba(232, 240, 252, 0.62);
+}
+
+/* 企业用户走账号密码登录,视觉上做次按钮,不与微信一键登录抢主次 */
+.enterprise-btn {
+  width: 100%;
+  margin-top: 20rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(232, 240, 252, 0.35);
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #e8f0fc;
+}
+
+.enterprise-btn::after {
+  border: none;
 }
 
 @keyframes rise {

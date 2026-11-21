@@ -1,6 +1,12 @@
+export type LoginMode = 'wechat' | 'password'
+
 export interface AuthSessionSnapshot {
   accessToken: string
   tokenType: string
+  /** 登录方式:微信一键登录 / 账号密码登录(企业端) */
+  loginMode: LoginMode
+  /** 所属端:admin=企业端,student/parent=学生/家长端;由服务端 /auth/me 下发 */
+  portal?: string
 }
 
 // 与管理后台(frontend)的 cornerstone.auth.session 区分开,两端互不干扰
@@ -19,6 +25,9 @@ export function getStoredAuthSession(): AuthSessionSnapshot | null {
     return {
       accessToken: parsed.accessToken,
       tokenType: parsed.tokenType || 'Bearer',
+      // 老会话没有这个字段,当时只有微信登录,按 wechat 处理
+      loginMode: parsed.loginMode === 'password' ? 'password' : 'wechat',
+      portal: typeof parsed.portal === 'string' ? parsed.portal : undefined,
     }
   } catch {
     return null
@@ -27,6 +36,15 @@ export function getStoredAuthSession(): AuthSessionSnapshot | null {
 
 export function setStoredAuthSession(session: AuthSessionSnapshot) {
   uni.setStorageSync(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session))
+}
+
+/** 刷新用户信息后把端写回会话,下次冷启动不必等 /auth/me 才知道该进哪套首页 */
+export function patchStoredAuthSession(patch: Partial<Omit<AuthSessionSnapshot, 'accessToken'>>) {
+  const session = getStoredAuthSession()
+  if (!session) {
+    return
+  }
+  setStoredAuthSession({ ...session, ...patch })
 }
 
 export function clearStoredAuthSession() {
