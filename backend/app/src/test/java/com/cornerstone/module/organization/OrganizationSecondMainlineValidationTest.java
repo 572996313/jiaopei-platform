@@ -129,6 +129,20 @@ class OrganizationSecondMainlineValidationTest {
     }
 
     @Test
+    void createTermDefaultsToActiveWhenStatusMissing() {
+        // 新建学期是马上要排课、建台账的：默认草稿会让新学期的标签停在「未完成」语义上
+        TermServiceImpl service = new TermServiceImpl(termMapper, institutionMapper, new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());
+        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
+        when(termMapper.selectCount(any())).thenReturn(0L);
+        ArgumentCaptor<TermEntity> captor = ArgumentCaptor.forClass(TermEntity.class);
+
+        service.createTerm(termRequest(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 7, 1)));
+
+        verify(termMapper).insert(captor.capture());
+        assertEquals("active", captor.getValue().getStatus());
+    }
+
+    @Test
     void createTimeSlotRejectsDurationMismatch() {
         TimeSlotServiceImpl service = new TimeSlotServiceImpl(timeSlotMapper, institutionMapper, campusMapper,
             new DictValueValidator(mock(SystemDictService.class)), CodeRuleTestSupport.unconfiguredRules());

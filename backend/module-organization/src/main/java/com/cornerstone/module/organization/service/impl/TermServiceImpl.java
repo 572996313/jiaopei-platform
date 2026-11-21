@@ -73,7 +73,8 @@ public class TermServiceImpl implements TermService {
         entity.setEndDate(request.endDate());
         entity.setEnrollmentStartDate(request.enrollmentStartDate());
         entity.setEnrollmentEndDate(request.enrollmentEndDate());
-        entity.setStatus(request.status() == null || request.status().isBlank() ? "draft" : request.status());
+        // 新建学期是马上要排课、收台账的，默认启用；草稿/归档留给现场自己收
+        entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
         entity.setDefaultTerm(request.defaultTerm() == null ? Boolean.FALSE : request.defaultTerm());
         entity.setRemark(request.remark());
         entity.setDeleted(Boolean.FALSE);

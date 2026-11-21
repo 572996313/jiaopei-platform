@@ -30,12 +30,16 @@ const loaded = ref(false)
 const loadError = ref('')
 
 const keyword = ref('')
+const filterOpen = ref(false)
 const genderOptions = ref<{ itemCode: string; itemName: string; itemValue: string }[]>([])
-const statusOptions = ref<{ value: string; label: string }[]>([{ value: '', label: '全部状态' }])
+const statusOptions = ref<{ value: string; label: string }[]>([{ value: '', label: '全部' }])
 const statusIndex = ref(0)
+const draftStatusIndex = ref(0)
 let dictsLoaded = false
 
 const selectedStatus = computed(() => statusOptions.value[statusIndex.value]?.value || '')
+const statusText = computed(() => statusOptions.value[statusIndex.value]?.label || '全部')
+const activeFilterCount = computed(() => (selectedStatus.value ? 1 : 0))
 
 onShow(() => {
   void init()
@@ -74,12 +78,15 @@ async function loadDicts() {
     ])
     genderOptions.value = genders
     statusOptions.value = [
-      { value: '', label: '全部状态' },
+      { value: '', label: '全部' },
       ...statuses.map((item) => ({ value: item.itemValue, label: item.itemName })),
     ]
+    const index = statusOptions.value.findIndex((item) => item.value === selectedStatus.value)
+    statusIndex.value = index >= 0 ? index : 0
+    draftStatusIndex.value = statusIndex.value
     dictsLoaded = true
   } catch {
-    // 字典没拉到就保留“全部状态”，不硬编码状态中文
+    // 字典没拉到就保留“全部”，不硬编码状态中文
   }
 }
 
@@ -118,8 +125,37 @@ function search() {
   void load(true)
 }
 
-function onStatusChange(event: { detail: { value: string | number } }) {
-  statusIndex.value = Number(event.detail.value)
+function clearKeyword() {
+  keyword.value = ''
+  void load(true)
+}
+
+function toggleFilterPanel() {
+  if (filterOpen.value) {
+    filterOpen.value = false
+    return
+  }
+  draftStatusIndex.value = statusIndex.value
+  filterOpen.value = true
+}
+
+function applyFilters() {
+  statusIndex.value = draftStatusIndex.value
+  filterOpen.value = false
+  void load(true)
+}
+
+function resetFilters() {
+  keyword.value = ''
+  statusIndex.value = 0
+  draftStatusIndex.value = 0
+  filterOpen.value = false
+  void load(true)
+}
+
+function clearStatus() {
+  statusIndex.value = 0
+  draftStatusIndex.value = 0
   void load(true)
 }
 
@@ -162,51 +198,68 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
-  <view class="ent-page">
-    <view class="ent-card">
-      <view class="ent-card-title">
-        <text>学员档案</text>
-        <text class="ent-link">共 {{ total }} 人</text>
-      </view>
-
-      <view class="ent-search-row">
+  <view class="ent-page list-page">
+    <view class="list-toolbar">
+      <view class="toolbar-search">
+        <uni-icons type="search" size="18" color="#9ca3af" />
         <input
           v-model="keyword"
-          class="ent-search-input"
+          class="toolbar-search-input"
           type="text"
           confirm-type="search"
-          placeholder="按姓名 / 学号搜索"
+          placeholder="搜索姓名 / 学号"
           placeholder-class="input-placeholder"
           @confirm="search"
         />
-        <view class="ent-btn small primary" @click="search">搜索</view>
+        <uni-icons
+          v-if="keyword"
+          type="clear"
+          size="18"
+          color="#c4c9d1"
+          class="toolbar-clear"
+          @click="clearKeyword"
+        />
       </view>
+      <view class="toolbar-btn" :class="{ active: activeFilterCount > 0 }" @click="toggleFilterPanel">
+        <uni-icons type="tune" size="18" :color="activeFilterCount > 0 ? '#2563eb' : '#4b5563'" />
+        <text>筛选</text>
+        <text v-if="activeFilterCount > 0" class="toolbar-badge">{{ activeFilterCount }}</text>
+      </view>
+    </view>
 
-      <view class="ent-filter-row">
-        <picker
-          mode="selector"
-          :range="statusOptions"
-          range-key="label"
-          :value="statusIndex"
-          @change="onStatusChange"
+    <view v-if="activeFilterCount > 0" class="chip-row">
+      <view class="chip" @click="clearStatus">状态：{{ statusText }} ×</view>
+      <text class="chip-clear" @click="resetFilters">清空</text>
+    </view>
+
+    <view v-if="filterOpen" class="filter-panel">
+      <text class="filter-label">学员状态</text>
+      <view class="status-chips">
+        <view
+          v-for="(option, index) in statusOptions"
+          :key="option.value"
+          class="status-chip"
+          :class="{ active: draftStatusIndex === index }"
+          @click="draftStatusIndex = index"
         >
-          <view class="ent-picker">{{ statusOptions[statusIndex]?.label || '全部状态' }}</view>
-        </picker>
-        <view class="ent-btn small" @click="load(true)">刷新</view>
+          {{ option.label }}
+        </view>
       </view>
+      <view class="filter-actions">
+        <view class="ent-btn small" @click="resetFilters">重置</view>
+        <view class="ent-btn primary small" @click="applyFilters">查询</view>
+      </view>
+    </view>
 
-      <view class="ent-btn-row">
-        <view v-if="canWrite" class="ent-btn primary small" @click="openCreate">新增学员</view>
-      </view>
-      <view class="ent-tip">
-        学员编号留空会按编号规则自动生成；家长联系人进入学员详情维护。
-      </view>
+    <view class="list-head">
+      <text class="list-title">学员档案</text>
+      <text class="list-count">共 {{ total }} 人</text>
     </view>
 
     <view v-if="!loaded && loading" class="ent-card ent-empty">加载中…</view>
     <view v-else-if="loadError" class="ent-card ent-empty">{{ loadError }}</view>
     <view v-else-if="records.length === 0" class="ent-card ent-empty">
-      还没有学员档案，点「新增学员」建档后即可入班、建收费台账。
+      还没有符合条件的学员；新增学员后可入班、建收费台账。
     </view>
 
     <view
@@ -247,6 +300,10 @@ onPullDownRefresh(async () => {
       已显示全部 {{ total }} 名学员
     </view>
     <view v-else-if="records.length > 0 && loading" class="ent-empty">加载中…</view>
+
+    <view v-if="canWrite" class="fab" @click="openCreate">
+      <uni-icons type="plusempty" size="30" color="#ffffff" />
+    </view>
   </view>
 </template>
 

@@ -254,8 +254,8 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="termForm.status">
-            <el-option label="草稿" value="draft" />
             <el-option label="启用" value="active" />
+            <el-option label="草稿" value="draft" />
             <el-option label="归档" value="archived" />
           </el-select>
         </el-form-item>
@@ -376,7 +376,8 @@ const termForm = reactive({
   season: '',
   startDate: '',
   endDate: '',
-  status: 'draft',
+  // 新建学期是「马上要排课收费的」：默认草稿会让它在下拉里看着像个未完成品
+  status: 'active',
 })
 
 function toMessage(error: unknown, fallback: string) {
@@ -451,7 +452,7 @@ function resetTermForm() {
   termForm.season = ''
   termForm.startDate = ''
   termForm.endDate = ''
-  termForm.status = 'draft'
+  termForm.status = 'active'
   termFormError.value = ''
 }
 
@@ -518,7 +519,7 @@ function openTermDialog(mode: 'create' | 'edit', row?: TermSummary) {
     termForm.season = row.season ?? ''
     termForm.startDate = row.startDate ?? ''
     termForm.endDate = row.endDate ?? ''
-    termForm.status = row.status ?? 'draft'
+    termForm.status = row.status ?? 'active'
   } else {
     editingTermId.value = null
     resetTermForm()

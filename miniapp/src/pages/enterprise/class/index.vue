@@ -40,6 +40,7 @@ const loaded = ref(false)
 const loadError = ref('')
 
 const keyword = ref('')
+const filterOpen = ref(false)
 const campusFilter = ref('')
 const termFilter = ref('')
 const statusFilter = ref('')
@@ -59,15 +60,29 @@ const termOptions = computed(() => [
   })),
 ])
 const statusOptions = [
-  { value: '', label: '全部状态' },
+  { value: '', label: '全部' },
   { value: 'planning', label: '规划中' },
   { value: 'active', label: '启用' },
   { value: 'inactive', label: '停用' },
   { value: 'closed', label: '已结课' },
 ]
+// 已生效的筛选与面板里的草稿分开，点「查询」才改动列表
 const campusIndex = ref(0)
 const termIndex = ref(0)
 const statusIndex = ref(0)
+const draftCampusIndex = ref(0)
+const draftTermIndex = ref(0)
+const draftStatusIndex = ref(0)
+
+const activeFilterCount = computed(
+  () =>
+    (campusFilter.value ? 1 : 0)
+    + (termFilter.value ? 1 : 0)
+    + (statusFilter.value ? 1 : 0),
+)
+const campusText = computed(() => campusOptions.value[campusIndex.value]?.label || '')
+const termText = computed(() => termOptions.value[termIndex.value]?.label || '')
+const statusText = computed(() => statusOptions[statusIndex.value]?.label || '全部')
 
 const campusMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
@@ -193,19 +208,65 @@ async function loadClasses() {
   }
 }
 
-function onCampusChange(event: { detail: { value: string | number } }) {
-  campusIndex.value = Number(event.detail.value)
+function toggleFilterPanel() {
+  if (filterOpen.value) {
+    filterOpen.value = false
+    return
+  }
+  draftCampusIndex.value = campusIndex.value
+  draftTermIndex.value = termIndex.value
+  draftStatusIndex.value = statusIndex.value
+  filterOpen.value = true
+}
+
+function onDraftCampusChange(event: { detail: { value: string | number } }) {
+  draftCampusIndex.value = Number(event.detail.value)
+}
+
+function onDraftTermChange(event: { detail: { value: string | number } }) {
+  draftTermIndex.value = Number(event.detail.value)
+}
+
+function applyFilters() {
+  campusIndex.value = draftCampusIndex.value
+  termIndex.value = draftTermIndex.value
+  statusIndex.value = draftStatusIndex.value
   campusFilter.value = campusOptions.value[campusIndex.value]?.value || ''
-}
-
-function onTermChange(event: { detail: { value: string | number } }) {
-  termIndex.value = Number(event.detail.value)
   termFilter.value = termOptions.value[termIndex.value]?.value || ''
+  statusFilter.value = statusOptions[statusIndex.value]?.value || ''
+  filterOpen.value = false
 }
 
-function onStatusChange(event: { detail: { value: string | number } }) {
-  statusIndex.value = Number(event.detail.value)
-  statusFilter.value = statusOptions[statusIndex.value]?.value || ''
+function resetFilters() {
+  keyword.value = ''
+  campusIndex.value = 0
+  termIndex.value = 0
+  statusIndex.value = 0
+  draftCampusIndex.value = 0
+  draftTermIndex.value = 0
+  draftStatusIndex.value = 0
+  campusFilter.value = ''
+  termFilter.value = ''
+  statusFilter.value = ''
+  filterOpen.value = false
+}
+
+function clearCampus() {
+  campusIndex.value = 0
+  draftCampusIndex.value = 0
+  campusFilter.value = ''
+}
+
+function clearTerm() {
+  termIndex.value = 0
+  draftTermIndex.value = 0
+  termFilter.value = ''
+}
+
+function clearStatus() {
+  statusIndex.value = 0
+  draftStatusIndex.value = 0
+  statusFilter.value = ''
 }
 
 function campusName(value?: string | null) {
@@ -261,61 +322,97 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
-  <view class="ent-page">
-    <view class="ent-card">
-      <view class="ent-card-title">
-        <text>班级与入班</text>
-        <text class="ent-link">共 {{ visibleClasses.length }} 个班</text>
-      </view>
-
-      <view class="ent-search-row">
+  <view class="ent-page list-page">
+    <view class="list-toolbar">
+      <view class="toolbar-search">
+        <uni-icons type="search" size="18" color="#9ca3af" />
         <input
           v-model="keyword"
-          class="ent-search-input"
+          class="toolbar-search-input"
           type="text"
           confirm-type="search"
-          placeholder="按班级名称 / 编码筛选"
+          placeholder="搜索班级名称 / 编码"
           placeholder-class="input-placeholder"
         />
-        <view class="ent-btn small" @click="loadClasses">刷新</view>
+        <uni-icons
+          v-if="keyword"
+          type="clear"
+          size="18"
+          color="#c4c9d1"
+          class="toolbar-clear"
+          @click="keyword = ''"
+        />
+      </view>
+      <view class="toolbar-btn" :class="{ active: activeFilterCount > 0 }" @click="toggleFilterPanel">
+        <uni-icons type="tune" size="18" :color="activeFilterCount > 0 ? '#2563eb' : '#4b5563'" />
+        <text>筛选</text>
+        <text v-if="activeFilterCount > 0" class="toolbar-badge">{{ activeFilterCount }}</text>
+      </view>
+    </view>
+
+    <view v-if="activeFilterCount > 0" class="chip-row">
+      <view v-if="campusFilter" class="chip" @click="clearCampus">校区：{{ campusText }} ×</view>
+      <view v-if="termFilter" class="chip" @click="clearTerm">学期：{{ termText }} ×</view>
+      <view v-if="statusFilter" class="chip" @click="clearStatus">状态：{{ statusText }} ×</view>
+      <text class="chip-clear" @click="resetFilters">清空</text>
+    </view>
+
+    <view v-if="filterOpen" class="filter-panel">
+      <view class="filter-grid">
+        <view class="filter-field">
+          <text class="filter-label">校区</text>
+          <picker
+            mode="selector"
+            :range="campusOptions"
+            range-key="label"
+            :value="draftCampusIndex"
+            @change="onDraftCampusChange"
+          >
+            <view class="ent-picker" :class="{ 'is-placeholder': !campusOptions[draftCampusIndex]?.value }">
+              {{ campusOptions[draftCampusIndex]?.label || '全部校区' }}
+            </view>
+          </picker>
+        </view>
+        <view class="filter-field">
+          <text class="filter-label">学期</text>
+          <picker
+            mode="selector"
+            :range="termOptions"
+            range-key="label"
+            :value="draftTermIndex"
+            @change="onDraftTermChange"
+          >
+            <view class="ent-picker" :class="{ 'is-placeholder': !termOptions[draftTermIndex]?.value }">
+              {{ termOptions[draftTermIndex]?.label || '全部学期' }}
+            </view>
+          </picker>
+        </view>
       </view>
 
-      <view class="ent-filter-row">
-        <picker
-          mode="selector"
-          :range="campusOptions"
-          range-key="label"
-          :value="campusIndex"
-          @change="onCampusChange"
-        >
-          <view class="ent-picker">{{ campusOptions[campusIndex]?.label || '全部校区' }}</view>
-        </picker>
-        <picker
-          mode="selector"
-          :range="termOptions"
-          range-key="label"
-          :value="termIndex"
-          @change="onTermChange"
-        >
-          <view class="ent-picker">{{ termOptions[termIndex]?.label || '全部学期' }}</view>
-        </picker>
-      </view>
-      <view class="ent-filter-row">
-        <picker
-          mode="selector"
-          :range="statusOptions"
-          range-key="label"
-          :value="statusIndex"
-          @change="onStatusChange"
-        >
-          <view class="ent-picker">{{ statusOptions[statusIndex]?.label || '全部状态' }}</view>
-        </picker>
-        <view v-if="canWrite" class="ent-btn primary small" @click="openCreate">新增班级</view>
+      <view class="filter-field filter-field-block">
+        <text class="filter-label">班级状态</text>
+        <view class="status-chips">
+          <view
+            v-for="(option, index) in statusOptions"
+            :key="option.value"
+            class="status-chip"
+            :class="{ active: draftStatusIndex === index }"
+            @click="draftStatusIndex = index"
+          >
+            {{ option.label }}
+          </view>
+        </view>
       </view>
 
-      <view class="ent-tip">
-        入班即把学员加入班级名册；收费台账按学期、班级与在读名册建账，所以学员和班级要先维护好。
+      <view class="filter-actions">
+        <view class="ent-btn small" @click="resetFilters">重置</view>
+        <view class="ent-btn primary small" @click="applyFilters">查询</view>
       </view>
+    </view>
+
+    <view class="list-head">
+      <text class="list-title">班级与入班</text>
+      <text class="list-count">共 {{ visibleClasses.length }} 个班</text>
     </view>
 
     <view v-if="!loaded && loading" class="ent-card ent-empty">加载中…</view>
@@ -368,11 +465,21 @@ onPullDownRefresh(async () => {
         <view class="ent-btn ghost small" @click.stop="openDetail(item)">名册与入班 ›</view>
       </view>
     </view>
+
+    <view v-if="canWrite" class="fab" @click="openCreate">
+      <uni-icons type="plusempty" size="30" color="#ffffff" />
+    </view>
   </view>
 </template>
 
 <style scoped>
 .input-placeholder {
   color: #9ca3af;
+}
+
+/* 筛选面板里的原生 picker 沿用表单控件样式，但高度压一档 */
+.filter-field .ent-picker {
+  min-height: 68rpx;
+  font-size: 25rpx;
 }
 </style>
