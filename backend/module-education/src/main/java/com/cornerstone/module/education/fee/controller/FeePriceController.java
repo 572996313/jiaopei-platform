@@ -34,7 +34,6 @@ public class FeePriceController {
 
     @Operation(summary = "获取收费价目列表", description = "四个维度 0=不限；受限校区角色同时能看到全校区通用价目")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<FeePriceEntity>> list(@RequestParam(required = false) String institutionId,
                                                   @RequestParam(required = false) String feeItemId,
                                                   @RequestParam(required = false) String campusId) {

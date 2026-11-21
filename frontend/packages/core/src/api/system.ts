@@ -251,6 +251,9 @@ export interface ActionCatalogPage {
   menuName: string
   path?: string | null
   readPermissionCode?: string | null
+  /** 所属顶层分组（与侧边栏第一层一致）；顶层散页取自身 menuId */
+  groupId?: string | null
+  groupName?: string | null
   actions: ActionCatalogAction[]
 }
 
@@ -471,6 +474,7 @@ function normalizeActionCatalogPage(page: ActionCatalogPage): ActionCatalogPage 
   return {
     ...page,
     menuId: String(page.menuId),
+    groupId: page.groupId === null || page.groupId === undefined ? null : String(page.groupId),
     actions: (page.actions || []).map(normalizeActionCatalogAction),
   }
 }

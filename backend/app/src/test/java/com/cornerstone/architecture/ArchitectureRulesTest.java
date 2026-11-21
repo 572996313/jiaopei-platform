@@ -135,7 +135,8 @@ class ArchitectureRulesTest {
         "com.cornerstone.core.common..",
         "com.cornerstone.core.config..",
         "com.cornerstone.core.tenant..",
-        "com.cornerstone.core.audit.."
+        "com.cornerstone.core.audit..",
+        "com.cornerstone.core.file.."
     };
 
     @Test
@@ -169,6 +170,7 @@ class ArchitectureRulesTest {
             "com.cornerstone.core.audit..",
             "com.cornerstone.core.common..",
             "com.cornerstone.core.config..",
+            "com.cornerstone.core.file..",
             "com.cornerstone.module.organization..",
             "com.cornerstone.module.education..")
             .because("装配清单只扫描已声明的顶层包，新增顶层包要同步加入对应模块配置类的 basePackages")

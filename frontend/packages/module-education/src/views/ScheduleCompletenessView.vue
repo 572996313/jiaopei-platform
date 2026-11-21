@@ -229,7 +229,7 @@ const { termId } = storeToRefs(scopeStore)
 const { campuses, campusId, terms, institutionId, loadScope } = useEducationScope()
 const router = useRouter()
 
-/** 「去补排」是写流程入口，按排课维护码收口；报表本身只要 education:read */
+/** 「去补排」是写流程入口，按排课维护码收口；报表本身登录即可读取 */
 const canManage = computed(() => auth.hasPermission('education:schedule:write'))
 
 const classId = ref<string | null>(null)

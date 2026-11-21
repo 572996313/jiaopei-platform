@@ -37,7 +37,6 @@ public class UserCampusPrefController {
 
     @Operation(summary = "获取默认校区偏好列表", description = "按校区筛选(仅限登录用户所属机构),返回默认校区为该校区或全部已设置的账号")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<UserCampusPrefView>> list(@RequestParam(required = false) String campusId) {
         Long institutionId = AuthContext.requireUser().orgId();
         return ApiResponse.success("默认校区偏好已加载", userCampusPrefService.listByCampus(

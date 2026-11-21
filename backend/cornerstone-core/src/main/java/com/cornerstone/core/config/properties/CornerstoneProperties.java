@@ -14,6 +14,7 @@ public class CornerstoneProperties {
     private final Auth auth = new Auth();
     private final AuditDb auditDb = new AuditDb();
     private final Flyway flyway = new Flyway();
+    private final FileStorage file = new FileStorage();
 
     public Security getSecurity() {
         return security;
@@ -33,6 +34,95 @@ public class CornerstoneProperties {
 
     public Flyway getFlyway() {
         return flyway;
+    }
+
+    public FileStorage getFile() {
+        return file;
+    }
+
+    /**
+     * 文件存储配置（{@code cornerstone.file.*}）。
+     *
+     * <p>这里只放**部署期参数**（连接哪个对象存储）。大小上限、扩展名白名单、孤儿保留时长
+     * 是运维运行时可能调整的，按 AGENTS.md「系统参数优先入库」放 {@code sys_system_config}，
+     * 经 {@code SystemConfigService} 读取，不要往这里加。</p>
+     */
+    public static class FileStorage {
+
+        /** 存储实现：minio=对象存储，local=本地磁盘（仅开发/兜底，生产必须用 minio） */
+        private String provider = "local";
+
+        /** 对象存储桶名 */
+        private String bucket = "jiaopei-files";
+
+        /** 对象存储服务地址，容器内用服务名，如 http://minio:9000 */
+        private String endpoint = "http://127.0.0.1:9000";
+
+        private String accessKey = "";
+
+        private String secretKey = "";
+
+        /** 区域，MinIO 不校验但签名需要，保持默认即可 */
+        private String region = "us-east-1";
+
+        /** local 实现落盘目录 */
+        private String localDir = "./data/files";
+
+        public String getProvider() {
+            return provider;
+        }
+
+        public void setProvider(String provider) {
+            this.provider = provider;
+        }
+
+        public String getBucket() {
+            return bucket;
+        }
+
+        public void setBucket(String bucket) {
+            this.bucket = bucket;
+        }
+
+        public String getEndpoint() {
+            return endpoint;
+        }
+
+        public void setEndpoint(String endpoint) {
+            this.endpoint = endpoint;
+        }
+
+        public String getAccessKey() {
+            return accessKey;
+        }
+
+        public void setAccessKey(String accessKey) {
+            this.accessKey = accessKey;
+        }
+
+        public String getSecretKey() {
+            return secretKey;
+        }
+
+        public void setSecretKey(String secretKey) {
+            this.secretKey = secretKey;
+        }
+
+        public String getRegion() {
+            return region;
+        }
+
+        public void setRegion(String region) {
+            this.region = region;
+        }
+
+        public String getLocalDir() {
+            return localDir;
+        }
+
+        public void setLocalDir(String localDir) {
+            this.localDir = localDir;
+        }
     }
 
     /**

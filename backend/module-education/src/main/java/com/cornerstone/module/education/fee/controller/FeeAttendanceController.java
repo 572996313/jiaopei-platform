@@ -37,7 +37,6 @@ public class FeeAttendanceController {
 
     @Operation(summary = "获取月度出勤", description = "按账期升序；autoDays 是考勤汇总值，attendanceDays 是生效值")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<FeeAttendanceView>> list(@RequestParam(required = false) String ledgerId) {
         return ApiResponse.success("月度出勤已加载",
             feeAttendanceService.listByLedger(ExternalIdParser.parseRequired(ledgerId, "ledgerId")));

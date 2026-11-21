@@ -33,14 +33,12 @@ public class ScheduleRuleController {
 
     @Operation(summary = "排课规则分页列表", description = "按机构/规则类型/规则对象/状态筛选,分页返回禁排必排规则")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<ScheduleRuleView>> page(@Valid @ParameterObject ScheduleRulePageQuery query) {
         return ApiResponse.success("排课规则分页列表已加载", scheduleRuleService.pageRules(query));
     }
 
     @Operation(summary = "获取排课规则详情")
     @GetMapping("/{id}")
-    @RequiresPermission("education:read")
     public ApiResponse<ScheduleRuleView> get(@PathVariable Long id) {
         return ApiResponse.success("排课规则详情已加载", scheduleRuleService.getRule(id));
     }

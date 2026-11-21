@@ -15,7 +15,7 @@ public interface PermissionOverviewService {
     /**
      * 全量可分配权限码选项(角色弹窗「预设权限」/菜单按钮 permissionCode 下拉/列表权限标签回显的公共数据源)。
      * 以 {@code @RequiresPermission} 注解扫描注册表为权威源,合并启用按钮节点的中文名;
-     * 无按钮节点的码(如 education:read、miniapp:access)label 回退为权限码本身。
+     * 无按钮节点的码(如 miniapp:access)label 回退为权限码本身。
      */
     List<PermissionOptionView> permissionOptions();
 }

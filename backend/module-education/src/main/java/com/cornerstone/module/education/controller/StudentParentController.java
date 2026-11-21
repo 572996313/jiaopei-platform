@@ -37,7 +37,6 @@ public class StudentParentController {
 
     @Operation(summary = "获取家长联系人列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<StudentParentEntity>> list(@RequestParam(required = false) String institutionId,
                                                        @RequestParam(required = false) String studentId) {
         return ApiResponse.success("家长联系人列表已加载", studentParentService.listStudentParents(
@@ -48,7 +47,6 @@ public class StudentParentController {
 
     @Operation(summary = "家长联系人分页列表", description = "按机构/学员筛选,分页返回,已回带学员名称")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<StudentParentView>> page(@Valid @ParameterObject StudentParentPageQuery query) {
         return ApiResponse.success("家长联系人分页列表已加载", studentParentService.pageStudentParents(query));
     }

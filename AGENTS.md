@@ -38,7 +38,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 模块 | artifactId | Java 包根（阶段四起） | 内容 | 依赖方向 |
 | --- | --- | --- | --- | --- |
-| `cornerstone-core/` | `cornerstone-core` | `com.cornerstone.core.*` | 底座：`auth` / `system` / `common` / `config` / `tenant` / `audit` + 全部第三方 starter | 不依赖任何业务模块 |
+| `cornerstone-core/` | `cornerstone-core` | `com.cornerstone.core.*` | 底座：`auth` / `system` / `common` / `config` / `tenant` / `audit` / `file`（通用文件上传/元数据/下载/孤儿清理）+ 全部第三方 starter | 不依赖任何业务模块 |
 | `module-organization/` | `module-organization` | `com.cornerstone.module.organization.*` | 业务：校区/教室/学期/时间段 | → core |
 | `module-education/` | `module-education` | `com.cornerstone.module.education.*` | 业务：教师/学员/班级/排课/考勤/小程序 | → core、→ organization |
 | `app/` | `jiaopei-platform-backend` | `com.cornerstone`（仅主类 `CornerstoneApplication`） | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
@@ -53,7 +53,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 装配分两条路，**这是有意为之，别改成一致**：
 
-- **底座**：`app` 启动类 `@SpringBootApplication(scanBasePackages = {auth, system, tenant, audit, common, config})` 显式扫底座六个顶层包。底座是必选项、且它提供的 `DataSource`/`SqlSessionFactory` 必须早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者的 `@ConditionalOnMissingBean` 判定失效，多出重复数据源），所以走"用户配置"阶段而不是自动配置。
+- **底座**：`app` 启动类 `@SpringBootApplication(scanBasePackages = {auth, system, tenant, audit, common, config, file})` 显式扫底座七个顶层包。底座是必选项、且它提供的 `DataSource`/`SqlSessionFactory` 必须早于 Spring Boot 与 MyBatis-Plus 的自动配置出现（否则后者的 `@ConditionalOnMissingBean` 判定失效，多出重复数据源），所以走"用户配置"阶段而不是自动配置。
 - **业务模块**：各模块 jar 自带 `src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`，指向自己的 `XxxModuleAutoConfiguration`（`@AutoConfiguration` + `@ConditionalOnProperty` + `@ComponentScan` + `@MapperScan`）。**加/减模块只改 `app/pom.xml` 依赖**，不用动启动类。
 
 开关（`application.yml`，可用同名环境变量覆盖；`cornerstone.modules.enabled` 是「模块码 → 开关」的映射，底座不写死任何模块名，新项目加自己那一条即可）：
@@ -169,7 +169,7 @@ pnpm dev:h5            # H5 调试
 - **业务模块改账号显示名只能走 `AuthApplicationService.updateDisplayName(userId, displayName)`**：小程序绑定档案后要回写 `sys_user_account.display_name`（学生取自己档案姓名，家长是「孩子A、孩子B家长」），不要直连 `UserAccountMapper` 写底座表的列。列宽上限是该接口上的常量 `MAX_DISPLAY_NAME_LENGTH`（128），拼接方在业务侧按它截断（放不下就补「等」、单孩姓名超长就截名字保住后缀），接口只拒绝不静默裁。显示名不在 JWT 也不在 Redis 会话里，`/api/auth/me` 每次现读库，所以改名**不需要**失效会话——但已打开的页面拿的是本机缓存，小程序「我的」页靠 `onShow` 重拉。
 - **过滤器认证失败时“吞异常继续放行”是有意设计**：该过滤器对所有请求生效（含公开路径），直接 `sendError` 会误拦“带过期 token 访问公开接口”。真正鉴权交给下游 `SecurityConfig.authorizeHttpRequests` + `cornerstone.security.public-paths`，不要在 catch 里加 `sendError`/`return`。
 - JWT 密钥 `cornerstone.auth.jwt.secret`，生产必须用 `AUTH_JWT_SECRET` 环境变量覆盖（≥32 字节）。
-- 权限判定：`@RequiresPermission("xxx:read|write")` + `PermissionGuardAspect`；取当前用户用 `AuthContext.requireUser()`。新增受保护接口路由必须加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 命名一致。**权限码前缀按归属分**：底座机构（=租户）接口用 `tenant:*`，业务模块用自己域名的码（`organization:*`/`education:*`）；底座接口挂业务前缀的码等于逼第二个项目授予一个它没有的模块（阶段五-0c 已把机构接口从 `organization:*` 改到 `tenant:*`，角色种子随之裁成底座码 + 业务码各自一段，见 V41/V42）。
+- 权限判定：写/敏感接口用 `@RequiresPermission("xxx:write|manage")` + `PermissionGuardAspect`；取当前用户用 `AuthContext.requireUser()`。新增受保护接口路由必须加 `@RequiresPermission`，权限串与 `docs/后端交付说明.md` 命名一致。**业务模块的读取接口不再挂码（V113 起）**：`education:*`/`organization:*`/`announcement:*` 的 GET 登录即可，机构/校区范围由服务层 `InstitutionScopeGuard`/`CampusScopeGuard` 兜住；页面可见性只由 `sys_role_menu` 决定，页面节点不挂读取码。**权限码前缀按归属分**：底座机构（=租户）接口用 `tenant:*`，业务模块用自己域名的写码；底座接口挂业务前缀的码等于逼第二个项目授予一个它没有的模块（阶段五-0c 已把机构接口从 `organization:*` 改到 `tenant:*`，角色种子随之裁成底座码 + 业务码各自一段，见 V41/V42）。`tenant:*`、`system:*` 仍按码硬拦，见「权限码与菜单节点的分配规则」。
 - **登录失败排障**：`GlobalExceptionHandler` 把所有 `AuthenticationException` 统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`，密码错和 token 失效响应体相同。排查 401 先用已知正确密码单独打 `/api/auth/login` 排除密码问题，再看过滤器/Redis。本地 admin 口令见 `V7__create_auth_user_role_tables.sql`（`{noop}` 前缀 = 明文比对）。
 - **Redis 序列化**：`RedisConfig` 的 ObjectMapper **必须** `activateDefaultTyping(..., EVERYTHING)`（`NON_FINAL` 不给 record 里的 `Set<String>` 写 `@class`，反序列化会报 missing type id）；该 mapper 必须在方法内 new，**不要**做成全局 `@Bean ObjectMapper`，否则顶掉 Spring MVC 默认 mapper 导致 `OffsetDateTime` 序列化报错。序列化格式变更后旧数据无法反序列化，需 `redis-cli FLUSHDB`（所有人重新登录）。
 - **系统参数优先入库**：可运行时调整的配置加到 `sys_system_config`（V14 引入），通过 `SystemConfigService.getConfigValue/getBooleanConfig/getIntConfig` 读取，别再写死进 `application.yml`；`is_system=1` 的配置禁止删除只能改值。当前在用的 key：
@@ -180,25 +180,29 @@ pnpm dev:h5            # H5 调试
   - `brand.name` / `brand.tagline` / `brand.login_copy` / `brand.login_form_title` — 系统名称与登录页文案（`BrandingController` 的 `GET /api/system/branding` 一次性下发，**免登录可读**，登录页要用；`mark` 角标不是参数，后端按 `brand.name` 首字推导。种子见 V68，底座不写任何项目名词、`CornerstoneBaselineGuardTest` 拦着）。**与 `page_tip` 口径不同：读不到即空串、前端显示 `未配置(参数键名)` 的维护提示，不回落任何构建期默认名**——回落等于"改了名字线上还挂着旧名"，比留提示更糟。
   - `auth.register.default_institution_id` — 小程序自助注册账号的默认归属机构（`MiniappServiceImpl`/`WechatAuthServiceImpl` 读取；种子见 V47）
   - `miniapp.register.page` — 邀请码小程序码扫码直达的页面路径（`MiniappQrcodeServiceImpl` 生成 wxacode 时读取，默认 `pages/register/index`；种子见 V47）
+  - `file.upload.max_size_mb` — 单文件上限（MB，`FileValidator` 读取；`spring.servlet.multipart` 的 50MB 是硬顶，这里再收窄）
+  - `file.upload.allowed_extensions` — 允许的扩展名，逗号分隔，空串表示不限制（`FileValidator` 读取）
+  - `file.orphan.retention_hours` — 未绑定业务文件（`biz_id IS NULL`）的保留时长（小时，`FileServiceImpl` 读取；`<=0` 停止自动清理）
 
   **新增 `SystemConfigService.getConfigValue/getIntConfig/getBooleanConfig` 读取的 key 时，必须同步在 `app/` 迁移里种入 `sys_system_config` 并登记进上面的清单**——只写代码默认值回落等于隐藏配置：系统参数页看不见也改不了（V47 就是补的这两条历史欠账）。
 
 ## 权限码与菜单节点的分配规则（必填）
 
-一句话判据：**只勾这个节点，这一页到底能不能用？** 只能解决导航、数据还读不到，就说明读取码漏挂在上层的另一个节点上（表现是"入口看得见、点进去整页 403"）。
+一句话判据：**只勾这个页面，这一页到底能不能用？** 业务读取已改为登录即可（V113），所以勾页面 = 入口可见 + 能读；写操作随页面一起勾（授权弹窗 `togglePage` 会把本页按钮节点一并授出），单独取消某个按钮才是只读岗。
 
-1. **读取码挂 `menu`（页面）节点**：勾页面 = 入口可见 + 能读，不留 403 空洞。业务页挂本模块读码（`education:read`/`organization:read`，见 V61），系统管理页挂该页自己的码（见 V62/底座 V105）。
-2. **写/操作码挂 `button` 节点**（`visible=0`，不进导航）：新增/编辑/删除/导入/维护一类，勾了才给。按钮节点仍受后端 `@RequiresPermission` 硬拦，前端隐藏按钮只是体验。
+1. **业务读取码已清零（V113 起）**：`education:read`/`organization:read`/`announcement:read` 不再存在，业务模块 GET 接口登录即可，机构/校区范围由服务层 `InstitutionScopeGuard`/`CampusScopeGuard` 兜住；页面节点 `permission_code` 留空，可见性只由 `sys_role_menu` 决定。**不要再新增业务读取码**，否则又回到"为了给码必须勾基础页"的耦合。系统管理页仍按原规则把码挂在页面节点上（见 V62/底座 V105），读写共用单码。**已知例外**：底座 `GET /api/organizations/institutions` 仍挂 `tenant:read`（页面节点 8「机构资料」），`AppLayout` 启动即调它填机构芯片、各业务页的 `institutionId` 也取自该 store，所以业务角色目前仍必须勾「机构资料」页；把这条接口改成"平台管理员看全量、机构账号只看本机构、读取仅需登录"属后续批次。
+2. **写/操作码挂 `button` 节点**（`visible=0`，不进导航）：新增/编辑/删除/导入/维护一类，勾了才给。按钮节点仍受后端 `@RequiresPermission` 硬拦，前端隐藏按钮只是体验。授权弹窗勾页面时会把本页全部按钮节点一起授出，客户不用逐项勾。
 3. **`catalog`（目录）节点永不挂码**：它是分组不是能力。
 4. **读写共用单码的页面（`system:user:manage` 一族，GET 也拦同一个码）把码挂在页面节点上，不再配同名"维护"按钮**。页面与按钮挂同一个码 = 勾哪个都等价，纯重复且会让人以为勾页面不够（历史上 103「菜单维护」与 109「功能权限查看」就是同一个 `system:menu:manage` 挂两处）。代价是这类页面没有"只看不动"的只读岗——要拆 `read`/`manage` 得连后端注解、角色 CSV、下游一起改，属于另一批。
-5. **接口只需登录的页面不挂码**（如功能权限总览，它的两个 GET 无 `@RequiresPermission`），节点只做导航。给它挂码等于"勾了这个页面就白送一个管理能力"，那是越权不是授权。
-6. **同一个码在同一页面只挂一处**；跨页面共用粗读码是有意设计（勾哪个页面决定进哪个页，读码是一份），不要为"每页一个读码"去拆权限串。
-7. 权限码的**中文名权威源是前端登记表**（见「前端模块划分与装配」的权限码标签条目），菜单节点名只作兜底与"挂在哪"的说明。
-8. **撤销授权有两条路**：角色 `permission_codes` CSV ∪ 已勾节点带的码（`UserAccessTokenService`），任一授予即生效，两边都要撤。admin 现在的 CSV 与菜单节点已完全重复，"CSV 只留兜底"的收敛口径另批处理。
+5. **接口只需登录的页面不挂码**（如功能权限总览，它的两个 GET 无 `@RequiresPermission`），节点只做导航。给它挂码等于"勾了这个页面就白送一个管理能力"，那是越权不是授权。业务读取接口按 V113 统一走这条。
+6. **同一个码在同一页面只挂一处**；写码允许跨页面共用（如 `education:profile:write` 同时服务教师/学员页），这是有意设计，不要把一页拆成多条写码。
+7. 权限码的**中文名权威源是前端登记表**（见「前端模块划分与装配」的权限码标签条目），菜单节点名只作兜底与"挂在哪"的说明。V113 起业务读码不再登记。
+8. **撤销授权有两条路**：角色 `permission_codes` CSV ∪ 已勾节点带的码（`UserAccessTokenService`），任一授予即生效，两边都要撤。V113 已把三个业务读码从 CSV 清掉；写码两条路仍都存在。
 9. 改 `sys_menu` 里**底座种下的行**（id 1~14、18、101~111、115 这批）必须两边各写一份迁移且内容一字不差：底座 `cornerstone/migration/V10n`、教培 `app/.../db/migration/V6n`（见「模块装配与开关」的双轨规则）。业务页面/按钮（15~25、112~123）与预设角色（110/111）只在教培侧，改它只写 `app/` 那份。
 10. 权限码变更后要**重登才生效**（快照写进 JWT）；管理接口侧的会话失效链路见「安全与数据一致性约定」第 2 条。
 11. **写码按"页面域"拆，不按"动作"拆**（V74 把 `education:write` 拆成六码就是这条）：`education:schedule:write`（排课计划/规则/校历/课次增删改）、`education:attendance:write`（保存课次点名）、`education:attendance:manage`（代点任意课次）、`education:class:write`（班级/入班即报名/邀约码）、`education:profile:write`（教师与学员档案、导入、绑号）、`education:catalog:write`（课程/课程分类/班型）。判据是"机构里有没有这么一个人：只做这类事、不碰别的"——教师能点名但不能改排课，教务能排课但不能改教师档案。**不要**为"新增/编辑/删除"各配一码，那只会让操作员在一页上勾三个。
 12. **数据范围不靠权限码数量解决，用双码 + 服务端兜底**：一个码回答"能不能做"，"能对哪些行做"必须由业务校验兜住。点名是唯一的样例——只有 `education:attendance:write` 的账号在 `AttendanceServiceImpl#assertLessonMarkableByCurrentUser` 里被限定为**本人授课的课次**（按 `jp_schedule_teacher_rel` + `jp_teacher.user_id` 反查），持 `education:attendance:manage` 才跳过这层。新增同类"本人范围"写操作照此办理：粗码进 `manage`、细码走数据范围校验，不要在权限码上带 `:mine`、`:own` 一类后缀。
+13. **文件接口的码**：上传 `system:file:upload`（POST，必须授给全部在职角色，否则业务表单一上传就 403）；文件管理页/删除/清理孤儿 `system:file:manage`。`GET /api/system/files/{fileId}` 与 `/content` 只要求登录 + 同机构，**不挂码**——所有业务页面的图片都走这两条，挂码等于每个角色都要单独授一次、漏授就整页图片 403。
 13. **预设角色只挂菜单节点，`permission_codes` 留空**（V74 的 `INSTITUTION_ADMIN`/`TEACHER`）：节点是唯一事实源，页面勾选即生效，避免"CSV 与节点两份账"。代价是角色弹窗不能再强制"至少一个权限码"（`RoleManagementView.beforeSubmit` 已放开），也意味着**撤销预设角色的授权只能撤节点**。种子必须同时写 `sys_role_menu`，只写角色行会导致登录后侧边栏为空（导航只认节点）。
 
 自查：`功能权限总览` 页（`/system/permission-overview`）的「未登记码」和「已登记未挂菜单」两组必须都是空的；非空即说明有码只存在于 CSV/列表按钮配置而没有节点承载，或反之。
@@ -223,11 +227,12 @@ pnpm dev:h5            # H5 调试
 
 ## 模块划分与持久化
 
-- 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，六个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit`；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
+- 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，七个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit` / `file`（通用文件能力）；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
 - 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
 - `CornerstoneProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
-- Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant` 三个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
+- Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant`/`file` 四个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
+- **文件能力（`core/file`，SPI）**：业务表只存 `fileId`，**不存 objectKey/bucket/URL**；对象键由后端生成（`机构ID/yyyy/MM/UUID.扩展名`）。存储后端由 `cornerstone.file.provider` 切换（`minio` 生产 / `local` 本机兜底），`FileStorage` 是 SPI，加 S3/OSS 只加一个实现。`sys_file` 用物理删除（`FileMapper#physicalDeleteById`），`biz_id IS NULL` 且超过 `file.orphan.retention_hours` 的行由定时任务清理；业务保存文件引用时在自己的事务里调 `FileService#bind`，不要另开公开绑定接口。
 - schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名前缀按归属分：**底座表 `sys_`**（认证授权/系统配置/租户，阶段五-0b 起统一，V40 把原 `jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_institution` 改了名，索引与外键键名保持历史 `jp_` 不动）、**业务模块表 `jp_`**，**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）
@@ -436,10 +441,10 @@ ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
   - **侧边栏导航（2026-09-29 起完全由菜单驱动）**：顶层组**一律由 `sys_menu` 的顶层节点决定**——组名取 `menu_name`、组间顺序取 `sort_no`、图标取 `icon`，组内页面与顺序取其子节点，再按当前用户**已授权**的菜单树裁剪。`registerNavItems` 因此只剩一种用途：**没有菜单节点可挂的落地页**（工作台是跨模块聚合页、不对应任何权限码），由壳 `modules.ts` 登记并用 `groupOrder` 钉位。业务模块的 `index.ts` **不再登记导航项**，也不要再写 `group`/`groupLabel`/`groupOrder`/`prefixes`——那四样是前端第二份事实源，"客户在后台改了 `sort_no`、界面不动"就从这里来。新增业务页面要进导航，改的是菜单节点（「菜单管理」或「导航编排」），不是 core、也不是模块 `index.ts`。
     **一个 `sys_menu` 目录 = 侧边栏一组（V92 定稿）**：业务导航不放散页——当初为免滚轮逐页拆分，每拆一页就往顶层铺一个叶子节点，顶层 13 项里 8 项是散页、图标导航一次铺 12 个入口，客户反馈"菜单一堆、不知道点哪个"。现在的形态是恒定两层（组 → 页面），组名取目录节点 `menuName`、组内顺序取子节点 `sortNo`、组图标取目录节点 `icon`（顶层散页自己成组时取它自己的 `icon`），后台改名/改序/换图标即生效；完整导航在"单项目录自成一组"时不重复渲染组标题（`isGroupTitleRedundant`，与窄栏浮层同一条判断）。**组顺序按"多久用一次"排**（排课与上课 → 学员与班级 → 基础资料 → 消息通知），不按对象分类排——操作员要找的是下一步动作，不是同一张表的兄弟页。拆出新页面时先问"它是哪条链的哪一步"，进对应目录（15 排课与上课 / 139 学员与班级 / 130 基础资料），**不要**再往顶层加散页；目录里没有的位置就新建目录节点，并**同批授权给所有在职角色**（V92 那三条 `sys_role_menu` 就是这件事，含"勾了子页却没勾父目录"的兜底）——漏授权的表现是那几张页面的入口整块消失且不报错，见 `docs/前端交付说明.md` 3.4。**「导航编排」页把这条授权做成自动的**（新建分组即同事务授满），「菜单管理」手工建目录仍然不授，别把两处当成一回事。
     **客户自助改导航走「导航编排」页（2026-09-29）**：`GET|PUT /api/system/navigation` + `POST /api/system/navigation/catalogs`，实现 `core/system/service/impl/SystemNavigationServiceImpl`，页面 `core/views/system/NavigationView.vue`，菜单节点 140、权限串 `system:nav:manage`（读写共用一个码、挂页面节点，见「权限码与菜单节点的分配规则」第 4 条；教培 V93 / core V111 双轨）。**只有五列可写**：名称、图标、顺序、所属分组、侧边栏可见。路由、权限码、类型、编码**一律不在这里**——那属「菜单管理」（平台管理员），改错了就是 403 或空白页，而现场操作员无从判断。校验只拦"改完找不到这一页"那一类：底座「系统设置」整棵子树在本页只读（用户管理/角色管理/机构资料后端还没比机构范围，放开挪动等于绕过「安全与数据一致性约定」第 8 条那条硬约束）、侧边栏只到两层（顶层目录不许再套进目录、已在目录里的目录不许当父级、页面不能挂进底座段）、**顶层入口不许同名**（两颗一样的图标等于白改，新建与保存两处都拦）。三条实现口径别改回去：① 目录行**不给"可见"开关**，因为 `buildTree` 会把父节点未授权的子节点提升到根，藏一个目录等于把它下面的页面炸成一排散页图标；② 新建分组是**立即写库**（页面要拿到真实 id 才能往里挪东西），同事务授满所有在职角色并把条数回显出来；保存才是批量写，且整批校验通过才落库（半批生效会和页面上的草稿对不上、且不报错）；③ 结构改动**不踢会话**——导航树每次进系统现拉，保存后只刷新操作者自己的侧边栏，别人下次进入才看到；`SystemMenuEntity` 的 `parentId`/`icon` 配了 `FieldStrategy.ALWAYS`，否则"提升为顶层分组"（写 NULL）会被 `updateById` 静默忽略。
-    **入口显隐一律走菜单节点，不许再写 `alwaysVisible`**：单页入口在 `NavItemDefinition.menuCode` 里填自己的 `sys_menu` 页面节点 code，`AppLayout` 按"当前用户已授权菜单树里有没有这个节点"决定显隐，侧边栏名与页签名同时取节点 `menuName`（后台改名即生效，见 V61 的五个业务页 + 排课三页）。`alwaysVisible: true` 现在只剩壳的工作台在用（工作台是落地页，没有对应权限）。写 `alwaysVisible` 的业务入口等于绕过授权：没读权限的人照样看得见入口，点进去整页 403。页面节点自带本模块读取码（如 `organization_campus` 挂 `organization:read`），勾页面即给读码，与"角色预设权限 ∪ 已授菜单节点码"的快照口径一致（`UserAccessTokenService`），不存在"看得见却读不了"的中间态；写权限仍是隐藏按钮节点。注意预设权限与菜单两条路取并集，撤销要两边都撤。
+    **入口显隐一律走菜单节点，不许再写 `alwaysVisible`**：单页入口在 `NavItemDefinition.menuCode` 里填自己的 `sys_menu` 页面节点 code，`AppLayout` 按"当前用户已授权菜单树里有没有这个节点"决定显隐，侧边栏名与页签名同时取节点 `menuName`（后台改名即生效，见 V61 的五个业务页 + 排课三页）。`alwaysVisible: true` 现在只剩壳的工作台在用（工作台是落地页，没有对应权限）。写 `alwaysVisible` 的业务入口等于绕过授权：没授权的人照样看得见入口。**V113 起业务页面节点不再挂读取码**（`permission_code` 留空），入口显隐只认"当前用户已授权菜单树里有没有这个节点"，读取接口登录即可，不再有"看得见却读不了"的中间态；写权限仍是隐藏按钮节点，授权弹窗勾页面时一并授出。注意预设权限与菜单两条路取并集，撤销要两边都撤。
   - **品牌文案（2026-09-26 起文字类走系统参数）**：系统名称、定位副标题、登录页介绍与表单标题读 `brand.*`（`packages/core/src/composables/use-branding.ts` 拉 `GET /api/system/branding`，登录页与后台横幅共用同一份请求结果，模块级单例、不落 localStorage——它是服务端数据，缓存本机只会让"改完看不到生效"），运维在「系统管理 → 系统参数」改名即生效、不用重新构建。**未配置就是未配置**：显示 `未配置(brand.name)`，**不回落构建期默认名**（用户 2026-09-26 明确不要悬停 tooltip 那类额外指引，占位文案里带参数键名即可）。`registerBranding` 扩展点现在只留**登录页能力卡 `loginFeatures`**（对象数组，系统参数页的单值输入框塞不下，core 默认空数组即整块不渲染），`BrandDefinition` 已随之收窄。登录页表单下方那句提示语走 `auth.login.page_tip`（空串即不渲染，与 `brand.*` 的"未配置要提示"是两套口径，别改成一个）；账号密码预填只在 `import.meta.env.DEV` 下生效，且**底座不写死任何项目的口令**：值取壳工程自己 `.env.development` 里的 `VITE_DEV_LOGIN_USERNAME` / `VITE_DEV_LOGIN_PASSWORD`（该文件已 gitignore，本仓库那份写着 dev admin），没配就是空框，生产构建更不含。**浏览器标签 `<title>` 同口径**：`loadBranding()` 拿到结果后把 `document.title` 设成 `brand.name`（未配置/拉不到时同样是 `未配置(brand.name)`），不回落 `frontend/index.html` 里的静态值——那行只是请求回来前的首帧占位，改完参数标签也会跟着变。**只有全站页名拼接（`当前页 - 系统名`）没做**。**其余没做成参数的两处**：小程序的导航栏标题与 App 名（`pages.json` 的 `globalStyle.navigationBarTitleText`、`manifest.json` 的 `name`，是构建期清单、运行期改不了；小程序登录页与首页问候语已走 `brand.name`，见「小程序（工作目录 `miniapp/`）」）——仍是构建期硬编码，要跟着变得各开注入通道。
   - **列表渲染器**：`sys_list_config` 的 `renderer` 名字先查 core 内置表（只剩机构/权限/密码态这类底座概念），查不到再回退模块注册表。业务渲染器**自己取名称数据**（读模块自己的 store/接口，或改用 `type: 'map'`、字典列），core 不再透传业务目录；模块未装配时该列退回普通渲染（显示原始 id），列表配置编辑器也不会给出这个候选（`rendererChoices()` 只合并已登记项）。新增业务渲染器要同步两处：模块入口 `registerListRenderer` 登记、`sys_list_config` 种子里的 `renderer` 名保持一致。
-  - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域码（如 organization 的 `organization:read|write` → 组织档案）。**这张登记表是权限码中文名的权威源**，不是节点名：一个码可以挂在多个页面节点上（`education:read` 现在覆盖教务八页：排课三页 + 班级档案/分班与名册 + 教师档案 + 学员档案 + 课程档案），节点名说的是"挂在哪"、不是"码叫什么"，所以展示时先查表、查不到才用后端给的节点名、最后回退裸码。**新增权限码必须同步补一条登记**，否则界面显示 `education:read(education:read)` 这种裸码。读取处一律**现算**，不要在模块加载时取快照——注册晚于快照就会漏。
+  - **权限码标签**：core 的 `constants/permissionLabels.ts` 只列底座码（`system:*` / `tenant:*`，与 core 各 Controller 的 `@RequiresPermission` 对齐），业务模块在自己入口 `registerPermissionLabels` 贡献本域的**写码**（如 organization 的 `organization:write` → 组织资料维护）。V113 起业务读码已清零，**不再登记读码标签**。**这张登记表是权限码中文名的权威源**，不是节点名：同一个写码可以服务多个页面节点（如 `education:profile:write` 同时服务教师/学员页），节点名说的是"挂在哪"、不是"码叫什么"，所以展示时先查表、查不到才用后端给的节点名、最后回退裸码。**新增权限码必须同步补一条登记**，否则界面显示 `education:profile:write(education:profile:write)` 这种裸码。读取处一律**现算**，不要在模块加载时取快照——注册晚于快照就会漏。
   - **数据源候选**：`OPTIONS_LOADER_OPTIONS` 只列 `institutions`/`roles`/`status`；业务编码（如 `campuses`）在数据源配置页维护，编辑器下拉用 `allow-create` 直接输入。新增编码不改 core 代码，运行期命中不了宿主注入就自动走 `sys_data_source` 定义。
   - 页面插槽用于"业务页签注入到别的模块页面"。**本仓库当前没有使用方**：唯一一处（校区页里的课程/课程分类/班型三张卡片，内容来自 education 包）在 V85 已经独立成 `/courses` 页并删掉 `registerPageSlot('campus-detail')`——课程本来就是**机构级**档案，跟校区没有从属关系，挂在校区页只是当初没别的页面可放。扩展点本身留在 core（底座对外能力，下游 achievement 可能用），要再用时按下面的老约定写：宿主 `refreshAll` 末尾 `notifyPageRefresh(pageKey)`，插槽子组件订阅并自己拉数；**`onPageRefresh` 返回注销函数，必须在 `onUnmounted` 里调用**，否则订阅者随打开次数累积。**判据：注入卡片会让宿主页纵向翻倍（校区页当时六张卡竖排、实测 3606px），"跨模块注入"不是省预算的办法，拆页才是。**
   - `registerPageSlot` 幂等、按 `order` 排序；插槽子组件依赖全局 `core/src/styles/index.css` 里的 Element Plus 布局类（不在 scoped 样式内），组件不要再自带 reset。
@@ -629,11 +634,13 @@ C 与 D 的边界判据是**"这几个块有没有非看不可的关联"**：改
 所有 Controller 的每个接口方法必须写：
 
 ```java
-@Operation(summary = "获取教师列表", description = "按机构与校区筛选,返回教师列表")
-@GetMapping
-@RequiresPermission("education:read")
-public ApiResponse<List<TeacherEntity>> list(...) { ... }
+@Operation(summary = "新建教师", description = "按登录机构落库，姓名与手机号必填")
+@PostMapping
+@RequiresPermission("education:profile:write")
+public ApiResponse<TeacherEntity> create(@Valid @RequestBody TeacherUpsertRequest request) { ... }
 ```
+
+- 业务读取接口按 V113 不挂码、也不写 `@RequiresPermission`，但 `@Operation` 仍必须写；演示注解时用写接口举例。
 
 - `summary` 简洁中文短语，展示在 Swagger 列表与「功能权限总览」页（`PermissionOverviewController` 靠 `@RequiresPermission` + `@Operation.summary` 生成“受控接口”说明；缺 `@Operation` 总览页“说明”列为空）。`description` 可选，补充入参/筛选细节；两者都用中文。
 - 公开接口（如 `HealthController`）同样建议补，保持文档完整。

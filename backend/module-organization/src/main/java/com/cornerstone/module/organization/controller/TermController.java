@@ -34,7 +34,6 @@ public class TermController {
 
     @Operation(summary = "获取学期列表")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<TermEntity>> list(@RequestParam(required = false) String institutionId) {
         return ApiResponse.success("学期列表已加载", termService.listTerms(ExternalIdParser.parseOptional(institutionId, "institutionId")));
     }

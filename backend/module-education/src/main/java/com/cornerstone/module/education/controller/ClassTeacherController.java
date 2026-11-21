@@ -33,7 +33,6 @@ public class ClassTeacherController {
 
     @Operation(summary = "获取班级教师列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<ClassTeacherEntity>> list(@RequestParam(required = false) String classId,
                                                       @RequestParam(required = false) String teacherId) {
         return ApiResponse.success("班级教师列表已加载", classTeacherService.listClassTeachers(

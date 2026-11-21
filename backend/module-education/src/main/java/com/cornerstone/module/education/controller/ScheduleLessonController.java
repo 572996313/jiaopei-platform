@@ -39,7 +39,6 @@ public class ScheduleLessonController {
 
     @Operation(summary = "获取排课列表")
     @GetMapping("/lessons")
-    @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> list(@RequestParam(required = false) Long institutionId,
                                                        @RequestParam(required = false) Long campusId,
                                                        @RequestParam(required = false) Long classId,
@@ -53,14 +52,12 @@ public class ScheduleLessonController {
 
     @Operation(summary = "排课课次分页列表", description = "按机构/校区/班级/日期筛选,分页返回历史课次")
     @GetMapping("/lessons/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<ScheduleLessonView>> page(@Valid @ParameterObject ScheduleLessonPageQuery query) {
         return ApiResponse.success("排课分页列表已加载", scheduleLessonService.pageLessons(query));
     }
 
     @Operation(summary = "待补课课次分页列表", description = "仅返回已停课且未安排补课的课次,SQL 层收敛,分页返回")
     @GetMapping("/lessons/pending-makeup-page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<ScheduleLessonView>> pendingMakeupPage(
         @Valid @ParameterObject ScheduleLessonPageQuery query) {
         return ApiResponse.success("待补课分页列表已加载", scheduleLessonService.pagePendingMakeupLessons(query));
@@ -68,7 +65,6 @@ public class ScheduleLessonController {
 
     @Operation(summary = "获取排课详情")
     @GetMapping("/lessons/{id}")
-    @RequiresPermission("education:read")
     public ApiResponse<ScheduleLessonView> get(@PathVariable Long id) {
         return ApiResponse.success("排课详情已加载", scheduleLessonService.getLesson(id));
     }
@@ -97,7 +93,6 @@ public class ScheduleLessonController {
 
     @Operation(summary = "获取日课表")
     @GetMapping("/timetable/day")
-    @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> day(@RequestParam(required = false) Long institutionId,
                                                      @RequestParam(required = false) Long campusId,
                                                      @RequestParam(required = false) Long classId,
@@ -111,7 +106,6 @@ public class ScheduleLessonController {
 
     @Operation(summary = "获取周课表")
     @GetMapping("/timetable/week")
-    @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleLessonView>> week(@RequestParam(required = false) Long institutionId,
                                                       @RequestParam(required = false) Long campusId,
                                                       @RequestParam(required = false) Long classId,

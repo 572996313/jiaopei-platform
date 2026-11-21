@@ -47,7 +47,6 @@ public class ScheduleAutoBatchController {
 
     @Operation(summary = "自动补排批次列表", description = "按机构/校区取最近 20 个补排批次,按执行时间倒序全量返回(数据量小,不分页)")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<ScheduleAutoBatchView>> list(@RequestParam(required = false) Long institutionId,
                                                         @RequestParam(required = false) Long campusId) {
         return ApiResponse.success("批次清单已加载", autoBatchService.listBatches(institutionId, campusId));

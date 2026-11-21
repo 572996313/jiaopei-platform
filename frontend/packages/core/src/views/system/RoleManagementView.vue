@@ -37,7 +37,7 @@
       v-model="advancedCodesText"
       type="textarea"
       :rows="10"
-      placeholder="多个权限码用逗号或换行分隔，如 system:user:manage, education:read"
+      placeholder="多个权限码用逗号或换行分隔，如 system:user:manage, education:fee:write"
     />
 
     <template #footer>

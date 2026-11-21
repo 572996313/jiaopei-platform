@@ -38,7 +38,6 @@ public class StudentController {
 
     @Operation(summary = "获取学员列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<StudentEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String keyword) {
         return ApiResponse.success("学员列表已加载", studentService.listStudents(
@@ -49,7 +48,6 @@ public class StudentController {
 
     @Operation(summary = "学员下拉选项", description = "按机构筛选,关键字模糊匹配姓名/学号,最多返回 30 条,供表单与筛选下拉按需搜索")
     @GetMapping("/options")
-    @RequiresPermission("education:read")
     public ApiResponse<List<StudentOptionView>> options(@RequestParam(required = false) String institutionId,
                                                         @RequestParam(required = false) String keyword,
                                                         @RequestParam(required = false) List<Long> ids) {
@@ -62,7 +60,6 @@ public class StudentController {
 
     @Operation(summary = "学员分页列表", description = "按机构筛选,关键字模糊匹配学号/姓名,分页返回")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<StudentEntity>> page(@Valid @ParameterObject StudentPageQuery query) {
         return ApiResponse.success("学员分页列表已加载", studentService.pageStudents(query));
     }

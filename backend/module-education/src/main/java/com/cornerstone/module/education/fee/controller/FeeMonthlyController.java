@@ -39,7 +39,6 @@ public class FeeMonthlyController {
 
     @Operation(summary = "获取逐月发生额", description = "按账期升序、项目排序号排；手工覆盖行带 manualOverride 标记")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<FeeMonthlyView>> list(@RequestParam(required = false) String ledgerId) {
         return ApiResponse.success("逐月发生额已加载",
             feeMonthlyService.listByLedger(ExternalIdParser.parseRequired(ledgerId, "ledgerId")));

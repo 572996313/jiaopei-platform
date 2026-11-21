@@ -34,7 +34,6 @@ public class FeeItemController {
 
     @Operation(summary = "获取收费项目列表", description = "按启停状态筛选；排序号决定收费出勤表中项目行的顺序")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<FeeItemEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String status) {
         return ApiResponse.success("收费项目列表已加载", feeItemService.listItems(

@@ -45,14 +45,12 @@ public class FeeLedgerController {
 
     @Operation(summary = "收费台账分页列表", description = "按学期/班级/学员/关键字筛选；应收、实收、结余由服务端现算")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<FeeLedgerRowView>> page(@Valid @ParameterObject FeeLedgerPageQuery query) {
         return ApiResponse.success("收费台账分页列表已加载", feeLedgerService.pageLedgers(query));
     }
 
     @Operation(summary = "收费台账详情", description = "含明细行、逐月发生额、月度出勤与全部收款流水")
     @GetMapping("/{id}")
-    @RequiresPermission("education:read")
     public ApiResponse<FeeLedgerDetailView> detail(@PathVariable Long id) {
         return ApiResponse.success("收费台账已加载", feeLedgerService.getLedger(id));
     }
@@ -98,14 +96,12 @@ public class FeeLedgerController {
     @Operation(summary = "导出收费出勤表(3 个 sheet)",
             description = "拆成家长情况 / 收费内容 / 出勤明细三张表，各自带班级与单位行、小计与总计")
     @GetMapping("/export/matrix")
-    @RequiresPermission("education:read")
     public ResponseEntity<byte[]> exportMatrix(@Valid @ParameterObject FeeLedgerPageQuery query) {
         return xlsx(feeLedgerService.exportMatrix(query), "收费出勤表.xlsx");
     }
 
     @Operation(summary = "导出台账明细(一维)", description = "一个工作簿两张 sheet：台账明细(每学员每项目一行) / 逐月发生")
     @GetMapping("/export/detail")
-    @RequiresPermission("education:read")
     public ResponseEntity<byte[]> exportDetail(@Valid @ParameterObject FeeLedgerPageQuery query) {
         return xlsx(feeLedgerService.exportDetail(query), "收费台账明细.xlsx");
     }

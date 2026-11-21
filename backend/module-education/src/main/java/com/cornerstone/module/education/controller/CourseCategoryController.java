@@ -34,7 +34,6 @@ public class CourseCategoryController {
 
     @Operation(summary = "获取课程分类列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<CourseCategoryEntity>> list(@RequestParam(required = false) String institutionId) {
         return ApiResponse.success("课程分类列表已加载", courseCategoryService.listCategories(
             ExternalIdParser.parseOptional(institutionId, "institutionId")

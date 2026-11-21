@@ -114,7 +114,9 @@ REDIS_DATABASE=0
 REDIS_PASSWORD=<生成32位强密码>
 
 # ---- 后端配置 ----
-BACKEND_PORT=8181
+# 宿主机调试口(容器内仍是 8080):默认只绑回环,业务请求走前端 Nginx 的 /api 反代
+BACKEND_BIND=127.0.0.1
+BACKEND_PORT=18090
 BACKEND_BUILD_MAVEN_OPTS=-Xmx512m -XX:MaxMetaspaceSize=256m -Djava.awt.headless=true
 BACKEND_JAVA_OPTS=-Xms256m -Xmx768m
 
@@ -290,7 +292,7 @@ ufw allow 22/tcp        # SSH（建议改为非 22 端口或仅允许跳板机�
 ufw allow 80/tcp        # HTTP（如 Nginx 反向前端）
 ufw allow 443/tcp       # HTTPS
 ufw allow 5757/tcp      # 前端端口（如 nginx 不在本机）
-ufw allow 8181/tcp      # 后端端口（仅允许负载均衡/Nginx 访问）
+# ufw allow 18090/tcp   # 后端默认只绑 127.0.0.1，无需放行；确需外部直连再打开
 # ufw allow 3306/tcp    # ⛔ MySQL 绝不再暴露！
 # ufw allow 6379/tcp    # ⛔ Redis 绝不再暴露！
 
@@ -305,7 +307,7 @@ ufw status verbose
 2. 入站规则 → 新建规则
 3. 端口 → TCP，特定本地端口：`3306, 6379` → **阻止连接**
 4. 勾选"域/专用/公用" → 命名为 `Block-Database-Ports`
-5. 确保 `8181`、`5757`、`80`、`443` 是允许的
+5. 确保 `5757`、`80`、`443` 是允许的（后端 `18090` 默认只绑回环，不需要放行）
 
 ---
 

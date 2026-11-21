@@ -8,9 +8,11 @@ spring:
     name: jiaopei-platform-backend
   servlet:
     multipart:
-      # 账号批量导入要收 2000 行带格式的 xlsx，默认 1MB 会直接被拒
-      max-file-size: 10MB
-      max-request-size: 12MB
+      # 账号批量导入要收 2000 行带格式的 xlsx，默认 1MB 会直接被拒；
+      # 文件模块走同一个 multipart 通道，这里给到容器硬顶，业务上限由系统参数
+      # file.upload.max_size_mb 收（默认 20MB）。
+      max-file-size: 50MB
+      max-request-size: 52MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:jiaopei_platform}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -71,6 +73,16 @@ cornerstone:
     jwt:
       # HS256 签名密钥(至少 32 字节)。生产环境必须用环境变量 AUTH_JWT_SECRET 覆盖此开发默认值
       secret: ${AUTH_JWT_SECRET:jiaopei-dev-only-hs256-secret-change-me-32bytes!}
+  # 文件存储（部署期参数）。本地开发默认落盘；生产用 FILE_STORAGE_PROVIDER=minio。
+  # 上传大小上限/扩展名白名单/孤儿保留时长是运行时参数，在系统参数页维护（sys_system_config）。
+  file:
+    provider: ${FILE_STORAGE_PROVIDER:local}
+    bucket: ${MINIO_BUCKET:jiaopei-files}
+    endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    region: ${MINIO_REGION:us-east-1}
+    local-dir: ${FILE_LOCAL_DIR:./data/files}
 
 wx:
   miniapp:

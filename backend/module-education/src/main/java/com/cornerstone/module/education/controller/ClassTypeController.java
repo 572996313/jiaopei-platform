@@ -34,7 +34,6 @@ public class ClassTypeController {
 
     @Operation(summary = "获取班型列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<ClassTypeEntity>> list(@RequestParam(required = false) String institutionId) {
         return ApiResponse.success("班型列表已加载", classTypeService.listClassTypes(
             ExternalIdParser.parseOptional(institutionId, "institutionId")

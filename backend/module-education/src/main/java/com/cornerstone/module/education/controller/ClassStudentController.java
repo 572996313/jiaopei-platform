@@ -36,7 +36,6 @@ public class ClassStudentController {
 
     @Operation(summary = "获取班级学员列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<ClassStudentEntity>> list(@RequestParam(required = false) String classId,
                                                       @RequestParam(required = false) String studentId) {
         return ApiResponse.success("班级学员列表已加载", classStudentService.listClassStudents(
@@ -47,14 +46,12 @@ public class ClassStudentController {
 
     @Operation(summary = "分页获取班级学员关系", description = "按机构/校区/班级/学员/状态筛选,分页返回,已回带班级与学员名称")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<ClassStudentView>> page(@Valid @ParameterObject ClassStudentPageQuery query) {
         return ApiResponse.success("班级学员分页列表已加载", classStudentService.pageClassStudents(query));
     }
 
     @Operation(summary = "统计班级在班人数", description = "按机构与班级统计 status=active 的学员数,与入班容量校验同一口径")
     @GetMapping("/active-count")
-    @RequiresPermission("education:read")
     public ApiResponse<Integer> activeCount(@RequestParam String institutionId,
                                             @RequestParam String classId) {
         return ApiResponse.success("班级在班人数已加载", classStudentService.countActiveStudents(

@@ -39,7 +39,6 @@ public class AnnouncementTemplateController {
 
     @Operation(summary = "查询公告模板", description = "当前机构的全部模板，按创建时间倒序；新建公告时用于预填")
     @GetMapping
-    @RequiresPermission("announcement:read")
     public ApiResponse<List<AnnouncementTemplateView>> list() {
         return ApiResponse.success("模板列表已加载", announcementService.listTemplates());
     }

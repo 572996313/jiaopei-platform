@@ -1,6 +1,5 @@
 package com.cornerstone.module.organization.controller;
 
-import com.cornerstone.core.auth.annotation.RequiresPermission;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.module.organization.dto.OrganizationBootstrapView;
 import com.cornerstone.module.organization.dto.OrganizationSchemaView;
@@ -24,7 +23,6 @@ public class OrganizationController {
 
     @Operation(summary = "获取组织模块启动信息")
     @GetMapping("/bootstrap")
-    @RequiresPermission("organization:read")
     public ApiResponse<OrganizationBootstrapView> bootstrap() {
         return ApiResponse.success("组织模块启动信息已就绪",
             organizationApplicationService.getBootstrapView());
@@ -32,7 +30,6 @@ public class OrganizationController {
 
     @Operation(summary = "获取组织模块表结构元数据")
     @GetMapping("/schema")
-    @RequiresPermission("organization:read")
     public ApiResponse<OrganizationSchemaView> schema() {
         return ApiResponse.success("组织模块表结构元数据已就绪",
             organizationApplicationService.getSchemaView());

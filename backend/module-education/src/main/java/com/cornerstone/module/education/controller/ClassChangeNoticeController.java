@@ -1,6 +1,5 @@
 package com.cornerstone.module.education.controller;
 
-import com.cornerstone.core.auth.annotation.RequiresPermission;
 import com.cornerstone.core.common.api.ApiResponse;
 import com.cornerstone.core.common.web.ExternalIdParser;
 import com.cornerstone.module.education.domain.entity.ClassChangeNoticeEntity;
@@ -26,7 +25,6 @@ public class ClassChangeNoticeController {
 
     @Operation(summary = "获取班级变动通知列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<ClassChangeNoticeEntity>> list(@RequestParam(required = false) String institutionId,
                                                            @RequestParam(required = false) String classId,
                                                            @RequestParam(required = false) String noticeStatus) {

@@ -48,7 +48,6 @@ export const organizationRoutes: RouteRecordRaw[] = [
  * 并给角色弹窗的权限网格提供分组名。权威中文名仍是 sys_menu 按钮节点。
  */
 registerPermissionLabels([
-  { code: 'organization:read', label: '组织查看', group: '组织档案' },
   { code: 'organization:write', label: '组织维护', group: '组织档案' },
 ])
 

@@ -52,7 +52,6 @@ public class TeacherController {
 
     @Operation(summary = "获取教师列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<TeacherEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String campusId) {
         return ApiResponse.success("教师列表已加载", teacherService.listTeachers(
@@ -63,7 +62,6 @@ public class TeacherController {
 
     @Operation(summary = "教师分页列表", description = "按机构/校区筛选,关键字模糊匹配姓名/工号/手机号,分页返回")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<TeacherEntity>> page(@Valid @ParameterObject TeacherPageQuery query) {
         return ApiResponse.success("教师分页列表已加载", teacherService.pageTeachers(query));
     }
@@ -95,7 +93,6 @@ public class TeacherController {
         description = "按与分页列表相同的筛选条件导出全部教师档案（不分页，单次上限 5000 条）。"
             + "取值用字典 item_value 与校区编码，列顺序与导入模板一致，改完可导回")
     @GetMapping("/export")
-    @RequiresPermission("education:read")
     public ResponseEntity<byte[]> export(@Valid @ParameterObject TeacherPageQuery query) {
         byte[] workbook = teacherService.exportTeachers(query);
         String filename = URLEncoder.encode("教师档案.xlsx", StandardCharsets.UTF_8).replace("+", "%20");

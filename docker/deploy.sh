@@ -171,7 +171,7 @@ if [ ! -d ".git" ]; then
 fi
 
 # 0.1 目录与持久化数据目录
-mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}" "${DATA_DIR}/mysql" "${DATA_DIR}/redis"
+mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}" "${DATA_DIR}/mysql" "${DATA_DIR}/redis" "${DATA_DIR}/minio"
 if [ ! -w "${DATA_DIR}" ]; then
     log_err "数据目录 ${DATA_DIR} 不可写,容器无法挂载。"
     exit 1
@@ -415,7 +415,7 @@ if [ -z "${DEPLOY_SERVICES}" ]; then
     log_warn "无法从 compose 解析服务清单(如 prod.env 缺少必填变量),健康检查回退为 backend/frontend"
 fi
 HEALTH_SERVICES=""
-for SERVICE in mysql redis backend frontend; do
+for SERVICE in mysql redis minio backend frontend; do
     if printf '%s\n' "${DEPLOY_SERVICES}" | grep -qx "${SERVICE}"; then
         HEALTH_SERVICES="${HEALTH_SERVICES} ${SERVICE}"
     fi

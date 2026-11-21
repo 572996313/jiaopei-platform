@@ -37,7 +37,6 @@ public class CourseController {
 
     @Operation(summary = "获取课程列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<CourseEntity>> list(@RequestParam(required = false) String institutionId,
                                                 @RequestParam(required = false) String categoryId) {
         return ApiResponse.success("课程列表已加载", courseService.listCourses(
@@ -48,7 +47,6 @@ public class CourseController {
 
     @Operation(summary = "课程分页列表", description = "按机构/分类筛选,关键字模糊匹配课程名称/编号/学科,分页返回")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<CourseEntity>> page(@Valid @ParameterObject CoursePageQuery query) {
         return ApiResponse.success("课程分页列表已加载", courseService.pageCourses(query));
     }

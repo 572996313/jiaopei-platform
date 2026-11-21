@@ -37,7 +37,6 @@ public class TimeSlotTemplateController {
 
     @Operation(summary = "获取时段模板列表", description = "按机构(必填登录用户所属机构)与可选校区筛选")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<TimeSlotTemplateView>> list(@RequestParam(required = false) String institutionId,
                                                         @RequestParam(required = false) String campusId) {
         Long operatorInstitutionId = AuthContext.requireUser().orgId();

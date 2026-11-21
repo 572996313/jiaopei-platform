@@ -37,7 +37,8 @@ import org.springframework.transaction.PlatformTransactionManager;
     basePackages = {
         "com.cornerstone.core.auth.mapper",
         "com.cornerstone.core.system.mapper",
-        "com.cornerstone.core.tenant.mapper"
+        "com.cornerstone.core.tenant.mapper",
+        "com.cornerstone.core.file.mapper"
     },
     sqlSessionFactoryRef = "primarySqlSessionFactory",
     sqlSessionTemplateRef = "primarySqlSessionTemplate")

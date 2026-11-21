@@ -34,7 +34,6 @@ public class FeePaymentController {
 
     @Operation(summary = "获取收款流水", description = "按台账或台账明细查询，按收款日期倒序")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<FeePaymentView>> list(@RequestParam(required = false) String ledgerId,
                                                   @RequestParam(required = false) String ledgerItemId) {
         return ApiResponse.success("收款流水已加载", feePaymentService.listPayments(

@@ -33,7 +33,6 @@ public class CampusController {
 
     @Operation(summary = "获取校区列表")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<CampusEntity>> list(@RequestParam(required = false) Long institutionId) {
         return ApiResponse.success("校区列表已加载", campusService.listCampuses(institutionId));
     }

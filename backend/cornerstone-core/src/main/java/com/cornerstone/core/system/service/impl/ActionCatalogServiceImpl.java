@@ -61,11 +61,26 @@ public class ActionCatalogServiceImpl implements ActionCatalogService {
         Map<String, SystemMenuEntity> menuByCode = menus.stream()
             .collect(Collectors.toMap(SystemMenuEntity::getMenuCode, Function.identity(),
                 (left, right) -> left, LinkedHashMap::new));
+        Map<Long, SystemMenuEntity> menuById = menus.stream()
+            .collect(Collectors.toMap(SystemMenuEntity::getId, Function.identity(),
+                (left, right) -> left, HashMap::new));
+
+        // 分组口径与侧边栏一致：页面挂到它所在链路的顶层节点下（顶层散页自成一组）。
+        // 授权弹窗左侧按「分组 → 页面」排列，操作员找页面时与外面导航看到的是同一套层级。
+        Map<Long, SystemMenuEntity> groupByPageId = new HashMap<>();
+        for (SystemMenuEntity menu : menus) {
+            if (TYPE_MENU.equals(menu.getMenuType())) {
+                groupByPageId.put(menu.getId(), topLevelMenu(menu, menuById));
+            }
+        }
 
         List<SystemMenuEntity> pages = menus.stream()
             .filter(menu -> TYPE_MENU.equals(menu.getMenuType()))
             .filter(menu -> menu.getStatus() == null || ACTIVE.equalsIgnoreCase(menu.getStatus()))
-            .sorted(Comparator.comparing((SystemMenuEntity menu) -> menu.getSortNo() == null ? 0 : menu.getSortNo())
+            .sorted(Comparator
+                .comparingInt((SystemMenuEntity menu) -> sortNoOf(groupByPageId.get(menu.getId())))
+                .thenComparing(menu -> menuCodeOf(groupByPageId.get(menu.getId())))
+                .thenComparingInt(ActionCatalogServiceImpl::sortNoOf)
                 .thenComparing(SystemMenuEntity::getMenuCode))
             .toList();
 
@@ -93,12 +108,15 @@ public class ActionCatalogServiceImpl implements ActionCatalogService {
             List<ActionCatalogActionView> actions = definitions.stream()
                 .map(definition -> toActionView(definition, menuByCode, grantState))
                 .toList();
+            SystemMenuEntity group = groupByPageId.get(page.getId());
             pageViews.add(new ActionCatalogPageView(
                 page.getId(),
                 page.getMenuCode(),
                 page.getMenuName(),
                 page.getPath(),
                 blankToNull(page.getPermissionCode()),
+                group == null ? page.getId() : group.getId(),
+                group == null ? page.getMenuName() : group.getMenuName(),
                 actions
             ));
         }
@@ -304,6 +322,32 @@ public class ActionCatalogServiceImpl implements ActionCatalogService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    /**
+     * 沿 parent_id 一路走到顶层节点。导航约定是「一个顶层节点 = 侧边栏一组」，所以顶层节点
+     * 就是授权弹窗里的分组；parent 不存在（数据缺口）时按当前节点兜底，至少不会漏掉该页面。
+     * 用 visited 防脏数据成环时死循环。
+     */
+    private SystemMenuEntity topLevelMenu(SystemMenuEntity menu, Map<Long, SystemMenuEntity> menuById) {
+        SystemMenuEntity current = menu;
+        Set<Long> visited = new HashSet<>();
+        while (current.getParentId() != null && visited.add(current.getId())) {
+            SystemMenuEntity parent = menuById.get(current.getParentId());
+            if (parent == null) {
+                break;
+            }
+            current = parent;
+        }
+        return current;
+    }
+
+    private static int sortNoOf(SystemMenuEntity menu) {
+        return menu == null || menu.getSortNo() == null ? 0 : menu.getSortNo();
+    }
+
+    private static String menuCodeOf(SystemMenuEntity menu) {
+        return menu == null || menu.getMenuCode() == null ? "" : menu.getMenuCode();
     }
 
     private record RoleGrantState(boolean available, Set<Long> menuIds, Set<String> presetCodes) {

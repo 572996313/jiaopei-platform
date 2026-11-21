@@ -36,7 +36,6 @@ public class TimeSlotController {
     @Operation(summary = "获取时间段列表",
         description = "按机构筛选(仅限登录用户所属机构);传 campusId 时只返回该校区的时间段与机构通用时间段(campus_id 为空),不传返回该机构全部")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<TimeSlotEntity>> list(@RequestParam(required = false) String institutionId,
                                                  @RequestParam(required = false) String campusId) {
         Long operatorInstitutionId = AuthContext.requireUser().orgId();

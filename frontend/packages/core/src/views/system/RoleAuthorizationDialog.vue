@@ -74,29 +74,37 @@
       <aside class="role-auth-pages">
         <el-input v-model="pageKeyword" placeholder="搜索页面名称" clearable size="small" />
         <div class="role-auth-page-list">
-          <div
-            v-for="page in filteredPages"
-            :key="page.menuId"
-            class="role-auth-page-item"
-            :class="{ 'is-active': page.menuId === activePageId }"
-            role="button"
-            tabindex="0"
-            @click="activePageId = page.menuId"
-            @keydown.enter="activePageId = page.menuId"
-          >
-            <el-checkbox
-              :model-value="isPageChecked(page)"
-              :disabled="isPageCsvLocked(page)"
-              @click.stop
-              @change="togglePage(page)"
-            />
-            <span class="role-auth-page-name" :title="page.menuName">{{ page.menuName }}</span>
-            <el-tag v-if="isPageCsvLocked(page)" size="small" type="warning" effect="plain">锁定</el-tag>
-            <el-tag v-else-if="pageStateTag(page)" size="small" effect="plain">
-              {{ pageStateTag(page) }}
-            </el-tag>
-          </div>
-          <div v-if="filteredPages.length === 0" class="role-auth-empty">没有匹配的页面</div>
+          <template v-for="group in filteredPageGroups" :key="group.id">
+            <div v-if="!isStandaloneGroup(group)" class="role-auth-group" :title="group.name">
+              {{ group.name }}
+            </div>
+            <div
+              v-for="page in group.pages"
+              :key="page.menuId"
+              class="role-auth-page-item"
+              :class="{
+                'is-active': page.menuId === activePageId,
+                'is-child': !isStandaloneGroup(group),
+              }"
+              role="button"
+              tabindex="0"
+              @click="activePageId = page.menuId"
+              @keydown.enter="activePageId = page.menuId"
+            >
+              <el-checkbox
+                :model-value="isPageChecked(page)"
+                :disabled="isPageCsvLocked(page)"
+                @click.stop
+                @change="togglePage(page)"
+              />
+              <span class="role-auth-page-name" :title="page.menuName">{{ page.menuName }}</span>
+              <el-tag v-if="isPageCsvLocked(page)" size="small" type="warning" effect="plain">锁定</el-tag>
+              <el-tag v-else-if="pageStateTag(page)" size="small" effect="plain">
+                {{ pageStateTag(page) }}
+              </el-tag>
+            </div>
+          </template>
+          <div v-if="filteredPageGroups.length === 0" class="role-auth-empty">没有匹配的页面</div>
         </div>
       </aside>
 
@@ -260,15 +268,46 @@ const actionsByPermission = computed(() => {
 
 const lockedCodes = computed(() => new Set(presetCodes.value))
 
-const filteredPages = computed(() => {
-  const keyword = pageKeyword.value.trim()
-  if (!keyword) {
-    return pages.value
+interface ActionCatalogPageGroup {
+  id: string
+  name: string
+  pages: ActionCatalogPage[]
+}
+
+/**
+ * 左侧页面按侧边栏的顶层分组排列（后端已按「分组 sortNo → 组内页面 sortNo」排好），
+ * 这里只把连续的同组页面切成一段；关键字过滤后空组自然消失。
+ */
+const filteredPageGroups = computed<ActionCatalogPageGroup[]>(() => {
+  const keyword = pageKeyword.value.trim().toLowerCase()
+  const groups: ActionCatalogPageGroup[] = []
+  for (const page of pages.value) {
+    if (
+      keyword &&
+      !page.menuName.toLowerCase().includes(keyword) &&
+      !page.menuCode.toLowerCase().includes(keyword)
+    ) {
+      continue
+    }
+    const groupId = page.groupId || page.menuId
+    const current = groups[groups.length - 1]
+    if (current && current.id === groupId) {
+      current.pages.push(page)
+      continue
+    }
+    groups.push({
+      id: groupId,
+      name: page.groupName || page.menuName,
+      pages: [page],
+    })
   }
-  return pages.value.filter(
-    (page) => page.menuName.includes(keyword) || page.menuCode.includes(keyword)
-  )
+  return groups
 })
+
+/** 顶层散页自成一组：不再重复渲染与页面同名的组标题 */
+function isStandaloneGroup(group: ActionCatalogPageGroup) {
+  return group.pages.length === 1 && group.pages[0].menuId === group.id
+}
 
 const activePage = computed<ActionCatalogPage | null>(() => {
   const found = pages.value.find((page) => page.menuId === activePageId.value)
@@ -364,6 +403,14 @@ function togglePage(page: ActionCatalogPage) {
     }
   } else {
     next.add(page.menuId)
+    // 勾页面 = 本页全部操作：读取已不再挂码，写行按钮跟着页面一起授，
+    // 不再让操作员在一页里逐项勾；要只读角色仍可单独取消某个按钮。
+    for (const action of page.actions) {
+      if (action.mode === 'uiOnly' || !action.grantMenuId) {
+        continue
+      }
+      next.add(action.grantMenuId)
+    }
   }
   grantedIds.value = [...next]
 }
@@ -548,6 +595,23 @@ watch(
   border-radius: var(--radius-block);
 }
 
+/* 分组标题吸顶：列表滚动时当前组名一直可见，按导航里的分组找页面不用来回翻 */
+.role-auth-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 8px -2px 2px;
+  padding: 4px 8px;
+  background: var(--card-bg);
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role-auth-group:first-child {
+  margin-top: 0;
+}
+
 .role-auth-page-item {
   display: flex;
   align-items: center;
@@ -565,6 +629,11 @@ watch(
 
 .role-auth-page-item:hover {
   background: var(--tint-bg);
+}
+
+/* 组内页面缩进一级，和外面侧边栏的「目录 → 页面」看起来是同一种层级 */
+.role-auth-page-item.is-child {
+  padding-left: 24px;
 }
 
 .role-auth-page-item.is-active {

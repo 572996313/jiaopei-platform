@@ -97,7 +97,7 @@
               <el-button link type="primary" @click="openTimeSlotDialog('edit', row)"
                 >编辑</el-button
               >
-              <el-button v-if="canReadSchedule" link @click="openRefsDialog(row)"
+              <el-button link @click="openRefsDialog(row)"
                 >查看引用</el-button
               >
               <el-button link type="danger" @click="confirmDeleteTimeSlot(row)">删除</el-button>
@@ -308,8 +308,7 @@ const scopeStore = useEducationScopeStore()
 const dictStore = useDictStore()
 const auth = useAuthStore()
 
-/** 引用课次与清理归排课域，按各自权限显隐，别给没读权限的人一个 403 入口 */
-const canReadSchedule = computed(() => auth.hasPermission('education:read'))
+/** 清理墓碑归排课域，按写权限显隐；查看引用课次已改为登录即可，不再按读码隐藏 */
 const canWriteSchedule = computed(() => auth.hasPermission('education:schedule:write'))
 const canWriteOrganization = computed(() => auth.hasPermission('organization:write'))
 

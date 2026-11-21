@@ -59,7 +59,7 @@ export const useEducationScopeStore = defineStore('educationScope', () => {
     termId.value = id
   }
 
-  /** 同一机构只拉一次；没有 organization:read 时会 403，清空列表让芯片自己隐藏，不弹错。 */
+  /** 同一机构只拉一次；读取接口登录即可，拉失败时清空列表让芯片自己隐藏，不弹错。 */
   async function loadCampuses(institutionId: string | null, force = false): Promise<void> {
     if (!institutionId) {
       campuses.value = []

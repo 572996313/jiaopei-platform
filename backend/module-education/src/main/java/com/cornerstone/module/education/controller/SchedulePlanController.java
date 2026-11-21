@@ -36,14 +36,12 @@ public class SchedulePlanController {
 
     @Operation(summary = "排课计划分页列表", description = "按机构/校区/班级/状态/生效区间筛选,分页返回排课计划")
     @GetMapping("/page")
-    @RequiresPermission("education:read")
     public ApiResponse<PageResult<SchedulePlanView>> page(@Valid @ParameterObject SchedulePlanPageQuery query) {
         return ApiResponse.success("排课计划分页列表已加载", schedulePlanService.pagePlans(query));
     }
 
     @Operation(summary = "获取排课计划详情")
     @GetMapping("/{id}")
-    @RequiresPermission("education:read")
     public ApiResponse<SchedulePlanView> get(@PathVariable Long id) {
         return ApiResponse.success("排课计划详情已加载", schedulePlanService.getPlan(id));
     }

@@ -35,7 +35,6 @@ public class ClassroomController {
 
     @Operation(summary = "获取教室列表")
     @GetMapping
-    @RequiresPermission("organization:read")
     public ApiResponse<List<ClassroomEntity>> list(@RequestParam(required = false) String campusId) {
         // 机构只认登录态：不传 campusId 时按本机构全部校区汇总，绝不允许拿它读别家的教室
         return ApiResponse.success("教室列表已加载", classroomService.listClassrooms(

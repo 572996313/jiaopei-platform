@@ -150,9 +150,10 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
   家长联系人增删改与主联系人切换、班级增删改、名册与入班/移出。学员列表 → 详情 → 编辑之间
   用一次性 storage 交接（后端没有按 id 取学员详情的接口）；班级详情走 `GET /education/classes/{id}`。
 - **企业端不调用小程序专属接口**:首页、「我的」按 `portal` 分支,管理后台账号不会去打 `/api/miniapp/**`(那条链路只认 `miniapp:access` 与当前微信用户),避免 403。
-- **权限**:读 `education:read`、台账写 `education:fee:write`、项目/价目配置 `education:fee:config:write`、
-  学员与家长写 `education:profile:write`、班级与入班写 `education:class:write`,
-  基础资料选择另需 `organization:read`;数据范围由后端 `InstitutionScopeGuard` / `CampusScopeGuard` 兜底。
+- **权限**:读取接口登录即可（V113 起业务读码已清零，不再需要 `education:read`/`organization:read`）、
+  台账写 `education:fee:write`、项目/价目配置 `education:fee:config:write`、
+  学员与家长写 `education:profile:write`、班级与入班写 `education:class:write`;
+  数据范围由后端 `InstitutionScopeGuard` / `CampusScopeGuard` 兜底。
   学员与班级的新增接口要求显式传 `institutionId`,小程序取 `/auth/me` 的 `institutionId`（为空回落 `orgId`）。
 
 ### 底部导航：看与做分开
@@ -225,6 +226,17 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 - **会话只存 storage 一份**:`utils/auth-session.ts` 是唯一真相,`useAuthStore().isLoggedIn()`
   现读现判。**不要在 store 里再缓存一份 session 快照**——401 只会清 storage,内存副本清不掉,
   登录页与首页的 `onShow` 判据会互相矛盾、来回 `reLaunch`。
+
+## 文件上传(预留接入口)
+
+小程序端暂未接入文件选择，后端通用能力已就绪：`POST /api/system/files`（multipart，字段名 `file`，可选 `bizType`/`bizId`），返回 `data.fileId`。
+
+接入时的口径：
+
+- 用 `uni.uploadFile`，`header.Authorization` 与普通请求相同；返回体是字符串，仍需按「雪花 ID 精度保护」同一套规则把 `fileId` 转成字符串后再解析。
+- **业务只保存 `fileId`**，不要保存临时路径、对象键或 URL；读取用 `GET /api/system/files/{fileId}/content`（后端校验机构），下载加 `?download=true`。
+- 账号角色需具备 `system:file:upload`（种子已授给上线时的全部在职角色，新增角色在角色授权里勾「文件上传」）。
+- 正式环境要在微信后台「开发管理 → 开发设置」把上传域名加入 **uploadFile 合法域名**（与 request 域名同源即可）。
 
 ## 常见问题
 

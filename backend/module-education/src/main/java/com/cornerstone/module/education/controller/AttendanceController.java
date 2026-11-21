@@ -40,7 +40,6 @@ public class AttendanceController {
 
     @Operation(summary = "获取考勤列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<AttendanceEntity>> list(@RequestParam(required = false) String lessonId,
                                                     @RequestParam(required = false) String classId,
                                                     @RequestParam(required = false) String studentId,
@@ -57,7 +56,6 @@ public class AttendanceController {
 
     @Operation(summary = "获取课次点名页")
     @GetMapping("/lesson-page")
-    @RequiresPermission("education:read")
     public ApiResponse<AttendanceLessonPageView> lessonPage(@RequestParam String lessonId) {
         return ApiResponse.success("课次点名页已加载",
             attendanceService.getLessonAttendancePage(ExternalIdParser.parseRequired(lessonId, "lessonId")));
@@ -65,7 +63,6 @@ public class AttendanceController {
 
     @Operation(summary = "批量获取课次点名进度", description = "按课次 ID 列表返回应到/已点名人数,供日课表一次拉取,避免逐课次请求点名页")
     @GetMapping("/lesson-progress")
-    @RequiresPermission("education:read")
     public ApiResponse<List<AttendanceLessonProgressView>> lessonProgress(@RequestParam List<Long> lessonIds) {
         return ApiResponse.success("课次点名进度已加载", attendanceService.listLessonProgress(lessonIds));
     }
@@ -86,7 +83,6 @@ public class AttendanceController {
 
     @Operation(summary = "考勤汇总", description = "按日期区间统计点名进度与出勤人次,支持按班级或按学员分组;只统计登录用户所属机构")
     @GetMapping("/summary")
-    @RequiresPermission("education:read")
     public ApiResponse<AttendanceSummaryResponse> summary(@Valid @ParameterObject AttendanceSummaryQuery query) {
         return ApiResponse.success("考勤汇总已加载",
             attendanceService.getSummary(AuthContext.requireUser().orgId(), query));
@@ -94,7 +90,6 @@ public class AttendanceController {
 
     @Operation(summary = "学员考勤明细", description = "单个学员在日期区间内的应到课次与点名状态流水,供学员档案的考勤抽屉使用")
     @GetMapping("/student-detail")
-    @RequiresPermission("education:read")
     public ApiResponse<AttendanceStudentDetailResponse> studentDetail(
         @RequestParam String studentId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,

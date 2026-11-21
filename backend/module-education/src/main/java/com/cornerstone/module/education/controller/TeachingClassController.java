@@ -34,7 +34,6 @@ public class TeachingClassController {
 
     @Operation(summary = "获取班级列表")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<TeachingClassEntity>> list(@RequestParam(required = false) String institutionId,
                                                        @RequestParam(required = false) String campusId,
                                                        @RequestParam(required = false) String termId) {
@@ -49,7 +48,6 @@ public class TeachingClassController {
             description = "按机构/校区/学期筛选,关键字模糊匹配班级名称与编码,最多返回 30 条,供表单与筛选下拉按需搜索;"
                     + "ids 传逗号分隔的班级ID时改为按ID批量回查(供表格行回显名称,上限 200 条),此时 keyword 不生效")
     @GetMapping("/options")
-    @RequiresPermission("education:read")
     public ApiResponse<List<ClassOptionView>> options(@RequestParam(required = false) String institutionId,
                                                       @RequestParam(required = false) String campusId,
                                                       @RequestParam(required = false) String termId,
@@ -67,7 +65,6 @@ public class TeachingClassController {
     @Operation(summary = "统计班级数量",
             description = "按机构/校区/学期统计班级条数;下拉改成按需搜索后前端没有全量数组,统计卡的班级数由这里给")
     @GetMapping("/count")
-    @RequiresPermission("education:read")
     public ApiResponse<Long> count(@RequestParam(required = false) String institutionId,
                                    @RequestParam(required = false) String campusId,
                                    @RequestParam(required = false) String termId) {
@@ -81,7 +78,6 @@ public class TeachingClassController {
     @Operation(summary = "获取班级详情",
             description = "按班级ID取单个班级整条档案;institutionId 必传并与班级归属比对,避免按 id 直取漏掉机构范围")
     @GetMapping("/{id}")
-    @RequiresPermission("education:read")
     public ApiResponse<TeachingClassEntity> detail(@PathVariable Long id,
                                                    @RequestParam String institutionId) {
         return ApiResponse.success("班级详情已加载", teachingClassService.getClassDetail(

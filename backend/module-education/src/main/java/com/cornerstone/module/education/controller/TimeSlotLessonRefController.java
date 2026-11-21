@@ -34,7 +34,6 @@ public class TimeSlotLessonRefController {
     @Operation(summary = "列出引用某节次的课次",
         description = "含已删除的课次(它们在课表页不显示,却以外键指着本节次),未删除的排在前面;机构范围取登录用户")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<TimeSlotLessonRefView>> list(@RequestParam Long timeSlotId) {
         return ApiResponse.success("引用课次已加载",
             timeSlotLessonRefService.listRefsByTimeSlot(AuthContext.requireUser().orgId(), timeSlotId));

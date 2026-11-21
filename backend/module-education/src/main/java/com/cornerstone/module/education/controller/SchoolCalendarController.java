@@ -33,7 +33,6 @@ public class SchoolCalendarController {
 
     @Operation(summary = "校区日历停排日列表", description = "按机构/校区/年份取停排日;传 campusId 时同时返回全校区(0)那批,与排课提示的读取范围一致,日期升序全量返回(数据量小,不分页)")
     @GetMapping
-    @RequiresPermission("education:read")
     public ApiResponse<List<SchoolCalendarView>> list(@RequestParam(required = false) Long institutionId,
                                                      @RequestParam(required = false) Long campusId,
                                                      @RequestParam(required = false) Integer year) {

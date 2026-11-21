@@ -1,4 +1,4 @@
-import { isAxiosError, type AxiosResponse } from 'axios'
+import { isAxiosError, type AxiosProgressEvent, type AxiosResponse } from 'axios'
 import { http } from '@cornerstone/core/api/http'
 
 export interface ApiResponse<T> {
@@ -116,6 +116,40 @@ export async function requestPut<T>(
 export async function requestDelete<T>(url: string): Promise<T> {
   try {
     return unwrap(await http.delete<ApiResponse<T>>(url))
+  } catch (error) {
+    throw normalizeError(error)
+  }
+}
+
+/**
+ * 表单上传（multipart/form-data）。
+ *
+ * <p>为什么单独一条而不复用 requestPost：上传要拿 onProgress 画进度条，还要把全局 10 秒超时
+ * 放宽（照片/表格在慢网下 10 秒传不完，误报超时比失败更让人困惑）。`Content-Type` 交给浏览器
+ * 自己生成，手写会漏掉 boundary。</p>
+ */
+export async function requestUpload<T>(
+  url: string,
+  form: FormData,
+  options: {
+    onProgress?: (percent: number) => void
+    /** 上传时长按 5 分钟算，与导出下载同口径 */
+    timeout?: number
+    signal?: AbortSignal
+  } = {}
+): Promise<T> {
+  try {
+    const response = await http.post<ApiResponse<T>>(url, form, {
+      timeout: options.timeout ?? 300000,
+      signal: options.signal,
+      onUploadProgress: (event: AxiosProgressEvent) => {
+        if (!options.onProgress || !event.total) {
+          return
+        }
+        options.onProgress(Math.min(100, Math.round((event.loaded * 100) / event.total)))
+      },
+    })
+    return unwrap(response)
   } catch (error) {
     throw normalizeError(error)
   }
