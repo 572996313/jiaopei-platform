@@ -5,7 +5,6 @@
     class="fee-price-dialog"
     width="min(1440px, 96vw)"
     top="4vh"
-    draggable
     :close-on-click-modal="false"
     @open="handleOpen"
   >

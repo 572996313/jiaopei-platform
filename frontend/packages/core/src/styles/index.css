@@ -2371,6 +2371,44 @@ body {
   overflow-y: auto;
 }
 
+/*
+ * 弹窗右下角拖拽改尺寸:抓手只在右下角画一个三角斜纹。
+ * 事件由 core/utils/dialog-resize.ts 的全局 pointerdown 按坐标接管(右下角 16px 热区),
+ * 这里保留 pointer-events 只为了在抓手上出现 nwse-resize 光标;热区内没有业务控件,
+ * 不会挡住底部按钮(按钮在弹窗 16px 内边距之内)。
+ */
+.el-dialog:not(.is-fullscreen):not(.is-align-center)::after {
+  content: '';
+  position: absolute;
+  /* 内缩 4px：弹窗圆角是 12px，贴边画会让三角尖露到圆角外的遮罩上 */
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  pointer-events: auto;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    var(--el-text-color-placeholder) 3px 4px
+  );
+}
+
+.el-dialog:not(.is-fullscreen):not(.is-align-center):hover::after {
+  opacity: 1;
+}
+
+/* 拖尺寸期间:全窗口统一光标并禁掉选中,避免走着走着光标变回文字/手型 */
+body.is-dialog-resizing,
+body.is-dialog-resizing * {
+  cursor: nwse-resize !important;
+  user-select: none;
+}
+
 /* 状态标签降噪:常规状态(success/info)改为「圆点+文字」,异常(warning/danger)保留软色块 */
 .el-tag--success:not(.el-tag--plain),
 .el-tag--info:not(.el-tag--plain) {

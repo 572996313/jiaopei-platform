@@ -5,7 +5,6 @@
     class="fee-monthly-dialog"
     width="min(1500px, 96vw)"
     top="4vh"
-    draggable
     :close-on-click-modal="false"
     :before-close="beforeClose"
     @open="handleOpen"
