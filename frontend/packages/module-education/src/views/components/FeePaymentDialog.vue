@@ -99,7 +99,7 @@
         <el-form-item label="收款金额" prop="amount">
           <el-input-number
             v-model="form.amount"
-            :precision="2"
+            :precision="4"
             :step="100"
             controls-position="right"
             style="width: 100%"

@@ -32,7 +32,7 @@ public class FeeLedgerEntity extends BaseEntity {
     @Schema(description = "状态(active=在收,settled=已结清)", allowableValues = {"active", "settled"})
     private String status;
 
-    @Schema(description = "备注(导出矩阵的学员块备注)")
+    @Schema(description = "备注(导出收费内容表的学员块备注)")
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String remark;
 }

@@ -28,7 +28,7 @@ public record FeePaymentCreateRequest(
     String paymentNo,
     @Schema(description = "收款金额(正数;负数=冲正/退回)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "收款金额不能为空")
-    @Digits(integer = 10, fraction = 2, message = "收款金额最多 10 位整数、2 位小数")
+    @Digits(integer = 12, fraction = 4, message = "收款金额最多 12 位整数、4 位小数")
     BigDecimal amount,
     @Schema(description = "收款日期", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias("paid_on")

@@ -104,7 +104,7 @@ public class FeeMonthlyServiceImpl implements FeeMonthlyService {
         }
         boolean followAuto = request.occurrenceAmount() == null;
         if (request.monthFactor() != null) {
-            row.setMonthFactor(FeeBillingEngine.quantity(request.monthFactor()));
+            row.setMonthFactor(FeeBillingEngine.factor(request.monthFactor()));
         }
         if (followAuto) {
             // 只改了月份系数：生效发生额跟随引擎重算，不产生金额覆盖。

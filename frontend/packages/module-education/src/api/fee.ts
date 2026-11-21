@@ -426,11 +426,27 @@ export function billingModeLabel(value?: string | null) {
   return value || '-'
 }
 
-export function moneyText(value?: number | null) {
+/**
+ * 金额/数量展示：最多保留 maxFraction 位小数，去掉末尾无意义的 0，但至少保留 2 位。
+ * 默认 4 位与库里 DECIMAL(16,4) 对齐；单价用 priceText（6 位）。
+ */
+function decimalText(value: number | null | undefined, maxFraction: number) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return '-'
   }
-  return Number(value).toFixed(2)
+  const [integer, fraction = ''] = Number(value).toFixed(maxFraction).split('.')
+  const trimmed = fraction.replace(/0+$/, '')
+  const kept = trimmed.padEnd(2, '0')
+  return kept ? `${integer}.${kept}` : integer
+}
+
+export function moneyText(value?: number | null) {
+  return decimalText(value, 4)
+}
+
+/** 单价（月标准/日标准）按 6 位小数展示，与库里 DECIMAL(16,6) 对齐 */
+export function priceText(value?: number | null) {
+  return decimalText(value, 6)
 }
 
 /** 账期统一用当月 1 日的 YYYY-MM-DD，月份列按年月比较，绝不按月份数字排序 */

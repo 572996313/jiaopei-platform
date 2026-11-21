@@ -277,8 +277,8 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
             FeePriceResolver.ResolvedPrice price = feePriceResolver.resolve(
                 ledger.getInstitutionId(), item.getFeeItemId(),
                 ledger.getCampusId(), ledger.getClassId(), ledger.getTermId(), ledger.getStudentId());
-            item.setMonthlyStandard(FeeBillingEngine.money(price.monthlyPrice()));
-            item.setDailyRate(FeeBillingEngine.money(price.dailyPrice()));
+            item.setMonthlyStandard(FeeBillingEngine.price(price.monthlyPrice()));
+            item.setDailyRate(FeeBillingEngine.price(price.dailyPrice()));
             item.setPriceSource(price.sourceFor(item.getBillingMode()));
             item.setPriceId(price.priceIdFor(item.getBillingMode()));
             feeLedgerItemMapper.updateById(item);
@@ -310,27 +310,24 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
         FeeLedgerDetailView first = detailsByLedger.values().iterator().next();
         if (first.termStartDate() == null || first.termEndDate() == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                "所选台账的学期没有起止日期，无法按月份生成矩阵表；请先到学期页补齐日期");
+                "所选台账的学期没有起止日期，无法按月份生成收费出勤表；请先到学期页补齐日期");
         }
         List<YearMonth> months = FeeBillingEngine.termMonths(first.termStartDate(), first.termEndDate());
 
         List<FeeMatrixExportBuilder.ItemRef> itemRefs = resolveMatrixItems(
             first.institutionId(), detailsByLedger.values());
-        Map<Long, StudentParentEntity> parents = loadParents(detailsByLedger.values());
+        Map<Long, List<StudentParentEntity>> parentGroups = loadParentGroups(detailsByLedger.values());
         List<FeeMatrixExportBuilder.StudentBlock> blocks = new ArrayList<>();
         for (FeeLedgerDetailView detail : detailsByLedger.values()) {
-            StudentParentEntity parent = parents.get(detail.studentId());
-            BigDecimal attendanceDays = detail.attendance().stream()
-                .map(FeeAttendanceView::attendanceDays)
-                .map(FeeBillingEngine::nz)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            List<FeeMatrixExportBuilder.ParentContact> contacts =
+                parentGroups.getOrDefault(detail.studentId(), List.of()).stream()
+                    .map(parent -> new FeeMatrixExportBuilder.ParentContact(
+                        parent.getRelationType(), parent.getParentName(), parent.getParentPhone(),
+                        parent.getAlipayPhone(), Boolean.TRUE.equals(parent.getIsPrimary())))
+                    .toList();
             blocks.add(new FeeMatrixExportBuilder.StudentBlock(
-                detail.studentNo(), detail.studentName(),
-                parent == null ? null : parent.getParentName(),
-                parent == null ? null : parent.getParentPhone(),
-                parent == null ? null : parent.getAlipayPhone(),
-                detail.remark(), attendanceDays,
-                detail.items(), detail.monthly(),
+                detail.studentNo(), detail.studentName(), contacts,
+                detail.remark(), detail.items(), detail.monthly(), detail.attendance(),
                 detail.receivable(), detail.paid(), detail.unpaid(),
                 detail.totalOccurrence(), detail.balance()));
         }
@@ -681,9 +678,9 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
             ledger.getClassId(), ledger.getTermId(), ledger.getStudentId());
         boolean manualMonthly = request.monthlyStandard() != null;
         boolean manualDaily = request.dailyRate() != null;
-        entity.setMonthlyStandard(FeeBillingEngine.money(
+        entity.setMonthlyStandard(FeeBillingEngine.price(
             manualMonthly ? request.monthlyStandard() : price.monthlyPrice()));
-        entity.setDailyRate(FeeBillingEngine.money(
+        entity.setDailyRate(FeeBillingEngine.price(
             manualDaily ? request.dailyRate() : price.dailyPrice()));
         if (DAILY.equals(billingMode)) {
             entity.setPriceSource(manualDaily ? "MANUAL" : price.sourceFor(DAILY));
@@ -822,30 +819,41 @@ public class FeeLedgerServiceImpl implements FeeLedgerService {
             .toList();
     }
 
-    private Map<Long, StudentParentEntity> loadParents(java.util.Collection<FeeLedgerDetailView> details) {
+    private Map<Long, List<StudentParentEntity>> loadParentGroups(
+        java.util.Collection<FeeLedgerDetailView> details) {
         List<Long> studentIds = details.stream().map(FeeLedgerDetailView::studentId)
             .filter(Objects::nonNull).distinct().toList();
         if (studentIds.isEmpty()) {
             return Map.of();
         }
-        Map<Long, StudentParentEntity> parents = new HashMap<>();
+        Map<Long, List<StudentParentEntity>> groups = new HashMap<>();
         for (StudentParentEntity parent : studentParentMapper.selectList(
             new LambdaQueryWrapper<StudentParentEntity>()
                 .in(StudentParentEntity::getStudentId, studentIds)
                 .eq(StudentParentEntity::getStatus, "active"))) {
-            parents.merge(parent.getStudentId(), parent, FeeLedgerServiceImpl::preferParent);
+            groups.computeIfAbsent(parent.getStudentId(), key -> new ArrayList<>()).add(parent);
         }
-        return parents;
+        // 主联系人排第一，其次按父亲/母亲/监护人/其他亲属，导出时家长块顺序稳定
+        groups.values().forEach(list -> list.sort(PARENT_ORDER));
+        return groups;
     }
 
-    private static StudentParentEntity preferParent(StudentParentEntity first, StudentParentEntity second) {
-        if (Boolean.TRUE.equals(first.getIsPrimary())) {
-            return first;
+    private static final Comparator<StudentParentEntity> PARENT_ORDER =
+        Comparator.comparing((StudentParentEntity parent) -> !Boolean.TRUE.equals(parent.getIsPrimary()))
+            .thenComparingInt(parent -> relationRank(parent.getRelationType()))
+            .thenComparing(parent -> Objects.toString(parent.getParentName(), ""));
+
+    private static int relationRank(String relationType) {
+        if (relationType == null) {
+            return 9;
         }
-        if (Boolean.TRUE.equals(second.getIsPrimary())) {
-            return second;
-        }
-        return first;
+        return switch (relationType) {
+            case "father" -> 0;
+            case "mother" -> 1;
+            case "guardian" -> 2;
+            case "relative" -> 3;
+            default -> 8;
+        };
     }
 
     private Names loadNames(List<FeeLedgerEntity> ledgers) {

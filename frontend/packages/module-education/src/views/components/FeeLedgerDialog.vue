@@ -108,7 +108,7 @@
             <el-input-number
               v-model="row.billableMonths"
               :min="0"
-              :precision="2"
+              :precision="4"
               :step="0.5"
               controls-position="right"
               size="small"
@@ -116,12 +116,12 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="月标准" width="120">
+        <el-table-column label="月标准" width="150">
           <template #default="{ row }">
             <el-input-number
               v-model="row.monthlyStandard"
               :min="0"
-              :precision="2"
+              :precision="6"
               :step="100"
               controls-position="right"
               size="small"
@@ -129,12 +129,12 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="日标准" width="120">
+        <el-table-column label="日标准" width="150">
           <template #default="{ row }">
             <el-input-number
               v-model="row.dailyRate"
               :min="0"
-              :precision="2"
+              :precision="6"
               :step="5"
               controls-position="right"
               size="small"
@@ -142,11 +142,11 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="上期结余" width="120">
+        <el-table-column label="上期结余" width="140">
           <template #default="{ row }">
             <el-input-number
               v-model="row.openingBalance"
-              :precision="2"
+              :precision="4"
               :step="100"
               controls-position="right"
               size="small"
@@ -154,12 +154,12 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="其他抵扣" width="120">
+        <el-table-column label="其他抵扣" width="140">
           <template #default="{ row }">
             <el-input-number
               v-model="row.otherDeduction"
               :min="0"
-              :precision="2"
+              :precision="4"
               :step="100"
               controls-position="right"
               size="small"
@@ -167,7 +167,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="应收（预览）" width="120" align="right">
+        <el-table-column label="应收（预览）" width="150" align="right">
           <template #default="{ row }">{{ moneyText(previewReceivable(row)) }}</template>
         </el-table-column>
         <el-table-column label="备注" min-width="140">
@@ -300,7 +300,8 @@ function previewReceivable(row: ItemRow) {
   const standard = Number(row.monthlyStandard ?? 0)
   const opening = Number(row.openingBalance ?? 0)
   const deduction = Number(row.otherDeduction ?? 0)
-  return months * standard - opening - deduction
+  // 与后端 FeeBillingEngine 对齐：金额保留 4 位，避免浮点尾差显示成 6900.000000000001
+  return Math.round((months * standard - opening - deduction) * 10000) / 10000
 }
 
 function resetForm() {

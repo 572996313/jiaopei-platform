@@ -86,7 +86,7 @@
           <el-input-number
             v-model="attendanceDrafts[row.billingMonth]"
             :min="0"
-            :precision="2"
+            :precision="4"
             :step="0.5"
             controls-position="right"
             size="small"
@@ -152,7 +152,7 @@
             v-model="monthlyDrafts[row.id].monthFactor"
             :min="0"
             :max="1"
-            :precision="2"
+            :precision="4"
             :step="0.5"
             controls-position="right"
             size="small"
@@ -169,7 +169,7 @@
           <el-input-number
             v-model="monthlyDrafts[row.id].occurrenceAmount"
             :min="0"
-            :precision="2"
+            :precision="4"
             :step="100"
             controls-position="right"
             size="small"

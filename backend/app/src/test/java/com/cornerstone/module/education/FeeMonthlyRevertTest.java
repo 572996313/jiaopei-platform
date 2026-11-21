@@ -106,9 +106,9 @@ class FeeMonthlyRevertTest {
             new FeeMonthlyOverrideRequest(null, new BigDecimal("0.50"), null));
 
         assertFalse(view.manualOverride());
-        assertEquals(new BigDecimal("0.50"), view.monthFactor());
-        assertEquals(new BigDecimal("750.00"), view.autoAmount());
-        assertEquals(new BigDecimal("750.00"), view.occurrenceAmount());
+        assertEquals(new BigDecimal("0.5000"), view.monthFactor());
+        assertEquals(new BigDecimal("750.0000"), view.autoAmount());
+        assertEquals(new BigDecimal("750.0000"), view.occurrenceAmount());
     }
 
     @Test
@@ -122,7 +122,7 @@ class FeeMonthlyRevertTest {
             new FeeMonthlyOverrideRequest(new BigDecimal("500.00"), null, "优惠"));
 
         assertTrue(view.manualOverride());
-        assertEquals(new BigDecimal("500.00"), view.occurrenceAmount());
+        assertEquals(new BigDecimal("500.0000"), view.occurrenceAmount());
     }
 
     @Test

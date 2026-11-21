@@ -23,42 +23,52 @@ class FeeBillingEngineTest {
             new BigDecimal("5.5"), new BigDecimal("1500"),
             new BigDecimal("750"), new BigDecimal("600"));
         // 5.5 × 1500 = 8250；8250 − 750 − 600 = 6900
-        assertEquals(new BigDecimal("6900.00"), receivable);
+        assertEquals(new BigDecimal("6900.0000"), receivable);
     }
 
     @Test
     void 未收费为负表示预收而不是错误() {
         BigDecimal unpaid = FeeBillingEngine.unpaid(
             new BigDecimal("2250"), new BigDecimal("3750"));
-        assertEquals(new BigDecimal("-1500.00"), unpaid);
+        assertEquals(new BigDecimal("-1500.0000"), unpaid);
     }
 
     @Test
     void 按月项目八月的半月发生额是七百五() {
         BigDecimal occurrence = FeeBillingEngine.monthlyOccurrence(
             new BigDecimal("1500"), new BigDecimal("0.50"), new BigDecimal("15"));
-        assertEquals(new BigDecimal("750.00"), occurrence);
+        assertEquals(new BigDecimal("750.0000"), occurrence);
     }
 
     @Test
     void 按月项目当月无出勤默认不消耗学费() {
         BigDecimal occurrence = FeeBillingEngine.monthlyOccurrence(
             new BigDecimal("1500"), new BigDecimal("1.00"), BigDecimal.ZERO);
-        assertEquals(new BigDecimal("0.00"), occurrence);
+        assertEquals(new BigDecimal("0.0000"), occurrence);
     }
 
     @Test
     void 按天项目发生额等于出勤天数乘日标准() {
         BigDecimal occurrence = FeeBillingEngine.dailyOccurrence(
             new BigDecimal("30"), new BigDecimal("18"));
-        assertEquals(new BigDecimal("540.00"), occurrence);
+        assertEquals(new BigDecimal("540.0000"), occurrence);
+    }
+
+    @Test
+    void 单价带多位小数时金额保留四位不丢厘() {
+        // 日标准 30.125 × 18 天 = 542.25；旧 DECIMAL(x,2) 会把日标准截成 30.13
+        assertEquals(new BigDecimal("542.2500"), FeeBillingEngine.dailyOccurrence(
+            new BigDecimal("30.125"), new BigDecimal("18")));
+        // 月标准 1500 × 系数 0.3333 = 499.95，四位小数足以承载逐月分摊的尾差
+        assertEquals(new BigDecimal("499.9500"), FeeBillingEngine.monthlyOccurrence(
+            new BigDecimal("1500"), new BigDecimal("0.3333"), new BigDecimal("1")));
     }
 
     @Test
     void 结余等于实收减合计发生() {
         BigDecimal balance = FeeBillingEngine.balance(
             new BigDecimal("3750"), new BigDecimal("2850"));
-        assertEquals(new BigDecimal("900.00"), balance);
+        assertEquals(new BigDecimal("900.0000"), balance);
     }
 
     @Test
@@ -89,15 +99,15 @@ class FeeBillingEngineTest {
     @Test
     void 默认收费月数等于各月默认系数之和() {
         // 8 月半月 + 9~1 月五个整月 = 5.5，与源表的「收费月数 5.5」一致
-        assertEquals(new BigDecimal("5.50"), FeeBillingEngine.defaultBillableMonths(
+        assertEquals(new BigDecimal("5.5000"), FeeBillingEngine.defaultBillableMonths(
             LocalDate.of(2026, 8, 15), LocalDate.of(2027, 1, 31)));
     }
 
     @Test
     void 空值一律按零处理不抛空指针() {
-        assertEquals(new BigDecimal("0.00"),
+        assertEquals(new BigDecimal("0.0000"),
             FeeBillingEngine.receivable(null, null, null, null));
-        assertEquals(new BigDecimal("0.00"),
+        assertEquals(new BigDecimal("0.0000"),
             FeeBillingEngine.dailyOccurrence(null, null));
         assertEquals(BigDecimal.ZERO, FeeBillingEngine.nz(null));
     }

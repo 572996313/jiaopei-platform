@@ -7,11 +7,11 @@
     <div class="table-toolbar">
       <el-button v-if="canWrite" type="primary" @click="openGenerateDialog">生成台账</el-button>
       <el-button v-if="canWrite" @click="openLedgerDialog('create')">新增台账</el-button>
-      <el-button :loading="exportingMatrix" @click="exportMatrix">导出矩阵</el-button>
+      <el-button :loading="exportingMatrix" @click="exportMatrix">导出收费出勤表</el-button>
       <el-button :loading="exportingDetail" @click="exportDetail">导出明细</el-button>
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       <span class="education-context-text">
-        结余 = 实收 − 合计发生，即可退金额；未收费为负表示预收。矩阵导出需先选学期与班级。
+        结余 = 实收 − 合计发生，即可退金额；未收费为负表示预收。收费出勤表需先选学期与班级，导出 3 个 sheet：家长情况 / 收费内容 / 出勤明细。
       </span>
     </div>
 
@@ -48,23 +48,23 @@
           <el-table-column prop="studentName" label="姓名" width="110" fixed="left" show-overflow-tooltip />
           <el-table-column prop="className" label="班级" min-width="150" show-overflow-tooltip />
           <el-table-column prop="termName" label="学期" width="140" show-overflow-tooltip />
-          <el-table-column label="应收" width="110" align="right">
+          <el-table-column label="应收" width="132" align="right">
             <template #default="{ row }">{{ moneyText(row.receivable) }}</template>
           </el-table-column>
-          <el-table-column label="实收" width="110" align="right">
+          <el-table-column label="实收" width="132" align="right">
             <template #default="{ row }">{{ moneyText(row.paid) }}</template>
           </el-table-column>
-          <el-table-column label="未收费" width="110" align="right">
+          <el-table-column label="未收费" width="132" align="right">
             <template #default="{ row }">
               <span :class="{ 'fee-prepaid': Number(row.unpaid ?? 0) < 0 }">
                 {{ moneyText(row.unpaid) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="合计发生" width="110" align="right">
+          <el-table-column label="合计发生" width="132" align="right">
             <template #default="{ row }">{{ moneyText(row.totalOccurrence) }}</template>
           </el-table-column>
-          <el-table-column label="结余（可退）" width="120" align="right">
+          <el-table-column label="结余（可退）" width="140" align="right">
             <template #default="{ row }">
               <b>{{ moneyText(row.balance) }}</b>
             </template>
@@ -475,7 +475,7 @@ function exportPrefix() {
 
 async function exportMatrix() {
   if (!termId.value || !classId.value) {
-    ElMessage.warning('导出矩阵请先选择学期与班级，矩阵表按同一班同一学期成表')
+    ElMessage.warning('导出收费出勤表请先选择学期与班级，表按同一班同一学期生成')
     return
   }
   exportingMatrix.value = true
@@ -483,7 +483,7 @@ async function exportMatrix() {
     const prefix = exportPrefix()
     await exportFeeMatrix(exportParams(), `${prefix ? `${prefix}-` : ''}收费出勤表.xlsx`)
   } catch (error) {
-    ElMessage.error(toMessage(error, '导出矩阵失败'))
+    ElMessage.error(toMessage(error, '导出收费出勤表失败'))
   } finally {
     exportingMatrix.value = false
   }

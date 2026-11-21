@@ -95,7 +95,8 @@ public class FeeLedgerController {
         return ApiResponse.success("已按价目表重新取价", feeLedgerService.resolvePrices(id));
     }
 
-    @Operation(summary = "导出收费出勤表(矩阵)", description = "与财务手工表同构：合并单元格、按项目分行、带小计与总计")
+    @Operation(summary = "导出收费出勤表(3 个 sheet)",
+            description = "拆成家长情况 / 收费内容 / 出勤明细三张表，各自带班级与单位行、小计与总计")
     @GetMapping("/export/matrix")
     @RequiresPermission("education:read")
     public ResponseEntity<byte[]> exportMatrix(@Valid @ParameterObject FeeLedgerPageQuery query) {

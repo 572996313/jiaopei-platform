@@ -20,7 +20,7 @@ public record FeeItemCreateRequest(
     @Schema(description = "计费方式(monthly=按月,daily=按天)", allowableValues = {"monthly", "daily"})
     @JsonAlias("billing_mode")
     String billingMode,
-    @Schema(description = "排序号(决定导出矩阵块内的项目行序)")
+    @Schema(description = "排序号(决定收费出勤表中项目行的顺序)")
     @JsonAlias("sort_no")
     Integer sortNo,
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})

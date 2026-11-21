@@ -19,16 +19,22 @@ import java.util.List;
  *   结余     = 实收 − 合计发生（正数即可退金额）
  * </pre>
  *
- * <p>金额一律 {@code BigDecimal} + {@code HALF_UP} 两位小数，禁用 double；
- * 月数/天数/系数保留两位。所有入参 null 都按 0 处理，避免页面上留空就 NPE。</p>
+ * <p>金额一律 {@code BigDecimal} + {@code HALF_UP} 四位小数，单价保留六位，禁用 double；
+ * 月数/天数/系数保留四位。所有入参 null 都按 0 处理，避免页面上留空就 NPE。</p>
  */
 public final class FeeBillingEngine {
 
-    /** 金额统一两位小数，与库里的 DECIMAL(x,2) 对齐 */
-    private static final int MONEY_SCALE = 2;
+    /** 金额四位小数，与库里的 DECIMAL(16,4) 对齐；按天/半月分摊的尾差留在第四位 */
+    private static final int MONEY_SCALE = 4;
 
-    /** 月数/天数/系数两位小数，与库里的 DECIMAL(5,2)/(4,2) 对齐 */
-    private static final int QUANTITY_SCALE = 2;
+    /** 单价六位小数，与库里的 DECIMAL(16,6) 对齐；日标准可以精确到厘以下 */
+    private static final int PRICE_SCALE = 6;
+
+    /** 月数/天数四位小数，与库里的 DECIMAL(8,4) 对齐 */
+    private static final int QUANTITY_SCALE = 4;
+
+    /** 月份系数四位小数，与库里的 DECIMAL(8,4) 对齐 */
+    private static final int FACTOR_SCALE = 4;
 
     /** 学期起始日不在月初时，首月默认按半月计 */
     private static final BigDecimal HALF_MONTH = new BigDecimal("0.50");
@@ -46,14 +52,22 @@ public final class FeeBillingEngine {
         return nz(value).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
+    public static BigDecimal price(BigDecimal value) {
+        return nz(value).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+    }
+
     public static BigDecimal quantity(BigDecimal value) {
         return nz(value).setScale(QUANTITY_SCALE, RoundingMode.HALF_UP);
+    }
+
+    public static BigDecimal factor(BigDecimal value) {
+        return nz(value).setScale(FACTOR_SCALE, RoundingMode.HALF_UP);
     }
 
     /** 应收 = 收费月数 × 月标准 − 上期结余 − 其他抵扣。 */
     public static BigDecimal receivable(BigDecimal billableMonths, BigDecimal monthlyStandard,
                                         BigDecimal openingBalance, BigDecimal otherDeduction) {
-        return money(quantity(billableMonths).multiply(money(monthlyStandard))
+        return money(quantity(billableMonths).multiply(price(monthlyStandard))
             .subtract(money(openingBalance))
             .subtract(money(otherDeduction)));
     }
@@ -74,12 +88,12 @@ public final class FeeBillingEngine {
         if (quantity(attendanceDays).signum() <= 0) {
             return money(BigDecimal.ZERO);
         }
-        return money(money(monthlyStandard).multiply(quantity(monthFactor)));
+        return money(price(monthlyStandard).multiply(factor(monthFactor)));
     }
 
     /** 按天项目的当月发生额 = 出勤天数 × 日标准。 */
     public static BigDecimal dailyOccurrence(BigDecimal dailyRate, BigDecimal attendanceDays) {
-        return money(quantity(attendanceDays).multiply(money(dailyRate)));
+        return money(quantity(attendanceDays).multiply(price(dailyRate)));
     }
 
     /** 结余 = 实收 − 合计发生，正数即可退金额。 */

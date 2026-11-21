@@ -191,7 +191,7 @@ public class FeePriceServiceImpl implements FeePriceService {
     }
 
     private BigDecimal scale(BigDecimal value) {
-        return value == null ? null : value.setScale(2, java.math.RoundingMode.HALF_UP);
+        return value == null ? null : value.setScale(6, java.math.RoundingMode.HALF_UP);
     }
 
     private String normalize(String value) {

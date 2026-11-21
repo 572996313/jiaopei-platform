@@ -114,17 +114,17 @@
           <span :class="{ 'unlimited-text': !activeDimension(row.studentId) }">{{ studentText(row) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="月标准" width="110" align="right">
+      <el-table-column label="月标准" width="140" align="right" show-overflow-tooltip>
         <template #default="{ row }">
           <span :class="{ 'unlimited-text': row.monthlyPrice === null || row.monthlyPrice === undefined }">
-            {{ moneyText(row.monthlyPrice) }}
+            {{ priceText(row.monthlyPrice) }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="日标准" width="110" align="right">
+      <el-table-column label="日标准" width="140" align="right" show-overflow-tooltip>
         <template #default="{ row }">
           <span :class="{ 'unlimited-text': row.dailyPrice === null || row.dailyPrice === undefined }">
-            {{ moneyText(row.dailyPrice) }}
+            {{ priceText(row.dailyPrice) }}
           </span>
         </template>
       </el-table-column>
@@ -207,7 +207,7 @@
           <el-input-number
             v-model="form.monthlyPrice"
             :min="0"
-            :precision="2"
+            :precision="6"
             :step="100"
             style="width: 100%"
           />
@@ -216,7 +216,7 @@
           <el-input-number
             v-model="form.dailyPrice"
             :min="0"
-            :precision="2"
+            :precision="6"
             :step="5"
             style="width: 100%"
           />
@@ -256,7 +256,7 @@ import {
   createFeePrice,
   deleteFeePrice,
   fetchFeePrices,
-  moneyText,
+  priceText,
   updateFeePrice,
   type FeeItemRecord,
   type FeePriceRecord,

@@ -4,6 +4,7 @@ import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
@@ -20,18 +21,23 @@ public record FeeLedgerItemRequest(
     Long feeItemId,
     @Schema(description = "收费月数(留空按学期默认月数)")
     @JsonAlias("billable_months")
+    @Digits(integer = 4, fraction = 4, message = "收费月数最多 4 位整数、4 位小数")
     BigDecimal billableMonths,
     @Schema(description = "月标准(留空按价目表;显式传 0 表示免费)")
     @JsonAlias("monthly_standard")
+    @Digits(integer = 10, fraction = 6, message = "月标准最多 10 位整数、6 位小数")
     BigDecimal monthlyStandard,
     @Schema(description = "日标准(留空按价目表;显式传 0 表示免费)")
     @JsonAlias("daily_rate")
+    @Digits(integer = 10, fraction = 6, message = "日标准最多 10 位整数、6 位小数")
     BigDecimal dailyRate,
     @Schema(description = "上期结余(正=预收,负=欠费)")
     @JsonAlias("opening_balance")
+    @Digits(integer = 12, fraction = 4, message = "上期结余最多 12 位整数、4 位小数")
     BigDecimal openingBalance,
     @Schema(description = "其他抵扣")
     @JsonAlias("other_deduction")
+    @Digits(integer = 12, fraction = 4, message = "其他抵扣最多 12 位整数、4 位小数")
     BigDecimal otherDeduction,
     @Schema(description = "备注")
     String remark

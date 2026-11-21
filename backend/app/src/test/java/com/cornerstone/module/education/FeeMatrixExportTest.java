@@ -1,9 +1,11 @@
 package com.cornerstone.module.education;
 
+import com.cornerstone.module.education.fee.dto.FeeAttendanceView;
 import com.cornerstone.module.education.fee.dto.FeeLedgerItemView;
 import com.cornerstone.module.education.fee.dto.FeeMonthlyView;
 import com.cornerstone.module.education.fee.support.FeeMatrixExportBuilder;
 import com.cornerstone.module.education.fee.support.FeeMatrixExportBuilder.ItemRef;
+import com.cornerstone.module.education.fee.support.FeeMatrixExportBuilder.ParentContact;
 import com.cornerstone.module.education.fee.support.FeeMatrixExportBuilder.StudentBlock;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -23,11 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 收费出勤表矩阵导出：把生成的 xlsx 读回来核对版式与数值。
+ * 收费出勤表导出：拆成「家长情况 / 收费内容 / 出勤明细」三个 sheet 后，把文件读回来核对版式与数值。
  *
- * <p>这张表是给园长看的，块高、合并、小计、总计任何一处偏了都会让整张表失去可读性，
- * 所以不看 builder 的入参而看文件本身。样例取源表的典型情形：保教费按 5.5 个月、
- * 8 月半月 750、伙食费按天、项目 3 个（延时费只在配置里有）。</p>
+ * <p>三块表各有各的合并规则：家长块按联系人数纵向合并，收费块按项目数 + 小计合并，
+ * 出勤块固定「出勤天数」占第一行。任何一处偏移都会让财务对不上，所以不看 builder 入参，
+ * 只看生成出来的单元格。</p>
  */
 class FeeMatrixExportTest {
 
@@ -35,116 +37,208 @@ class FeeMatrixExportTest {
     private static final long ITEM_MEAL = 2L;
     private static final long ITEM_DELAY = 3L;
 
-    private static final int COL_ITEM = 5;
-    private static final int COL_MONTHS = 6;
-    private static final int COL_STANDARD = 7;
-    private static final int COL_RECEIVABLE = 10;
-    private static final int COL_PAID = 11;
-    private static final int COL_UNPAID = 12;
-    private static final int COL_ATTENDANCE = 13;
-    private static final int COL_FIRST_MONTH = 14;
-    private static final int COL_TOTAL_OCCURRENCE = 20;
-    private static final int COL_BALANCE = 21;
+    private static final int HEADER_ROW = 2;
+    private static final int MONTH_START_COLUMN = 4;
+    private static final int TOTAL_COLUMN = 10;
 
     @Test
-    void 每个学员块高三加二且项目一拆成收费行与发生行() throws IOException {
-        List<List<String>> text = textRows(build());
-
-        // 表头：学号…出勤天数 + 6 个月 + 合计发生/结余/备注
-        assertEquals("8月", text.get(2).get(COL_FIRST_MONTH));
-        assertEquals("1月", text.get(2).get(COL_FIRST_MONTH + 5));
-        assertEquals("合计发生", text.get(2).get(COL_TOTAL_OCCURRENCE));
-        assertEquals("结余", text.get(2).get(COL_BALANCE));
-
-        // 学员 A 的块起于第 4 行（下标 3），高 5 行
-        assertEquals("S001", text.get(3).get(0));
-        assertEquals("张三", text.get(3).get(1));
-        assertEquals("保教费", text.get(3).get(COL_ITEM));
-        assertEquals("伙食费", text.get(5).get(COL_ITEM));
-        // 延时费没建台账行，但配置里存在，必须只写项目名占位（源表的延时费行）
-        assertEquals("延时费", text.get(6).get(COL_ITEM));
-        assertEquals("小计", text.get(7).get(COL_ITEM));
-        // 学员 B 紧随其后
-        assertEquals("S002", text.get(8).get(0));
-
+    void 拆成家长收费出勤三个sheet且每个都带班级与单位() throws IOException {
         try (XSSFWorkbook workbook = open(build())) {
-            Sheet sheet = workbook.getSheetAt(0);
-            assertEquals("收费出勤表", sheet.getSheetName());
-            // 学号与出勤天数在学员块内纵向合并
-            assertTrue(sheet.getMergedRegions().stream().anyMatch(region ->
-                    region.getFirstRow() == 3 && region.getLastRow() == 7
-                        && region.getFirstColumn() == 0 && region.getLastColumn() == 0),
-                "学号应在学员块内纵向合并");
-            assertTrue(sheet.getMergedRegions().stream().anyMatch(region ->
-                    region.getFirstRow() == 3 && region.getLastRow() == 7
-                        && region.getFirstColumn() == COL_ATTENDANCE
-                        && region.getLastColumn() == COL_ATTENDANCE),
-                "出勤天数应在学员块内纵向合并");
+            assertEquals(3, workbook.getNumberOfSheets());
+            assertEquals("家长情况", workbook.getSheetAt(0).getSheetName());
+            assertEquals("收费内容", workbook.getSheetAt(1).getSheetName());
+            assertEquals("出勤明细", workbook.getSheetAt(2).getSheetName());
+
+            assertTrue(text(workbook.getSheetAt(0), 0, 0).endsWith("家长情况表"));
+            assertTrue(text(workbook.getSheetAt(1), 0, 0).endsWith("收费内容表"));
+            assertTrue(text(workbook.getSheetAt(2), 0, 0).endsWith("出勤费用表"));
+
+            int[] lastColumns = {6, 11, TOTAL_COLUMN};
+            for (int index = 0; index < lastColumns.length; index++) {
+                Sheet sheet = workbook.getSheetAt(index);
+                assertEquals("雅趣小班", text(sheet, 1, 0), "第二行左侧应是班级");
+                assertEquals("单位：元", text(sheet, 1, lastColumns[index]), "第二行右侧应是单位");
+            }
         }
     }
 
     @Test
-    void 收费与发生额按源表口径写入() throws IOException {
+    void 家长情况把全部联系人列出来并标记主联系人() throws IOException {
         try (XSSFWorkbook workbook = open(build())) {
             Sheet sheet = workbook.getSheetAt(0);
+            assertEquals("学号", text(sheet, HEADER_ROW, 0));
+            assertEquals("家长关系", text(sheet, HEADER_ROW, 2));
+            assertEquals("支付宝绑定电话", text(sheet, HEADER_ROW, 5));
+            assertEquals("主联系人", text(sheet, HEADER_ROW, 6));
 
-            // 保教费收费行：5.5 个月 × 1500 = 8250
-            assertEquals(5.5, number(sheet, 3, COL_MONTHS), 0.001);
-            assertEquals(1500.0, number(sheet, 3, COL_STANDARD), 0.001);
-            assertEquals(8250.0, number(sheet, 3, COL_RECEIVABLE), 0.001);
-            assertEquals(8250.0, number(sheet, 3, COL_PAID), 0.001);
-            assertEquals(0.0, number(sheet, 3, COL_UNPAID), 0.001);
-            assertEquals(90.0, number(sheet, 3, COL_ATTENDANCE), 0.001);
+            // 张三有父亲、母亲两行，主联系人排在前面并带支付宝绑定电话
+            assertEquals("S001", text(sheet, 3, 0));
+            assertEquals("张三", text(sheet, 3, 1));
+            assertEquals("父亲", text(sheet, 3, 2));
+            assertEquals("张父", text(sheet, 3, 3));
+            assertEquals("13800000001", text(sheet, 3, 4));
+            assertEquals("13900000001", text(sheet, 3, 5));
+            assertEquals("是", text(sheet, 3, 6));
 
-            // 保教费发生行：8 月半月 750，9 月起整月 1500
-            assertEquals(750.0, number(sheet, 4, COL_FIRST_MONTH), 0.001);
-            assertEquals(1500.0, number(sheet, 4, COL_FIRST_MONTH + 1), 0.001);
+            assertEquals("母亲", text(sheet, 4, 2));
+            assertEquals("张母", text(sheet, 4, 3));
+            assertEquals("13800000002", text(sheet, 4, 4));
+            assertEquals("", text(sheet, 4, 5));
+            assertEquals("", text(sheet, 4, 6));
 
-            // 伙食费：按天，8 月 18 天 × 30 = 540
-            assertEquals(540.0, number(sheet, 5, COL_FIRST_MONTH), 0.001);
-            assertEquals(600.0, number(sheet, 5, COL_FIRST_MONTH + 1), 0.001);
+            // 李四只有一个联系人，不产生多余空行
+            assertEquals("S002", text(sheet, 5, 0));
+            assertEquals("母亲", text(sheet, 5, 2));
+            assertEquals("是", text(sheet, 5, 6));
 
-            // 小计：合计发生 8250 + 1140 = 9390；结余 8250 − 9390 = −1140
-            assertEquals(9390.0, number(sheet, 7, COL_TOTAL_OCCURRENCE), 0.001);
-            assertEquals(-1140.0, number(sheet, 7, COL_BALANCE), 0.001);
+            assertTrue(hasMerge(sheet, 3, 4, 0, 0), "学号应在张三的家长块内纵向合并");
+            assertTrue(hasMerge(sheet, 3, 4, 1, 1), "姓名应在张三的家长块内纵向合并");
         }
     }
 
     @Test
-    void 表尾与学员块同构并带总计() throws IOException {
+    void 收费内容按项目行加小计且结余与备注都在第二部分() throws IOException {
         try (XSSFWorkbook workbook = open(build())) {
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = workbook.getSheetAt(1);
+            assertEquals("收费内容", text(sheet, HEADER_ROW, 2));
+            assertEquals("结余", text(sheet, HEADER_ROW, 10));
+            assertEquals("备注", text(sheet, HEADER_ROW, 11));
+
+            // 张三：保教费、伙食费、延时费（未建行占位）、小计
+            assertEquals("保教费", text(sheet, 3, 2));
+            assertEquals(5.5, number(sheet, 3, 3), 0.001);
+            assertEquals(1500.0, number(sheet, 3, 4), 0.001);
+            assertEquals(8250.0, number(sheet, 3, 7), 0.001);
+            assertEquals(9000.0, number(sheet, 3, 8), 0.001);
+            assertEquals(-750.0, number(sheet, 3, 9), 0.001);
+            assertEquals(8250.0, number(sheet, 3, 10), 0.001);
+
+            assertEquals("伙食费", text(sheet, 4, 2));
+            assertEquals(600.0, number(sheet, 4, 4), 0.001, "收费内容的收费标准按月标准展示");
+            assertEquals(3600.0, number(sheet, 4, 7), 0.001);
+            assertEquals(0.0, number(sheet, 4, 9), 0.001);
+            assertEquals(3330.0, number(sheet, 4, 10), 0.001);
+
+            assertEquals("延时费", text(sheet, 5, 2));
+            assertEquals("", text(sheet, 5, 4));
+
+            assertEquals("小计", text(sheet, 6, 2));
+            assertEquals(11850.0, number(sheet, 6, 7), 0.001);
+            assertEquals(12600.0, number(sheet, 6, 8), 0.001);
+            assertEquals(-750.0, number(sheet, 6, 9), 0.001);
+            assertEquals(11580.0, number(sheet, 6, 10), 0.001);
+            assertEquals("上学期有半托", text(sheet, 3, 11));
+            assertTrue(hasMerge(sheet, 3, 6, 11, 11), "备注应在学员块内纵向合并");
+
+            assertEquals("S002", text(sheet, 7, 0));
+            assertEquals("小计", text(sheet, 10, 2));
+
+            assertEquals("总计", text(sheet, 11, 0));
+            assertEquals(21450.0, number(sheet, 11, 7), 0.001);
+            assertEquals(22200.0, number(sheet, 11, 8), 0.001);
+            assertEquals(-750.0, number(sheet, 11, 9), 0.001);
+            assertEquals(19580.0, number(sheet, 11, 10), 0.001);
+        }
+    }
+
+    @Test
+    void 出勤明细第一行固定出勤天数下面才是费用项() throws IOException {
+        try (XSSFWorkbook workbook = open(build())) {
+            Sheet sheet = workbook.getSheetAt(2);
+            assertEquals("项目", text(sheet, HEADER_ROW, 2));
+            assertEquals("日标准", text(sheet, HEADER_ROW, 3));
+            assertEquals("8月", text(sheet, HEADER_ROW, MONTH_START_COLUMN));
+            assertEquals("合计发生", text(sheet, HEADER_ROW, TOTAL_COLUMN));
+
+            // 张三块：出勤天数 → 保教费 → 伙食费 → 延时费 → 小计
+            assertEquals("S001", text(sheet, 3, 0));
+            assertEquals("出勤天数", text(sheet, 3, 2));
+            assertEquals(9.0, number(sheet, 3, MONTH_START_COLUMN), 0.001);
+            assertEquals(9.0, number(sheet, 3, TOTAL_COLUMN), 0.001);
+            assertEquals(0.0, number(sheet, 3, MONTH_START_COLUMN + 1), 0.001);
+
+            assertEquals("保教费", text(sheet, 4, 2));
+            assertEquals("", text(sheet, 4, 3), "按月项目不显示日标准");
+            assertEquals(750.0, number(sheet, 4, MONTH_START_COLUMN), 0.001);
+            assertEquals(750.0, number(sheet, 4, TOTAL_COLUMN), 0.001);
+
+            assertEquals("伙食费", text(sheet, 5, 2));
+            assertEquals(30.0, number(sheet, 5, 3), 0.001);
+            assertEquals(270.0, number(sheet, 5, MONTH_START_COLUMN), 0.001);
+
+            assertEquals("延时费", text(sheet, 6, 2));
+            assertEquals("", text(sheet, 6, MONTH_START_COLUMN));
+
+            assertEquals("小计", text(sheet, 7, 2));
+            assertEquals(1020.0, number(sheet, 7, MONTH_START_COLUMN), 0.001);
+            assertEquals(1020.0, number(sheet, 7, TOTAL_COLUMN), 0.001);
+
+            // 李四块：9 月有出勤
+            assertEquals("S002", text(sheet, 8, 0));
+            assertEquals(10.0, number(sheet, 8, MONTH_START_COLUMN), 0.001);
+            assertEquals(20.0, number(sheet, 8, MONTH_START_COLUMN + 1), 0.001);
+            assertEquals(30.0, number(sheet, 8, TOTAL_COLUMN), 0.001);
+            assertEquals("小计", text(sheet, 12, 2));
+            assertEquals(1600.0, number(sheet, 12, TOTAL_COLUMN), 0.001);
+        }
+    }
+
+    @Test
+    void 出勤明细表尾按项目汇总再给总计() throws IOException {
+        try (XSSFWorkbook workbook = open(build())) {
+            Sheet sheet = workbook.getSheetAt(2);
 
             assertEquals("合计", text(sheet, 13, 0));
-            assertEquals("保教费", text(sheet, 13, COL_ITEM));
-            // 保教费 8 月 = 750(甲) + 500(乙) = 1250；9~1 月每月 = 1500 + 1000 = 2500
-            assertEquals(1250.0, number(sheet, 14, COL_FIRST_MONTH), 0.001);
-            assertEquals(2500.0, number(sheet, 14, COL_FIRST_MONTH + 1), 0.001);
-            // 伙食费 8 月 540，9 月 600 + 600 = 1200
-            assertEquals(540.0, number(sheet, 15, COL_FIRST_MONTH), 0.001);
-            assertEquals(1200.0, number(sheet, 15, COL_FIRST_MONTH + 1), 0.001);
-            assertEquals("延时费", text(sheet, 16, COL_ITEM));
+            assertEquals("出勤天数", text(sheet, 13, 2));
+            assertEquals(19.0, number(sheet, 13, MONTH_START_COLUMN), 0.001);
+            assertEquals(20.0, number(sheet, 13, MONTH_START_COLUMN + 1), 0.001);
+            assertEquals(39.0, number(sheet, 13, TOTAL_COLUMN), 0.001);
+
+            assertEquals("保教费", text(sheet, 14, 2));
+            assertEquals(1250.0, number(sheet, 14, MONTH_START_COLUMN), 0.001);
+            assertEquals(500.0, number(sheet, 14, MONTH_START_COLUMN + 1), 0.001);
+            assertEquals(1750.0, number(sheet, 14, TOTAL_COLUMN), 0.001);
+
+            assertEquals("伙食费", text(sheet, 15, 2));
+            assertEquals(270.0, number(sheet, 15, MONTH_START_COLUMN), 0.001);
+            assertEquals(600.0, number(sheet, 15, MONTH_START_COLUMN + 1), 0.001);
 
             assertEquals("总计", text(sheet, 17, 0));
-            assertEquals(14250.0, number(sheet, 17, COL_RECEIVABLE), 0.001);
-            assertEquals(14250.0, number(sheet, 17, COL_PAID), 0.001);
-            assertEquals(15490.0, number(sheet, 17, COL_TOTAL_OCCURRENCE), 0.001);
-            assertEquals(-1240.0, number(sheet, 17, COL_BALANCE), 0.001);
+            assertEquals(1520.0, number(sheet, 17, MONTH_START_COLUMN), 0.001);
+            assertEquals(1100.0, number(sheet, 17, MONTH_START_COLUMN + 1), 0.001);
+            assertEquals(2620.0, number(sheet, 17, TOTAL_COLUMN), 0.001);
         }
     }
 
     @Test
-    void 月份列由学期起止动态生成而不是写死六个月() throws IOException {
-        byte[] workbook = FeeMatrixExportBuilder.build("示例幼儿园", "国兴校区", "雅趣小班", "26 年下半年",
-            List.of(YearMonth.of(2026, 9), YearMonth.of(2026, 10)),
-            List.of(new ItemRef(ITEM_TUITION, "保教费")),
-            List.of(studentA()));
-        try (XSSFWorkbook book = open(workbook)) {
-            Sheet sheet = book.getSheetAt(0);
-            assertEquals("9月", text(sheet, 2, COL_FIRST_MONTH));
-            assertEquals("10月", text(sheet, 2, COL_FIRST_MONTH + 1));
-            // 两个月时「合计发生」紧跟在第 16 列
-            assertEquals("合计发生", text(sheet, 2, COL_FIRST_MONTH + 2));
+    void 金额与单价按四位六位小数展示且不丢尾差() throws IOException {
+        try (XSSFWorkbook workbook = open(build())) {
+            // 收费内容：收费标准（月标准）用 6 位格式，金额列用 4 位格式
+            Sheet charge = workbook.getSheetAt(1);
+            assertEquals("#,##0.######", numberFormat(charge, 3, 4), "月标准最多展示 6 位小数");
+            assertEquals("#,##0.####", numberFormat(charge, 3, 7), "应收金额最多展示 4 位小数");
+            assertEquals("#,##0.####", numberFormat(charge, 3, 10), "结余最多展示 4 位小数");
+
+            // 出勤明细：日标准 6 位，逐月发生额与合计 4 位
+            Sheet attendance = workbook.getSheetAt(2);
+            assertEquals("#,##0.######", numberFormat(attendance, 5, 3), "日标准最多展示 6 位小数");
+            assertEquals("#,##0.####", numberFormat(attendance, 5, MONTH_START_COLUMN), "按月发生额最多展示 4 位小数");
+
+            // 4 位小数金额写入后读回不丢精度（旧 DECIMAL(x,2) 会在入库时就截断）
+            byte[] precise = FeeMatrixExportBuilder.build("示例幼儿园", "国兴校区", "雅趣小班", "26 年下半年",
+                List.of(YearMonth.of(2026, 8)),
+                List.of(new ItemRef(ITEM_TUITION, "保教费")),
+                List.of(new StudentBlock("S009", "尾差学员", List.of(),
+                    null,
+                    List.of(preciseItem(91L, ITEM_TUITION, "保教费", "monthly", "1.3333", "1000.123456", "0",
+                        "0", "0", "1333.4578", "1333.4578", "0", "1333.4578", "0")),
+                    List.of(), List.of(),
+                    money("1333.4578"), money("1333.4578"), money("0"),
+                    money("1333.4578"), money("0"))));
+            try (XSSFWorkbook one = open(precise)) {
+                assertEquals(1000.123456, number(one.getSheetAt(1), 3, 4), 1e-9);
+                assertEquals(1333.4578, number(one.getSheetAt(1), 3, 7), 1e-9);
+            }
         }
     }
 
@@ -162,50 +256,64 @@ class FeeMatrixExportTest {
 
     private StudentBlock studentA() {
         List<FeeLedgerItemView> items = List.of(
-            item(11L, ITEM_TUITION, "保教费", "monthly",
-                "5.5", "1500", "0", "0", "0", "8250", "8250", "8250", "0"),
-            item(12L, ITEM_MEAL, "伙食费", "daily",
-                "5.5", "0", "30", "0", "0", "0", "0", "1140", "-1140"));
+            item(11L, ITEM_TUITION, "保教费", "monthly", "5.5", "1500", "0",
+                "0", "0", "8250", "9000", "-750", "750", "8250"),
+            item(12L, ITEM_MEAL, "伙食费", "daily", "6", "600", "30",
+                "0", "0", "3600", "3600", "0", "270", "3330"));
         List<FeeMonthlyView> monthly = new ArrayList<>();
         monthly.add(monthly(101L, 11L, ITEM_TUITION, "保教费", "monthly", 2026, 8, "750"));
-        for (int month = 9; month <= 12; month++) {
-            monthly.add(monthly((long) (100 + month), 11L, ITEM_TUITION, "保教费", "monthly", 2026, month, "1500"));
-        }
-        monthly.add(monthly(201L, 11L, ITEM_TUITION, "保教费", "monthly", 2027, 1, "1500"));
-        monthly.add(monthly(202L, 12L, ITEM_MEAL, "伙食费", "daily", 2026, 8, "540"));
-        monthly.add(monthly(203L, 12L, ITEM_MEAL, "伙食费", "daily", 2026, 9, "600"));
-        return new StudentBlock("S001", "张三", "张父", "13800000001", "13900000001", "上学期有半托",
-            new BigDecimal("90"), items, monthly,
-            money("8250"), money("8250"), money("0"), money("9390"), money("-1140"));
+        monthly.add(monthly(201L, 12L, ITEM_MEAL, "伙食费", "daily", 2026, 8, "270"));
+        List<FeeAttendanceView> attendance = new ArrayList<>();
+        attendance.add(attendance(301L, 2026, 8, "9"));
+        return new StudentBlock("S001", "张三",
+            List.of(new ParentContact("father", "张父", "13800000001", "13900000001", true),
+                new ParentContact("mother", "张母", "13800000002", null, false)),
+            "上学期有半托", items, monthly, attendance,
+            money("11850"), money("12600"), money("-750"), money("1020"), money("11580"));
     }
 
     private StudentBlock studentB() {
         List<FeeLedgerItemView> items = List.of(
-            item(21L, ITEM_TUITION, "保教费", "monthly",
-                "6", "1000", "0", "0", "0", "6000", "6000", "5500", "500"),
-            item(22L, ITEM_MEAL, "伙食费", "daily",
-                "6", "0", "30", "0", "0", "0", "0", "600", "-600"));
+            item(21L, ITEM_TUITION, "保教费", "monthly", "6", "1000", "0",
+                "0", "0", "6000", "6000", "0", "1000", "5000"),
+            item(22L, ITEM_MEAL, "伙食费", "daily", "6", "600", "30",
+                "0", "0", "3600", "3600", "0", "600", "3000"));
         List<FeeMonthlyView> monthly = new ArrayList<>();
-        monthly.add(monthly(301L, 21L, ITEM_TUITION, "保教费", "monthly", 2026, 8, "500"));
-        for (int month = 9; month <= 12; month++) {
-            monthly.add(monthly((long) (300 + month), 21L, ITEM_TUITION, "保教费", "monthly", 2026, month, "1000"));
-        }
-        monthly.add(monthly(401L, 21L, ITEM_TUITION, "保教费", "monthly", 2027, 1, "1000"));
-        monthly.add(monthly(402L, 22L, ITEM_MEAL, "伙食费", "daily", 2026, 9, "600"));
-        return new StudentBlock("S002", "李四", "李母", "13800000002", null, null,
-            new BigDecimal("60"), items, monthly,
-            money("6000"), money("6000"), money("0"), money("6100"), money("-100"));
+        monthly.add(monthly(401L, 21L, ITEM_TUITION, "保教费", "monthly", 2026, 8, "500"));
+        monthly.add(monthly(402L, 21L, ITEM_TUITION, "保教费", "monthly", 2026, 9, "500"));
+        monthly.add(monthly(403L, 22L, ITEM_MEAL, "伙食费", "daily", 2026, 9, "600"));
+        List<FeeAttendanceView> attendance = new ArrayList<>();
+        attendance.add(attendance(501L, 2026, 8, "10"));
+        attendance.add(attendance(502L, 2026, 9, "20"));
+        return new StudentBlock("S002", "李四",
+            List.of(new ParentContact("mother", "李母", "13800000003", "13800000003", true)),
+            null, items, monthly, attendance,
+            money("9600"), money("9600"), money("0"), money("1600"), money("8000"));
     }
 
     private FeeLedgerItemView item(Long id, Long feeItemId, String name, String billingMode,
                                    String months, String standard, String daily, String opening,
-                                   String deduction, String receivable, String paid,
+                                   String deduction, String receivable, String paid, String unpaid,
                                    String totalOccurrence, String balance) {
-        BigDecimal unpaid = money(receivable).subtract(money(paid));
         return new FeeLedgerItemView(id, feeItemId, "F" + feeItemId, name, billingMode,
             money(months), money(standard), money(daily), money(opening), money(deduction),
-            money(receivable), money(paid), unpaid,
+            money(receivable), money(paid), money(unpaid),
             money(totalOccurrence), money(balance), "PRICE", null);
+    }
+
+    /** 与 money() 同构，但按新口径保留 4 位小数，用于验证尾差不被截断。 */
+    private FeeLedgerItemView preciseItem(Long id, Long feeItemId, String name, String billingMode,
+                                          String months, String standard, String daily, String opening,
+                                          String deduction, String receivable, String paid, String unpaid,
+                                          String totalOccurrence, String balance) {
+        return new FeeLedgerItemView(id, feeItemId, "F" + feeItemId, name, billingMode,
+            precise(months), precise(standard), precise(daily), precise(opening), precise(deduction),
+            precise(receivable), precise(paid), precise(unpaid),
+            precise(totalOccurrence), precise(balance), "PRICE", null);
+    }
+
+    private static BigDecimal precise(String value) {
+        return new BigDecimal(value).setScale(6, java.math.RoundingMode.HALF_UP);
     }
 
     private FeeMonthlyView monthly(Long id, Long ledgerItemId, Long feeItemId, String name,
@@ -215,8 +323,13 @@ class FeeMatrixExportTest {
             money(amount), money(amount), false, null);
     }
 
+    private FeeAttendanceView attendance(Long id, int year, int month, String days) {
+        return new FeeAttendanceView(id, LocalDate.of(year, month, 1), money(days), money(days),
+            false, "AUTO", null);
+    }
+
     private static BigDecimal money(String value) {
-        return new BigDecimal(value).setScale(2, java.math.RoundingMode.HALF_UP);
+        return new BigDecimal(value).setScale(4, java.math.RoundingMode.HALF_UP);
     }
 
     // ------------------------------------------------------------------ 读回工具
@@ -225,21 +338,10 @@ class FeeMatrixExportTest {
         return new XSSFWorkbook(new ByteArrayInputStream(workbook));
     }
 
-    private List<List<String>> textRows(byte[] workbook) throws IOException {
-        List<List<String>> rows = new ArrayList<>();
-        try (XSSFWorkbook book = open(workbook)) {
-            Sheet sheet = book.getSheetAt(0);
-            for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                List<String> values = new ArrayList<>();
-                int lastColumn = row == null ? -1 : row.getLastCellNum();
-                for (int column = 0; column < lastColumn; column++) {
-                    values.add(text(sheet, rowIndex, column));
-                }
-                rows.add(values);
-            }
-        }
-        return rows;
+    private boolean hasMerge(Sheet sheet, int firstRow, int lastRow, int firstColumn, int lastColumn) {
+        return sheet.getMergedRegions().stream().anyMatch(region ->
+            region.getFirstRow() == firstRow && region.getLastRow() == lastRow
+                && region.getFirstColumn() == firstColumn && region.getLastColumn() == lastColumn);
     }
 
     private String text(Sheet sheet, int rowIndex, int column) {
@@ -263,5 +365,13 @@ class FeeMatrixExportTest {
         Cell cell = row.getCell(column);
         assertNotNull(cell, "单元格 " + rowIndex + "," + column + " 不存在");
         return cell.getNumericCellValue();
+    }
+
+    private String numberFormat(Sheet sheet, int rowIndex, int column) {
+        Row row = sheet.getRow(rowIndex);
+        assertNotNull(row, "行 " + rowIndex + " 不存在");
+        Cell cell = row.getCell(column);
+        assertNotNull(cell, "单元格 " + rowIndex + "," + column + " 不存在");
+        return cell.getCellStyle().getDataFormatString();
     }
 }

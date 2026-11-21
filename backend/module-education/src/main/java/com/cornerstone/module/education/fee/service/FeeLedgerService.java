@@ -31,7 +31,7 @@ public interface FeeLedgerService {
     /** 按当前出勤与标准重算逐月发生额；ledgerId 优先，否则按 termId + classId 批量。 */
     int recalculate(FeeRecalculateRequest request);
 
-    /** 1:1 矩阵表（POI 手工画，含合并单元格与小计/总计）。 */
+    /** 收费出勤表：三张 sheet（家长情况 / 收费内容 / 出勤明细），POI 手工画并带小计/总计。 */
     byte[] exportMatrix(FeeLedgerPageQuery query);
 
     /** 一维明细（两张 sheet：台账明细 / 逐月发生）。 */

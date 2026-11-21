@@ -4,6 +4,7 @@ import com.cornerstone.core.common.web.FlexibleLongIdDeserializer;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "收费价目创建请求(四个维度 0 或留空=不限)")
@@ -35,9 +36,11 @@ public record FeePriceCreateRequest(
     Long studentId,
     @Schema(description = "月标准")
     @JsonAlias("monthly_price")
+    @Digits(integer = 10, fraction = 6, message = "月标准最多 10 位整数、6 位小数")
     java.math.BigDecimal monthlyPrice,
     @Schema(description = "日标准")
     @JsonAlias("daily_price")
+    @Digits(integer = 10, fraction = 6, message = "日标准最多 10 位整数、6 位小数")
     java.math.BigDecimal dailyPrice,
     @Schema(description = "状态(active=启用,disabled=停用)", allowableValues = {"active", "disabled"})
     String status,
