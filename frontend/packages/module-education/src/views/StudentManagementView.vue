@@ -4,7 +4,7 @@
       <el-alert :title="pageError" type="error" show-icon :closable="false" />
     </article>
 
-    <!-- 这一页只管学员本身：报名去「学员报名」，进班去「分班与名册」 -->
+    <!-- 这一页只管学员本身：报名即入班，进班与报名渠道都去「分班与名册」 -->
     <div class="table-toolbar">
       <el-button
         v-permission="'education:profile:write'"
@@ -13,9 +13,9 @@
         >新增学员</el-button
       >
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
-      <el-button @click="goEnrollments">学员报名</el-button>
+      <el-button @click="goClassRoster">分班与名册</el-button>
       <span class="education-context-text">
-        删除学员会连带影响报名与入班记录，请先确认该学员已无在读班级。
+        删除学员会连带影响在班记录，请先确认该学员已无在读班级。
       </span>
     </div>
 
@@ -91,7 +91,7 @@
             <template #default="{ row }">
               <el-button link type="primary" @click="openParentDrawer(row)">联系人</el-button>
               <el-button link type="primary" @click="openAttendanceDrawer(row)">考勤</el-button>
-              <el-button link type="primary" @click="goStudentEnrollments(row)">报名</el-button>
+              <el-button link type="primary" @click="goStudentRoster(row)">在班</el-button>
               <el-button
                 v-permission="'education:profile:write'"
                 link
@@ -465,14 +465,14 @@ function openAttendanceDrawer(row: StudentSummary) {
   attendanceDrawerVisible.value = true
 }
 
-/** 行上「报名」跳过去看这个孩子报过哪些班，把学员带过去当筛选条件 */
-function goStudentEnrollments(row: StudentSummary) {
+/** 行上「在班」跳过去看这个孩子报过哪些班（报名即入班，名册就是报名记录），把学员带过去当筛选条件 */
+function goStudentRoster(row: StudentSummary) {
   rememberStudentOptions([{ id: row.id, studentNo: row.studentNo, studentName: row.studentName }])
-  router.push({ path: '/enrollments', query: { studentId: String(row.id) } })
+  router.push({ path: '/class-roster', query: { studentId: String(row.id) } })
 }
 
-function goEnrollments() {
-  router.push({ path: '/enrollments' })
+function goClassRoster() {
+  router.push({ path: '/class-roster' })
 }
 
 async function loadStudents() {
@@ -493,7 +493,7 @@ async function loadStudents() {
     })
     pagedStudents.value = result.records
     total.value = result.total
-    // 行上的姓名/学号记进缓存，抽屉标题与报名页的回显都靠它
+    // 行上的姓名/学号记进缓存，抽屉标题与名册页的回显都靠它
     rememberStudentOptions(
       result.records.map((row) => ({
         id: row.id,

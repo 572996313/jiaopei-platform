@@ -12,7 +12,7 @@
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       <el-button @click="goClassProfile">班级档案</el-button>
       <span class="education-context-text">
-        移除只断班级与学员的关系，不动学员档案；点行上「联系人」在右侧维护家长电话。
+        新增入班即报名，可记录来源渠道；移除只断班级与学员的关系，不动学员档案；点行上「联系人」在右侧维护家长电话。
       </span>
     </div>
 
@@ -69,6 +69,9 @@
                 {{ classStudentStatusLabel(row.status) }}
               </el-tag>
             </template>
+          </el-table-column>
+          <el-table-column prop="channel" label="来源渠道" width="140" sortable="custom">
+            <template #default="{ row }">{{ enrollmentChannelLabel(row.channel) }}</template>
           </el-table-column>
           <el-table-column prop="joinedAt" label="入班日期" width="140" sortable="custom" />
           <el-table-column prop="leftAt" label="离班日期" width="140" sortable="custom" />
@@ -140,9 +143,13 @@
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="选择状态">
             <el-option label="在班" value="active" />
-            <el-option label="停班" value="suspended" />
-            <el-option label="已离班" value="left" />
+            <el-option label="退班" value="quit" />
+            <el-option label="结业" value="graduated" />
+            <el-option label="预占" value="reserved" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="来源渠道">
+          <DictSelect v-model="form.channel" type-code="enrollment_channel" placeholder="选择报名渠道（选填）" />
         </el-form-item>
         <el-form-item label="入班日期">
           <el-date-picker
@@ -193,8 +200,10 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
+import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import {
@@ -219,6 +228,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const institutionStore = useInstitutionStore()
+const dictStore = useDictStore()
 const scopeStore = useEducationScopeStore()
 const { campusId } = storeToRefs(scopeStore)
 const { institutionId, loadScope } = useEducationScope()
@@ -256,6 +266,7 @@ const form = reactive({
   classId: '' as string | null,
   studentId: '' as string | null,
   status: 'active',
+  channel: '',
   joinedAt: todayValue(),
   leftAt: '',
   remark: '',
@@ -343,6 +354,13 @@ function formatClassType(id?: string | null) {
 
 function classStudentStatusLabel(status?: string | null) {
   switch (status) {
+    case 'quit':
+      return '退班'
+    case 'graduated':
+      return '结业'
+    case 'reserved':
+      return '预占'
+    // 旧版页面写过 suspended / left，存量行按这两个词回显，不硬映射成"在班"
     case 'suspended':
       return '停班'
     case 'left':
@@ -355,28 +373,39 @@ function classStudentStatusLabel(status?: string | null) {
 
 function classStudentTagType(status?: string | null) {
   switch (status) {
-    case 'suspended':
-      return 'warning'
+    case 'quit':
     case 'left':
       return 'info'
+    case 'graduated':
+      return 'success'
+    case 'reserved':
+    case 'suspended':
+      return 'warning'
     case 'active':
     default:
       return 'success'
   }
 }
 
+function enrollmentChannelLabel(value?: string | null) {
+  return dictStore.displayLabel('enrollment_channel', value)
+}
+
 function resetForm() {
   form.classId = classId.value || ''
   form.studentId = studentId.value || ''
   form.status = 'active'
+  form.channel = ''
   form.joinedAt = todayValue()
   form.leftAt = ''
   form.remark = ''
   formError.value = ''
 }
 
-/** 名册页只需要课程与班型两张字典做名称回显，教师与班级数组不进这页 */
+/** 名册页只需要课程、班型与报名渠道字典做名称回显，教师与班级数组不进这页 */
 async function refreshLookups() {
+  // 渠道字典与机构范围无关，先保证回显有中文
+  void dictStore.ensureLoaded(['enrollment_channel'])
   if (!institutionId.value) {
     courses.value = []
     classTypes.value = []
@@ -490,6 +519,7 @@ async function submitClassStudent() {
       classId: form.classId,
       studentId: form.studentId,
       status: form.status,
+      channel: trimToUndefined(form.channel),
       joinedAt: form.joinedAt,
       leftAt: form.leftAt || null,
       remark: trimToUndefined(form.remark),
@@ -540,24 +570,25 @@ function goClassProfile() {
   router.push({ path: '/classes', query: classId.value ? { classId: String(classId.value) } : {} })
 }
 
-/** 档案页跳过来时带 ?classId=，缓存中的页签不会重新挂载，所以要盯着路由参数 */
-function applyRouteClassId() {
-  const value = route.query.classId
-  const next = value ? String(value) : null
-  if (next === classId.value) {
+/** 档案页跳过来时带 ?classId= / ?studentId=，缓存中的页签不会重新挂载，所以要盯着路由参数 */
+function applyRouteFilters() {
+  const nextClassId = route.query.classId ? String(route.query.classId) : null
+  const nextStudentId = route.query.studentId ? String(route.query.studentId) : null
+  if (nextClassId === classId.value && nextStudentId === studentId.value) {
     return
   }
-  classId.value = next
+  classId.value = nextClassId
+  studentId.value = nextStudentId
   void loadRecords()
 }
 
 watch(
-  () => route.query.classId,
+  () => [route.query.classId, route.query.studentId],
   () => {
     if (route.name !== 'class-roster') {
       return
     }
-    applyRouteClassId()
+    applyRouteFilters()
   }
 )
 
@@ -578,8 +609,8 @@ onMounted(async () => {
   // 抽屉里的关系列要字典，由 StudentParentDrawer 自己拉
   await institutionStore.loadInstitutions()
   await refreshAll()
-  // 机构装载时上面那条 watch 会把班级清空，所以带 ?classId= 进来要等初始化完再落一次
-  applyRouteClassId()
+  // 机构装载时上面那条 watch 会把班级清空，所以带 ?classId=/?studentId= 进来要等初始化完再落一次
+  applyRouteFilters()
 })
 </script>
 

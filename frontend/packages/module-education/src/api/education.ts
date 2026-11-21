@@ -142,24 +142,13 @@ export interface StudentParentRecord {
   remark?: string | null
 }
 
-export interface EnrollmentRecord {
-  id: string
-  institutionId?: string | null
-  studentId?: string | null
-  classId?: string | null
-  enrollmentNo?: string | null
-  channel?: string | null
-  status?: string | null
-  enrolledAt?: string | null
-  remark?: string | null
-}
-
 export interface ClassStudentRecord {
   id: string
   institutionId?: string | null
   classId?: string | null
   studentId?: string | null
   status?: string | null
+  channel?: string | null
   joinedAt?: string | null
   leftAt?: string | null
   remark?: string | null
@@ -178,6 +167,7 @@ export interface ClassStudentViewRecord {
   studentNo?: string | null
   studentName?: string | null
   status?: string | null
+  channel?: string | null
   joinedAt?: string | null
   leftAt?: string | null
   remark?: string | null
@@ -295,14 +285,14 @@ export interface ScheduleConflictCheckResult {
   notices?: string[] | null
 }
 
-export interface EnrollmentCreatePayload {
+export interface ClassStudentCreatePayload {
   institutionId: string
-  studentId: string
   classId: string
-  enrollmentNo: string
-  channel?: string
+  studentId: string
   status?: string
-  enrolledAt?: string | null
+  channel?: string
+  joinedAt?: string | null
+  leftAt?: string | null
   remark?: string
 }
 
@@ -672,18 +662,6 @@ export function deleteTeachingClass(id: string) {
 
 export function createTeachingClass(payload: TeachingClassCreatePayload) {
   return requestPost<TeachingClassSummary>('/education/classes', payload)
-}
-
-export function fetchEnrollments(params?: {
-  institutionId?: string | null
-  classId?: string | null
-  studentId?: string | null
-}) {
-  return requestGet<EnrollmentRecord[]>('/education/enrollments', params ?? undefined)
-}
-
-export function createEnrollment(payload: EnrollmentCreatePayload) {
-  return requestPost<EnrollmentRecord>('/education/enrollments', payload)
 }
 
 export interface ClassStudentPageParams extends PageParams {
@@ -1182,32 +1160,6 @@ export interface ScheduleCompletenessParams {
 
 export function fetchScheduleCompleteness(params: ScheduleCompletenessParams) {
   return requestGet<ScheduleCompletenessResult>('/education/schedule-completeness', { ...params })
-}
-
-/** 报名记录分页视图,后端已回带学员与班级名称,无需再用全量学员/班级做名称回显 */
-export interface EnrollmentViewRecord {
-  id: string
-  institutionId?: string | null
-  studentId?: string | null
-  studentNo?: string | null
-  studentName?: string | null
-  classId?: string | null
-  className?: string | null
-  enrollmentNo?: string | null
-  channel?: string | null
-  status?: string | null
-  enrolledAt?: string | null
-  remark?: string | null
-}
-
-export interface EnrollmentPageParams extends PageParams {
-  institutionId?: string | null
-  classId?: string | null
-  studentId?: string | null
-}
-
-export function fetchEnrollmentPage(params: EnrollmentPageParams) {
-  return requestGet<PageResult<EnrollmentViewRecord>>('/education/enrollments/page', { ...params })
 }
 
 /** 家长联系人分页视图,后端已回带学员名称 */

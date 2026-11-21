@@ -25,6 +25,9 @@ public class ClassStudentEntity extends BaseEntity {
     @Schema(description = "状态(active=在读,quit=退班,graduated=结业,reserved=预占)")
     private String status;
 
+    @Schema(description = "报名渠道字典(enrollment_channel:front_desk=前台报名,consultant=顾问录入,online=线上线索,referral=转介绍)")
+    private String channel;
+
     @Schema(description = "加入日期")
     private LocalDate joinedAt;
 

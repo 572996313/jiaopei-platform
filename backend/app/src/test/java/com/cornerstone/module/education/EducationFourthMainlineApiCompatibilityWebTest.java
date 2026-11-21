@@ -11,11 +11,9 @@ import com.cornerstone.core.common.web.TraceIdFilter;
 import com.cornerstone.core.config.SecurityConfig;
 import com.cornerstone.module.education.controller.AttendanceController;
 import com.cornerstone.module.education.controller.ClassStudentController;
-import com.cornerstone.module.education.controller.EnrollmentController;
 import com.cornerstone.module.education.controller.ScheduleLessonController;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
-import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
 import com.cornerstone.module.education.dto.AttendanceCreateRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonInfoView;
@@ -23,13 +21,11 @@ import com.cornerstone.module.education.dto.AttendanceLessonPageView;
 import com.cornerstone.module.education.dto.AttendanceLessonStudentView;
 import com.cornerstone.module.education.dto.AttendanceLessonSummaryView;
 import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
-import com.cornerstone.module.education.dto.EnrollmentCreateRequest;
 import com.cornerstone.module.education.dto.ScheduleConflictCheckResponse;
 import com.cornerstone.module.education.dto.ScheduleLessonRequest;
 import com.cornerstone.module.education.dto.ScheduleLessonView;
 import com.cornerstone.module.education.service.AttendanceService;
 import com.cornerstone.module.education.service.ClassStudentService;
-import com.cornerstone.module.education.service.EnrollmentService;
 import com.cornerstone.module.education.service.ScheduleLessonService;
 import com.cornerstone.support.WebMvcSecurityTestConfig;
 import java.time.LocalDate;
@@ -55,7 +51,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {
-    EnrollmentController.class,
     ClassStudentController.class,
     AttendanceController.class,
     ScheduleLessonController.class
@@ -63,7 +58,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
     // 业务模块改由 AutoConfiguration 装配，@WebMvcTest 切片会关掉自动配置，
     // 所以下面这些业务控制器必须在切片里显式 @Import，否则接口 404。
-    EnrollmentController.class,
     ClassStudentController.class,
     AttendanceController.class,
     ScheduleLessonController.class,
@@ -83,9 +77,6 @@ class EducationFourthMainlineApiCompatibilityWebTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private EnrollmentService enrollmentService;
-
-    @MockBean
     private ClassStudentService classStudentService;
 
     @MockBean
@@ -100,7 +91,6 @@ class EducationFourthMainlineApiCompatibilityWebTest {
     @BeforeEach
     void allowStubUser() {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
-        given(enrollmentService.listEnrollments(any(), any(), any())).willReturn(List.of());
         given(classStudentService.listClassStudents(any(), any())).willReturn(List.of());
         given(attendanceService.listAttendances(any(), any(), any(), any())).willReturn(List.of());
         given(scheduleLessonService.listLessons(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -108,14 +98,6 @@ class EducationFourthMainlineApiCompatibilityWebTest {
 
     @Test
     void fourthMainlineListEndpointsAcceptBusinessStyleIds() throws Exception {
-        mockMvc.perform(get("/api/education/enrollments")
-                .param("institutionId", "INST-001")
-                .param("classId", "CLS-020")
-                .param("studentId", "ST-010")
-                .header("Authorization", "Bearer stub-access-token"))
-            .andExpect(status().isOk());
-        verify(enrollmentService).listEnrollments(1L, 20L, 10L);
-
         mockMvc.perform(get("/api/education/class-students")
                 .param("classId", "CLS-020")
                 .param("studentId", "ST-010")
@@ -130,36 +112,6 @@ class EducationFourthMainlineApiCompatibilityWebTest {
                 .header("Authorization", "Bearer stub-access-token"))
             .andExpect(status().isOk());
         verify(attendanceService).listAttendances(null, 20L, 10L, LocalDate.of(2026, 6, 8));
-    }
-
-    @Test
-    void createEnrollmentAcceptsSnakeCaseFrontendPayload() throws Exception {
-        given(enrollmentService.createEnrollment(any())).willAnswer(invocation -> {
-            EnrollmentCreateRequest request = invocation.getArgument(0);
-            EnrollmentEntity entity = new EnrollmentEntity();
-            entity.setId(300L);
-            entity.setInstitutionId(request.institutionId());
-            entity.setClassId(request.classId());
-            entity.setStudentId(request.studentId());
-            entity.setEnrollmentNo(request.enrollmentNo());
-            return entity;
-        });
-
-        mockMvc.perform(post("/api/education/enrollments")
-                .header("Authorization", "Bearer stub-access-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "institution_id": "INST-001",
-                      "class_id": "CLS-020",
-                      "student_id": "ST-010",
-                      "enrollment_no": "ENR-001"
-                    }
-                    """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.institutionId").value(1))
-            .andExpect(jsonPath("$.data.classId").value(20))
-            .andExpect(jsonPath("$.data.studentId").value(10));
     }
 
     @Test

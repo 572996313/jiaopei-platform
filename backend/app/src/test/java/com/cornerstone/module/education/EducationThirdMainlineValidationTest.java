@@ -30,7 +30,6 @@ import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.mapper.ClassChangeNoticeMapper;
 import com.cornerstone.module.education.mapper.CourseCategoryMapper;
 import com.cornerstone.module.education.mapper.CourseMapper;
-import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.StudentParentMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
@@ -207,7 +206,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void createStudentRejectsDuplicateStudentNo() {
         StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator,
-            CodeRuleTestSupport.unconfiguredRules(), classStudentMapper, mock(EnrollmentMapper.class),
+            CodeRuleTestSupport.unconfiguredRules(), classStudentMapper,
             teachingClassMapper);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         when(studentMapper.selectCount(any())).thenReturn(1L);
@@ -220,7 +219,7 @@ class EducationThirdMainlineValidationTest {
     @Test
     void createStudentRejectsFutureBirthday() {
         StudentServiceImpl service = new StudentServiceImpl(studentMapper, institutionMapper, dictValueValidator,
-            CodeRuleTestSupport.unconfiguredRules(), classStudentMapper, mock(EnrollmentMapper.class),
+            CodeRuleTestSupport.unconfiguredRules(), classStudentMapper,
             teachingClassMapper);
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
 

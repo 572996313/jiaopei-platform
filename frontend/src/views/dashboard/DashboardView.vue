@@ -5,7 +5,7 @@
       <el-button :icon="Refresh" circle :loading="boardLoading" @click="refreshBoard" />
       <el-button type="primary" @click="goToSchedule()">打开课表与点名</el-button>
       <div class="education-context-text">
-        先看今天的课次执行、点名进度和变动提醒，再进入排课、报名、入班和教师档案。
+        先看今天的课次执行、点名进度和变动提醒，再进入排课、分班入班和教师档案。
       </div>
     </div>
 
@@ -42,7 +42,7 @@
         </div>
 
         <div v-if="todayQueueItems.length === 0" class="education-empty">
-          当前范围下暂无课次执行项，可以先去处理报名、入班或教师档案。
+          当前范围下暂无课次执行项，可以先去处理分班入班或教师档案。
         </div>
 
         <div v-else class="workbench-list">
@@ -443,9 +443,8 @@ const todayQueueItems = computed<QueueItem[]>(() => {
 
 const quickLinks = [
   { label: '课表与点名', hint: '点名、结课、日周课表', to: '/schedule' },
-  { label: '学员报名', hint: '处理报名记录，报名即入班', to: '/enrollments' },
+  { label: '分班与名册', hint: '新增入班即报名，可记录来源渠道', to: '/class-roster' },
   { label: '学员档案', hint: '录入与维护学员本身、家长联系人', to: '/students' },
-  { label: '分班与名册', hint: '查看班级人数与在班状态', to: '/class-roster' },
   { label: '班级档案', hint: '维护班级主档与任课教师', to: '/classes' },
   { label: '教师档案', hint: '维护教师基础信息和所属校区', to: '/teachers' },
 ]

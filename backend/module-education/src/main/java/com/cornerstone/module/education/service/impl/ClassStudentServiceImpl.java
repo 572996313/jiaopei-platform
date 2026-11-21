@@ -17,6 +17,7 @@ import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.ClassStudentService;
+import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.service.support.EducationCampusScopeSupport;
 import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
@@ -36,6 +37,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
     /** 班级学员列表可排序字段:班级/学员是 ID 列,列表上显示的是名称,不参与排序 */
     private static final Map<String, SFunction<ClassStudentEntity, ?>> CLASS_STUDENT_SORTABLE = Map.of(
         "status", ClassStudentEntity::getStatus,
+        "channel", ClassStudentEntity::getChannel,
         "joinedAt", ClassStudentEntity::getJoinedAt,
         "leftAt", ClassStudentEntity::getLeftAt,
         "remark", ClassStudentEntity::getRemark);
@@ -43,12 +45,14 @@ public class ClassStudentServiceImpl implements ClassStudentService {
     private final ClassStudentMapper classStudentMapper;
     private final TeachingClassMapper teachingClassMapper;
     private final StudentMapper studentMapper;
+    private final DictValueValidator dictValueValidator;
 
     public ClassStudentServiceImpl(ClassStudentMapper classStudentMapper, TeachingClassMapper teachingClassMapper,
-                                   StudentMapper studentMapper) {
+                                   StudentMapper studentMapper, DictValueValidator dictValueValidator) {
         this.classStudentMapper = classStudentMapper;
         this.teachingClassMapper = teachingClassMapper;
         this.studentMapper = studentMapper;
+        this.dictValueValidator = dictValueValidator;
     }
 
     @Override
@@ -142,6 +146,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
                     student == null ? null : student.getStudentNo(),
                     student == null ? null : student.getStudentName(),
                     entity.getStatus(),
+                    entity.getChannel(),
                     entity.getJoinedAt(),
                     entity.getLeftAt(),
                     entity.getRemark()
@@ -182,6 +187,7 @@ public class ClassStudentServiceImpl implements ClassStudentService {
         entity.setClassId(request.classId());
         entity.setStudentId(request.studentId());
         entity.setStatus(request.status() == null || request.status().isBlank() ? "active" : request.status());
+        entity.setChannel(dictValueValidator.validate("enrollment_channel", "报名渠道", request.channel()));
         entity.setJoinedAt(request.joinedAt() == null ? LocalDate.now() : request.joinedAt());
         entity.setLeftAt(request.leftAt());
         entity.setRemark(request.remark());

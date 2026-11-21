@@ -13,7 +13,7 @@ import com.cornerstone.module.education.dto.StudentPageQuery;
 import com.cornerstone.module.education.dto.StudentOptionView;
 import com.cornerstone.module.education.dto.StudentUpdateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
-import com.cornerstone.module.education.mapper.EnrollmentMapper;
+import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.service.StudentService;
@@ -60,21 +60,19 @@ public class StudentServiceImpl implements StudentService {
     private final InstitutionMapper institutionMapper;
     private final DictValueValidator dictValueValidator;
     private final CodeRuleService codeRuleService;
-    /** 学员没有 campus_id，写侧要经班级/报名反查归属，读侧由 EducationCampusScopeSupport 用子查询收窄 */
+    /** 学员没有 campus_id，写侧要经班级名册反查归属，读侧由 EducationCampusScopeSupport 用子查询收窄 */
     private final ClassStudentMapper classStudentMapper;
-    private final EnrollmentMapper enrollmentMapper;
     private final TeachingClassMapper teachingClassMapper;
 
     public StudentServiceImpl(StudentMapper studentMapper, InstitutionMapper institutionMapper,
                               DictValueValidator dictValueValidator, CodeRuleService codeRuleService,
-                              ClassStudentMapper classStudentMapper, EnrollmentMapper enrollmentMapper,
+                              ClassStudentMapper classStudentMapper,
                               TeachingClassMapper teachingClassMapper) {
         this.studentMapper = studentMapper;
         this.institutionMapper = institutionMapper;
         this.dictValueValidator = dictValueValidator;
         this.codeRuleService = codeRuleService;
         this.classStudentMapper = classStudentMapper;
-        this.enrollmentMapper = enrollmentMapper;
         this.teachingClassMapper = teachingClassMapper;
     }
 
@@ -197,7 +195,7 @@ public class StudentServiceImpl implements StudentService {
         StudentEntity existing = requireStudent(id);
         InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "学员");
         EducationCampusScopeSupport.assertStudentWritable(
-            classStudentMapper, enrollmentMapper, teachingClassMapper, id);
+            classStudentMapper, teachingClassMapper, id);
         if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
         }
@@ -236,7 +234,7 @@ public class StudentServiceImpl implements StudentService {
         StudentEntity existing = requireStudent(id);
         InstitutionScopeGuard.assertOwn(existing.getInstitutionId(), "学员");
         EducationCampusScopeSupport.assertStudentWritable(
-            classStudentMapper, enrollmentMapper, teachingClassMapper, id);
+            classStudentMapper, teachingClassMapper, id);
         // 与教师侧同口径：软删的同时解绑 user_id，否则账号被墓碑永久占着 uk_jp_student_user_id
         studentMapper.softDeleteAndUnlink(id);
     }

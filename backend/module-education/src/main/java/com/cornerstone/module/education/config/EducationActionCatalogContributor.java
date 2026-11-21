@@ -21,7 +21,6 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
 
     private static final String PAGE_TEACHERS = "education_teachers";
     private static final String PAGE_STUDENTS = "education_students";
-    private static final String PAGE_ENROLLMENTS = "education_enrollments";
     private static final String PAGE_CLASSES = "education_classes";
     private static final String PAGE_ROSTER = "education_class_roster";
     private static final String PAGE_COURSES = "education_courses";
@@ -89,12 +88,8 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
                 "维护家长联系人", "新增、编辑、停用家长联系人", 40),
             uiOnly(PAGE_STUDENTS, "student-attendance-view", "查看考勤",
                 "打开该学员的考勤明细抽屉，只读", 50),
-            uiOnly(PAGE_STUDENTS, "student-enrollment-view", "查看报名",
-                "查看该学员的报名记录，只读", 60),
-
-            // 学员报名
-            linked(PAGE_ENROLLMENTS, "enrollment-create", GRANT_CLASS, CLASS_WRITE,
-                "新增报名", "报名后同事务自动写入班级名册", 10),
+            uiOnly(PAGE_STUDENTS, "student-roster-view", "查看在班",
+                "查看该学员的班级名册记录，只读", 60),
 
             // 班级档案
             linked(PAGE_CLASSES, "class-create", GRANT_CLASS, CLASS_WRITE,
@@ -114,7 +109,7 @@ public class EducationActionCatalogContributor implements ActionCatalogContribut
 
             // 分班与名册
             linked(PAGE_ROSTER, "roster-create", GRANT_CLASS, CLASS_WRITE,
-                "新增入班", "把学员直接补录入班，不回写报名台账", 10),
+                "新增入班", "新增入班即报名，可同时记录报名渠道", 10),
             linked(PAGE_ROSTER, "roster-remove", GRANT_CLASS, CLASS_WRITE,
                 "移出班级", "把学员移出班级名册", 20),
 

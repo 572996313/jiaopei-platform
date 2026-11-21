@@ -34,11 +34,6 @@ export const educationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-education/views/StudentManagementView.vue'),
   },
   {
-    path: 'enrollments',
-    name: 'enrollments',
-    component: () => import('@cornerstone/module-education/views/EnrollmentManagementView.vue'),
-  },
-  {
     path: 'classes',
     name: 'classes',
     component: () => import('@cornerstone/module-education/views/ClassManagementView.vue'),

@@ -16,7 +16,6 @@ import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
 import com.cornerstone.module.education.dto.ClassTypeCreateRequest;
 import com.cornerstone.module.education.dto.CourseCategoryCreateRequest;
 import com.cornerstone.module.education.dto.CourseCreateRequest;
-import com.cornerstone.module.education.dto.EnrollmentCreateRequest;
 import com.cornerstone.module.education.dto.StudentCreateRequest;
 import com.cornerstone.module.education.dto.TeacherCreateRequest;
 import com.cornerstone.module.education.dto.TeachingClassCreateRequest;
@@ -24,7 +23,6 @@ import com.cornerstone.module.education.fee.dto.FeeItemCreateRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ClassTypeMapper;
 import com.cornerstone.module.education.mapper.CourseMapper;
-import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
@@ -89,7 +87,6 @@ class CodeRuleWiringTest {
         Map.entry("teacher", TeacherCreateRequest.class),
         Map.entry("student", StudentCreateRequest.class),
         Map.entry("class", TeachingClassCreateRequest.class),
-        Map.entry("enrollment", EnrollmentCreateRequest.class),
         Map.entry("course", CourseCreateRequest.class),
         Map.entry("course_category", CourseCategoryCreateRequest.class),
         Map.entry("class_type", ClassTypeCreateRequest.class),
@@ -253,7 +250,7 @@ class CodeRuleWiringTest {
     private StudentServiceImpl student(CodeRuleService codeRuleService) {
         when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
         return new StudentServiceImpl(studentMapper, institutionMapper, educationDict, codeRuleService,
-            mock(ClassStudentMapper.class), mock(EnrollmentMapper.class), teachingClassMapper);
+            mock(ClassStudentMapper.class), teachingClassMapper);
     }
 
     private TeachingClassServiceImpl classService(CodeRuleService codeRuleService) {

@@ -2,25 +2,19 @@ package com.cornerstone.module.education;
 
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.exception.BusinessException;
-import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
-import com.cornerstone.module.education.domain.entity.EnrollmentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.core.system.dto.DictItemView;
-import com.cornerstone.core.system.service.SystemDictService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
 import com.cornerstone.module.education.dto.AttendanceCreateRequest;
 import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
 import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
-import com.cornerstone.module.education.dto.EnrollmentCreateRequest;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
-import com.cornerstone.module.education.mapper.EnrollmentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
@@ -28,11 +22,8 @@ import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
 import com.cornerstone.module.education.service.impl.ClassStudentServiceImpl;
-import com.cornerstone.module.education.service.impl.EnrollmentServiceImpl;
-import com.cornerstone.module.education.service.ClassStudentService;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
-import com.cornerstone.support.CodeRuleTestSupport;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -59,9 +50,6 @@ import org.mockito.ArgumentCaptor;
 class EducationFourthMainlineValidationTest {
 
     @Mock
-    private EnrollmentMapper enrollmentMapper;
-
-    @Mock
     private ClassStudentMapper classStudentMapper;
 
     @Mock
@@ -85,9 +73,6 @@ class EducationFourthMainlineValidationTest {
     @Mock
     private TeacherMapper teacherMapper;
 
-    @Mock
-    private ClassStudentService classStudentService;
-
     private final SystemDictService systemDictService = mock(SystemDictService.class);
     private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
 
@@ -107,32 +92,9 @@ class EducationFourthMainlineValidationTest {
     }
 
     @Test
-    void createEnrollmentRejectsDuplicateStudentClass() {
-        EnrollmentServiceImpl service = new EnrollmentServiceImpl(
-            enrollmentMapper,
-            institutionMapper,
-            studentMapper,
-            teachingClassMapper,
-            dictValueValidator,
-            CodeRuleTestSupport.unconfiguredRules(),
-            classStudentMapper,
-            classStudentService
-        );
-        when(institutionMapper.selectById(1L)).thenReturn(new InstitutionEntity());
-        when(studentMapper.selectById(10L)).thenReturn(student());
-        when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 0));
-        when(enrollmentMapper.selectCount(any())).thenReturn(0L, 1L);
-        when(systemDictService.listItems("enrollment_channel")).thenReturn(List.of(
-            new DictItemView(null, null, "front_desk", "前台报名", "front_desk", 10, "active", null)));
-
-        assertThrows(BusinessException.class, () -> service.createEnrollment(enrollmentRequest()));
-
-        verify(enrollmentMapper, never()).insert(any(EnrollmentEntity.class));
-    }
-
-    @Test
     void createClassStudentRejectsFullClass() {
-        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(
+            classStudentMapper, teachingClassMapper, studentMapper, dictValueValidator);
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(1, 1));
         when(studentMapper.selectById(10L)).thenReturn(student());
         when(classStudentMapper.selectCount(any())).thenReturn(0L, 1L);
@@ -144,7 +106,8 @@ class EducationFourthMainlineValidationTest {
 
     @Test
     void createClassStudentRecalculatesCurrentStudentsFromActiveRelations() {
-        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(
+            classStudentMapper, teachingClassMapper, studentMapper, dictValueValidator);
         when(teachingClassMapper.selectById(20L)).thenReturn(teachingClass(30, 9));
         when(studentMapper.selectById(10L)).thenReturn(student());
         when(classStudentMapper.selectCount(any())).thenReturn(0L, 2L, 3L);
@@ -158,7 +121,8 @@ class EducationFourthMainlineValidationTest {
 
     @Test
     void deleteClassStudentRecalculatesCurrentStudents() {
-        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(
+            classStudentMapper, teachingClassMapper, studentMapper, dictValueValidator);
         ClassStudentEntity relation = new ClassStudentEntity();
         relation.setId(500L);
         relation.setClassId(20L);
@@ -178,7 +142,8 @@ class EducationFourthMainlineValidationTest {
 
     @Test
     void deleteClassStudentRejectsMissingRelation() {
-        ClassStudentServiceImpl service = new ClassStudentServiceImpl(classStudentMapper, teachingClassMapper, studentMapper);
+        ClassStudentServiceImpl service = new ClassStudentServiceImpl(
+            classStudentMapper, teachingClassMapper, studentMapper, dictValueValidator);
         when(classStudentMapper.selectById(999L)).thenReturn(null);
 
         assertThrows(BusinessException.class, () -> service.deleteClassStudent(999L));
@@ -303,12 +268,8 @@ class EducationFourthMainlineValidationTest {
         verify(attendanceMapper, never()).selectList(any());
     }
 
-    private EnrollmentCreateRequest enrollmentRequest() {
-        return new EnrollmentCreateRequest(1L, 10L, 20L, "ENR-001", "front_desk", null, LocalDate.now(), null);
-    }
-
     private ClassStudentCreateRequest classStudentRequest() {
-        return new ClassStudentCreateRequest(1L, 20L, 10L, null, LocalDate.now(), null, null);
+        return new ClassStudentCreateRequest(1L, 20L, 10L, null, null, LocalDate.now(), null, null);
     }
 
     private AttendanceCreateRequest attendanceRequest() {
