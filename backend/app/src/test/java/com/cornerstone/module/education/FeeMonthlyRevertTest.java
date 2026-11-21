@@ -5,12 +5,15 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.fee.domain.entity.FeeAttendanceMonthEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeItemEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerItemEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeMonthlyEntity;
+import com.cornerstone.module.education.fee.dto.FeeMonthlyOverrideRequest;
 import com.cornerstone.module.education.fee.dto.FeeMonthlyView;
 import com.cornerstone.module.education.fee.dto.FeeRecalculateRequest;
+import com.cornerstone.module.education.fee.mapper.FeeAttendanceMonthMapper;
 import com.cornerstone.module.education.fee.mapper.FeeItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeLedgerItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeMonthlyMapper;
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -34,7 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 逐月发生额撤销：月份系数回到学期默认口径（首月 0.50），并清除手工覆盖审计列。
+ * 逐月发生额：月份系数是运营手工调的口径，「撤销覆盖」只把生效发生额恢复为引擎自动值，不动系数。
  */
 class FeeMonthlyRevertTest {
 
@@ -50,23 +54,27 @@ class FeeMonthlyRevertTest {
         // 单测环境没有 MyBatis 启动流程，手动注册实体元数据，wrapper 的 lambda 才能解析出列名
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, FeeMonthlyEntity.class);
+        TableInfoHelper.initTableInfo(assistant, FeeAttendanceMonthEntity.class);
     }
 
     private final FeeMonthlyMapper monthlyMapper = mock(FeeMonthlyMapper.class);
     private final FeeLedgerItemMapper ledgerItemMapper = mock(FeeLedgerItemMapper.class);
     private final FeeItemMapper feeItemMapper = mock(FeeItemMapper.class);
+    private final FeeAttendanceMonthMapper attendanceMapper = mock(FeeAttendanceMonthMapper.class);
     private final FeeLedgerGuard guard = mock(FeeLedgerGuard.class);
     private final FeeLedgerService ledgerService = mock(FeeLedgerService.class);
     private final FeeMonthlyServiceImpl service = new FeeMonthlyServiceImpl(
-        monthlyMapper, ledgerItemMapper, feeItemMapper, guard, ledgerService);
+        monthlyMapper, ledgerItemMapper, feeItemMapper, attendanceMapper, guard, ledgerService);
 
     @Test
-    void revertRestoresDefaultFactorAndAutoAmount() {
+    void revertKeepsMonthFactorAndRestoresAutoAmount() {
+        FeeMonthlyEntity overridden = row(true);
+        overridden.setMonthFactor(new BigDecimal("0.50"));
         FeeMonthlyEntity reverted = row(false);
         reverted.setMonthFactor(new BigDecimal("0.50"));
         reverted.setOccurrenceAmount(new BigDecimal("750.00"));
         when(guard.requireItem(ITEM_ID)).thenReturn(item());
-        when(monthlyMapper.selectOne(any())).thenReturn(row(true));
+        when(monthlyMapper.selectOne(any())).thenReturn(overridden);
         when(guard.requireLedger(LEDGER_ID)).thenReturn(ledger());
         when(guard.requireTerm(TERM_ID, INSTITUTION_ID)).thenReturn(term());
         when(monthlyMapper.update(any(), any(Wrapper.class))).thenReturn(1);
@@ -79,6 +87,42 @@ class FeeMonthlyRevertTest {
         assertEquals(new BigDecimal("750.00"), view.occurrenceAmount());
         assertFalse(view.manualOverride());
         verify(ledgerService).recalculate(any(FeeRecalculateRequest.class));
+    }
+
+    @Test
+    void overrideWithFactorOnlyFollowsEngineWithoutManualFlag() {
+        FeeAttendanceMonthEntity attendance = new FeeAttendanceMonthEntity();
+        attendance.setAttendanceDays(new BigDecimal("20"));
+        FeeMonthlyEntity row = row(false);
+        row.setMonthFactor(BigDecimal.ONE);
+        row.setAutoAmount(new BigDecimal("1500.00"));
+        row.setOccurrenceAmount(new BigDecimal("1500.00"));
+        when(guard.requireItem(ITEM_ID)).thenReturn(item());
+        when(monthlyMapper.selectOne(any())).thenReturn(row);
+        when(attendanceMapper.selectOne(any())).thenReturn(attendance);
+        when(feeItemMapper.selectById(10L)).thenReturn(feeItem());
+
+        FeeMonthlyView view = service.override(ITEM_ID, AUGUST,
+            new FeeMonthlyOverrideRequest(null, new BigDecimal("0.50"), null));
+
+        assertFalse(view.manualOverride());
+        assertEquals(new BigDecimal("0.50"), view.monthFactor());
+        assertEquals(new BigDecimal("750.00"), view.autoAmount());
+        assertEquals(new BigDecimal("750.00"), view.occurrenceAmount());
+    }
+
+    @Test
+    void overrideWithAmountStillMarksManual() {
+        FeeMonthlyEntity row = row(false);
+        when(guard.requireItem(ITEM_ID)).thenReturn(item());
+        when(monthlyMapper.selectOne(any())).thenReturn(row);
+        when(feeItemMapper.selectById(10L)).thenReturn(feeItem());
+
+        FeeMonthlyView view = service.override(ITEM_ID, AUGUST,
+            new FeeMonthlyOverrideRequest(new BigDecimal("500.00"), null, "优惠"));
+
+        assertTrue(view.manualOverride());
+        assertEquals(new BigDecimal("500.00"), view.occurrenceAmount());
     }
 
     @Test
@@ -129,6 +173,8 @@ class FeeMonthlyRevertTest {
         item.setLedgerId(LEDGER_ID);
         item.setFeeItemId(10L);
         item.setInstitutionId(INSTITUTION_ID);
+        item.setBillingMode("monthly");
+        item.setMonthlyStandard(new BigDecimal("1500.00"));
         return item;
     }
 

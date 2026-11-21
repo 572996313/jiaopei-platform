@@ -56,7 +56,7 @@
       >
       <el-button :icon="Refresh" circle :disabled="busy" :loading="loading" @click="loadAll" />
       <span class="education-context-text">
-        直接改单元格，最后点右下角「保存全部修改」一次提交；「撤销覆盖」把该行恢复为自动值。
+        直接改单元格，最后点右下角「保存全部修改」一次提交；「撤销覆盖」只把生效发生额恢复为引擎自动值，月份系数保留。
       </span>
     </div>
 
@@ -485,9 +485,13 @@ async function saveAll() {
 
   for (const row of monthlyRows) {
     const draft = monthlyDrafts[row.id]
+    const amountChanged = !sameNumber(draft.occurrenceAmount, row.occurrenceAmount)
+    // 自动行只改系数时不提交发生额：后端按新系数重算生效值，别把旧值钉成手工覆盖
+    const keepAmountOverride = Boolean(row.manualOverride) && !amountChanged
     try {
       await overrideFeeMonthly(row.ledgerItemId, row.billingMonth, {
-        occurrenceAmount: Number(draft.occurrenceAmount),
+        occurrenceAmount:
+          amountChanged || keepAmountOverride ? Number(draft.occurrenceAmount) : undefined,
         monthFactor: row.billingMode === 'monthly' ? draft.monthFactor : undefined,
       })
       if (row.billingMode === 'monthly' && !sameNumber(draft.monthFactor, row.monthFactor)) {
@@ -602,7 +606,7 @@ async function revertAll() {
   }
   try {
     await ElMessageBox.confirm(
-      `将把 ${manualCount.value} 项手工覆盖全部恢复为自动值（出勤回到考勤汇总，发生额回到引擎计算）。` +
+      `将把 ${manualCount.value} 项手工覆盖全部恢复为自动值（出勤回到考勤汇总，发生额回到引擎计算，已调整的月份系数保留）。` +
         (dirtyCount.value > 0 ? `另有 ${dirtyCount.value} 项未保存修改会被丢弃。` : ''),
       '全部恢复自动',
       { type: 'warning', confirmButtonText: '恢复', cancelButtonText: '取消' }

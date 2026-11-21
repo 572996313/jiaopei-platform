@@ -45,7 +45,8 @@ public class FeeMonthlyController {
             feeMonthlyService.listByLedger(ExternalIdParser.parseRequired(ledgerId, "ledgerId")));
     }
 
-    @Operation(summary = "手工覆盖当月发生额", description = "覆盖后 manualOverride=1；重算只刷新自动金额，不再改这一行的生效值")
+    @Operation(summary = "手工覆盖当月发生额",
+        description = "发生额留空表示只改月份系数、生效值跟随引擎重算（不产生覆盖）；发生额非空才置 manualOverride=1，重算不再改这一行")
     @PutMapping("/{ledgerItemId}/{billingMonth}")
     @RequiresPermission("education:fee:write")
     public ApiResponse<FeeMonthlyView> override(
@@ -57,7 +58,7 @@ public class FeeMonthlyController {
     }
 
     @Operation(summary = "撤销当月发生额覆盖",
-        description = "月份系数回到学期默认口径（首月可能为 0.50），发生额回到引擎自动值；随后重算整份台账")
+        description = "只撤销生效发生额的手工覆盖，月份系数保留；发生额回到引擎自动值，随后重算整份台账")
     @DeleteMapping("/{ledgerItemId}/{billingMonth}")
     @RequiresPermission("education:fee:write")
     public ApiResponse<FeeMonthlyView> revert(

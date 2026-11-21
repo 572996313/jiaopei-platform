@@ -215,7 +215,8 @@ export interface FeePaymentUpdatePayload {
 }
 
 export interface FeeMonthlyOverridePayload {
-  occurrenceAmount: number
+  /** 留空 = 只改月份系数，生效发生额跟随引擎重算，不产生金额覆盖 */
+  occurrenceAmount?: number
   monthFactor?: number | null
   overrideReason?: string
 }
@@ -380,7 +381,7 @@ export function overrideFeeMonthly(
   )
 }
 
-/** 撤销手工覆盖：月份系数与发生额回到引擎默认口径 */
+/** 撤销手工覆盖：只撤生效发生额的覆盖，月份系数保留，发生额回到引擎自动值 */
 export function revertFeeMonthly(ledgerItemId: string, billingMonth: string) {
   return requestDelete<FeeMonthlyView>(`${MONTHLY_BASE}/${ledgerItemId}/${billingMonth}`)
 }

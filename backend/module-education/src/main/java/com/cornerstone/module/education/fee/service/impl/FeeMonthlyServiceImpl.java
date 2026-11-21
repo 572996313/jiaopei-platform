@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.fee.domain.entity.FeeAttendanceMonthEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeItemEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerItemEntity;
@@ -12,6 +13,7 @@ import com.cornerstone.module.education.fee.domain.entity.FeeMonthlyEntity;
 import com.cornerstone.module.education.fee.dto.FeeMonthlyOverrideRequest;
 import com.cornerstone.module.education.fee.dto.FeeMonthlyView;
 import com.cornerstone.module.education.fee.dto.FeeRecalculateRequest;
+import com.cornerstone.module.education.fee.mapper.FeeAttendanceMonthMapper;
 import com.cornerstone.module.education.fee.mapper.FeeItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeLedgerItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeMonthlyMapper;
@@ -35,20 +37,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FeeMonthlyServiceImpl implements FeeMonthlyService {
 
+    private static final String DAILY = "daily";
+
     private final FeeMonthlyMapper feeMonthlyMapper;
     private final FeeLedgerItemMapper feeLedgerItemMapper;
     private final FeeItemMapper feeItemMapper;
+    private final FeeAttendanceMonthMapper feeAttendanceMonthMapper;
     private final FeeLedgerGuard feeLedgerGuard;
     private final FeeLedgerService feeLedgerService;
 
     public FeeMonthlyServiceImpl(FeeMonthlyMapper feeMonthlyMapper,
                                  FeeLedgerItemMapper feeLedgerItemMapper,
                                  FeeItemMapper feeItemMapper,
+                                 FeeAttendanceMonthMapper feeAttendanceMonthMapper,
                                  FeeLedgerGuard feeLedgerGuard,
                                  FeeLedgerService feeLedgerService) {
         this.feeMonthlyMapper = feeMonthlyMapper;
         this.feeLedgerItemMapper = feeLedgerItemMapper;
         this.feeItemMapper = feeItemMapper;
+        this.feeAttendanceMonthMapper = feeAttendanceMonthMapper;
         this.feeLedgerGuard = feeLedgerGuard;
         this.feeLedgerService = feeLedgerService;
     }
@@ -95,16 +102,40 @@ public class FeeMonthlyServiceImpl implements FeeMonthlyService {
             row.setAutoAmount(FeeBillingEngine.money(BigDecimal.ZERO));
             row.setDeleted(Boolean.FALSE);
         }
+        boolean followAuto = request.occurrenceAmount() == null;
         if (request.monthFactor() != null) {
             row.setMonthFactor(FeeBillingEngine.quantity(request.monthFactor()));
         }
-        row.setOccurrenceAmount(FeeBillingEngine.money(request.occurrenceAmount()));
-        row.setManualOverride(Boolean.TRUE);
-        row.setOverrideBy(AuthContext.currentUser().map(user -> user.userId()).orElse(null));
-        row.setOverrideAt(LocalDateTime.now());
-        row.setOverrideReason(normalizeToNull(request.overrideReason()));
+        if (followAuto) {
+            // 只改了月份系数：生效发生额跟随引擎重算，不产生金额覆盖。
+            // 这样「填 0.5 保存」得到的是 750，而不是把旧生效值 1500 一起钉成手工覆盖。
+            BigDecimal auto = autoAmount(item, month, row.getMonthFactor());
+            row.setAutoAmount(auto);
+            row.setOccurrenceAmount(auto);
+            row.setManualOverride(Boolean.FALSE);
+            row.setOverrideBy(null);
+            row.setOverrideAt(null);
+            row.setOverrideReason(null);
+        } else {
+            row.setOccurrenceAmount(FeeBillingEngine.money(request.occurrenceAmount()));
+            row.setManualOverride(Boolean.TRUE);
+            row.setOverrideBy(AuthContext.currentUser().map(user -> user.userId()).orElse(null));
+            row.setOverrideAt(LocalDateTime.now());
+            row.setOverrideReason(normalizeToNull(request.overrideReason()));
+        }
         if (row.getId() == null) {
             feeMonthlyMapper.insert(row);
+        } else if (followAuto) {
+            // updateById 默认忽略 null，清覆盖审计列必须走 wrapper 的 set(..., null)
+            feeMonthlyMapper.update(null, new LambdaUpdateWrapper<FeeMonthlyEntity>()
+                .eq(FeeMonthlyEntity::getId, row.getId())
+                .set(FeeMonthlyEntity::getMonthFactor, row.getMonthFactor())
+                .set(FeeMonthlyEntity::getAutoAmount, row.getAutoAmount())
+                .set(FeeMonthlyEntity::getOccurrenceAmount, row.getOccurrenceAmount())
+                .set(FeeMonthlyEntity::getManualOverride, Boolean.FALSE)
+                .set(FeeMonthlyEntity::getOverrideBy, null)
+                .set(FeeMonthlyEntity::getOverrideAt, null)
+                .set(FeeMonthlyEntity::getOverrideReason, null));
         } else {
             feeMonthlyMapper.updateById(row);
         }
@@ -132,12 +163,11 @@ public class FeeMonthlyServiceImpl implements FeeMonthlyService {
             throw new BusinessException(ResultCode.BAD_REQUEST,
                 "账期 " + yearMonth + " 不在学期「" + term.getTermName() + "」范围内，无法撤销覆盖");
         }
-        // month_factor 是非空列，撤销只能回到默认口径，不能置空
-        BigDecimal factor = FeeBillingEngine.defaultFactor(term.getStartDate(), yearMonth);
+        // 只撤「生效发生额」的覆盖：月份系数是运营按学员个案手工调好的口径（如半月 0.50），
+        // 撤销金额覆盖不该把它一起打回学期默认值。清掉标记后由重算把生效值改回引擎自动值。
         int affected = feeMonthlyMapper.update(null, new LambdaUpdateWrapper<FeeMonthlyEntity>()
             .eq(FeeMonthlyEntity::getId, row.getId())
             .eq(FeeMonthlyEntity::getManualOverride, Boolean.TRUE)
-            .set(FeeMonthlyEntity::getMonthFactor, factor)
             .set(FeeMonthlyEntity::getOccurrenceAmount, FeeBillingEngine.money(row.getAutoAmount()))
             .set(FeeMonthlyEntity::getManualOverride, Boolean.FALSE)
             .set(FeeMonthlyEntity::getOverrideBy, null)
@@ -146,10 +176,22 @@ public class FeeMonthlyServiceImpl implements FeeMonthlyService {
         if (affected == 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该月发生额覆盖已被其他操作撤销，请刷新后重试");
         }
-        // 恢复默认系数与生效值后，按最新出勤重算整份台账，保证 autoAmount 与生效值一致
+        // 系数保留，重算只刷新 autoAmount 并把生效值对齐到引擎口径
         feeLedgerService.recalculate(new FeeRecalculateRequest(item.getLedgerId(), null, null));
         return toView(feeMonthlyMapper.selectById(row.getId()),
             feeItemMapper.selectById(item.getFeeItemId()));
+    }
+
+    /** 与 rebuildMonthly 同一口径：按月 = 月标准 × 系数（当月无出勤为 0），按天 = 出勤天数 × 日标准。 */
+    private BigDecimal autoAmount(FeeLedgerItemEntity item, LocalDate month, BigDecimal factor) {
+        FeeAttendanceMonthEntity attendance = feeAttendanceMonthMapper.selectOne(
+            new LambdaQueryWrapper<FeeAttendanceMonthEntity>()
+                .eq(FeeAttendanceMonthEntity::getLedgerId, item.getLedgerId())
+                .eq(FeeAttendanceMonthEntity::getBillingMonth, month));
+        BigDecimal days = attendance == null ? BigDecimal.ZERO : attendance.getAttendanceDays();
+        return DAILY.equals(item.getBillingMode())
+            ? FeeBillingEngine.dailyOccurrence(item.getDailyRate(), days)
+            : FeeBillingEngine.monthlyOccurrence(item.getMonthlyStandard(), factor, days);
     }
 
     private Map<Long, FeeItemEntity> loadFeeItems(List<FeeLedgerItemEntity> items) {
