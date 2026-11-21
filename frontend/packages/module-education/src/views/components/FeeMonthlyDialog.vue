@@ -128,20 +128,61 @@
       </el-tag>
       <span class="education-context-text">发生额覆盖只动当前项目当前月，重算不会改手工覆盖值。</span>
     </div>
+    <div class="monthly-view-toolbar">
+      <el-radio-group v-model="monthlyGroupMode" size="small">
+        <el-radio-button value="month">按月份分组</el-radio-button>
+        <el-radio-button value="item">按收费项目分组</el-radio-button>
+      </el-radio-group>
+      <el-select
+        v-model="monthlyMonthFilter"
+        size="small"
+        clearable
+        placeholder="全部月份"
+        class="monthly-filter-select"
+      >
+        <el-option
+          v-for="option in monthlyMonthOptions"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
+      <el-select
+        v-model="monthlyItemFilter"
+        size="small"
+        clearable
+        placeholder="全部收费项目"
+        class="monthly-filter-select monthly-item-filter"
+      >
+        <el-option
+          v-for="option in monthlyItemOptions"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
+      <el-checkbox v-model="onlyManual" size="small">只看手工覆盖</el-checkbox>
+      <span class="education-context-text">
+        共 {{ monthly.length }} 行，当前显示 {{ monthlyView.length }} 行
+      </span>
+    </div>
     <el-table
-      :data="monthly"
+      :data="monthlyView"
       border
       row-key="id"
       v-loading="loading"
-      height="clamp(320px, calc(100vh - 720px), 520px)"
-      empty-text="还没有逐月发生额，点击「按当前出勤重算」生成。"
+      height="clamp(320px, calc(100vh - 760px), 560px)"
+      :empty-text="monthlyEmptyText"
       :row-class-name="monthlyRowClass"
+      :span-method="monthlySpanMethod"
+      :show-summary="monthlyView.length > 0"
+      :summary-method="monthlySummaryMethod"
     >
       <el-table-column label="账期" min-width="140">
         <template #default="{ row }">{{ monthText(row.billingMonth) }}</template>
       </el-table-column>
       <el-table-column label="收费项目" min-width="170" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.itemName || `项目 #${row.feeItemId}` }}</template>
+        <template #default="{ row }">{{ monthlyItemLabel(row) }}</template>
       </el-table-column>
       <el-table-column label="计费方式" min-width="110">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
@@ -237,6 +278,7 @@ import {
   fetchFeeMonthly,
   moneyText,
   monthText,
+  monthValue,
   overrideFeeAttendance,
   overrideFeeMonthly,
   recalculateFees,
@@ -280,6 +322,14 @@ const revertingKey = ref('')
 const revertingAll = ref(false)
 const formError = ref('')
 
+type MonthlyGroupMode = 'month' | 'item'
+
+/** 逐月表的分组视角：按月看同月各项目，按项目看同一项目的各月 */
+const monthlyGroupMode = ref<MonthlyGroupMode>('month')
+const monthlyMonthFilter = ref('')
+const monthlyItemFilter = ref('')
+const onlyManual = ref(false)
+
 const busy = computed(
   () =>
     loading.value ||
@@ -310,18 +360,18 @@ const dirtyAttendance = computed(() =>
   )
 )
 
-const dirtyMonthly = computed(() =>
-  monthly.value.filter((row) => {
-    const draft = monthlyDrafts[row.id]
-    if (!draft) {
-      return false
-    }
-    if (!sameNumber(draft.occurrenceAmount, row.occurrenceAmount)) {
-      return true
-    }
-    return row.billingMode === 'monthly' && !sameNumber(draft.monthFactor, row.monthFactor)
-  })
-)
+const dirtyMonthly = computed(() => monthly.value.filter(isMonthlyDirty))
+
+function isMonthlyDirty(row: FeeMonthlyView) {
+  const draft = monthlyDrafts[row.id]
+  if (!draft) {
+    return false
+  }
+  if (!sameNumber(draft.occurrenceAmount, row.occurrenceAmount)) {
+    return true
+  }
+  return row.billingMode === 'monthly' && !sameNumber(draft.monthFactor, row.monthFactor)
+}
 
 const dirtyCount = computed(() => dirtyAttendance.value.length + dirtyMonthly.value.length)
 
@@ -335,9 +385,149 @@ function attendanceRowClass({ row }: { row: FeeAttendanceView }) {
   return sameNumber(attendanceDrafts[row.billingMonth], row.attendanceDays) ? '' : 'fee-dirty-row'
 }
 
-function monthlyRowClass({ row }: { row: FeeMonthlyView }) {
-  return dirtyMonthly.value.some((dirty) => dirty.id === row.id) ? 'fee-dirty-row' : ''
+function monthlyItemLabel(row: FeeMonthlyView) {
+  return row.itemName || `项目 #${row.feeItemId}`
 }
+
+function monthlyGroupKey(row: FeeMonthlyView) {
+  return monthlyGroupMode.value === 'month' ? row.billingMonth : String(row.feeItemId)
+}
+
+function byMonth(left: FeeMonthlyView, right: FeeMonthlyView) {
+  return left.billingMonth.localeCompare(right.billingMonth)
+}
+
+function byItem(left: FeeMonthlyView, right: FeeMonthlyView) {
+  return (
+    (left.itemName || '').localeCompare(right.itemName || '', 'zh-Hans-CN') ||
+    String(left.feeItemId).localeCompare(String(right.feeItemId))
+  )
+}
+
+/** 分组 + 筛选后的视图：只影响显示顺序与合并，草稿仍按 row.id 对应，不影响保存 */
+const monthlyView = computed(() => {
+  let rows = monthly.value.slice()
+  if (monthlyMonthFilter.value) {
+    rows = rows.filter((row) => monthValue(row.billingMonth) === monthlyMonthFilter.value)
+  }
+  if (monthlyItemFilter.value) {
+    rows = rows.filter((row) => String(row.feeItemId) === monthlyItemFilter.value)
+  }
+  if (onlyManual.value) {
+    rows = rows.filter((row) => row.manualOverride || isMonthlyDirty(row))
+  }
+  rows.sort((left, right) =>
+    monthlyGroupMode.value === 'month'
+      ? byMonth(left, right) || byItem(left, right)
+      : byItem(left, right) || byMonth(left, right)
+  )
+  return rows
+})
+
+const monthlyMonthOptions = computed(() => {
+  const options = new Map<string, string>()
+  monthly.value.forEach((row) => {
+    const value = monthValue(row.billingMonth)
+    if (value && !options.has(value)) {
+      options.set(value, monthText(row.billingMonth))
+    }
+  })
+  return [...options].map(([value, label]) => ({ value, label }))
+})
+
+const monthlyItemOptions = computed(() => {
+  const options = new Map<string, string>()
+  monthly.value.forEach((row) => {
+    const value = String(row.feeItemId)
+    if (!options.has(value)) {
+      options.set(value, monthlyItemLabel(row))
+    }
+  })
+  return [...options].map(([value, label]) => ({ value, label }))
+})
+
+/** 每个分组在视图里的序号，用来给交替分组铺底色，避免行多时看串 */
+const monthlyGroupIndex = computed(() => {
+  const index = new Map<string, number>()
+  let group = -1
+  let previousKey = ''
+  monthlyView.value.forEach((row) => {
+    const key = monthlyGroupKey(row)
+    if (key !== previousKey) {
+      group += 1
+      previousKey = key
+    }
+    index.set(row.id, group)
+  })
+  return index
+})
+
+/** 分组列纵向合并：按月合并账期，按项目合并收费项目与计费方式 */
+function monthlySpanMethod({
+  rowIndex,
+  columnIndex,
+}: {
+  row: FeeMonthlyView
+  rowIndex: number
+  columnIndex: number
+}) {
+  const groupColumns = monthlyGroupMode.value === 'month' ? [0] : [1, 2]
+  if (!groupColumns.includes(columnIndex)) {
+    return undefined
+  }
+  const rows = monthlyView.value
+  const current = monthlyGroupKey(rows[rowIndex])
+  if (rowIndex > 0 && monthlyGroupKey(rows[rowIndex - 1]) === current) {
+    return { rowspan: 0, colspan: 0 }
+  }
+  let span = 1
+  while (rowIndex + span < rows.length && monthlyGroupKey(rows[rowIndex + span]) === current) {
+    span += 1
+  }
+  return { rowspan: span, colspan: 1 }
+}
+
+function monthlyRowClass({ row }: { row: FeeMonthlyView }) {
+  const classes: string[] = []
+  if ((monthlyGroupIndex.value.get(row.id) ?? 0) % 2 === 1) {
+    classes.push('fee-group-alt')
+  }
+  if (isMonthlyDirty(row)) {
+    classes.push('fee-dirty-row')
+  }
+  return classes.join(' ')
+}
+
+function monthlySummaryMethod({ columns, data }: { columns: { index: number }[]; data: FeeMonthlyView[] }) {
+  return columns.map((_column, index) => {
+    if (index === 0) {
+      return hasMonthlyFilter.value ? '当前筛选合计' : '合计'
+    }
+    if (index === 4) {
+      return moneyText(data.reduce((total, row) => total + Number(row.autoAmount ?? 0), 0))
+    }
+    if (index === 5) {
+      return moneyText(
+        data.reduce(
+          (total, row) =>
+            total + Number(monthlyDrafts[row.id]?.occurrenceAmount ?? row.occurrenceAmount ?? 0),
+          0
+        )
+      )
+    }
+    return ''
+  })
+}
+
+const monthlyEmptyText = computed(() =>
+  monthly.value.length === 0
+    ? '还没有逐月发生额，点击「按当前出勤重算」生成。'
+    : '当前筛选条件下没有记录，清空筛选后再看。'
+)
+
+const hasMonthlyFilter = computed(() =>
+  Boolean(monthlyMonthFilter.value || monthlyItemFilter.value || onlyManual.value)
+)
 
 function fillDrafts() {
   Object.keys(attendanceDrafts).forEach((key) => delete attendanceDrafts[key])
@@ -737,6 +927,22 @@ async function recalculate() {
   margin-top: 18px;
 }
 
+.monthly-view-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.monthly-filter-select {
+  width: 140px;
+}
+
+.monthly-item-filter {
+  width: 180px;
+}
+
 .monthly-auto-text {
   color: var(--text-secondary);
   font-size: 12px;
@@ -762,6 +968,11 @@ async function recalculate() {
   gap: 8px;
 }
 
+:deep(.el-table__row.fee-group-alt) {
+  --el-table-tr-bg-color: var(--el-fill-color-lighter);
+}
+
+/* 脏行必须排在分组底色之后，保证未保存的黄色提示不被覆盖 */
 :deep(.el-table__row.fee-dirty-row) {
   --el-table-tr-bg-color: var(--el-color-warning-light-9);
 }
