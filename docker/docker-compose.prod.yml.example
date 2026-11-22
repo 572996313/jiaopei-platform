@@ -80,8 +80,14 @@ services:
 
   # 对象存储（文件管理的后端存储）。
   # 只绑 127.0.0.1：浏览器不直连 MinIO，上传/下载都经 backend 中转；控制台需要时再临时放开。
+  # 镜像来源：上游 minio/minio 已于 2025-10 停发社区版并从 Docker Hub / Quay 下架
+  # （2026-02 源码仓库归档），原先固定的 RELEASE.2025-04-22 已无法拉取。
+  # 改用社区维护的 Silo（Pigsty 的 MinIO 分支）：entrypoint、MINIO_* 环境变量、端口、
+  # /data 卷、运行用户（root）、Web 控制台与 mc（健康检查依赖它）均与上游一致，
+  # 该服务块其余部分不用改。镜像原名 pgsty/minio，已改名 pgsty/silo。
+  # 仍钉死版本；升级前先备份 MINIO_DATA_DIR，并用新镜像验证旧数据可读。
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z
     container_name: jiaopei-prod-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

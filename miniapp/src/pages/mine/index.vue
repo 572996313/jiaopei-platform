@@ -164,8 +164,8 @@ function goTimetable(studentId: string) {
   uni.navigateTo({ url: '/pages/timetable/index?studentId=' + studentId })
 }
 
-function goClassmates(studentId: string) {
-  uni.navigateTo({ url: '/pages/classmates/index?studentId=' + studentId })
+function goClassmates(studentId?: string) {
+  uni.navigateTo({ url: '/pages/classmates/index' + (studentId ? '?studentId=' + studentId : '') })
 }
 
 function handleUnbind(student: StudentBrief) {
@@ -341,9 +341,9 @@ function handleDeregister() {
       </view>
     </template>
 
-    <!-- 家长端:我的学员 -->
+    <!-- 家长端:孩子档案(创建/绑定/同班名单都收在这里) -->
     <template v-if="!isEnterprise && !isStudent">
-      <view class="section-title">我的学员</view>
+      <view class="section-title">孩子档案</view>
       <view class="info-card">
         <view v-if="boundStudents.length === 0" class="empty-row">
           <text class="empty-text">还没有学员档案</text>
@@ -364,6 +364,11 @@ function handleDeregister() {
             <text class="unbind-btn" @click.stop="handleUnbind(student)">解绑</text>
             <text class="student-arrow">›</text>
           </view>
+        </view>
+        <!-- 同班名单按孩子看,多个孩子时名单页顶部还能切换 -->
+        <view v-if="boundStudents.length > 0" class="nav-row" @click="goClassmates()">
+          <text class="nav-text">我的同学</text>
+          <text class="nav-arrow">›</text>
         </view>
         <view class="add-row" @click="goCreateChild">
           <text class="add-text">+ 创建学员档案</text>
@@ -601,6 +606,24 @@ function handleDeregister() {
   border-radius: 999rpx;
   padding: 6rpx 20rpx;
   margin-right: 16rpx;
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.nav-text {
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.nav-arrow {
+  font-size: 36rpx;
+  color: #c4c9d1;
 }
 
 .empty-row {

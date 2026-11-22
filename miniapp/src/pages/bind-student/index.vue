@@ -108,7 +108,7 @@ async function handleBind() {
       <text class="create-link-text">孩子还没有档案?直接创建一份 ›</text>
     </view>
 
-    <text class="tip">为保护学员隐私,绑定需同时核对学员姓名。绑定后可在「我的学员」查看课表,一个账号可绑定多个学员。</text>
+    <text class="tip">为保护学员隐私,绑定需同时核对学员姓名。绑定后可在「我的」查看课表,一个账号可绑定多个学员。</text>
   </view>
 </template>
 
