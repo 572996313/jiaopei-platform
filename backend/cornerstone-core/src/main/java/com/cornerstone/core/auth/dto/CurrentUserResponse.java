@@ -1,6 +1,7 @@
 package com.cornerstone.core.auth.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Schema(description = "当前登录用户信息")
@@ -10,6 +11,7 @@ public record CurrentUserResponse(
     @Schema(description = "机构ID(兼容)") Long institutionId,
     @Schema(description = "用户名") String username,
     @Schema(description = "显示名称") String displayName,
+    @Schema(description = "头像文件ID(NULL=未设置;前端按 fileId 调文件内容接口取图)") Long avatarFileId,
     @Schema(description = "角色码列表") List<String> roles,
     @Schema(description = "权限码列表") List<String> permissions,
     @Schema(description = "密码重置标记") Boolean passwordResetRequired,
@@ -19,6 +21,14 @@ public record CurrentUserResponse(
     @Schema(description = "数据范围维度(null=不限制;当前管理后台为 CAMPUS)")
     String dataScopeKey,
     @Schema(description = "数据范围白名单(null=不限制;空数组=没有任何可见节点)")
-    List<Long> dataScopeIds
+    List<Long> dataScopeIds,
+    @Schema(description = "手机号(本人资料展示用)")
+    String phone,
+    @Schema(description = "最近登录时间")
+    LocalDateTime lastLoginAt,
+    @Schema(description = "密码最近更新时间")
+    LocalDateTime passwordUpdatedAt,
+    @Schema(description = "角色名称(与 roles 一一对应;角色已删或无名称时回落角色码)")
+    List<String> roleNames
 ) {
 }

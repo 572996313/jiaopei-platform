@@ -228,6 +228,73 @@ export async function requestDelete<T>(url: string): Promise<T> {
   return request<T>(url, { method: 'DELETE' })
 }
 
+/**
+ * 上传文件（multipart）。
+ *
+ * <p>小程序必须走 uni.uploadFile：原生选择器拿到的临时路径只能这样提交，且它能带
+ * Authorization 头（`<image>` 发裸请求，带不上令牌）。</p>
+ */
+export async function requestUpload<T>(url: string, filePath: string, name = 'file'): Promise<T> {
+  try {
+    return await sendUpload<T>(url, filePath, name)
+  } catch (error) {
+    if (!isApiError(error) || error.status !== 401) {
+      throw error
+    }
+    // 令牌失效与普通请求同一套静默重登 + 重放，重登不成才退回登录页
+    if (await recoverSessionOnce()) {
+      return sendUpload<T>(url, filePath, name)
+    }
+    goToLogin()
+    throw error
+  }
+}
+
+function sendUpload<T>(url: string, filePath: string, name: string): Promise<T> {
+  const header: Record<string, string> = {}
+  const authorization = getStoredAuthorization()
+  if (authorization) {
+    header.Authorization = authorization
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    uni.uploadFile({
+      url: API_BASE_URL + url,
+      filePath,
+      name,
+      header,
+      success: (res) => {
+        if (res.statusCode === 401) {
+          reject(new ApiError('登录已失效，请重新登录', { status: 401 }))
+          return
+        }
+
+        let body: ApiResponse<T>
+        try {
+          const raw = typeof res.data === 'string' ? res.data : JSON.stringify(res.data)
+          body = preserveLargeIds(raw) as ApiResponse<T>
+        } catch {
+          reject(new ApiError(`服务响应异常(${res.statusCode})`, { status: res.statusCode }))
+          return
+        }
+
+        if (!body?.success) {
+          reject(new ApiError(body?.message || '请求失败', {
+            code: body?.code,
+            status: res.statusCode,
+            path: body?.path,
+          }))
+          return
+        }
+        resolve(body.data)
+      },
+      fail: (error) => {
+        reject(new ApiError(localizeNetworkError(error?.errMsg)))
+      },
+    })
+  })
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }

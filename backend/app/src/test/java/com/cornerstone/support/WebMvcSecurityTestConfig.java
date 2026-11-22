@@ -6,6 +6,7 @@ import com.cornerstone.core.auth.dto.CurrentUserResponse;
 import com.cornerstone.core.auth.dto.LoginRequest;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.auth.service.AuthApplicationService;
+import com.cornerstone.core.auth.service.UserAvatarService;
 import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.dto.MenuCreateRequest;
 import com.cornerstone.core.system.dto.MenuUpdateRequest;
@@ -14,6 +15,7 @@ import com.cornerstone.core.system.dto.RoleAuthorizationView;
 import com.cornerstone.core.system.dto.RoleMenuUpdateRequest;
 import com.cornerstone.core.system.service.SystemMenuService;
 import com.cornerstone.core.system.service.SystemConfigService;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,6 +24,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.multipart.MultipartFile;
 
 @TestConfiguration
 @EnableConfigurationProperties(CornerstoneProperties.class)
@@ -68,13 +71,18 @@ public class WebMvcSecurityTestConfig {
                     user.orgId(),
                     user.username(),
                     "平台管理员",
+                    100L,
                     new ArrayList<>(user.roles()),
                     new ArrayList<>(user.permissions()),
                     false,
                     false,
                     user.portal(),
                     user.dataScopeKey(),
-                    user.dataScopeIds() == null ? null : new ArrayList<>(user.dataScopeIds())
+                    user.dataScopeIds() == null ? null : new ArrayList<>(user.dataScopeIds()),
+                    "13800000000",
+                    LocalDateTime.of(2026, 11, 22, 9, 30),
+                    LocalDateTime.of(2026, 10, 1, 8, 0),
+                    List.of("平台管理员")
                 );
             }
 
@@ -122,6 +130,24 @@ public class WebMvcSecurityTestConfig {
                     false,
                     "admin"
                 );
+            }
+        };
+    }
+
+    @Bean
+    public UserAvatarService userAvatarService() {
+        return new UserAvatarService() {
+            @Override
+            public Long updateAvatar(MultipartFile file) {
+                return 9001L;
+            }
+
+            @Override
+            public void clearAvatar() {
+            }
+
+            @Override
+            public void releaseForUser(Long userId) {
             }
         };
     }

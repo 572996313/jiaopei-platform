@@ -28,4 +28,7 @@ public class UserAccountEntity extends BaseEntity {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "头像文件ID(sys_file.id,NULL=未设置头像)")
+    private Long avatarFileId;
 }

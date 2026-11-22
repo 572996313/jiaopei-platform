@@ -1,4 +1,4 @@
-import { requestGet, requestPost, type RecoveryOptions } from '@/utils/request'
+import { requestDelete, requestGet, requestPost, requestUpload, type RecoveryOptions } from '@/utils/request'
 
 export interface LoginResponse {
   userId: string
@@ -27,6 +27,8 @@ export interface CurrentUserResponse {
   institutionId: string | null
   username: string
   displayName: string | null
+  /** 头像文件ID；null=未设置，按 fileId 走文件内容接口下载 */
+  avatarFileId?: string | null
   roles: string[]
   permissions: string[]
   passwordResetRequired: boolean
@@ -78,6 +80,16 @@ export function wechatDeregister() {
 /** 获取当前登录用户信息(带令牌调用) */
 export function fetchCurrentUser() {
   return requestGet<CurrentUserResponse>('/auth/me')
+}
+
+/** 上传本人头像（临时文件路径来自 uni.chooseImage/chooseMedia） */
+export function uploadMyAvatar(filePath: string) {
+  return requestUpload<{ avatarFileId: string | null }>('/auth/me/avatar', filePath)
+}
+
+/** 清除本人头像，回落为显示名称首字 */
+export function deleteMyAvatar() {
+  return requestDelete<void>('/auth/me/avatar')
 }
 
 /** 退出登录,服务端令牌立即失效 */

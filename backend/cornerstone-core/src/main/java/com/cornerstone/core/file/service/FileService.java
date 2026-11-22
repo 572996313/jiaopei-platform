@@ -42,6 +42,14 @@ public interface FileService {
     /** 解除绑定，文件转为孤儿，由清理任务回收。 */
     void unbind(List<Long> fileIds);
 
+    /**
+     * 按业务归属批量解除绑定（不依赖登录态），供账号注销等系统清理路径调用。
+     *
+     * <p>只解除绑定、不直接删对象：文件转为孤儿后由清理任务统一回收，避免在事务里
+     * 做不可回滚的存储删除。{@link #unbind} 要求登录态与同机构校验，不能用于事件监听器。</p>
+     */
+    void releaseBoundByBiz(String bizType, Long bizId);
+
     /** 上传人账号注销时清空归属，文件本身是机构资产，不随账号删除。 */
     void clearUploader(Long userId);
 }

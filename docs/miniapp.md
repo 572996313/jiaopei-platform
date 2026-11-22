@@ -227,11 +227,17 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
   现读现判。**不要在 store 里再缓存一份 session 快照**——401 只会清 storage,内存副本清不掉,
   登录页与首页的 `onShow` 判据会互相矛盾、来回 `reLaunch`。
 
-## 文件上传(预留接入口)
+## 文件上传与头像
 
-小程序端暂未接入文件选择，后端通用能力已就绪：`POST /api/system/files`（multipart，字段名 `file`，可选 `bizType`/`bizId`），返回 `data.fileId`。
+小程序端已接入**本人头像**，通用文件接口仍可作为其它业务的上传入口：`POST /api/system/files`（multipart，字段名 `file`，可选 `bizType`/`bizId`），返回 `data.fileId`。
 
-接入时的口径：
+### 头像(已接入)
+
+- 上传：`uni.chooseImage`（`sizeType: ['compressed']`）拿到临时路径 → `utils/request.ts` 的 `requestUpload()` 调 `POST /api/auth/me/avatar`。该接口只要求登录，**不挂 `system:file:upload`**（学生/家长角色不一定持有该码）。
+- 显示：`<image>` 发裸 GET、带不上 Authorization，必须先经 `utils/file-image.ts` 的 `fetchImageTempPath(fileId)`（内部 `uni.downloadFile` 带 header）换成本地临时路径；同一 fileId 在会话内缓存。
+- 上传成功后 `auth.refreshUserInfo()` 并重拉头像；失败或无头像时保持显示名首字占位。
+
+### 通用文件上传口径
 
 - 用 `uni.uploadFile`，`header.Authorization` 与普通请求相同；返回体是字符串，仍需按「雪花 ID 精度保护」同一套规则把 `fileId` 转成字符串后再解析。
 - **业务只保存 `fileId`**，不要保存临时路径、对象键或 URL；读取用 `GET /api/system/files/{fileId}/content`（后端校验机构），下载加 `?download=true`。

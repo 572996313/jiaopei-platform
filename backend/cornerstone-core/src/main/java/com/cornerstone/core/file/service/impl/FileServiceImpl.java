@@ -288,6 +288,21 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional
+    public void releaseBoundByBiz(String bizType, Long bizId) {
+        String normalizedBizType = trimToNull(bizType);
+        if (normalizedBizType == null || bizId == null) {
+            return;
+        }
+        LambdaUpdateWrapper<FileEntity> update = new LambdaUpdateWrapper<>();
+        update.eq(FileEntity::getBizType, normalizedBizType)
+            .eq(FileEntity::getBizId, bizId)
+            .set(FileEntity::getBizType, null)
+            .set(FileEntity::getBizId, null);
+        fileMapper.update(null, update);
+    }
+
+    @Override
     public void clearUploader(Long userId) {
         if (userId == null) {
             return;

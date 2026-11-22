@@ -183,6 +183,7 @@ pnpm dev:h5            # H5 调试
   - `file.upload.max_size_mb` — 单文件上限（MB，`FileValidator` 读取；`spring.servlet.multipart` 的 50MB 是硬顶，这里再收窄）
   - `file.upload.allowed_extensions` — 允许的扩展名，逗号分隔，空串表示不限制（`FileValidator` 读取）
   - `file.orphan.retention_hours` — 未绑定业务文件（`biz_id IS NULL`）的保留时长（小时，`FileServiceImpl` 读取；`<=0` 停止自动清理）
+  - `user.avatar.max_size_mb` — 个人头像单文件上限（MB，`UserAvatarServiceImpl` 读取；头像只接受 JPG/PNG，且服务端会真解码校验）
 
   **新增 `SystemConfigService.getConfigValue/getIntConfig/getBooleanConfig` 读取的 key 时，必须同步在 `app/` 迁移里种入 `sys_system_config` 并登记进上面的清单**——只写代码默认值回落等于隐藏配置：系统参数页看不见也改不了（V47 就是补的这两条历史欠账）。
 
@@ -233,6 +234,7 @@ pnpm dev:h5            # H5 调试
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
 - Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant`/`file` 四个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
 - **文件能力（`core/file`，SPI）**：业务表只存 `fileId`，**不存 objectKey/bucket/URL**；对象键由后端生成（`机构ID/yyyy/MM/UUID.扩展名`）。存储后端由 `cornerstone.file.provider` 切换（`minio` 生产 / `local` 本机兜底），`FileStorage` 是 SPI，加 S3/OSS 只加一个实现。`sys_file` 用物理删除（`FileMapper#physicalDeleteById`），`biz_id IS NULL` 且超过 `file.orphan.retention_hours` 的行由定时任务清理；业务保存文件引用时在自己的事务里调 `FileService#bind`，不要另开公开绑定接口。
+  - **头像（`core/auth`，V114 / core V117 双轨）**：`sys_user_account.avatar_file_id` 存 fileId，文件按 `(biz_type='user_avatar', biz_id=用户ID)` 绑定，否则会被孤儿清理删掉。只提供**本人**上传/清除（`POST|DELETE /api/auth/me/avatar`，登录即可、不挂码），不做管理员代设。换头像时旧文件只解绑不立即删（对象存储删除不可回滚），交给孤儿清理回收；账号注销由 `UserAvatarCleanupListener` 调 `FileService#releaseBoundByBiz` 释放绑定——账号行物理删除后若还绑着，文件永远清不掉。PC 端入口是顶栏「个人信息」弹窗（`UserProfileDialog`）：除头像外展示 `phone`/`lastLoginAt`/`passwordUpdatedAt`/`roleNames`（均由 `/api/auth/me` 下发），并把改密表单（`ChangePasswordForm`，与强制改密页共用）收在同一弹窗里。
 - schema 变更一律走 Flyway：`backend/app/src/main/resources/db/migration/V<n>__desc.sql`（迁移脚本目前全部集中在 `app/` 模块，阶段二C 才按模块拆分目录），表名前缀按归属分：**底座表 `sys_`**（认证授权/系统配置/租户，阶段五-0b 起统一，V40 把原 `jp_user_account`/`jp_role`/`jp_user_role_rel`/`jp_institution` 改了名，索引与外键键名保持历史 `jp_` 不动）、**业务模块表 `jp_`**，**不要手改既有迁移**（已上生产的迁移出问题时同样走新增 `V<n+1>` 修复；仅本地验证阶段、生产未跑过的迁移允许改写并本地删 `flyway_schema_history` 对应行重放）。
 
 ## 迁移脚本生产兼容检查（必填，V38 生产翻车事故固化）

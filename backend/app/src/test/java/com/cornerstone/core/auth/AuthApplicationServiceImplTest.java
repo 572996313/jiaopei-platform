@@ -2,6 +2,7 @@ package com.cornerstone.core.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
+import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
@@ -20,6 +21,7 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.config.properties.CornerstoneProperties;
 import com.cornerstone.core.system.service.SystemConfigService;
 import com.cornerstone.core.system.service.SystemMenuService;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +48,7 @@ import static org.mockito.Mockito.when;
 class AuthApplicationServiceImplTest {
 
     private final UserAccountMapper userAccountMapper = mock(UserAccountMapper.class);
+    private final RoleMapper roleMapper = mock(RoleMapper.class);
     private final UserRoleRelMapper userRoleRelMapper = mock(UserRoleRelMapper.class);
     private final TokenCacheService tokenCacheService = mock(TokenCacheService.class);
     private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
@@ -53,7 +56,7 @@ class AuthApplicationServiceImplTest {
     private final JwtTokenService jwtTokenService = jwtTokenService();
     private final UserAccessTokenService userAccessTokenService = new UserAccessTokenService(
         userAccountMapper,
-        mock(RoleMapper.class),
+        roleMapper,
         userRoleRelMapper,
         tokenCacheService,
         jwtTokenService,
@@ -66,6 +69,7 @@ class AuthApplicationServiceImplTest {
     );
     private final AuthApplicationServiceImpl service = new AuthApplicationServiceImpl(
         userAccountMapper,
+        roleMapper,
         userRoleRelMapper,
         tokenCacheService,
         jwtTokenService,
@@ -216,6 +220,39 @@ class AuthApplicationServiceImplTest {
         CurrentUserResponse response = service.currentUser();
 
         assertTrue(response.forceChangePassword());
+    }
+
+    @Test
+    void currentUserCarriesProfileFieldsAndResolvesRoleNames() {
+        authenticate();
+        UserAccountEntity user = user();
+        user.setPhone("13800000000");
+        user.setLastLoginAt(LocalDateTime.of(2026, 11, 22, 9, 30));
+        user.setPasswordUpdatedAt(LocalDateTime.of(2026, 10, 1, 8, 0));
+        when(userAccountMapper.selectById(1L)).thenReturn(user);
+        RoleEntity role = new RoleEntity();
+        role.setRoleCode("PLATFORM_ADMIN");
+        role.setRoleName("平台管理员");
+        when(roleMapper.selectList(any())).thenReturn(List.of(role));
+
+        CurrentUserResponse response = service.currentUser();
+
+        assertEquals("13800000000", response.phone());
+        assertEquals(user.getLastLoginAt(), response.lastLoginAt());
+        assertEquals(user.getPasswordUpdatedAt(), response.passwordUpdatedAt());
+        assertEquals(List.of("平台管理员"), response.roleNames());
+    }
+
+    @Test
+    void currentUserFallsBackToRoleCodeWhenRoleNameIsMissing() {
+        authenticate();
+        when(userAccountMapper.selectById(1L)).thenReturn(user());
+        when(roleMapper.selectList(any())).thenReturn(List.of());
+
+        CurrentUserResponse response = service.currentUser();
+
+        // 角色表查不到名称时展示角色码，不能因为一条名称缺失让整个 /auth/me 失败
+        assertEquals(List.of("PLATFORM_ADMIN"), response.roleNames());
     }
 
     @Test

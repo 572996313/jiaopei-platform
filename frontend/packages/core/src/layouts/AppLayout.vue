@@ -68,12 +68,15 @@
 
         <el-dropdown trigger="click" @command="handleUserCommand">
           <div class="banner-chip banner-user">
-            <span class="banner-user-avatar">{{ auth.displayName.slice(0, 1) }}</span>
+            <UserAvatar
+              class="banner-user-avatar"
+              :file-id="auth.currentUser?.avatarFileId"
+              :name="auth.displayName"
+              :size="25"
+            />
             <div class="banner-user-info">
               <div class="banner-user-name">{{ auth.displayName }}</div>
-              <div class="banner-user-meta">
-                {{ auth.currentUser?.roles?.join(' / ') || '未分配角色' }}
-              </div>
+              <div class="banner-user-meta">{{ roleSummary }}</div>
             </div>
             <el-icon class="banner-user-caret"><ArrowDown /></el-icon>
           </div>
@@ -90,8 +93,8 @@
                 <el-icon v-if="navMode === 'rail'" class="nav-mode-check"><Check /></el-icon>
                 <span>图标导航</span>
               </el-dropdown-item>
-              <el-dropdown-item command="menu-preferences" divided>菜单偏好</el-dropdown-item>
-              <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
+              <el-dropdown-item command="profile" divided>个人信息</el-dropdown-item>
+              <el-dropdown-item command="menu-preferences">菜单偏好</el-dropdown-item>
               <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -375,6 +378,9 @@
         <el-button @click="menuPreferencesVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- ============ 个人信息：常用资料 + 换头像 + 快捷改密 ============ -->
+    <UserProfileDialog v-model="profileDialogVisible" />
   </div>
 </template>
 
@@ -392,6 +398,8 @@ import {
   Sunny,
 } from '@element-plus/icons-vue'
 import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
+import UserAvatar from '@cornerstone/core/components/UserAvatar.vue'
+import UserProfileDialog from '@cornerstone/core/components/UserProfileDialog.vue'
 import {
   contributedBannerActions,
   contributedBannerChips,
@@ -416,6 +424,15 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
+
+/** 顶栏胶囊只放得下一行：优先角色中文名，接口没给名称时回落角色码 */
+const roleSummary = computed(() => {
+  const names = auth.currentUser?.roleNames
+  if (names?.length) {
+    return names.join(' / ')
+  }
+  return auth.currentUser?.roles?.join(' / ') || '未分配角色'
+})
 
 /** 品牌文案来自系统参数 brand.*：直接刷新进后台时也要拉一次，登录页拉过则复用同一份请求 */
 const { brandName, brandTagline, brandMark, loadBranding } = useBranding()
@@ -480,6 +497,7 @@ function readStoredMenuPreferences(): MenuPreferences {
 
 const menuPreferences = ref<MenuPreferences>(readStoredMenuPreferences())
 const menuPreferencesVisible = ref(false)
+const profileDialogVisible = ref(false)
 const searchOpen = ref(false)
 
 /** 顶栏业务入口：现算而不是加载时取快照，登记晚于外壳挂载也要出现 */
@@ -1306,10 +1324,10 @@ function handleUserCommand(command: string | number | object) {
     setNavMode('full')
   } else if (command === 'nav-mode:rail') {
     setNavMode('rail')
+  } else if (command === 'profile') {
+    profileDialogVisible.value = true
   } else if (command === 'menu-preferences') {
     menuPreferencesVisible.value = true
-  } else if (command === 'change-password') {
-    router.push('/change-password')
   } else if (command === 'logout') {
     handleLogout()
   }

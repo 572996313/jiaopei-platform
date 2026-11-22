@@ -3,12 +3,14 @@ package com.cornerstone.core.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cornerstone.core.auth.context.AuthContext;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
+import com.cornerstone.core.auth.domain.RoleEntity;
 import com.cornerstone.core.auth.domain.UserAccountEntity;
 import com.cornerstone.core.auth.domain.UserRoleRelEntity;
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
 import com.cornerstone.core.auth.dto.CurrentUserResponse;
 import com.cornerstone.core.auth.dto.LoginRequest;
 import com.cornerstone.core.auth.dto.LoginResponse;
+import com.cornerstone.core.auth.mapper.RoleMapper;
 import com.cornerstone.core.auth.mapper.UserAccountMapper;
 import com.cornerstone.core.auth.mapper.UserRoleRelMapper;
 import com.cornerstone.core.auth.security.JwtTokenService;
@@ -19,6 +21,9 @@ import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,17 +36,20 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     private static final String ACTIVE = "active";
 
     private final UserAccountMapper userAccountMapper;
+    private final RoleMapper roleMapper;
     private final UserRoleRelMapper userRoleRelMapper;
     private final TokenCacheService tokenCacheService;
     private final JwtTokenService jwtTokenService;
     private final UserAccessTokenService userAccessTokenService;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, UserRoleRelMapper userRoleRelMapper,
+    public AuthApplicationServiceImpl(UserAccountMapper userAccountMapper, RoleMapper roleMapper,
+                                      UserRoleRelMapper userRoleRelMapper,
                                       TokenCacheService tokenCacheService,
                                       JwtTokenService jwtTokenService, UserAccessTokenService userAccessTokenService,
                                       PasswordEncoder passwordEncoder) {
         this.userAccountMapper = userAccountMapper;
+        this.roleMapper = roleMapper;
         this.userRoleRelMapper = userRoleRelMapper;
         this.tokenCacheService = tokenCacheService;
         this.jwtTokenService = jwtTokenService;
@@ -111,13 +119,15 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
     public CurrentUserResponse currentUser() {
         AuthenticatedUser authenticatedUser = AuthContext.requireUser();
         UserAccountEntity user = requireUser(authenticatedUser.userId());
+        List<String> roleCodes = new ArrayList<>(authenticatedUser.roles());
         return new CurrentUserResponse(
             user.getId(),
             user.getInstitutionId(),
             user.getInstitutionId(),
             user.getUsername(),
             user.getDisplayName(),
-            new ArrayList<>(authenticatedUser.roles()),
+            user.getAvatarFileId(),
+            roleCodes,
             new ArrayList<>(authenticatedUser.permissions()),
             user.getPasswordResetRequired(),
             userAccessTokenService.effectiveForceChangePassword(user),
@@ -125,8 +135,29 @@ public class AuthApplicationServiceImpl implements AuthApplicationService {
             authenticatedUser.dataScopeKey(),
             authenticatedUser.dataScopeIds() == null
                 ? null
-                : new ArrayList<>(authenticatedUser.dataScopeIds())
+                : new ArrayList<>(authenticatedUser.dataScopeIds()),
+            user.getPhone(),
+            user.getLastLoginAt(),
+            user.getPasswordUpdatedAt(),
+            resolveRoleNames(roleCodes)
         );
+    }
+
+    /**
+     * 角色名称给"个人信息"面板展示用；角色表里查不到（角色已删、会话快照过期）就回落角色码，
+     * 不因为一条名称缺失让 /auth/me 整个失败。
+     */
+    private List<String> resolveRoleNames(List<String> roleCodes) {
+        if (roleCodes.isEmpty()) {
+            return List.of();
+        }
+        Map<String, String> names = roleMapper.selectList(
+                new LambdaQueryWrapper<RoleEntity>().in(RoleEntity::getRoleCode, roleCodes))
+            .stream()
+            .collect(Collectors.toMap(RoleEntity::getRoleCode, RoleEntity::getRoleName, (left, right) -> left));
+        return roleCodes.stream()
+            .map(code -> names.getOrDefault(code, code))
+            .toList();
     }
 
     @Override

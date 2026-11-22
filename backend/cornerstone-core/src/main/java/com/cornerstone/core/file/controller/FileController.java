@@ -80,6 +80,8 @@ public class FileController {
             .contentType(MediaType.parseMediaType(contentType))
             .contentLength(content.sizeBytes())
             .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+            // 内容类型由扩展名推导，禁止浏览器再嗅探：否则改名的 HTML 可能被当成页面执行
+            .header("X-Content-Type-Options", "nosniff")
             .body(new InputStreamResource(content.stream()));
     }
 

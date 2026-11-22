@@ -2,6 +2,8 @@
 import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { uploadMyAvatar } from '@/api/auth'
+import { fetchImageTempPath } from '@/utils/file-image'
 import {
   fetchGenderOptions,
   fetchMyStudentProfile,
@@ -16,6 +18,8 @@ const authStore = useAuthStore()
 const boundStudents = ref<StudentBrief[]>([])
 const genderOptions = ref<DictOptionItem[]>([])
 const myProfile = ref<StudentOwnProfile | null>(null)
+/** 头像本地临时路径；<image> 带不上令牌，必须先带 header 下载 */
+const avatarTempPath = ref('')
 
 const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '未登录',
@@ -52,6 +56,7 @@ onShow(() => {
       // 拉取失败继续用本机缓存的登录态展示
     })
     .finally(() => {
+      loadAvatar()
       if (isEnterprise.value) {
         return
       }
@@ -94,6 +99,48 @@ async function loadStudents() {
 
 function goAddStudent() {
   uni.navigateTo({ url: '/pages/bind-student/index' })
+}
+
+async function loadAvatar() {
+  const fileId = authStore.userInfo?.avatarFileId
+  if (!fileId) {
+    avatarTempPath.value = ''
+    return
+  }
+  try {
+    avatarTempPath.value = await fetchImageTempPath(fileId)
+  } catch {
+    // 头像拉不到就保持首字占位，不影响页面其它内容
+    avatarTempPath.value = ''
+  }
+}
+
+/** 点击头像更换：选图（压缩）-> 上传 -> 刷新用户信息 -> 重新拉头像 */
+function chooseAvatar() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    success: async (result) => {
+      const path = result.tempFilePaths?.[0]
+      if (!path) {
+        return
+      }
+      uni.showLoading({ title: '上传中…', mask: true })
+      try {
+        await uploadMyAvatar(path)
+        await authStore.refreshUserInfo()
+        await loadAvatar()
+        uni.hideLoading()
+        uni.showToast({ title: '头像已更新', icon: 'success' })
+      } catch (error) {
+        uni.hideLoading()
+        uni.showToast({
+          title: error instanceof Error && error.message ? error.message : '头像上传失败',
+          icon: 'none',
+        })
+      }
+    },
+  })
 }
 
 function goTimetable(studentId: string) {
@@ -182,7 +229,14 @@ function handleDeregister() {
 <template>
   <view class="mine-page">
     <view class="user-card">
-      <view class="avatar">{{ avatarChar }}</view>
+      <image
+        v-if="avatarTempPath"
+        class="avatar"
+        :src="avatarTempPath"
+        mode="aspectFill"
+        @click="chooseAvatar"
+      />
+      <view v-else class="avatar" @click="chooseAvatar">{{ avatarChar }}</view>
       <view class="user-meta">
         <text class="name">{{ displayName }}</text>
         <text class="account">@{{ authStore.userInfo?.username || '-' }}</text>

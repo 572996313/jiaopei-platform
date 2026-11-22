@@ -850,10 +850,9 @@ body {
   width: 25px;
   height: 25px;
   border-radius: 50%;
-  color: var(--brand-navy);
-  font-size: 12px;
-  font-weight: 700;
-  background: linear-gradient(150deg, var(--brand-gold), var(--brand-gold-deep));
+  /* UserAvatar 组件读这两个变量决定底色与首字色；深色横幅上保持金色胶囊 */
+  --user-avatar-bg: linear-gradient(150deg, var(--brand-gold), var(--brand-gold-deep));
+  --user-avatar-ink: var(--brand-navy);
 }
 
 .banner-user-info {

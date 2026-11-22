@@ -14,10 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,5 +86,32 @@ class AuthControllerWebTest {
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("用户名或密码错误"));
+    }
+
+    @Test
+    void currentUserCarriesProfileFields() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer stub-access-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.displayName").value("平台管理员"))
+            .andExpect(jsonPath("$.data.avatarFileId").value(100))
+            // 个人信息面板直接读这些字段；改字段名要同步 UserProfileDialog
+            .andExpect(jsonPath("$.data.phone").value("13800000000"))
+            .andExpect(jsonPath("$.data.roleNames[0]").value("平台管理员"));
+    }
+
+    @Test
+    void avatarUploadAndClearAreLoginOnly() throws Exception {
+        // 头像走 /api/auth 下的自助接口：只要求登录，不挂 system:file:upload（小程序角色不一定有）
+        mockMvc.perform(multipart("/api/auth/me/avatar")
+                .file(new MockMultipartFile("file", "avatar.png", MediaType.IMAGE_PNG_VALUE, "fake".getBytes())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.avatarFileId").value(9001));
+
+        mockMvc.perform(delete("/api/auth/me/avatar"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
     }
 }
