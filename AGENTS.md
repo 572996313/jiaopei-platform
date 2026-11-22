@@ -456,7 +456,7 @@ ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
 动手写页面前先读 `docs/前端页面开发手册.md`：那是本节的**执行细则**（元素落点表、反模式对照、四型页面骨架、新建一页装配清单、与配置化的差距），不新增口径、只回答"该写在哪一行、抄哪个页面"；与本节冲突一律以本节为准。
 
 - API 层在 `frontend/packages/core/src/api/`：`http.ts`（axios 实例 + 大 ID 兜底）、`request.ts`（`unwrap` 解包 `ApiResponse.data`，非 success 抛 `ApiError`），按模块拆 `auth/tenant/system/...`；业务接口在各自 `frontend/packages/module-<name>/src/api/`（organization、education）。
-- 状态：Pinia，登录态持久化在 `localStorage` key `cornerstone.auth.session`（`utils/auth-session.ts`），`http.ts` 从该处取 `Authorization`；未登录时回退到 `import.meta.env.VITE_API_AUTHORIZATION`（仅本地联调用的固定头，生产构建不要注入）。
+- 状态：Pinia，登录态持久化在 `localStorage` key `cornerstone.auth.session`（`utils/auth-session.ts`），`http.ts` 从该处取 `Authorization`；未登录时不带该头，没有构建期固定头的兜底（旧的 `VITE_API_AUTHORIZATION` 已删除）。
 - 路由 `router/index.ts`：`/login`、`/change-password` 公开；其余挂在 `AppLayout` 下；系统管理多 tab 复用 `SystemManagementView.vue`，靠 `meta.systemTab` 区分。
 - 路径别名 `@` → `frontend/src`（vite + tsconfig 均配置）。
 - 页面写操作按钮要按权限码显隐（与后端 `@RequiresPermission` 同一套码）；列表页优先使用 `ConfigurableCrudPage`/`ConfigurableList`（自带请求序列号守卫，切机构不竞态）。

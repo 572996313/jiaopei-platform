@@ -125,9 +125,6 @@ AUTH_JWT_SECRET=<生成至少32字节的随机密钥>
 
 # ---- 前端配置 ----
 FRONTEND_PORT=5757
-
-# 登录态由前端保存登录接口返回的 JWT 并自动携带,留空即可
-VITE_API_AUTHORIZATION=
 ```
 
 ---

@@ -36,7 +36,7 @@ export const http = axios.create({
 })
 
 http.interceptors.request.use((config) => {
-  const authorization = getStoredAuthorization() || import.meta.env.VITE_API_AUTHORIZATION?.trim()
+  const authorization = getStoredAuthorization()
   if (authorization) {
     config.headers = config.headers ?? {}
     ;(config.headers as Record<string, string>).Authorization = authorization

@@ -24,9 +24,6 @@ COPY frontend/public ./public
 COPY frontend/packages ./packages
 COPY frontend/src ./src
 
-ARG VITE_API_AUTHORIZATION="Bearer stub-access-token"
-ENV VITE_API_AUTHORIZATION=$VITE_API_AUTHORIZATION
-
 RUN pnpm build
 
 FROM nginx:1.27-alpine

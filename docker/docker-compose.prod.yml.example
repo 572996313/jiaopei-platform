@@ -21,7 +21,8 @@
 #     BACKEND_PORT（默认 18090，仅绑定 127.0.0.1 供本机调试）。
 #   - 数据目录：MYSQL_DATA_DIR / REDIS_DATA_DIR / MINIO_DATA_DIR（在 docker/prod.env 中配置）。
 #   - 文件对象存储：默认跟随栈启动 MinIO。若复用外部 MinIO/S3 兼容服务，删除本文件的
-#     minio 服务与 backend.depends_on.minio，把 backend 的 MINIO_ENDPOINT 指向外部地址。
+#     minio 服务与 backend.depends_on.minio，并在 docker/prod.env 里把 MINIO_ENDPOINT
+#     指向外部地址（后端只从容器内访问它，不需要对浏览器可达）。
 #   - 镜像/容器名一般不需要改，deploy.sh 与备份脚本按 jiaopei-prod-* 识别。
 #
 # 自检：
@@ -156,9 +157,11 @@ services:
       # 微信小程序(教培学堂)登录用;未配置时后端可正常启动,仅微信登录接口返回明确提示
       WECHAT_MINIAPP_APPID: ${WECHAT_MINIAPP_APPID:-}
       WECHAT_MINIAPP_SECRET: ${WECHAT_MINIAPP_SECRET:-}
-      # 文件存储：容器内直连 MinIO 服务名；桶由后端启动时自动创建
+      # 文件存储：默认连本编排内的 minio 服务；桶由后端启动时自动创建。
+      # 复用外部 MinIO 时不用改本文件，在 prod.env 里覆盖 MINIO_ENDPOINT 即可
+      # （填容器名 http://<minio容器名>:9000，或宿主机映射端口 http://host.docker.internal:9000）。
       FILE_STORAGE_PROVIDER: ${FILE_STORAGE_PROVIDER:-minio}
-      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
       MINIO_BUCKET: ${MINIO_BUCKET:-jiaopei-files}
       # 应用侧凭据在 prod.env 显式写，不用嵌套展开（不同 compose 版本支持程度不一）
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -192,7 +195,6 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         DEPS_IMAGE: jiaopei-platform-frontend-deps:prod
-        VITE_API_AUTHORIZATION: ${VITE_API_AUTHORIZATION:-}
     image: jiaopei-platform-frontend:prod
     container_name: jiaopei-prod-frontend
     restart: unless-stopped
