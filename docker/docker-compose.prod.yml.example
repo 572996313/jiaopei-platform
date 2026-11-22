@@ -23,7 +23,8 @@
 #   - 文件对象存储：默认跟随栈启动 MinIO。若复用外部 MinIO/S3 兼容服务，删除本文件的
 #     minio 服务与 backend.depends_on.minio，并在 docker/prod.env 里把 MINIO_ENDPOINT
 #     指向外部地址（后端只从容器内访问它，不需要对浏览器可达）。
-#   - 镜像/容器名一般不需要改，deploy.sh 与备份脚本按 jiaopei-prod-* 识别。
+#   - 容器名可以按服务器习惯修改：deploy.sh 的健康检查按 compose 服务名判断，
+#     数据库备份也按服务名 mysql 定位实际容器，不再依赖 jiaopei-prod-* 这类固定名字。
 #
 # 自检：
 #     docker compose -f docker/docker-compose.prod.yml --env-file docker/prod.env config

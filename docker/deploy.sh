@@ -29,6 +29,16 @@ DB_BACKUP_DIR="/mnt/software/jiaopei/backups/db"
 LOG_FILE="/mnt/software/jiaopei/deploy.log"
 DATA_DIR="/mnt/software/jiaopei/data"
 KEEP_DB_BACKUPS=14
+# 数据库逻辑备份的容器与账号：
+#   - 容器默认自动识别：先按编排里的 mysql 服务找（container_name 改了也能找到），
+#     再按镜像名探测（复用面板/外部 MySQL 时编排里没有 mysql 服务）。
+#   - 识别不出来或多解时，用 DB_BACKUP_CONTAINER=<容器名> 显式指定。
+#   - 账号默认优先容器内 root（读 MYSQL_ROOT_PASSWORD），其次 prod.env 的
+#     MYSQL_ROOT_PASSWORD，最后退回应用账号 DB_USERNAME/DB_PASSWORD。
+#     需要指定时用 DB_BACKUP_USER / DB_BACKUP_PASSWORD 覆盖。
+DB_BACKUP_CONTAINER="${DB_BACKUP_CONTAINER:-}"
+DB_BACKUP_USER="${DB_BACKUP_USER:-}"
+DB_BACKUP_PASSWORD="${DB_BACKUP_PASSWORD:-}"
 # 依赖基础镜像的哈希戳：pom/lock 变化时自动重建依赖镜像，否则直接复用
 DEPS_STAMP_FILE="/mnt/software/jiaopei/.deps-stamp"
 BACKEND_DEPS_IMAGE="jiaopei-platform-backend-deps:prod"
@@ -282,6 +292,66 @@ if [ ! -f "${COMPOSE_FILE}" ]; then
 fi
 
 # ---------- 2. 备份 ----------
+# 从 docker/prod.env 读取单个键的值。
+# 刻意不 source：prod.env 是运维手写文件，source 会把里面任意内容当命令执行。
+# 只做「取最后一处 KEY=VALUE、去掉成对引号与行尾 CR」的解析，备份用途足够。
+prod_env_get() {
+    local key="$1" line="" first="" last=""
+    [ -f "docker/prod.env" ] || return 0
+    line=$(grep -E "^[[:space:]]*${key}=" "docker/prod.env" | tail -n 1 || true)
+    [ -n "${line}" ] || return 0
+    line="${line#*=}"
+    line="${line%$'\r'}"
+    if [ "${#line}" -ge 2 ]; then
+        first="${line:0:1}"
+        last="${line: -1}"
+        if { [ "${first}" = '"' ] && [ "${last}" = '"' ]; } \
+            || { [ "${first}" = "'" ] && [ "${last}" = "'" ]; }; then
+            line="${line:1:${#line}-2}"
+        fi
+    fi
+    printf '%s' "${line}"
+}
+
+# 定位本次备份要连的 MySQL 容器：
+#   1) DB_BACKUP_CONTAINER 显式指定优先（最稳，任何拓扑都适用）；
+#   2) 按编排服务名 mysql 定位——即使 container_name 被改，也能拿到真实容器名；
+#   3) 编排里没有 mysql 服务（复用 1Panel/外部 MySQL）时，按镜像名探测唯一候选。
+# 找不到或多解时返回非零，由调用方打印可操作提示，而不是静默跳过备份。
+resolve_mysql_container() {
+    if [ -n "${DB_BACKUP_CONTAINER}" ]; then
+        if [ "$(docker inspect -f '{{.State.Running}}' "${DB_BACKUP_CONTAINER}" 2>/dev/null || true)" = "true" ]; then
+            printf '%s' "${DB_BACKUP_CONTAINER}"
+            return 0
+        fi
+        log_warn "DB_BACKUP_CONTAINER=${DB_BACKUP_CONTAINER} 不存在或未运行" >&2
+        return 1
+    fi
+    local cid="" name="" candidates="" count=0
+    cid=$(docker compose -f "${COMPOSE_FILE}" --env-file "docker/prod.env" ps -q mysql 2>/dev/null | head -n 1 || true)
+    if [ -n "${cid}" ]; then
+        name=$(docker inspect -f '{{.Name}}' "${cid}" 2>/dev/null | sed 's#^/##' || true)
+        if [ -n "${name}" ]; then
+            printf '%s' "${name}"
+            return 0
+        fi
+    fi
+    candidates=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null \
+        | awk 'tolower($2) ~ /(^|\/)(mysql|mariadb)(:|@|$)/ {print $1}' || true)
+    count=$(printf '%s' "${candidates}" | grep -c . || true)
+    if [ "${count}" -eq 1 ]; then
+        printf '%s' "${candidates}"
+        return 0
+    fi
+    if [ "${count}" -gt 1 ]; then
+        log_warn "检测到多个 MySQL 容器，无法确定备份对象：" >&2
+        printf '%s\n' "${candidates}" | sed 's/^/    /' >&2
+        log_warn "请用 DB_BACKUP_CONTAINER=<容器名> 指定后重跑" >&2
+        return 2
+    fi
+    return 1
+}
+
 log_info "[2/9] 备份配置与数据库..."
 mkdir -p "${BACKUP_DIR}" "${DB_BACKUP_DIR}"
 if [ -f "docker/prod.env" ]; then
@@ -296,24 +366,84 @@ fi
 if [ "${SKIP_BACKUP}" = "true" ]; then
     log_warn "跳过数据库备份 (--no-backup)"
 else
-    # 仅在 MySQL 容器已经在跑的情况下做逻辑备份
-    if docker ps --format '{{.Names}}' | grep -q '^jiaopei-prod-mysql$'; then
-        log_info "导出 MySQL 逻辑备份 -> ${DB_BACKUP_DIR}/${TIMESTAMP}.sql"
-        set +e
-        docker exec jiaopei-prod-mysql sh -c \
-            "exec mysqldump -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" --single-transaction --routines --triggers --events --databases ${DB_NAME:-jiaopei_platform}" \
-            > "${DB_BACKUP_DIR}/${TIMESTAMP}.sql" 2> "${DB_BACKUP_DIR}/${TIMESTAMP}.log"
-        DUMP_RC=$?
-        set -e
-        if [ "${DUMP_RC}" -eq 0 ] && [ -s "${DB_BACKUP_DIR}/${TIMESTAMP}.sql" ]; then
-            gzip -f "${DB_BACKUP_DIR}/${TIMESTAMP}.sql"
-            log_ok "数据库备份完成: ${DB_BACKUP_DIR}/${TIMESTAMP}.sql.gz"
-            rm -f "${DB_BACKUP_DIR}/${TIMESTAMP}.log"
+    # 备份参数既可经环境变量传入，也可写在 docker/prod.env 里（环境变量优先）
+    DB_BACKUP_CONTAINER="${DB_BACKUP_CONTAINER:-$(prod_env_get DB_BACKUP_CONTAINER)}"
+    DB_BACKUP_USER="${DB_BACKUP_USER:-$(prod_env_get DB_BACKUP_USER)}"
+    DB_BACKUP_PASSWORD="${DB_BACKUP_PASSWORD:-$(prod_env_get DB_BACKUP_PASSWORD)}"
+    # 定位 MySQL 容器（不再写死 jiaopei-prod-mysql：container_name 被改或复用外部
+    # MySQL 时，旧写法会静默跳过备份，让人误以为「有备份」）
+    MYSQL_CONTAINER=""
+    RESOLVE_RC=0
+    MYSQL_CONTAINER=$(resolve_mysql_container) || RESOLVE_RC=$?
+    if [ "${RESOLVE_RC}" -eq 0 ]; then
+        log_info "备份源容器: ${MYSQL_CONTAINER}"
+    else
+        MYSQL_CONTAINER=""
+    fi
+
+    if [ -z "${MYSQL_CONTAINER}" ]; then
+        if [ "${RESOLVE_RC}" -eq 2 ]; then
+            log_warn "存在多个 MySQL 容器,已跳过本次逻辑备份;请按上面的提示指定 DB_BACKUP_CONTAINER。"
         else
-            log_warn "mysqldump 失败 (rc=${DUMP_RC}),日志见 ${DB_BACKUP_DIR}/${TIMESTAMP}.log"
+            log_warn "未找到可备份的 MySQL 容器,跳过本次逻辑备份(数据目录本身已持久化)。"
+            log_warn "  若 MySQL 由面板/外部维护: 在 prod.env 里加 DB_BACKUP_CONTAINER=<容器名> 再部署,"
+            log_warn "  或确认该库的定时备份已由面板负责,避免两套备份互相以为对方在管。"
         fi
     else
-        log_warn "MySQL 容器未运行,跳过本次逻辑备份(数据目录本身已持久化)。"
+        # 账号优先级：显式 DB_BACKUP_USER/PASSWORD > 容器内 root(MYSQL_ROOT_PASSWORD)
+        # > prod.env 的 MYSQL_ROOT_PASSWORD > 应用账号 DB_USERNAME/DB_PASSWORD。
+        if [ -n "${DB_BACKUP_USER}" ]; then
+            BACKUP_USER="${DB_BACKUP_USER}"
+            BACKUP_PASS="${DB_BACKUP_PASSWORD:-}"
+        else
+            CONTAINER_ROOT_PW=$(docker exec "${MYSQL_CONTAINER}" printenv MYSQL_ROOT_PASSWORD 2>/dev/null || true)
+            if [ -n "${CONTAINER_ROOT_PW}" ]; then
+                BACKUP_USER="root"
+                BACKUP_PASS="${CONTAINER_ROOT_PW}"
+            elif [ -n "$(prod_env_get MYSQL_ROOT_PASSWORD)" ]; then
+                BACKUP_USER="root"
+                BACKUP_PASS="$(prod_env_get MYSQL_ROOT_PASSWORD)"
+            else
+                BACKUP_USER="$(prod_env_get DB_USERNAME)"
+                BACKUP_PASS="$(prod_env_get DB_PASSWORD)"
+            fi
+        fi
+        BACKUP_DB="$(prod_env_get DB_NAME)"
+        BACKUP_DB="${BACKUP_DB:-jiaopei_platform}"
+
+        if [ -z "${BACKUP_USER}" ]; then
+            log_warn "无法确定 MySQL 备份账号(容器内无 MYSQL_ROOT_PASSWORD,prod.env 也没有 DB_USERNAME),跳过备份。"
+            log_warn "  请设置 DB_BACKUP_USER / DB_BACKUP_PASSWORD 后重跑。"
+        else
+            log_info "导出 MySQL 逻辑备份 -> ${DB_BACKUP_DIR}/${TIMESTAMP}.sql (账号: ${BACKUP_USER}, 库: ${BACKUP_DB})"
+            # 密码经 stdin 送进容器，再由容器内的 sh 写入临时 defaults 文件（umask 077），
+            # 用完立即删除：密码不在宿主机进程参数里，也不受引号/空格等特殊字符影响。
+            set +e
+            printf '%s\n' "${BACKUP_PASS}" | docker exec -i \
+                -e DEPLOY_BACKUP_USER="${BACKUP_USER}" -e DEPLOY_BACKUP_DB="${BACKUP_DB}" \
+                "${MYSQL_CONTAINER}" sh -c '
+                    IFS= read -r DEPLOY_BACKUP_PASSWORD || true
+                    umask 077
+                    CNF=/tmp/.deploy-backup-my.cnf
+                    printf "[client]\nuser=%s\npassword=%s\n" "$DEPLOY_BACKUP_USER" "$DEPLOY_BACKUP_PASSWORD" > "$CNF"
+                    mysqldump --defaults-extra-file="$CNF" --single-transaction --routines --triggers --events \
+                        --databases "$DEPLOY_BACKUP_DB"
+                    rc=$?
+                    rm -f "$CNF"
+                    exit $rc
+                ' > "${DB_BACKUP_DIR}/${TIMESTAMP}.sql" 2> "${DB_BACKUP_DIR}/${TIMESTAMP}.log"
+            DUMP_RC=$?
+            set -e
+            if [ "${DUMP_RC}" -eq 0 ] && [ -s "${DB_BACKUP_DIR}/${TIMESTAMP}.sql" ]; then
+                gzip -f "${DB_BACKUP_DIR}/${TIMESTAMP}.sql"
+                log_ok "数据库备份完成: ${DB_BACKUP_DIR}/${TIMESTAMP}.sql.gz"
+                rm -f "${DB_BACKUP_DIR}/${TIMESTAMP}.log"
+            else
+                rm -f "${DB_BACKUP_DIR}/${TIMESTAMP}.sql"
+                log_warn "mysqldump 失败 (rc=${DUMP_RC}),日志见 ${DB_BACKUP_DIR}/${TIMESTAMP}.log"
+                log_warn "  若账号权限不足: 在 prod.env 里配置 DB_BACKUP_USER / DB_BACKUP_PASSWORD 后重跑。"
+            fi
+        fi
     fi
 
     # 清理过期的逻辑备份
