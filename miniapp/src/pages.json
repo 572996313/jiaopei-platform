@@ -157,6 +157,18 @@
 			}
 		},
 		{
+			"path": "pages/parent/create-student/index",
+			"style": {
+				"navigationBarTitleText": "创建学员档案"
+			}
+		},
+		{
+			"path": "pages/fees/index",
+			"style": {
+				"navigationBarTitleText": "我的费用"
+			}
+		},
+		{
 			"path": "pages/mine/index",
 			"style": {
 				"navigationBarTitleText": "我的"

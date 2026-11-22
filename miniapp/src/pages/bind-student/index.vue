@@ -19,6 +19,11 @@ function selectMethod(m: BindMethod) {
   value.value = ''
 }
 
+/** 孩子还没有档案(没有手机/账号)时,直接由家长代建 */
+function goCreateChild() {
+  uni.navigateTo({ url: '/pages/parent/create-student/index' })
+}
+
 async function handleBind() {
   if (!value.value.trim()) {
     uni.showToast({ title: method.value === 'STUDENT_NO' ? '请输入学员编号' : '请输入监护人手机号', icon: 'none' })
@@ -97,6 +102,10 @@ async function handleBind() {
         />
       </view>
       <button class="submit-btn" :disabled="submitting" @click="handleBind">绑定</button>
+    </view>
+
+    <view class="create-link" @click="goCreateChild">
+      <text class="create-link-text">孩子还没有档案?直接创建一份 ›</text>
     </view>
 
     <text class="tip">为保护学员隐私,绑定需同时核对学员姓名。绑定后可在「我的学员」查看课表,一个账号可绑定多个学员。</text>
@@ -193,6 +202,17 @@ async function handleBind() {
   opacity: 0.6;
   color: #ffffff;
   background: #2563eb;
+}
+
+.create-link {
+  display: flex;
+  justify-content: center;
+  padding: 28rpx 0 0;
+}
+
+.create-link-text {
+  font-size: 26rpx;
+  color: #2563eb;
 }
 
 .tip {

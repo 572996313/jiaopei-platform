@@ -80,12 +80,20 @@ const studyEntries = computed<WorkEntry[]>(() => {
       path: '/pages/student-profile/index',
     })
   } else {
-    entries.push({
-      icon: 'personadd',
-      title: '绑定孩子',
-      desc: '绑定已有学员或新建档案',
-      path: '/pages/bind-student/index',
-    })
+    entries.push(
+      {
+        icon: 'personadd',
+        title: '孩子档案',
+        desc: '绑定已有档案或代孩子新建',
+        path: '/pages/bind-student/index',
+      },
+      {
+        icon: 'wallet',
+        title: '我的费用',
+        desc: '查看孩子的应收与收款记录',
+        path: '/pages/fees/index',
+      },
+    )
   }
   return entries
 })
@@ -222,7 +230,7 @@ onPullDownRefresh(async () => {
           <text>分区说明</text>
         </view>
         <view class="ent-tip">
-          首页只看今天和最近的情况；绑定档案、看完整课表、查公告、看同班名单这些需要主动点的服务放在工作台。
+          首页只看今天和最近的情况；绑定档案、查费用、看完整课表、查公告、看同班名单这些需要主动点的服务放在工作台。
         </view>
       </view>
     </template>

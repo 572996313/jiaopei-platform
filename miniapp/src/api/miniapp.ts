@@ -67,6 +67,17 @@ export function bindStudent(method: BindMethod, value: string, studentName: stri
   })
 }
 
+/** 家长代建学员档案(学员本人可以没有手机/账号),建档后自动绑定到当前账号 */
+export function createChildStudent(payload: {
+  studentName: string
+  gender: Gender
+  birthday?: string
+  guardianName?: string
+  guardianPhone?: string
+}) {
+  return requestPost<StudentBrief>('/miniapp/students/create', payload as unknown as Record<string, unknown>)
+}
+
 /** 当前用户已关联的学员列表 */
 export function listMyStudents() {
   return requestGet<StudentBrief[]>('/miniapp/students')
@@ -165,4 +176,57 @@ export function fetchClassmates(studentId: string) {
 /** 首页近况:当前账号名下全部绑定学员的今日课次、本周节数与下一节预告 */
 export function fetchHomeOverview() {
   return requestGet<HomeOverview>('/miniapp/home/overview')
+}
+
+/** 家长端费用:某学员的收费台账、项目明细与收款流水(只读,金额服务端现算) */
+export interface StudentFeeItem {
+  itemName: string | null
+  billingMode: string | null
+  billableMonths: number | null
+  monthlyStandard: number | null
+  receivable: number | null
+  paid: number | null
+  unpaid: number | null
+}
+
+export interface StudentFeeLedger {
+  id: string
+  className: string | null
+  termName: string | null
+  status: string | null
+  receivable: number | null
+  paid: number | null
+  unpaid: number | null
+  balance: number | null
+  items: StudentFeeItem[]
+}
+
+export interface StudentFeePayment {
+  id: string
+  paymentNo: string | null
+  amount: number | null
+  paidOn: string | null
+  paymentMethod: string | null
+  billingMonth: string | null
+}
+
+export interface StudentFeeOverview {
+  studentId: string
+  receivable: number | null
+  paid: number | null
+  unpaid: number | null
+  balance: number | null
+  ledgers: StudentFeeLedger[]
+  payments: StudentFeePayment[]
+}
+
+export function fetchStudentFees(studentId: string) {
+  return requestGet<StudentFeeOverview>('/miniapp/students/' + studentId + '/fees')
+}
+
+/** 收款方式字典选项(fee_payment_method),与 PC 同源;拉不到由页面回显原始值 */
+export function fetchFeePaymentMethodOptions() {
+  return requestGet<DictOptionGroup[]>('/system/dicts/options', {
+    typeCodes: 'fee_payment_method',
+  }).then((groups) => groups.find((group) => group.typeCode === 'fee_payment_method')?.items ?? [])
 }

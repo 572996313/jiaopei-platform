@@ -4,6 +4,8 @@ import com.cornerstone.module.education.dto.BindStudentRequest;
 import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
 import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
+import com.cornerstone.module.education.dto.MiniappStudentFeeView;
+import com.cornerstone.module.education.dto.ParentStudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
 import com.cornerstone.module.education.dto.StudentOwnProfileView;
@@ -45,6 +47,23 @@ public class MiniappController {
     @PostMapping("/students/bind")
     public ApiResponse<StudentBriefView> bindStudent(@Valid @RequestBody BindStudentRequest request) {
         return ApiResponse.success("绑定成功", miniappService.bindStudent(request));
+    }
+
+    @Operation(summary = "家长-代建学员档案",
+        description = "家长为尚未持有手机/账号的学生新建档案并自动绑定到本人;机构取当前账号所属机构,学号自动生成")
+    @RequiresPermission("miniapp:access")
+    @PostMapping("/students/create")
+    public ApiResponse<StudentBriefView> createStudentForParent(
+            @Valid @RequestBody ParentStudentCreateRequest request) {
+        return ApiResponse.success("学员档案已创建", miniappService.createStudentForParent(request));
+    }
+
+    @Operation(summary = "家长-学员费用概览",
+        description = "只读返回当前账号已绑定学员的收费台账与收款流水,金额由服务端现算;仅能查看自己绑定的学员")
+    @RequiresPermission("miniapp:access")
+    @GetMapping("/students/{studentId}/fees")
+    public ApiResponse<MiniappStudentFeeView> studentFees(@PathVariable Long studentId) {
+        return ApiResponse.success("已获取费用信息", miniappService.studentFees(studentId));
     }
 
     @Operation(summary = "解绑学员档案",

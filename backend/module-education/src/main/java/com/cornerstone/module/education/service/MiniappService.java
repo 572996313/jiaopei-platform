@@ -4,6 +4,8 @@ import com.cornerstone.module.education.dto.BindStudentRequest;
 import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
 import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
+import com.cornerstone.module.education.dto.MiniappStudentFeeView;
+import com.cornerstone.module.education.dto.ParentStudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
 import com.cornerstone.module.education.dto.StudentOwnProfileView;
@@ -18,6 +20,12 @@ public interface MiniappService {
 
     /** 按学员编号或监护人手机号绑定一个学员档案到当前用户 */
     StudentBriefView bindStudent(BindStudentRequest request);
+
+    /** 家长代建学员档案并自动绑定到当前家长账号(学员本人可以没有手机/账号) */
+    StudentBriefView createStudentForParent(ParentStudentCreateRequest request);
+
+    /** 家长端:某学员的收费概览(仅限当前账号已绑定的学员) */
+    MiniappStudentFeeView studentFees(Long studentId);
 
     /** 解绑当前用户与某学员的档案关联,解绑后可重新绑定 */
     void unbindStudent(Long studentId);

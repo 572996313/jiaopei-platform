@@ -101,6 +101,23 @@ function goAddStudent() {
   uni.navigateTo({ url: '/pages/bind-student/index' })
 }
 
+/** 家长代建:孩子没有手机/账号时,由家长建档并自动绑定 */
+function goCreateChild() {
+  uni.navigateTo({ url: '/pages/parent/create-student/index' })
+}
+
+/** 注销是账号级操作:收进「更多」,不占主视觉,但仍要可发现 */
+function handleMore() {
+  uni.showActionSheet({
+    itemList: ['注销账号'],
+    success: (result) => {
+      if (result.tapIndex === 0) {
+        handleDeregister()
+      }
+    },
+  })
+}
+
 async function loadAvatar() {
   const fileId = authStore.userInfo?.avatarFileId
   if (!fileId) {
@@ -329,7 +346,8 @@ function handleDeregister() {
       <view class="section-title">我的学员</view>
       <view class="info-card">
         <view v-if="boundStudents.length === 0" class="empty-row">
-          <text class="empty-text">还没有绑定学员,先去绑定学员档案吧</text>
+          <text class="empty-text">还没有学员档案</text>
+          <text class="empty-sub-text">孩子没有手机/账号也可以由你直接建档,建档后自动绑定到你的账号</text>
         </view>
         <view
           v-for="student in boundStudents"
@@ -347,14 +365,32 @@ function handleDeregister() {
             <text class="student-arrow">›</text>
           </view>
         </view>
+        <view class="add-row" @click="goCreateChild">
+          <text class="add-text">+ 创建学员档案</text>
+        </view>
         <view class="add-row" @click="goAddStudent">
-          <text class="add-text">+ 绑定学员档案</text>
+          <text class="add-text">+ 绑定已有学员档案</text>
         </view>
       </view>
     </template>
 
+    <view
+      v-if="!isEnterprise"
+      class="more-card"
+      hover-class="more-card-hover"
+      @click="handleMore"
+    >
+      <view class="more-icon">
+        <uni-icons type="more-filled" size="18" color="#2563eb" />
+      </view>
+      <view class="more-body">
+        <text class="more-title">更多</text>
+        <text class="more-desc">注销账号等账号操作</text>
+      </view>
+      <text class="more-arrow">›</text>
+    </view>
+
     <button class="logout-btn" @click="handleLogout">退出登录</button>
-    <button v-if="!isEnterprise" class="deregister-btn" @click="handleDeregister">注销账号</button>
   </view>
 </template>
 
@@ -592,8 +628,60 @@ function handleDeregister() {
   color: #2563eb;
 }
 
+.more-card {
+  display: flex;
+  align-items: center;
+  margin-top: 32rpx;
+  padding: 26rpx 28rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 16rpx rgba(17, 24, 39, 0.05);
+}
+
+.more-card-hover {
+  background: #f8fafc;
+}
+
+.more-icon {
+  flex: 0 0 auto;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.more-body {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.more-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #111827;
+}
+
+.more-desc {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: #9ca3af;
+}
+
+.more-arrow {
+  flex: 0 0 auto;
+  margin-left: 12rpx;
+  font-size: 36rpx;
+  color: #c4c9d1;
+}
+
 .logout-btn {
-  margin-top: 48rpx;
+  margin-top: 24rpx;
   width: 100%;
   height: 92rpx;
   line-height: 92rpx;
@@ -605,22 +693,6 @@ function handleDeregister() {
 }
 
 .logout-btn::after {
-  border: none;
-}
-
-.deregister-btn {
-  margin-top: 24rpx;
-  width: 100%;
-  height: 92rpx;
-  line-height: 92rpx;
-  border-radius: 46rpx;
-  background: #ffffff;
-  color: #9ca3af;
-  font-size: 32rpx;
-  border: 1rpx solid #e5e7eb;
-}
-
-.deregister-btn::after {
   border: none;
 }
 </style>

@@ -16,9 +16,12 @@ import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.service.AuthApplicationService;
 import com.cornerstone.module.education.domain.entity.UserStudentRelEntity;
 import com.cornerstone.module.education.dto.BindStudentRequest;
+import com.cornerstone.module.education.dto.MiniappStudentFeeView;
+import com.cornerstone.module.education.dto.ParentStudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentBindSelfRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
 import com.cornerstone.module.education.dto.StudentProfileSaveRequest;
+import com.cornerstone.module.education.fee.service.StudentFeeQueryService;
 import com.cornerstone.module.education.mapper.UserStudentRelMapper;
 import com.cornerstone.module.education.service.impl.MiniappServiceImpl;
 import com.cornerstone.core.common.exception.BusinessException;
@@ -68,6 +71,7 @@ class MiniappServiceImplTest {
     private final SystemDictService systemDictService = mock(SystemDictService.class);
     private final DictValueValidator dictValueValidator = new DictValueValidator(systemDictService);
     private final AuthApplicationService authApplicationService = mock(AuthApplicationService.class);
+    private final StudentFeeQueryService studentFeeQueryService = mock(StudentFeeQueryService.class);
 
     private MiniappServiceImpl service;
 
@@ -75,7 +79,8 @@ class MiniappServiceImplTest {
     void setUp() {
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
             classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService,
-            dictValueValidator, authApplicationService, CodeRuleTestSupport.unconfiguredRules());
+            dictValueValidator, authApplicationService, CodeRuleTestSupport.unconfiguredRules(),
+            studentFeeQueryService);
         when(systemConfigService.getIntConfig("auth.register.default_institution_id", 1)).thenReturn(1);
         when(systemDictService.listItems("gender")).thenReturn(List.of(
             new DictItemView(40L, 5L, "male", "男", "male", 10, "active", null),
@@ -481,7 +486,7 @@ class MiniappServiceImplTest {
         assertNotNull(fromRule, "桩没生效，本用例随之失效");
         service = new MiniappServiceImpl(relMapper, studentMapper, parentMapper, classStudentMapper,
             classMapper, lessonMapper, courseMapper, classroomMapper, teacherMapper, systemConfigService,
-            dictValueValidator, authApplicationService, rules);
+            dictValueValidator, authApplicationService, rules, studentFeeQueryService);
         authenticateStudent(2L);
         when(studentMapper.selectOne(any())).thenReturn(null);
         when(studentMapper.insert(any(StudentEntity.class))).thenAnswer(invocation -> {
@@ -601,6 +606,88 @@ class MiniappServiceImplTest {
         service.saveStudentProfile(new StudentProfileSaveRequest("小花", "female", null, null, null));
 
         verify(authApplicationService).updateDisplayName(2L, "小花");
+    }
+
+    /** 家长代建:建档 + 绑定关系 + 家长联系人,但档案不归属家长账号(user_id 仍为空) */
+    @Test
+    void createStudentForParentCreatesAndBindsWithoutOwning() {
+        when(studentMapper.insert(any(StudentEntity.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, StudentEntity.class).setId(30L);
+            return 1;
+        });
+        when(relMapper.selectCount(any())).thenReturn(0L);
+        when(relMapper.insert(any(UserStudentRelEntity.class))).thenReturn(1);
+        when(relMapper.selectList(any())).thenReturn(List.of(rel(1L, 30L)));
+        when(studentMapper.selectBatchIds(any())).thenReturn(List.of(student(30L, "S003", "小花")));
+        when(classStudentMapper.selectList(any())).thenReturn(List.of());
+        when(parentMapper.insert(any(StudentParentEntity.class))).thenReturn(1);
+
+        StudentBriefView brief = service.createStudentForParent(
+            new ParentStudentCreateRequest("小花", "female", null, "小花妈", " 13900000000 "));
+
+        assertEquals("小花", brief.studentName());
+        ArgumentCaptor<StudentEntity> studentCaptor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentMapper).insert(studentCaptor.capture());
+        // 关键:家长代建不写 user_id,那是学生本人账号的唯一归属
+        assertNull(studentCaptor.getValue().getUserId());
+        assertEquals(1L, studentCaptor.getValue().getInstitutionId());
+        assertEquals("studying", studentCaptor.getValue().getStatus());
+        assertTrue(studentCaptor.getValue().getStudentNo().startsWith("S"));
+        assertEquals("13900000000", studentCaptor.getValue().getGuardianPhone());
+
+        ArgumentCaptor<UserStudentRelEntity> relCaptor = ArgumentCaptor.forClass(UserStudentRelEntity.class);
+        verify(relMapper).insert(relCaptor.capture());
+        assertEquals(1L, relCaptor.getValue().getUserId());
+        assertEquals(30L, relCaptor.getValue().getStudentId());
+
+        // 填了监护人电话就同步登记主家长联系人,否则解绑后按手机号再也绑不回来
+        ArgumentCaptor<StudentParentEntity> parentCaptor = ArgumentCaptor.forClass(StudentParentEntity.class);
+        verify(parentMapper).insert(parentCaptor.capture());
+        assertEquals("13900000000", parentCaptor.getValue().getParentPhone());
+        assertEquals(Boolean.TRUE, parentCaptor.getValue().getIsPrimary());
+
+        verify(authApplicationService).updateDisplayName(1L, "小花家长");
+    }
+
+    @Test
+    void createStudentForParentRejectsStudentRole() {
+        authenticateStudent(2L);
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.createStudentForParent(new ParentStudentCreateRequest("小花", "female", null, null, null)));
+
+        assertTrue(error.getMessage().contains("仅家长"));
+        verify(studentMapper, never()).insert(any(StudentEntity.class));
+    }
+
+    /** 账号没有归属机构时直接拒绝,不静默写进某个默认机构 */
+    @Test
+    void createStudentForParentRejectsAccountWithoutInstitution() {
+        AuthenticatedUser user = new AuthenticatedUser(
+            1L, null, "wx_openid", java.util.Set.of("MINIAPP_PARENT"),
+            java.util.Set.of("miniapp:access"), false, "parent");
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(user, "token", java.util.Set.of()));
+
+        BusinessException error = assertThrows(BusinessException.class,
+            () -> service.createStudentForParent(new ParentStudentCreateRequest("小花", "female", null, null, null)));
+
+        assertTrue(error.getMessage().contains("未归属机构"));
+        verify(studentMapper, never()).insert(any(StudentEntity.class));
+    }
+
+    @Test
+    void studentFeesRequiresBoundStudentAndDelegates() {
+        when(relMapper.selectCount(any())).thenReturn(0L);
+        assertThrows(BusinessException.class, () -> service.studentFees(10L));
+
+        when(relMapper.selectCount(any())).thenReturn(1L);
+        MiniappStudentFeeView view = new MiniappStudentFeeView(10L, java.math.BigDecimal.ZERO,
+            java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO,
+            List.of(), List.of());
+        when(studentFeeQueryService.studentFees(10L)).thenReturn(view);
+
+        assertEquals(view, service.studentFees(10L));
     }
 
     // ---- helpers ----

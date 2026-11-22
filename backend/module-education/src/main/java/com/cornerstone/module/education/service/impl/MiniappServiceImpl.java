@@ -9,7 +9,10 @@ import com.cornerstone.module.education.dto.MiniappClassmateGroupView;
 import com.cornerstone.module.education.dto.MiniappHomeLessonView;
 import com.cornerstone.module.education.dto.MiniappHomeOverviewView;
 import com.cornerstone.module.education.dto.MiniappLessonView;
+import com.cornerstone.module.education.dto.MiniappStudentFeeView;
+import com.cornerstone.module.education.dto.ParentStudentCreateRequest;
 import com.cornerstone.module.education.dto.StudentBriefView;
+import com.cornerstone.module.education.fee.service.StudentFeeQueryService;
 import com.cornerstone.module.education.mapper.UserStudentRelMapper;
 import com.cornerstone.module.education.service.MiniappService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
@@ -46,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -77,6 +81,7 @@ public class MiniappServiceImpl implements MiniappService {
     private final DictValueValidator dictValueValidator;
     private final AuthApplicationService authApplicationService;
     private final CodeRuleService codeRuleService;
+    private final StudentFeeQueryService studentFeeQueryService;
 
     public MiniappServiceImpl(UserStudentRelMapper userStudentRelMapper, StudentMapper studentMapper,
                               StudentParentMapper studentParentMapper, ClassStudentMapper classStudentMapper,
@@ -84,7 +89,8 @@ public class MiniappServiceImpl implements MiniappService {
                               CourseMapper courseMapper, ClassroomMapper classroomMapper, TeacherMapper teacherMapper,
                               SystemConfigService systemConfigService, DictValueValidator dictValueValidator,
                               AuthApplicationService authApplicationService,
-                              CodeRuleService codeRuleService) {
+                              CodeRuleService codeRuleService,
+                              StudentFeeQueryService studentFeeQueryService) {
         this.userStudentRelMapper = userStudentRelMapper;
         this.studentMapper = studentMapper;
         this.studentParentMapper = studentParentMapper;
@@ -98,6 +104,7 @@ public class MiniappServiceImpl implements MiniappService {
         this.dictValueValidator = dictValueValidator;
         this.authApplicationService = authApplicationService;
         this.codeRuleService = codeRuleService;
+        this.studentFeeQueryService = studentFeeQueryService;
     }
 
     @Override
@@ -119,6 +126,50 @@ public class MiniappServiceImpl implements MiniappService {
         userStudentRelMapper.insert(relation);
         syncAccountDisplayName();
         return toStudentBrief(student);
+    }
+
+    @Override
+    @Transactional
+    public StudentBriefView createStudentForParent(ParentStudentCreateRequest request) {
+        requireParentPortal();
+        if (request.birthday() != null && request.birthday().isAfter(LocalDate.now())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "出生日期不能晚于当前日期");
+        }
+        Long userId = AuthContext.requireUser().userId();
+        // 家长账号注册时已确定机构;没有机构就拒绝,绝不静默写进某个默认机构
+        Long institutionId = AuthContext.requireUser().orgId();
+        if (institutionId == null) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前账号未归属机构，无法代建学员档案");
+        }
+        String gender = dictValueValidator.validate("gender", "性别", request.gender());
+        String guardianName = blankToNull(request.guardianName());
+        String guardianPhone = blankToNull(request.guardianPhone());
+
+        StudentEntity created = new StudentEntity();
+        created.setInstitutionId(institutionId);
+        created.setStudentNo(nextStudentNo());
+        created.setStudentName(request.studentName().trim());
+        created.setGender(gender);
+        created.setBirthday(request.birthday());
+        created.setGuardianName(guardianName);
+        created.setGuardianPhone(guardianPhone);
+        created.setStatus("studying");
+        studentMapper.insert(created);
+        if (created.getId() != null) {
+            // 家长代建只建立"绑定关系",不写 jp_student.user_id——那是学生本人账号的唯一归属
+            insertSelfRelation(userId, created.getId(), institutionId);
+            insertPrimaryParentContact(created, guardianName, guardianPhone);
+        }
+        syncAccountDisplayName();
+        return toStudentBrief(created);
+    }
+
+    @Override
+    public MiniappStudentFeeView studentFees(Long studentId) {
+        Long userId = AuthContext.requireUser().userId();
+        // 数据隔离与课表/同学名单同口径:只能看自己绑定的学员
+        ensureBound(userId, studentId);
+        return studentFeeQueryService.studentFees(studentId);
     }
 
     @Override
@@ -398,6 +449,35 @@ public class MiniappServiceImpl implements MiniappService {
 
     private boolean isStudentPortal() {
         return AuthContext.requireUser().roles().contains(MiniappPortalResolver.ROLE_CODE_STUDENT);
+    }
+
+    /** 代建孩子档案是家长端的能力;学生建自己的档案走 saveStudentProfile */
+    private void requireParentPortal() {
+        Set<String> roles = AuthContext.requireUser().roles();
+        if (roles == null || !roles.contains(MiniappPortalResolver.ROLE_CODE_PARENT)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅家长账号可代建学员档案");
+        }
+    }
+
+    /**
+     * 家长代建档案时顺手登记主家长联系人。
+     *
+     * <p>PC 的「家长联系人」与按监护人手机号绑定都以 {@code jp_student_parent} 为准，
+     * 只写 {@code jp_student.guardian_*} 镜像列的话，家长解绑后按手机号就再也绑不回来。</p>
+     */
+    private void insertPrimaryParentContact(StudentEntity student, String guardianName, String guardianPhone) {
+        if (guardianPhone == null) {
+            return;
+        }
+        StudentParentEntity parent = new StudentParentEntity();
+        parent.setInstitutionId(student.getInstitutionId());
+        parent.setStudentId(student.getId());
+        parent.setParentName(guardianName != null ? guardianName : PARENT_NAME_SUFFIX);
+        parent.setParentPhone(guardianPhone);
+        parent.setIsPrimary(Boolean.TRUE);
+        parent.setIsEmergencyContact(Boolean.FALSE);
+        parent.setStatus("active");
+        studentParentMapper.insert(parent);
     }
 
     /**
