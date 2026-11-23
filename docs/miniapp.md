@@ -111,7 +111,7 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
    → AppID 填自己的小程序 AppID(或选"测试号")。
 2. 在 `src/manifest.json` 的 `mp-weixin.appid` 填入 AppID。
 3. 开发者工具右上角 **详情 → 本地设置 → 勾选"不校验合法域名…"**
-   (开发阶段直连 `http://127.0.0.1:8080`,正式发布必须 HTTPS 域名)。
+   (开发阶段直连 `http://127.0.0.1:9080`,正式发布必须 HTTPS 域名)。
 4. 确认本机 MySQL/Redis/后端已启动,模拟器中即可走通登录流程。
 
 | `V28__user_student_rel.sql` | 用户-学员关联表 `jp_user_student_rel`;小程序角色追加 `miniapp:access` 权限码 |

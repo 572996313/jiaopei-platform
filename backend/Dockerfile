@@ -32,6 +32,10 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+# 生产容器固定 8080：通过环境变量覆盖 application.yml 的 server.port（本地开发默认 9080）。
+# 这行是容器内端口的唯一权威——删掉它，应用会按 yml 起在 9080，而 nginx 反代（backend:8080）、
+# compose 端口映射与健康检查仍打 8080，表现为 unhealthy + 502 且日志不提示端口问题。
+# docker-compose.prod.yml 的 environment.SERVER_PORT 是同值的第二道保险。
 ENV SERVER_PORT=8080
 ENV JAVA_OPTS=""
 

@@ -32,6 +32,8 @@ export JAVA_HOME="C:/Users/57299/.posh_sdk/java/21.0.9-oracle"
 export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
+> 走 `scripts/ci-check.sh` 或 `scripts/restart-backend.sh` 时**不需要**手动导出：两个脚本共用 `scripts/lib/jdk21.sh` 自动定位 JDK 21。上面这组命令只在直接敲 `mvn` 时需要。
+
 ### 后端模块划分（阶段二B 起为 Maven 多模块）
 
 `backend/` 是聚合工程（`jiaopei-platform-backend-parent`，`packaging=pom`，groupId `com.cornerstone`），四个子模块：
@@ -45,7 +47,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 - **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名、容器与镜像名**保持 jiaopei 不变**（那是本项目的部署标识，不属于底座身份）。表前缀属另一码事：底座表 `sys_`、业务表 `jp_`，阶段五-0b 已把底座四张表从 `jp_` 改到 `sys_`。
 - **只有 `app/` 产出可执行 jar**，artifactId 保持 `jiaopei-platform-backend`，故 jar 文件名不变，落在 `backend/app/target/`。
-- `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。脚本自身的 `JAVA_HOME:-` 兜底不覆盖已存在的旧值，跑前先 `export JAVA_HOME=` 指向 JDK 21，否则 mvn 用系统 JDK 8 报 `class file version 61.0`。
+- `spring-boot:run` 不能带 `-am`，也不能在根目录直接跑：会对外壳模块执行同一 goal，core 无主类直接 `Unable to find a suitable main class` 失败。改代码后先 `mvn -q -DskipTests install` 再 `-pl app spring-boot:run`，或直接用 `scripts/restart-backend.sh`。两个脚本共用 `scripts/lib/jdk21.sh` 自动定位 JDK 21（依次尝试 `JAVA_HOME`、`JDK21_HOME`、常见安装路径），找不到直接报错退出；直接敲 `mvn` 时才需要手动 `export JAVA_HOME=` 指向 JDK 21。
 - 业务专属的第三方依赖放各自模块的 pom：`wx-java-miniapp-spring-boot-starter` 已随微信登录下沉到 `module-education`（版本仍由 parent 的 `dependencyManagement` 管），core 不再声明。core 的 pom 里**不允许**出现 `module-*` 依赖，也不允许出现只有业务模块用得上的第三方 SDK。判据是"这段依赖服务的是谁的功能"，不是"有没有业务模块用得上"：`easyexcel`（连带它传递进来的 POI）自「用户账号批量导入」起服务的是底座自己的功能（模板生成与 xlsx 解析全在 `core/auth` 下，消费方装了底座就带这套），因此进 core 合规；只服务某个行业表意的 SDK（微信、支付、地图一类）仍留在业务模块。
 - 新增类放在自己所属模块，不要在 `app/src/main/java` 下写业务代码（该模块只放主类与资源）。
 
@@ -98,6 +100,14 @@ mvn -q dependency:go-offline                               # 预拉依赖（Dock
 
 > 已知不一致：`application.yml` 默认连 `root/1234`，而 `docker/docker-compose.yml` 初始化为 `root/root`。以实际能连上的为准，可用 `DB_*` / `REDIS_*` 环境变量覆盖，不要为迁就文档去改本机密码。
 
+### 端口口径：本地 9080 / 容器 8080
+
+两套端口是**有意为之**，不要试图统一：
+
+- **本地开发**：`application.yml` 的 `server.port: 9080`，`frontend/vite.config.ts` 代理与 `miniapp/src/config.ts` 默认地址都指向 9080。
+- **生产容器**：`backend/Dockerfile` 的 `ENV SERVER_PORT=8080` 覆盖 yml（Spring Boot 环境变量优先级高于配置文件）。容器内固定 8080，nginx 反代 `backend:8080`、健康检查、compose 端口映射（`18090:8080`）全部以此为准。
+- 改端口只改 `application.yml` 一处；`restart-backend.sh` 自动读取。**不要删 Dockerfile 的 `SERVER_PORT`**——它是容器内端口的唯一权威。
+
 ### 改代码后必须重启后端
 
 旧进程不会加载新代码，不重启就是“改了没效果”的假象。**直接用仓库脚本**（Git Bash）：
@@ -109,13 +119,15 @@ scripts/restart-backend.sh              # 停旧进程 -> mvn clean package -> �
 scripts/restart-backend.sh --skip-build # 已有 jar 时只重启
 ```
 
+端口默认读 `backend/app/src/main/resources/application.yml` 的 `server.port`（本机改成 9080 也无需改脚本），可用 `PORT=xxxx` 覆盖。脚本会自动定位 JDK 21，不需要先手动 export。
+
 手工流程（脚本不可用时）：
 
 ```bash
-netstat -ano | grep ":8080" | grep LISTENING                                   # 记下监听 8080 的旧 PID
+netstat -ano | grep ":9080" | grep LISTENING                                   # 记下监听端口的旧 PID（端口见 application.yml 的 server.port）
 powershell -NoProfile -Command "Stop-Process -Id <PID> -Force"                 # 停旧进程（可先用 Get-CimInstance 查 CommandLine 确认是自己的 java 进程再杀）
-cd backend && "C:/Users/57299/.posh_sdk/java/21.0.9-oracle/bin/java" -jar app/target/jiaopei-platform-backend-*.jar &   # jar 名带版本，用通配或先 ls 确认
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        # 200 才算起来，别猜日志
+cd backend && "C:/Program Files/Java/jdk-21.0.12/bin/java" -jar app/target/jiaopei-platform-backend-*.jar &   # jar 名带版本，用通配或先 ls 确认
+curl -s -o /dev/null -w "%{http_code}" http://localhost:9080/api/health        # 200 才算起来，别猜日志
 ```
 
 ### 底座发版（上传私服）
@@ -128,15 +140,15 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health        #
 
 ### CI 与本地门禁
 
-- `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm build`（远程当前是 Gitee，Actions 不执行）。
-- Gitee 环境下用等价本地脚本：`scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建），提交前应跑通。
+- `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm lint`/`pnpm build` + 小程序 `pnpm type-check`（远程当前是 Gitee，Actions 不执行）。
+- Gitee 环境下用等价本地脚本：`bash scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建 -> 小程序类型检查），提交前应跑通。只跑某一步可传参：`backend` / `frontend-lint` / `frontend-build` / `miniapp`。脚本会自动找 JDK 21（依次尝试 `JAVA_HOME`、`JDK21_HOME`、常见安装路径），找不到直接报错退出，不会拿 JDK 8 硬跑。
 - 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、写接口必须有 `@RequiresPermission`（**免检口径是"类级 `@RequestMapping` 以 `/api/auth` 开头"**，按路径而不是按包判定，所以业务模块挂 `/api/auth/**` 的公开登录接口同样豁免；改这个前缀要同步安全配置的 `public-paths`）、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关与配置装配前提，`CornerstoneBaselineGuardTest` 守护 core 自带基线，`ExternalIdVocabularyGuardTest` 守护底座不带行业词汇。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）
 
 ```bash
 pnpm install
-pnpm dev          # vite dev server，127.0.0.1:5173，/api 代理到 127.0.0.1:8080
+pnpm dev          # vite dev server，127.0.0.1:5173，/api 代理到 127.0.0.1:9080
 pnpm build        # vue-tsc 类型检查 + vite build
 pnpm lint         # ESLint（flat config，eslint.config.js）
 pnpm lint:fix     # ESLint 自动修复
@@ -154,7 +166,7 @@ pnpm build:mp-weixin
 pnpm dev:h5            # H5 调试
 ```
 
-后端地址配置在 `miniapp/src/config.ts`（默认 `http://127.0.0.1:8080/api`，可被环境变量覆盖）。
+后端地址配置在 `miniapp/src/config.ts`（默认 `http://127.0.0.1:9080/api`，可被环境变量覆盖）。
 
 - **展示文案走系统参数，与 PC 同一份**：`src/composables/use-branding.ts` 拉免登录的 `GET /api/system/branding`（模块级单例、不落本机缓存，口径同 core 那份），登录页与首页问候语都读它。取不到就显示 `未配置(brand.name)`，**不许回落成构建期写死的名字**。改 PC 登录页视觉（`core/styles/index.css` 的 `.login-shell` 夜晚档）时，同步改 `miniapp/src/pages/login/index.vue` 里那组写死的同值色——小程序不支持 `backdrop-filter`，卡片通透感靠加深实底换可读性，其余配色一一对应。
 - **`auth.login.page_tip` 不给小程序读**：那条参数写的是管理端账号密码登录的提示（默认账号/初始口令一类），家长端看到会误导；小程序登录页的说明是固定的「首次使用将自动注册」。**不要为了"两处一致"把它接过来。**
@@ -653,7 +665,7 @@ public ApiResponse<TeacherEntity> create(@Valid @RequestBody TeacherUpsertReques
   grep -cE "@(Get|Post|Put|Delete|Request)Mapping" **/*Controller.java
   ```
 
-- 验证：`http://localhost:8080/swagger-ui.html` 接口显示中文 summary；总览页“说明”列非空即为补齐。
+- 验证：`http://localhost:9080/swagger-ui.html` 接口显示中文 summary；总览页“说明”列非空即为补齐。
 
 ## 数据库表 / 字段中文注释规范（必填）
 

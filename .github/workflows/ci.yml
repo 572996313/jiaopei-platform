@@ -23,7 +23,7 @@ jobs:
         run: mvn -B -q test
 
   frontend:
-    name: 前端构建（vue-tsc 类型门禁 + vite build）
+    name: 前端门禁（eslint + vue-tsc 类型检查 + vite build）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,12 +39,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm build
 
   miniapp:
-    name: 小程序类型检查
+    name: 小程序类型检查（vue-tsc --noEmit）
     runs-on: ubuntu-latest
-    if: ${{ false }}  # miniapp 暂无独立 type-check 脚本，先禁用；补脚本后去掉本行
     defaults:
       run:
         working-directory: miniapp

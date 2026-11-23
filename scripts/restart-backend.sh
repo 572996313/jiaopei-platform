@@ -3,23 +3,32 @@
 # 用法：
 #   scripts/restart-backend.sh              # 打包并重启
 #   scripts/restart-backend.sh --skip-build # 跳过打包，直接重启现有 jar
+# 端口默认读 application.yml 的 server.port，可用 PORT=xxxx 覆盖。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export JAVA_HOME="${JAVA_HOME:-C:/Users/57299/.posh_sdk/java/21.0.9-oracle}"
-export PATH="$JAVA_HOME/bin:$PATH"
+# shellcheck source=lib/jdk21.sh
+. "$ROOT/scripts/lib/jdk21.sh"
+ensure_jdk21
 LOG_DIR="$ROOT/logs"
 mkdir -p "$LOG_DIR"
 
-# 1. 停掉监听 8080 的旧进程
-PIDS=$(netstat -ano | grep ':8080' | grep LISTENING | awk '{print $5}' | sort -u || true)
+# 端口取自 application.yml 的 server.port（本机改过端口时脚本不必跟着改），
+# 也可用环境变量 PORT 覆盖。取不到则回落 8080。
+# 只认两个空格缩进的 port:，即 server 块内的那一行（redis 等子项缩进更深，不会误匹配）。
+PORT="${PORT:-$(sed -n 's/^  port: *\([0-9]\{1,\}\).*/\1/p' "$ROOT/backend/app/src/main/resources/application.yml" | head -1)}"
+PORT="${PORT:-8080}"
+echo "端口：$PORT"
+
+# 1. 停掉监听该端口的旧进程
+PIDS=$(netstat -ano | grep ":$PORT " | grep LISTENING | awk '{print $5}' | sort -u || true)
 if [[ -n "$PIDS" ]]; then
   for pid in $PIDS; do
     echo "停止旧进程 PID=$pid"
     powershell -NoProfile -Command "Stop-Process -Id $pid -Force" || true
   done
 else
-  echo "8080 无监听进程，跳过停止"
+  echo "$PORT 无监听进程，跳过停止"
 fi
 
 # 2. 打包
@@ -46,7 +55,7 @@ echo "后端已后台启动 PID=$! 日志：logs/backend-restart.log"
 
 # 5. 健康检查（最多 60 秒）
 for _ in $(seq 1 60); do
-  code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health || true)
+  code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/api/health" || true)
   if [[ "$code" == "200" ]]; then
     echo "健康检查通过（/api/health 200）"
     exit 0
