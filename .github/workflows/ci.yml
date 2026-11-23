@@ -1,8 +1,8 @@
 name: CI
 
 # 只做 PR 门禁（测试 / lint / 类型检查）。
-# master 推送由 build-release.yml 负责构建投递，避免同一提交跑两遍完整构建，
-# 吃掉 GitHub 免费私有仓的 2000 分钟/月额度。
+# master 推送由 build-release.yml 负责构建投递（其中已内置同样的测试与 lint），
+# 避免同一提交跑两遍完整构建。本仓库是公开仓，Actions 分钟数不限。
 on:
   pull_request:
     branches: [master]

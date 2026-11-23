@@ -3,10 +3,11 @@ name: 构建并投递产物
 # 只在 master 推送时构建并投递产物；PR 仍跑 ci.yml。
 # 因为本仓库习惯直接 push master，这里在打包前**内置后端测试与前端 lint**，
 # 保证投递出去的产物是测过的，而不是裸奔发布。
-# 注意：免费私有仓 2000 分钟/月是所有 workflow 共享的，两者触发条件刻意分开，避免重复消耗。
+# 注意：本仓库目前是公开仓，Actions 分钟数不限；但两者触发条件仍刻意分开，
+# 避免同一提交跑两遍完整构建（浪费排队时间与 runner 资源）。
 #
 # 产物直接通过 SSH 推到服务器 releases/<日期>-<sha>/，不占 Actions artifact 存储
-# （免费私有仓只有 500MB，后端 jar 就 96MB，存几次就爆）。
+# （后端 jar 96MB，artifact 存几次就占满免费额度）。
 # 服务器不在这里重启：发布时机由人工 SSH 执行 docker/deploy.sh --from-ci 决定。
 on:
   push:

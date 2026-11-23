@@ -141,7 +141,7 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:9080/api/health        #
 ### CI 与本地门禁
 
 - `.github/workflows/ci.yml`：**只在 PR 触发**，跑后端 `mvn test` + 前端 `pnpm lint`/`pnpm build` + 小程序 `pnpm type-check`。仓库已迁到 GitHub，Actions 会真正执行（Gitee 上的旧仓不跑）。
-- `.github/workflows/build-release.yml`：**只在 master 推送触发**，先跑后端测试与前端 lint，再构建 `app.jar` + `dist` 并投递到服务器 `releases/`。与 ci.yml 分开触发是为了不把免费私有仓 2000 分钟/月额度重复消耗；因为习惯直接 push master，测试内建在这里而不是只靠 PR。
+- `.github/workflows/build-release.yml`：**只在 master 推送触发**，先跑后端测试与前端 lint，再构建 `app.jar` + `dist` 并投递到服务器 `releases/`。与 ci.yml 分开触发是为了同一提交不跑两遍完整构建；因为习惯直接 push master，测试内建在这里而不是只靠 PR。
 - **生产构建不在服务器上做**：服务器是突发性能型（CPU 积分制），部署时 `mvn`/`pnpm`/`docker build` 会耗尽积分并触发限速/关机。服务器只用 `./docker/deploy.sh --from-ci <版本>` 挂载预构建产物重建容器；详见 `docs/生产部署说明.md`「构建与启动」。
 - Gitee 环境下用等价本地脚本：`bash scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建 -> 小程序类型检查），提交前应跑通。只跑某一步可传参：`backend` / `frontend-lint` / `frontend-build` / `miniapp`。脚本会自动找 JDK 21（依次尝试 `JAVA_HOME`、`JDK21_HOME`、常见安装路径），找不到直接报错退出，不会拿 JDK 8 硬跑。
 - 手工构建部署产物：`bash scripts/build-artifacts.sh`（生成 `docker/artifacts/{app.jar,dist}`，`--tar` 可打包），用于 GitHub Actions 之外的兜底；不要在突发性能型服务器上跑。
