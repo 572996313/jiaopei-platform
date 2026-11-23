@@ -203,7 +203,7 @@ pnpm dev:h5            # H5 调试
 
 一句话判据：**只勾这个页面，这一页到底能不能用？** 业务读取已改为登录即可（V113），所以勾页面 = 入口可见 + 能读；写操作随页面一起勾（授权弹窗 `togglePage` 会把本页按钮节点一并授出），单独取消某个按钮才是只读岗。
 
-1. **业务读取码已清零（V113 起）**：`education:read`/`organization:read`/`announcement:read` 不再存在，业务模块 GET 接口登录即可，机构/校区范围由服务层 `InstitutionScopeGuard`/`CampusScopeGuard` 兜住；页面节点 `permission_code` 留空，可见性只由 `sys_role_menu` 决定。**不要再新增业务读取码**，否则又回到"为了给码必须勾基础页"的耦合。系统管理页仍按原规则把码挂在页面节点上（见 V62/底座 V105），读写共用单码。**已知例外**：底座 `GET /api/organizations/institutions` 仍挂 `tenant:read`（页面节点 8「机构资料」），`AppLayout` 启动即调它填机构芯片、各业务页的 `institutionId` 也取自该 store，所以业务角色目前仍必须勾「机构资料」页；把这条接口改成"平台管理员看全量、机构账号只看本机构、读取仅需登录"属后续批次。
+1. **业务读取码已清零（V113 起）**：`education:read`/`organization:read`/`announcement:read` 不再存在，业务模块 GET 接口登录即可，机构/校区范围由服务层 `InstitutionScopeGuard`/`CampusScopeGuard` 兜住；页面节点 `permission_code` 留空，可见性只由 `sys_role_menu` 决定。**不要再新增业务读取码**，否则又回到"为了给码必须勾基础页"的耦合。系统管理页仍按原规则把码挂在页面节点上（见 V62/底座 V105），读写共用单码。**机构列表例外已解除**：底座 `GET /api/organizations/institutions` 改为登录即可（不再挂 `tenant:read`），平台管理员返回全量、其他账号只返回本机构——`AppLayout` 启动即调它填机构芯片、各业务页的 `institutionId` 也取自该 store，所以业务角色不再需要勾「机构资料」页。`tenant:read` 仍保留在机构资料页节点 8 与 `GET /api/system/institution/current` 上，`tenant:write` 仍拦 `PUT /api/system/institution/current` 与建机构 POST。
 2. **写/操作码挂 `button` 节点**（`visible=0`，不进导航）：新增/编辑/删除/导入/维护一类，勾了才给。按钮节点仍受后端 `@RequiresPermission` 硬拦，前端隐藏按钮只是体验。授权弹窗勾页面时会把本页全部按钮节点一起授出，客户不用逐项勾。
 3. **`catalog`（目录）节点永不挂码**：它是分组不是能力。
 4. **读写共用单码的页面（`system:user:manage` 一族，GET 也拦同一个码）把码挂在页面节点上，不再配同名"维护"按钮**。页面与按钮挂同一个码 = 勾哪个都等价，纯重复且会让人以为勾页面不够（历史上 103「菜单维护」与 109「功能权限查看」就是同一个 `system:menu:manage` 挂两处）。代价是这类页面没有"只看不动"的只读岗——要拆 `read`/`manage` 得连后端注解、角色 CSV、下游一起改，属于另一批。

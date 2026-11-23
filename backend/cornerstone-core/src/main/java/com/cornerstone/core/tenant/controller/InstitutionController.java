@@ -26,9 +26,8 @@ public class InstitutionController {
         this.institutionService = institutionService;
     }
 
-    @Operation(summary = "获取机构列表")
+    @Operation(summary = "获取机构列表", description = "登录即可；平台管理员返回全量，其他账号只返回本机构")
     @GetMapping
-    @RequiresPermission("tenant:read")
     public ApiResponse<List<InstitutionEntity>> list() {
         return ApiResponse.success("机构列表已加载", institutionService.listInstitutions());
     }

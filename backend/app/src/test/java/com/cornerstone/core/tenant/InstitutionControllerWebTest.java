@@ -62,8 +62,6 @@ class InstitutionControllerWebTest {
         entity.setId(1L);
         entity.setOrgCode("ORG001");
         entity.setOrgName("测试机构");
-        given(permissionService.hasPermission(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("tenant:read")))
-            .willReturn(true);
         given(institutionService.listInstitutions()).willReturn(List.of(entity));
 
         mockMvc.perform(get("/api/organizations/institutions")

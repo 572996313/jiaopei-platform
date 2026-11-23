@@ -1,6 +1,8 @@
 package com.cornerstone.core.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cornerstone.core.auth.context.AuthContext;
+import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.service.CodeRuleService;
@@ -29,8 +31,22 @@ public class InstitutionServiceImpl implements InstitutionService {
 
     @Override
     public List<InstitutionEntity> listInstitutions() {
-        return institutionMapper.selectList(new LambdaQueryWrapper<InstitutionEntity>()
-            .orderByAsc(InstitutionEntity::getOrgCode));
+        LambdaQueryWrapper<InstitutionEntity> wrapper = new LambdaQueryWrapper<InstitutionEntity>()
+            .orderByAsc(InstitutionEntity::getOrgCode);
+        // 机构列表是全站公共数据（机构芯片、各业务页的 institutionId 都取自它），
+        // 所以读取不挂权限码：平台管理员看全量，其他账号只看本机构。
+        AuthenticatedUser user = AuthContext.currentUser().orElse(null);
+        if (user != null && !isPlatformAdmin(user)) {
+            if (user.orgId() == null) {
+                return List.of();
+            }
+            wrapper.eq(InstitutionEntity::getId, user.orgId());
+        }
+        return institutionMapper.selectList(wrapper);
+    }
+
+    private static boolean isPlatformAdmin(AuthenticatedUser user) {
+        return user.roles() != null && user.roles().contains("PLATFORM_ADMIN");
     }
 
     @Override
