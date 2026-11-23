@@ -238,17 +238,16 @@
       </aside>
 
       <div class="app-main">
+        <!-- 只认强制改密总开关的生效值(auth.mustChangePassword)。
+             passwordResetRequired 是库里"初始密码未轮换"的原始事实,不受总开关控制;
+             拿它兜底会让"关闭总开关后仍挂着初始化密码横幅"永远关不掉。 -->
         <el-alert
-          v-if="auth.currentUser?.passwordResetRequired || auth.mustChangePassword"
+          v-if="auth.mustChangePassword"
           class="app-alert"
-          :type="auth.mustChangePassword ? 'error' : 'warning'"
+          type="error"
           show-icon
           :closable="false"
-          :title="
-            auth.mustChangePassword
-              ? '当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。'
-              : '当前账号仍处于初始化密码状态,请尽快完成改密。'
-          "
+          title="当前账号已被强制跳转至改密流程,完成修改前不能进入业务首页。"
         />
 
         <!-- 内容卡里第一行是页签:标题在横幅上,页签只负责"开着哪几页"和切换 -->

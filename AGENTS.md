@@ -185,7 +185,8 @@ pnpm dev:h5            # H5 调试
 - **登录失败排障**：`GlobalExceptionHandler` 把所有 `AuthenticationException` 统一渲染成同一句 `UNAUTHORIZED "Authentication is required"`，密码错和 token 失效响应体相同。排查 401 先用已知正确密码单独打 `/api/auth/login` 排除密码问题，再看过滤器/Redis。本地 admin 口令见 `V7__create_auth_user_role_tables.sql`（`{noop}` 前缀 = 明文比对）。
 - **Redis 序列化**：`RedisConfig` 的 ObjectMapper **必须** `activateDefaultTyping(..., EVERYTHING)`（`NON_FINAL` 不给 record 里的 `Set<String>` 写 `@class`，反序列化会报 missing type id）；该 mapper 必须在方法内 new，**不要**做成全局 `@Bean ObjectMapper`，否则顶掉 Spring MVC 默认 mapper 导致 `OffsetDateTime` 序列化报错。序列化格式变更后旧数据无法反序列化，需 `redis-cli FLUSHDB`（所有人重新登录）。
 - **系统参数优先入库**：可运行时调整的配置加到 `sys_system_config`（V14 引入），通过 `SystemConfigService.getConfigValue/getBooleanConfig/getIntConfig` 读取，别再写死进 `application.yml`；`is_system=1` 的配置禁止删除只能改值。当前在用的 key：
-  - `auth.password.force_change_enabled` — 强制改密总开关（`StubAuthenticationFilter` 读取，关闭后忽略用户级 `forceChangePassword`）
+  - `auth.password.force_change_enabled` — 强制改密总开关（`StubAuthenticationFilter` 读取，关闭后忽略用户级 `forceChangePassword`）。前端判断是否提示改密只能看 `/auth/me` 的 `forceChangePassword`（生效值），不要用 `passwordResetRequired`（库里"初始密码未轮换"的原始事实，不受总开关控制）——否则关掉总开关后横幅/登录提示仍会挂着。
+  - `auth.password.force_change_on_first_login` — 目前**是死配置**：种子里有、系统参数页可见可改，但 Java 侧没有任何代码读取它；`SystemUserServiceImpl#createUser/resetPassword` 无条件把 `passwordResetRequired`/`forceChangePassword` 置 `TRUE`。改它不会影响任何行为。
   - `auth.password.strength_level` / `min_length` / `max_length` — 密码强度策略（`PasswordValidator` 读取）
   - `auth.token.expire_hours` — JWT/Redis 会话 TTL
   - `auth.login.page_tip` — 登录页表单下方提示语（`AuthController` 的 `GET /api/auth/login-page` 读取，core 无值即空串、前端不渲染；**种子放各项目的 `app/` 迁移**，教培侧见 V43，别再写死进 `LoginView`）

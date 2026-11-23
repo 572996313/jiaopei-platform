@@ -108,11 +108,9 @@ async function submitLogin() {
       router.push('/change-password')
       return
     }
-    if (currentUser?.passwordResetRequired) {
-      ElMessage.warning('当前账号仍处于初始化密码状态，请登录后尽快修改。')
-    } else {
-      ElMessage.success('登录成功')
-    }
+    // 只按生效值提示:总开关关闭时后端会把 forceChangePassword 置 false,
+    // 但 passwordResetRequired 仍为库里的原始标记,不能拿来判断是否提示
+    ElMessage.success('登录成功')
     const redirect =
       typeof router.currentRoute.value.query.redirect === 'string'
         ? router.currentRoute.value.query.redirect
