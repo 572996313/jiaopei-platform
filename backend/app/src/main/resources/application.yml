@@ -88,7 +88,9 @@ cornerstone:
 
 wx:
   miniapp:
-    # 微信小程序 AppID/Secret,在 mp.weixin.qq.com 注册后获取;生产环境用环境变量注入
+    # 微信小程序 AppID/Secret,在 mp.weixin.qq.com 注册后获取。
+    # 生产/本地一律用环境变量注入，不要写死在这里——写死会随 jar 进镜像并留在 git 历史里。
+    # 本地调试在 IDE 运行配置或 shell 里 export WECHAT_MINIAPP_APPID / WECHAT_MINIAPP_SECRET。
     appid: ${WECHAT_MINIAPP_APPID:}
     secret: ${WECHAT_MINIAPP_SECRET:}
     msg-data-format: JSON

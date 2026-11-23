@@ -1,0 +1,125 @@
+name: 构建并投递产物
+
+# 只在 master 推送时构建并投递产物；PR 仍跑 ci.yml。
+# 因为本仓库习惯直接 push master，这里在打包前**内置后端测试与前端 lint**，
+# 保证投递出去的产物是测过的，而不是裸奔发布。
+# 注意：免费私有仓 2000 分钟/月是所有 workflow 共享的，两者触发条件刻意分开，避免重复消耗。
+#
+# 产物直接通过 SSH 推到服务器 releases/<日期>-<sha>/，不占 Actions artifact 存储
+# （免费私有仓只有 500MB，后端 jar 就 96MB，存几次就爆）。
+# 服务器不在这里重启：发布时机由人工 SSH 执行 docker/deploy.sh --from-ci 决定。
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# 同一分支只保留最新一次，避免连续推送排队烧分钟数
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deliver:
+    name: 构建并投递
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- 后端 ----------
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: 后端测试 + 打包（含 ArchUnit 架构守护测试）
+        working-directory: backend
+        run: >
+          mvn -B -ntp -q
+          -Dmaven.artifact.threads=2 -Dmaven.compiler.threads=2
+          clean package
+      - name: 后端产物归一化
+        run: |
+          jar=$(ls -t backend/app/target/jiaopei-platform-backend-*.jar | head -1)
+          [ -n "$jar" ] || { echo "未找到后端 jar"; exit 1; }
+          cp "$jar" out-app.jar
+          ls -lh out-app.jar
+
+      # ---------- 前端 ----------
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 前端安装、lint 与构建
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm build
+      - name: 前端产物检查
+        run: |
+          test -f frontend/dist/index.html || { echo "未找到前端 dist"; exit 1; }
+          du -sh frontend/dist
+
+      # ---------- 投递 ----------
+      - name: 计算版本目录名
+        id: meta
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: 配置 SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          port="${SSH_PORT:-22}"
+          ssh-keyscan -p "$port" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 上传到服务器 releases/
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          RELEASES_DIR: ${{ secrets.DEPLOY_RELEASES_DIR }}
+          RELEASE_NAME: ${{ steps.meta.outputs.name }}
+        run: |
+          set -euo pipefail
+          port="${SSH_PORT:-22}"
+          target="${SSH_USER}@${SSH_HOST}"
+          [ -n "${RELEASES_DIR}" ] || { echo "未配置 DEPLOY_RELEASES_DIR secret"; exit 1; }
+          rel="${RELEASES_DIR}/${RELEASE_NAME}"
+          ssh_opts=(-i ~/.ssh/deploy_key -p "$port" -o StrictHostKeyChecking=yes)
+
+          # rsync 不会自动创建多级目录。注意：若服务器给这把 key 配了
+          # command="rrsync -wo ..." 强制命令，这条 ssh 会被拒绝——此时需删掉它，
+          # 并把下面第一条 rsync 改成 rsync --mkpath（需 rsync>=3.2.3 且确认 rrsync 放行）。
+          # 服务器按 docs/生产部署说明.md 的默认配置（restrict，不加强制命令）时保持现状即可。
+          ssh "${ssh_opts[@]}" "$target" "mkdir -p '$rel'"
+          rsync -az -e "ssh -i ~/.ssh/deploy_key -p $port -o StrictHostKeyChecking=yes" \
+            out-app.jar "$target:$rel/app.jar"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $port -o StrictHostKeyChecking=yes" \
+            frontend/dist/ "$target:$rel/dist/"
+
+          echo "已投递: $rel"
+          echo "发布: ssh $target 'cd /mnt/software/jiaopei && ./docker/deploy.sh --from-ci ${RELEASE_NAME}'"
+
+      - name: 汇总
+        run: |
+          {
+            echo "### 构建产物已投递"
+            echo ""
+            echo "- 版本目录：\`${{ steps.meta.outputs.name }}\`"
+            echo "- 提交：\`${GITHUB_SHA::7}\`"
+            echo "- 发布命令：\`./docker/deploy.sh --from-ci ${{ steps.meta.outputs.name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

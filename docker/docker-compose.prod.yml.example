@@ -9,6 +9,13 @@
 # git pull / deploy.sh 永远不会覆盖它；总部更新本模板后，手动对比合并：
 #     diff -u docker/docker-compose.prod.yml.example docker/docker-compose.prod.yml
 #
+# 构建模型（2026-11 起）：本模板**不含任何 build 段**。后端 jar 与前端 dist 由
+# GitHub Actions 构建后投递到服务器的 releases/，deploy.sh --from-ci 再把它们复制到
+# docker/artifacts/ 并挂进容器。`docker compose up -d` 因此永远不会触发编译，
+# 突发性能型（CPU 积分制）机器不会再因部署耗尽积分。
+#   - 需要本地构建兜底时，叠加 docker/docker-compose.build.yml（deploy.sh 自动处理）。
+#   - 手工排查/本地自检见 docs/生产部署说明.md 的「CI 构建 + 服务器零编译部署」。
+#
 # 需要按环境调整的常见项（改本地实例，不要改本模板）：
 #   - 复用宿主机/面板上已有的 MySQL、Redis（如 1Panel）：删除 mysql、redis 两个
 #     服务块，删除 backend.depends_on 中的 mysql/redis，并把 backend 的
@@ -109,38 +116,28 @@ services:
       retries: 10
       start_period: 20s
 
-  # 依赖基础镜像(构建用，不启动容器)
-  # 只有 pom.xml / 依赖声明变化时才重建，日常部署直接复用，避免重复下载依赖。
-  # 日常不需要手动构建：deploy.sh 会按哈希自动判断。
-  # 手动重建：docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
-  backend-deps:
-    profiles: ["deps"]
-    build:
-      context: ..
-      dockerfile: backend/Dockerfile.deps
-    image: jiaopei-platform-backend-deps:prod
+  # 依赖基础镜像与业务镜像的 build 段已移到 docker/docker-compose.build.yml，
+  # 只有本地构建兜底时才会叠加（CI 产物路径用不到）。详见该文件注释。
 
-  # 前端依赖基础镜像(构建用，不启动容器)
-  # 手动重建：docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
-  frontend-deps:
-    profiles: ["deps"]
-    build:
-      context: ..
-      dockerfile: frontend/Dockerfile.deps
-    image: jiaopei-platform-frontend-deps:prod
+  # 注意：本模板只保留运行期定义（image + 挂载预构建产物），不再包含 build 段。
+  #   产物由 GitHub Actions 构建后投递到 docker/artifacts/（见 docs/生产部署说明.md）。
+  #   这样 `docker compose up -d` 永远不会触发编译，突发性能型机器不会耗尽 CPU 积分。
+  #   需要本地构建兜底的场景，叠加 docker/docker-compose.build.yml 即可（deploy.sh 自动处理）。
 
   backend:
-    build:
-      context: ..
-      dockerfile: backend/Dockerfile
-      args:
-        DEPS_IMAGE: jiaopei-platform-backend-deps:prod
-        MAVEN_OPTS: ${BACKEND_BUILD_MAVEN_OPTS:--Xmx512m -XX:MaxMetaspaceSize=256m -Djava.awt.headless=true}
-    image: jiaopei-platform-backend:prod
+    image: eclipse-temurin:21-jre-alpine
     container_name: jiaopei-prod-backend
     restart: unless-stopped
     env_file:
       - prod.env
+    # 预构建 jar 直接挂进去；rm -rf docker/artifacts/dist 后重新复制即可换版本。
+    # 只读挂载：容器内不应改写产物。
+    volumes:
+      - ./artifacts/app.jar:/app/app.jar:ro
+    working_dir: /app
+    # JVM 参数走 JAVA_TOOL_OPTIONS（下面的 environment 已注入），所以命令行不需要
+    # 再展开 JAVA_OPTS——那样会被 compose 当成环境变量插值，且现场通常是空值。
+    command: ["java", "-jar", "/app/app.jar"]
     environment:
       SERVER_PORT: 8080
       DB_HOST: mysql
@@ -197,14 +194,13 @@ services:
       start_period: 90s
 
   frontend:
-    build:
-      context: ..
-      dockerfile: frontend/Dockerfile
-      args:
-        DEPS_IMAGE: jiaopei-platform-frontend-deps:prod
-    image: jiaopei-platform-frontend:prod
+    image: nginx:1.27-alpine
     container_name: jiaopei-prod-frontend
     restart: unless-stopped
+    # 预构建静态产物 + nginx 配置直接挂载，镜像只提供 nginx 运行时。
+    volumes:
+      - ./artifacts/dist:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       backend:
         condition: service_healthy

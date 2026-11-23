@@ -2,11 +2,13 @@
 # ============================================
 # 后端运行镜像：依赖来自 backend/Dockerfile.deps 产出的基础镜像
 # ============================================
+# 【注意】deploy.sh 自 2026-11 起不再调用本文件：生产部署改为 GitHub Actions
+# 构建 jar、服务器挂载 docker/artifacts/app.jar 运行（零编译）。本文件仅保留给
+# 「需要自包含镜像」的手工场景（例如在非突发型机器上构建后分发）。
 # 依赖(整个 ~/.m2/repository)已固化在 jiaopei-platform-backend-deps:prod 里，
 # 本文件只做「拷源码 -> 编译打包 -> 装 jar」，源码变更不会触发依赖重新下载。
-# 构建前必须先有依赖镜像：deploy.sh 会自动按 pom.xml 哈希判断是否需要重建；
-# 手动构建时请先执行（docker-compose.prod.yml 为本地运行实例，首次需从 .example 复制）：
-#   docker compose -f docker/docker-compose.prod.yml --profile deps build backend-deps
+# 构建前必须先有依赖镜像：
+#   docker compose --profile deps build backend-deps
 
 ARG DEPS_IMAGE=jiaopei-platform-backend-deps:prod
 FROM ${DEPS_IMAGE} AS build
@@ -19,11 +21,14 @@ COPY backend/module-education/src module-education/src
 COPY backend/app/src app/src
 
 # -Dmaven.test.skip=true 同时跳过测试编译；javadoc 也不生成，缩短构建时间
+# 线程数保持 2：生产机是突发性能型（CPU 积分制），4 线程会在部署瞬间打满全部核心、
+# 快速耗尽积分。真正的一劳永逸做法是别在服务器上构建（见 docs/生产部署说明.md
+# 「CI 构建 + 服务器零编译部署」），这里只是本地构建兜底路径的保守值。
 RUN mvn -B -ntp -q -s /root/.m2/settings.xml \
         -Dmaven.test.skip=true \
         -Dmaven.wagon.http.retryHandler.count=5 \
-        -Dmaven.artifact.threads=4 \
-        -Dmaven.compiler.threads=4 \
+        -Dmaven.artifact.threads=2 \
+        -Dmaven.compiler.threads=2 \
         -Dmaven.javadoc.skip=true \
         -Dmaven.plugin.validation=BRIEF \
         package

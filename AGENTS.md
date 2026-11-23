@@ -140,8 +140,11 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:9080/api/health        #
 
 ### CI 与本地门禁
 
-- `.github/workflows/ci.yml`：后端 `mvn test` + 前端 `pnpm lint`/`pnpm build` + 小程序 `pnpm type-check`（远程当前是 Gitee，Actions 不执行）。
+- `.github/workflows/ci.yml`：**只在 PR 触发**，跑后端 `mvn test` + 前端 `pnpm lint`/`pnpm build` + 小程序 `pnpm type-check`。仓库已迁到 GitHub，Actions 会真正执行（Gitee 上的旧仓不跑）。
+- `.github/workflows/build-release.yml`：**只在 master 推送触发**，先跑后端测试与前端 lint，再构建 `app.jar` + `dist` 并投递到服务器 `releases/`。与 ci.yml 分开触发是为了不把免费私有仓 2000 分钟/月额度重复消耗；因为习惯直接 push master，测试内建在这里而不是只靠 PR。
+- **生产构建不在服务器上做**：服务器是突发性能型（CPU 积分制），部署时 `mvn`/`pnpm`/`docker build` 会耗尽积分并触发限速/关机。服务器只用 `./docker/deploy.sh --from-ci <版本>` 挂载预构建产物重建容器；详见 `docs/生产部署说明.md`「构建与启动」。
 - Gitee 环境下用等价本地脚本：`bash scripts/ci-check.sh`（后端测试 -> eslint -> 类型检查+构建 -> 小程序类型检查），提交前应跑通。只跑某一步可传参：`backend` / `frontend-lint` / `frontend-build` / `miniapp`。脚本会自动找 JDK 21（依次尝试 `JAVA_HOME`、`JDK21_HOME`、常见安装路径），找不到直接报错退出，不会拿 JDK 8 硬跑。
+- 手工构建部署产物：`bash scripts/build-artifacts.sh`（生成 `docker/artifacts/{app.jar,dist}`，`--tar` 可打包），用于 GitHub Actions 之外的兜底；不要在突发性能型服务器上跑。
 - 后端有 **ArchUnit 架构守护测试**（`backend/app/src/test/.../architecture/ArchitectureRulesTest.java`）：接口必须有 `@Operation`、写接口必须有 `@RequiresPermission`（**免检口径是"类级 `@RequestMapping` 以 `/api/auth` 开头"**，按路径而不是按包判定，所以业务模块挂 `/api/auth/**` 的公开登录接口同样豁免；改这个前缀要同步安全配置的 `public-paths`）、Service 不得依赖 Controller、`@TableName` 实体必须在 `..domain..` 包、底座包（auth/system/common/config/tenant/audit）不得依赖 organization/education 业务包、生产类必须落在已声明的顶层包（防"新增包忘了加进扫描清单"）。同目录的 `ModuleSwitchGuardTest` 守护模块开关与配置装配前提，`CornerstoneBaselineGuardTest` 守护 core 自带基线，`ExternalIdVocabularyGuardTest` 守护底座不带行业词汇。测试只在 `app/` 模块运行，能看到全部模块的类。违反即 `mvn test` 失败，取代人工 grep 自查。
 
 ### 前端（工作目录 `frontend/`）

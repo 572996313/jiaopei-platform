@@ -33,6 +33,8 @@ Thumbs.db
 docker/prod.env
 docker/docker-compose.prod.yml
 docker/docker-compose.prod.yml.bak.*
+# 预构建产物（CI 投递 / 本地构建），不进 git
+docker/artifacts/
 .deps-stamp
 docker/data/
 docker/backups/

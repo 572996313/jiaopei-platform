@@ -11,8 +11,19 @@ frontend/dist
 **/dist
 **/.DS_Store
 **/*.log
+# 构建上下文瘦身：这些目录不参与任何镜像构建，白送几 MB~几十 MB
+miniapp
+data
+logs
+docs
+frontend/test-results
+.claude
 campus-page*.png
 classes-page*.png
 schedule-page*.png
 students-page*.png
 teachers-page*.png
+# 例外：docker/artifacts 由 deploy.sh 生成。默认部署不构建镜像，这条只对
+# 「自包含镜像手工构建」场景有意义；保留它是为了防止将来有人用 Dockerfile 打包产物时被误排除。
+!docker/artifacts
+!docker/artifacts/**

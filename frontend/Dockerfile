@@ -2,11 +2,13 @@
 # ============================================
 # 前端运行镜像：依赖来自 frontend/Dockerfile.deps 产出的基础镜像
 # ============================================
+# 【注意】deploy.sh 自 2026-11 起不再调用本文件：生产部署改为 GitHub Actions
+# 构建 dist、服务器挂载 docker/artifacts/dist 运行（零编译）。本文件仅保留给
+# 「需要自包含镜像」的手工场景。
 # node_modules 与 pnpm store 已固化在 jiaopei-platform-frontend-deps:prod 里，
 # 本文件只做「拷源码 -> pnpm build -> 交给 nginx」，源码变更不会触发依赖重新下载。
-# 构建前必须先有依赖镜像：deploy.sh 会自动按锁文件哈希判断是否需要重建；
-# 手动构建时请先执行（docker-compose.prod.yml 为本地运行实例，首次需从 .example 复制）：
-#   docker compose -f docker/docker-compose.prod.yml --profile deps build frontend-deps
+# 构建前必须先有依赖镜像：
+#   docker compose --profile deps build frontend-deps
 
 ARG DEPS_IMAGE=jiaopei-platform-frontend-deps:prod
 FROM ${DEPS_IMAGE} AS build

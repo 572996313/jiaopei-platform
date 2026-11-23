@@ -205,8 +205,9 @@ cat prod.env
 # 3. 拉取镜像（防止本地缓存被篡改）
 docker compose -f docker-compose.prod.yml pull
 
-# 4. 构建并启动（-d 后台运行）
-docker compose -f docker-compose.prod.yml up -d --build
+# 4. 启动（-d 后台运行）
+#    当前编排用「产物挂载」，没有 build 段：不要加 --build，否则会触发编译、烧光突发型实例的 CPU 积分
+docker compose -f docker-compose.prod.yml up -d --force-recreate
 
 # 5. 查看日志确认 MySQL 正常启动
 docker compose -f docker-compose.prod.yml logs -f mysql
