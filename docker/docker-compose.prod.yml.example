@@ -13,7 +13,7 @@
 # GitHub Actions 构建后投递到服务器的 releases/，deploy.sh --from-ci 再把它们复制到
 # docker/artifacts/ 并挂进容器。`docker compose up -d` 因此永远不会触发编译，
 # 突发性能型（CPU 积分制）机器不会再因部署耗尽积分。
-#   - 需要本地构建兜底时，叠加 docker/docker-compose.build.yml（deploy.sh 自动处理）。
+#   - 需要本地构建兜底时，用 deploy.sh --local-build（直接跑本机 mvn+pnpm，不经 compose build）。
 #   - 手工排查/本地自检见 docs/生产部署说明.md 的「CI 构建 + 服务器零编译部署」。
 #
 # 需要按环境调整的常见项（改本地实例，不要改本模板）：
@@ -116,13 +116,11 @@ services:
       retries: 10
       start_period: 20s
 
-  # 依赖基础镜像与业务镜像的 build 段已移到 docker/docker-compose.build.yml，
-  # 只有本地构建兜底时才会叠加（CI 产物路径用不到）。详见该文件注释。
-
   # 注意：本模板只保留运行期定义（image + 挂载预构建产物），不再包含 build 段。
   #   产物由 GitHub Actions 构建后投递到 docker/artifacts/（见 docs/生产部署说明.md）。
   #   这样 `docker compose up -d` 永远不会触发编译，突发性能型机器不会耗尽 CPU 积分。
-  #   需要本地构建兜底的场景，叠加 docker/docker-compose.build.yml 即可（deploy.sh 自动处理）。
+  #   需要本地构建兜底的场景，用 deploy.sh --local-build 或 scripts/build-artifacts.sh
+  #   （二者都在 compose 之外直接跑 mvn+pnpm，产物同样落到 docker/artifacts/）。
 
   backend:
     image: eclipse-temurin:21-jre-alpine
