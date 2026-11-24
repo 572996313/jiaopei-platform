@@ -25,15 +25,26 @@
       </span>
     </div>
 
-    <!-- 统一筛选栏:校区范围在横幅那颗芯片上选,本页只按它筛班级;点「查询」才加载选中班级的档案 -->
-    <FilterBar :loading="lookupLoading" @query="applyFilters" @reset="resetFilters">
-      <ClassSelect
-        v-model="classId"
-        :institution-id="institutionId"
-        :campus-id="campusId"
-        placeholder="筛选班级"
-      />
-    </FilterBar>
+    <!-- 班级是"要维护哪一个班"的上游选择器,不是筛行条件:选中即载入,
+         所以不放进 FilterBar(那里的口径是点「查询」才生效,选完不点就会读成"这个班取不到")。
+         校区范围仍在顶部横幅那颗校区芯片上改。 -->
+    <div class="table-toolbar">
+      <span class="filter-bar-group">
+        <span class="filter-bar-group-label">班级</span>
+        <ClassSelect
+          v-model="classId"
+          :institution-id="institutionId"
+          :campus-id="campusId"
+          placeholder="搜索班级名称或编码"
+          @change="handleClassChange"
+        />
+      </span>
+      <span class="education-context-text">
+        当前范围：{{
+          scopeStore.campusName(campusId)
+        }}；班级下拉已按此收窄，改范围走顶部横幅的校区芯片。
+      </span>
+    </div>
 
     <div v-show="statsVisible" class="dashboard-grid education-stat-grid">
       <article class="stat-card">
@@ -48,8 +59,15 @@
       </article>
     </div>
 
-    <!-- 未选班级时不铺三张空卡，一行提示就够，把高度留给下面的任课教师表 -->
-    <div v-if="!currentClass" class="class-empty-hint">{{ classMissingText }}</div>
+    <!-- 未选班级时不铺三张空卡，一行提示就够，把高度留给下面的任课教师表；
+         真取不到时换成告警底色，和"还没选 / 正在载入"一眼分开 -->
+    <div
+      v-if="!currentClass"
+      class="class-empty-hint"
+      :class="{ 'is-warn': Boolean(classDetailError) }"
+    >
+      {{ classMissingText }}
+    </div>
 
     <div v-else class="dashboard-grid class-profile-grid">
       <article class="panel-card class-profile-panel">
@@ -166,10 +184,11 @@
       </article>
     </div>
 
-    <article class="panel-card education-panel class-teacher-panel">
+    <!-- 未选班级时整卡不渲染（不然只剩一个空标题的卡占位），选中才铺开 -->
+    <article v-if="currentClass" class="panel-card education-panel class-teacher-panel">
       <div class="education-table-head">
         <div class="panel-title">班级教师</div>
-        <div v-if="currentClass" class="table-actions">
+        <div class="table-actions">
           <el-button
             v-permission="'education:class:write'"
             link
@@ -180,7 +199,7 @@
         </div>
       </div>
 
-      <TableFillBox v-if="currentClass" v-slot="{ height }">
+      <TableFillBox v-slot="{ height }">
         <el-table
           :data="classTeachers"
           border
@@ -244,7 +263,6 @@
           </el-table-column>
         </el-table>
       </TableFillBox>
-
     </article>
 
     <el-dialog
@@ -608,7 +626,6 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
@@ -803,6 +820,9 @@ const classTypeMap = computed(() => {
 
 /** 班级主档只展示选中的那一个班，档案按需单条取，不再把全机构班级拉回本机当字典 */
 const currentClass = ref<TeachingClassSummary | null>(null)
+/** 主档单条请求自己的载入态与失败原因：不能拿 pageError 兜，那会把"正在载入"也说成"取不到" */
+const classDetailLoading = ref(false)
+const classDetailError = ref('')
 
 const primaryTeacher = computed(() => {
   return classTeachers.value.find((item) => item.isPrimary) || null
@@ -833,12 +853,17 @@ const lessonTargetLabel = computed(() => {
   return `${clazz.weeklyLessons} 节/周`
 })
 
-/** 没选中班级与"选了但档案取不到"是两回事，提示要分开说 */
+/** 没选中班级与"选了但档案取不到"是两回事，提示要分开说；加载中不能先说成"取不到" */
 const classMissingText = computed(() => {
   if (!classId.value) {
     return '请先在上方选择一个班级，再看主档、风险与任课教师。'
   }
-  return `班级 ${formatClass(classId.value)} 的主档暂时取不到，可能是已被删除或不在当前校区，请重新选择班级。`
+  if (classDetailLoading.value) {
+    return `正在载入班级 ${formatClass(classId.value)} 的主档...`
+  }
+  return `班级 ${formatClass(classId.value)} 的主档暂时取不到${
+    classDetailError.value ? `（${classDetailError.value}）` : ''
+  }，可能是已被删除或不在当前校区，请重新选择班级。`
 })
 
 const localRiskItems = computed<ReminderItem[]>(() => {
@@ -1119,7 +1144,8 @@ async function refreshScopeData() {
 }
 
 async function loadClassChangeNoticeRecords() {
-  if (!institutionId.value || !classId.value) {
+  const target = classId.value
+  if (!institutionId.value || !target) {
     classChangeNotices.value = []
     noticeError.value = ''
     return
@@ -1128,58 +1154,108 @@ async function loadClassChangeNoticeRecords() {
   noticeLoading.value = true
   noticeError.value = ''
   try {
-    classChangeNotices.value = await fetchClassChangeNotices({
+    const list = await fetchClassChangeNotices({
       institutionId: institutionId.value,
-      classId: classId.value,
+      classId: target,
       noticeStatus: 'pending',
     })
+    if (classId.value !== target) {
+      return
+    }
+    classChangeNotices.value = list
   } catch (error) {
+    if (classId.value !== target) {
+      return
+    }
     classChangeNotices.value = []
     noticeError.value = toMessage(error, '班级变动通知加载失败，当前仅展示本地主档风险兜底。')
   } finally {
-    noticeLoading.value = false
+    if (classId.value === target) {
+      noticeLoading.value = false
+    }
   }
 }
 
 /** 在班人数按整班统计：这一页不拉名册，容量风险要的是全量人数 */
 async function loadActiveClassStudentCount() {
-  if (!institutionId.value || !classId.value) {
+  const target = classId.value
+  if (!institutionId.value || !target) {
     activeClassStudentCount.value = 0
     return
   }
   try {
-    activeClassStudentCount.value = await fetchClassStudentActiveCount(
-      institutionId.value,
-      classId.value
-    )
-  } catch (error) {
+    const count = await fetchClassStudentActiveCount(institutionId.value, target)
+    if (classId.value !== target) {
+      return
+    }
+    activeClassStudentCount.value = count
+  } catch {
+    if (classId.value !== target) {
+      return
+    }
+    // 人数只服务容量风险一条，取不到就按 0 兜底；不把整页顶成顶部横幅
     activeClassStudentCount.value = 0
-    pageError.value = toMessage(error, '班级在班人数加载失败')
   }
 }
 
 /** 班级教师只在选中班级时加载 */
 async function loadClassTeachers() {
-  if (!classId.value) {
+  const target = classId.value
+  if (!target) {
     classTeachers.value = []
     return
   }
-  classTeachers.value = await fetchClassTeachers({ classId: classId.value })
+  try {
+    const list = await fetchClassTeachers({ classId: target })
+    // 选中即载入后连续换班很常见，慢到的旧响应不许把新班的教师盖回去
+    if (classId.value !== target) {
+      return
+    }
+    classTeachers.value = list
+  } catch (error) {
+    if (classId.value !== target) {
+      return
+    }
+    classTeachers.value = []
+    // 班级本身取不到时由空态那条说原因；主档在、只是教师关系取不到才顶横幅
+    if (currentClass.value) {
+      pageError.value = toMessage(error, '班级教师加载失败')
+    }
+  }
 }
 
 /** 选中的那个班按需取整条档案：主档卡、风险项和编辑弹窗预填都读它 */
 async function loadCurrentClass() {
-  if (!institutionId.value || !classId.value) {
+  const target = classId.value
+  if (!institutionId.value || !target) {
     currentClass.value = null
+    classDetailLoading.value = false
+    classDetailError.value = ''
     return
   }
+  // 换到别的班时先把旧档案撤掉，新班名字下不许短暂挂着上个班的数据
+  if (currentClass.value && currentClass.value.id !== target) {
+    currentClass.value = null
+  }
+  classDetailLoading.value = true
+  classDetailError.value = ''
   try {
-    const detail = await fetchTeachingClass(institutionId.value, classId.value)
+    const detail = await fetchTeachingClass(institutionId.value, target)
+    if (classId.value !== target) {
+      return
+    }
     currentClass.value = detail
     rememberClassOptions([detail])
   } catch (error) {
+    if (classId.value !== target) {
+      return
+    }
     currentClass.value = null
-    pageError.value = toMessage(error, '班级主档加载失败')
+    classDetailError.value = toMessage(error, '班级主档加载失败')
+  } finally {
+    if (classId.value === target) {
+      classDetailLoading.value = false
+    }
   }
 }
 
@@ -1190,6 +1266,8 @@ async function loadRecords() {
     classTeachers.value = []
     classChangeNotices.value = []
     noticeError.value = ''
+    classDetailLoading.value = false
+    classDetailError.value = ''
     return
   }
   pageError.value = ''
@@ -1202,20 +1280,30 @@ async function loadRecords() {
     ])
   } catch (error) {
     classTeachers.value = []
-    pageError.value = toMessage(error, '班级主档数据加载失败')
+    // 班级本身取不到时提示由空态那条说，不再用页面顶部横幅重复一遍
+    if (currentClass.value) {
+      pageError.value = toMessage(error, '班级主档数据加载失败')
+    }
   }
 }
 
-/** 点「查询」才应用:不清已选班级(与旧"换校区即清空"不同,草稿要等按钮才生效) */
-async function applyFilters() {
-  await refreshScopeData()
-  await loadRecords()
+/** 换班前先撤掉上一班的派生数据：加载期间不许拿旧班的教师/人数/通知配新班的名字 */
+function resetClassScopedState() {
+  classTeachers.value = []
+  activeClassStudentCount.value = 0
+  classChangeNotices.value = []
+  noticeError.value = ''
+  classDetailError.value = ''
 }
 
-/** 重置 = 取消班级筛选,回到未选班级的档案总览(校区范围是全站入口,不由本页重置) */
-async function resetFilters() {
-  classId.value = null
-  await applyFilters()
+/** 选中即载入：班级是上游选择器，不是筛行条件，没有"改完再点查询"的语义 */
+async function handleClassChange() {
+  // ClassSelect 清空时发空串，统一回 null，下面的空态判断才和"没选"一致
+  if (!classId.value) {
+    classId.value = null
+  }
+  resetClassScopedState()
+  await loadRecords()
 }
 
 function openTeacherDialog(mode: 'create' | 'edit', row?: ClassTeacherRecord) {
@@ -1469,6 +1557,7 @@ function applyRouteClassId() {
     return
   }
   classId.value = next
+  resetClassScopedState()
   void loadRecords()
 }
 
@@ -1584,6 +1673,12 @@ onMounted(async () => {
   border-radius: 10px;
   color: var(--tint-ink);
   background: var(--tint-bg);
+}
+
+/* 选中了却真取不到才用告警色：和"还没选 / 正在载入"的中性提示分开 */
+.class-empty-hint.is-warn {
+  color: var(--soft-warn-ink);
+  background: var(--soft-warn-bg);
 }
 
 .reminder-list {

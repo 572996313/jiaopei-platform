@@ -113,4 +113,10 @@ watch(
 .filter-bar .archive-select {
   width: 240px;
 }
+
+/* 上游选择器行（工具栏里的 .filter-bar-group，如班级档案"选中即载入"那颗）同样收 240px；
+   100% 只服务弹窗表单，放进 inline-flex 的分组里会退化成撑不开 */
+.table-toolbar .filter-bar-group .archive-select {
+  width: 240px;
+}
 </style>
