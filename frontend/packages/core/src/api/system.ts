@@ -1042,3 +1042,101 @@ export function createNavigationCatalog(payload: NavigationCatalogCreatePayload)
     nodes: (result.nodes || []).map(normalizeNavigationNode),
   }))
 }
+
+/* ------------------------------ 数据字典 ------------------------------ */
+
+/** 维护入口：表 → 管理端页面 */
+export interface SchemaMaintenanceEntry {
+  tableName: string
+  label: string
+  path?: string | null
+  remark?: string | null
+}
+
+export interface SchemaColumn {
+  columnName: string
+  columnType: string
+  nullable: boolean
+  defaultValue?: string | null
+  comment: string
+  primaryKey: boolean
+  extra?: string | null
+  javaField?: string | null
+  javaType?: string | null
+  schemaDescription?: string | null
+  allowableValues: string[]
+}
+
+export interface SchemaTable {
+  tableName: string
+  tableComment: string
+  moduleKey: string
+  entityClass?: string | null
+  columns: SchemaColumn[]
+  maintenance?: SchemaMaintenanceEntry | null
+}
+
+export interface SchemaDictionary {
+  database: string
+  generatedAt: string
+  tableCount: number
+  columnCount: number
+  missingCommentCount: number
+  tables: SchemaTable[]
+}
+
+/** 数据字典：库结构 + 实体注解的只读聚合，服务端缓存 60 秒 */
+export function fetchSchemaDictionary() {
+  return requestGet<SchemaDictionary>('/system/schema-dictionary')
+}
+
+/* ------------------------------ 接口链路 ------------------------------ */
+
+export interface EndpointChainAction {
+  pageMenuCode: string
+  actionKey: string
+  label: string
+  description?: string | null
+  mode: string
+  sensitive: boolean
+}
+
+export interface EndpointChainService {
+  interfaceName: string
+  className: string
+  moduleKey: string
+}
+
+export interface EndpointChainTable {
+  tableName: string
+  tableComment: string
+  moduleKey: string
+  mapperClass: string
+}
+
+export interface EndpointChainEndpoint {
+  method: string
+  path: string
+  summary?: string | null
+  description?: string | null
+  permissionCode?: string | null
+  moduleKey: string
+  controllerClass: string
+  controllerMethod: string
+  actions: EndpointChainAction[]
+  services: EndpointChainService[]
+  tables: EndpointChainTable[]
+}
+
+export interface EndpointChain {
+  generatedAt: string
+  note: string
+  endpointCount: number
+  permissionCount: number
+  endpoints: EndpointChainEndpoint[]
+}
+
+/** 接口链路：声明依赖的静态链路，服务端缓存 60 秒 */
+export function fetchEndpointChains() {
+  return requestGet<EndpointChain>('/system/endpoint-chains')
+}

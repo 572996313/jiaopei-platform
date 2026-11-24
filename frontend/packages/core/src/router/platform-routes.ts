@@ -85,6 +85,16 @@ export const platformChildRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/system/PermissionOverviewView.vue'),
   },
   {
+    path: 'system/schema-dictionary',
+    name: 'system-schema-dictionary',
+    component: () => import('@cornerstone/core/views/system/SchemaDictionaryView.vue'),
+  },
+  {
+    path: 'system/endpoint-chain',
+    name: 'system-endpoint-chain',
+    component: () => import('@cornerstone/core/views/system/EndpointChainView.vue'),
+  },
+  {
     path: 'system/data-sources',
     name: 'system-data-sources',
     component: () => import('@cornerstone/core/views/system/DataSourceManagementView.vue'),
