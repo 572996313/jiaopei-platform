@@ -61,9 +61,13 @@ miniapp/src/
 
 | 项 | 说明 |
 | --- | --- |
-| `V26__create_wechat_binding_table.sql` | `jp_wechat_binding` 表:openid ↔ 系统用户绑定关系 |
+| `V120__create_auth_provider_and_user_identity.sql` | `sys_auth_provider`（第三方渠道配置）+ `sys_user_identity`（外部身份 ↔ 系统账号，一个微信可绑多个账号） |
+| `V121__migrate_wechat_binding_to_user_identity.sql` | 存量 `jp_wechat_binding` 迁入 `sys_user_identity`（`provider_code=wechat_miniapp, app_type=miniapp`）后删旧表 |
+| `V122__seed_auth_providers.sql` | 种子：LinuxDo（停用待配置）+ 微信小程序（仅用于身份列表展示渠道名） |
 | `V27__wechat_self_register.sql` | `password_hash` 改可空、`register_source` 来源列、预置 `MINIAPP_STUDENT`/`MINIAPP_PARENT` 两个角色 |
-| `POST /api/auth/wechat/login` | code 换 openid;已注册签发 JWT,未注册返回 `registered=false` |
+| `POST /api/auth/wechat/login` | code 换 openid;未绑定返回 `registered=false`;只绑 1 个账号直接签发 JWT;绑多个账号返回 `ticket` + `accounts` 候选列表 |
+| `POST /api/auth/wechat/select` | 多账号场景:用登录返回的票据与 `accountKey` 选定一个账号并签发 JWT |
+| `POST /api/auth/wechat/bind` | 已登录账号补绑当前微信(员工账号在「我的」页绑定;同一微信可同时绑家长与员工) |
 | `POST /api/auth/wechat/register` | 自助注册:选身份(学生/家长)+昵称自动建档、分配角色并签发 JWT;重复注册幂等。携带 `invitationCode` 时走邀请码注册:机构/角色由邀请码固定(仅限学生/家长两个小程序角色,其余返回 403),无需选身份 |
 | `GET /api/education/wechat/invitations/{code}/wxacode` | 管理端生成邀请码小程序码(PNG,scene 携带凭证编码,服务端缓存 30 天;权限 `education:class:write`) |
 | `pages/register/index` | 注册页支持扫小程序码直达:启动参数 `scene` 携带邀请码,自动预检后进入邀请注册模式(显示机构与角色、免选身份) |
@@ -76,6 +80,19 @@ miniapp/src/
 
 微信登录复用现有 JWT + Redis 会话体系,签发的令牌与管理后台完全同构,
 小程序端可直接调用受 `@RequiresPermission` 保护的接口。
+
+### 一个微信绑多个账号
+
+`sys_user_identity` 的唯一键允许**同一微信绑定多个系统账号**(例如同一个人既是家长又是机构员工):
+
+- 登录只命中 1 个账号 → 和以前一样直接进,不打扰。
+- 命中多个账号 → 返回候选列表(`机构 · 管理后台/家长端 · 姓名`)与一次性票据,进入
+  `pages/account-select/index` 选一个再签发令牌;小程序端不限端,家长/学生/员工都可选。
+- 员工账号绑定微信:先用管理后台账号密码登录小程序,「我的」页点「绑定微信」即可追加一条绑定,
+  不会覆盖该微信原有的家长账号。
+- 令牌失效后的静默重登仍走微信;但命中多个账号时不会替用户选,退回登录页重新选,避免悄悄换人。
+
+完整设计与网页端流程见 [`docs/第三方登录接入方案.md`](第三方登录接入方案.md)。
 
 ## 开发环境准备
 
@@ -168,7 +185,7 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 | --- | --- | --- |
 | 首页 | **只读**：台账总数/在收/已结清 + 最近在收台账（点行进详情） | 今日课程与本周提示 |
 | 工作台 | **操作入口页**：收费台账（含新增/按班建账/收款）、收费项目、价目、学员档案（含新增与家长联系人）、班级与入班 | 课程表、消息通知、我的同学（学生）/ 我的费用（家长） |
-| 我的 | 身份、所属机构、更多（注销）、退出 | 学生：本人档案与我的同学；家长：孩子档案（列表/创建/绑定）与我的同学；更多（注销）、退出 |
+| 我的 | 身份、所属机构、微信绑定、更多（注销）、退出 | 学生：本人档案与我的同学；家长：孩子档案（列表/创建/绑定）与我的同学；微信绑定；更多（注销）、退出 |
 
 - 企业账号登录成功后直接落在**工作台**；学生/家长仍落首页。
 - 首页不再放新增台账、收款、维护学员/班级的按钮；所有写入口集中在工作台及其下一级页面，避免看数据和改数据混在一起。
@@ -179,9 +196,11 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 ```
 启动 → 登录页 → uni.login 取 code
      → POST /api/auth/wechat/login
-         ├─ registered=true  → 保存令牌 → 进入首页(微信免密登录)
-         └─ registered=false → 注册页:选身份(学生/家长)+填昵称
-                             → POST /api/auth/wechat/register → 自动建档+分配角色 → 进入首页
+         ├─ registered=false        → 注册页:选身份(学生/家长)+填昵称
+         │                            → POST /api/auth/wechat/register → 自动建档+分配角色 → 进入首页
+         ├─ 只绑 1 个账号            → 保存令牌 → 进入首页/工作台(按 portal)
+         └─ 绑了多个账号             → 账号选择页(机构 · 端 · 姓名)
+                                      → POST /api/auth/wechat/select(ticket, accountKey) → 进入首页/工作台
 
 扫邀请码小程序码 → 直达注册页(scene 携带凭证编码)
      → GET /api/auth/register/precheck?code=scene
@@ -189,6 +208,9 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
          │                 → POST /api/auth/wechat/register(带 invitationCode)
          │                 → 无密码建档(机构/角色由邀请码固定)+绑定微信 → 进入首页
          └─ 无效/非邀请码 → toast 原因,回落普通身份选择注册
+
+企业员工:登录页「企业用户登录」→ 密码登录 → 「我的」→ 绑定微信
+     → 下次微信一键登录即可直接选到员工账号(与家长账号并存)
 
 扫公告小程序码 → 直达公告详情页(scene=a=公告ID)
      → GET /api/education/announcements/mine/{id}(首次打开即打读)
@@ -199,7 +221,7 @@ pnpm build:mp-weixin   # 生产构建,产物输出到 dist/build/mp-weixin
 
 - 首次使用自动注册进系统(分配 MINIAPP_STUDENT / MINIAPP_PARENT 角色),之后微信免密登录。
 - 管理员在「注册凭证」页创建邀请码(角色限学生/家长)后点「小程序码」生成太阳码,发给学员/家长扫码即可带角色注册;扫码注册与普通注册同样幂等、同样无密码、可自助注销。
-- 一个微信对应一个账号,重复提交注册时按已注册用户直接登录(幂等)。
+- 一个微信可以绑定多个账号(家长 + 员工);重复提交注册时按已有的一个活跃账号直接登录(幂等)。
 - 注册用户无密码,不能走账号密码登录;注册身份不可自行更改,需要调整找管理员。
 - 退出登录调用 `/api/auth/logout`,服务端令牌(Redis)立即失效。
 - 「我的」页提供**注销账号**:删除当前微信注册的账号及绑定关系,注销后同一微信重新登录即为全新未注册用户,可重新选择身份注册。注销操作不可恢复,仅小程序自助注册的账号可自助注销。
