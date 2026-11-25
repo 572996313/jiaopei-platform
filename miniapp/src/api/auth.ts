@@ -16,9 +16,33 @@ export interface LoginResponse {
 
 export type MiniappRole = 'STUDENT' | 'PARENT'
 
+export interface AccountOption {
+  /** 不透明账号键，仅本次登录有效，前端不要缓存跨次使用 */
+  key: string
+  displayName: string
+  /** 所属端：admin=管理后台,student=学生端,parent=家长端 */
+  portal: string
+  institutionName: string
+}
+
 export interface WechatLoginResponse {
   registered: boolean
+  /** 只命中一个账号时直接返回登录结果 */
   auth: LoginResponse | null
+  /** 命中多个账号时的一次性选择票据 */
+  ticket?: string | null
+  /** 命中多个账号时的候选列表 */
+  accounts?: AccountOption[]
+}
+
+export interface UserIdentityView {
+  id: string
+  providerCode: string
+  providerName: string
+  appType: string
+  nickname: string | null
+  createdAt: string
+  lastLoginAt: string | null
 }
 
 export interface CurrentUserResponse {
@@ -47,9 +71,24 @@ export interface InvitationPrecheckView {
   message: string | null
 }
 
-/** 微信小程序登录:code 换 openid,已注册直接返回令牌,未注册时 registered=false */
+/** 微信小程序登录:code 换 openid;单账号直接返回令牌,多账号返回选择票据与候选列表 */
 export function wechatLogin(code: string, options?: RecoveryOptions) {
   return requestPost<WechatLoginResponse>('/auth/wechat/login', { code }, options)
+}
+
+/** 多账号选择:用登录返回的票据选定一个账号换取令牌 */
+export function wechatSelect(ticket: string, accountKey: string) {
+  return requestPost<LoginResponse>('/auth/wechat/select', { ticket, accountKey })
+}
+
+/** 已登录账号绑定当前微信(员工账号绑定后即可一键登录) */
+export function wechatBind(code: string) {
+  return requestPost<void>('/auth/wechat/bind', { code })
+}
+
+/** 当前账号已绑定的第三方身份 */
+export function fetchMyIdentities() {
+  return requestGet<UserIdentityView[]>('/auth/me/identities')
 }
 
 /** 企业端账号密码登录:复用管理后台账号,返回 portal=admin 的令牌 */

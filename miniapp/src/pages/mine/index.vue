@@ -2,7 +2,8 @@
 import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { uploadMyAvatar } from '@/api/auth'
+import { fetchMyIdentities, uploadMyAvatar } from '@/api/auth'
+import { isApiError } from '@/utils/request'
 import { fetchImageTempPath } from '@/utils/file-image'
 import {
   fetchGenderOptions,
@@ -20,6 +21,8 @@ const genderOptions = ref<DictOptionItem[]>([])
 const myProfile = ref<StudentOwnProfile | null>(null)
 /** 头像本地临时路径；<image> 带不上令牌，必须先带 header 下载 */
 const avatarTempPath = ref('')
+/** 当前账号是否已绑定微信：决定“绑定”还是“已绑定” */
+const wechatBound = ref(false)
 
 const displayName = computed(
   () => authStore.userInfo?.displayName || authStore.userInfo?.username || '未登录',
@@ -57,6 +60,7 @@ onShow(() => {
     })
     .finally(() => {
       loadAvatar()
+      loadWechatBinding()
       if (isEnterprise.value) {
         return
       }
@@ -67,6 +71,30 @@ onShow(() => {
       }
     })
 })
+
+async function loadWechatBinding() {
+  try {
+    const identities = await fetchMyIdentities()
+    wechatBound.value = identities.some((item) => item.providerCode === 'wechat_miniapp')
+  } catch {
+    // 绑定状态只影响这一行的展示，拉取失败不打断页面
+  }
+}
+
+/** 员工用密码登录后在这里补绑微信，下次即可一键登录 */
+async function handleBindWechat() {
+  try {
+    uni.showLoading({ title: '绑定中…' })
+    await authStore.bindWechat()
+    uni.hideLoading()
+    wechatBound.value = true
+    uni.showToast({ title: '微信已绑定', icon: 'success' })
+  } catch (error) {
+    uni.hideLoading()
+    const message = isApiError(error) ? error.message : (error as Error)?.message || '绑定失败，请重试'
+    uni.showToast({ title: message, icon: 'none' })
+  }
+}
 
 async function loadMyProfile() {
   // 性别回显走 gender 字典,与 PC 端同一套值;拉取失败退回原始值显示
@@ -269,6 +297,11 @@ function handleDeregister() {
         <text class="info-label">所属机构</text>
         <text class="info-value">{{ authStore.userInfo?.institutionId || '-' }}</text>
       </view>
+      <view class="info-row">
+        <text class="info-label">微信</text>
+        <text v-if="wechatBound" class="info-value">已绑定</text>
+        <text v-else class="bind-link" @click="handleBindWechat">绑定微信，下次一键登录</text>
+      </view>
     </view>
 
     <!-- 企业端:收费入口在首页,这里只说明身份与退出 -->
@@ -470,6 +503,11 @@ function handleDeregister() {
 .info-value {
   font-size: 28rpx;
   color: #111827;
+}
+
+.bind-link {
+  font-size: 28rpx;
+  color: #2563eb;
 }
 
 .section-title {

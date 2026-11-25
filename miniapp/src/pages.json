@@ -19,6 +19,12 @@
 			}
 		},
 		{
+			"path": "pages/account-select/index",
+			"style": {
+				"navigationBarTitleText": "选择账号"
+			}
+		},
+		{
 			"path": "pages/enterprise/login/index",
 			"style": {
 				"navigationBarTitleText": "企业用户登录"

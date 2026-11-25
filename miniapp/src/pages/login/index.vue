@@ -33,9 +33,12 @@ async function handleWechatLogin() {
   }
   loading.value = true
   try {
-    const bound = await authStore.loginByWechat()
-    if (bound) {
-      uni.reLaunch({ url: takePendingRoute() || '/pages/index/index' })
+    const outcome = await authStore.loginByWechat()
+    if (outcome === 'logged-in') {
+      uni.reLaunch({ url: takePendingRoute() || landingUrl() })
+    } else if (outcome === 'select') {
+      // 同一微信绑了多个账号(家长 + 员工):去选择页,不擅自替用户决定
+      uni.navigateTo({ url: '/pages/account-select/index' })
     } else {
       // 首次使用,引导选择身份完成注册;没登录进去的那一页仍留在 storage,注册成功后由注册页取
       uni.navigateTo({ url: '/pages/register/index' })

@@ -13,21 +13,35 @@ import {
   fetchCurrentUser,
   getWxLoginCode,
   logout as logoutApi,
+  wechatBind,
   wechatDeregister,
   wechatLogin,
   wechatRegister,
+  wechatSelect,
+  type AccountOption,
   type CurrentUserResponse,
   type LoginResponse,
   type MiniappRole,
 } from '@/api/auth'
 
+interface PendingSelection {
+  ticket: string
+  accounts: AccountOption[]
+}
+
 interface AuthState {
   userInfo: CurrentUserResponse | null
+  /** 微信命中多个账号时的待选状态；只在内存里，不跨次启动保留 */
+  pendingSelection: PendingSelection | null
 }
+
+/** 微信一键登录结果：直接登录 / 需要选账号 / 尚未注册 */
+export type WechatLoginOutcome = 'logged-in' | 'select' | 'unregistered'
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     userInfo: null,
+    pendingSelection: null,
   }),
   actions: {
     /**
@@ -57,15 +71,41 @@ export const useAuthStore = defineStore('auth', {
       setStoredAuthSession(toSessionSnapshot(auth, loginMode))
     },
 
-    /** 微信一键登录;返回 true 表示已注册并登录成功,false 表示需要先选择身份注册 */
-    async loginByWechat(): Promise<boolean> {
+    /**
+     * 微信一键登录。同一微信绑定多个账号（家长 + 员工）时不擅自选一个，
+     * 而是把票据与候选列表放进 pendingSelection，由账号选择页决定。
+     */
+    async loginByWechat(): Promise<WechatLoginOutcome> {
       const code = await getWxLoginCode()
       const result = await wechatLogin(code)
       if (result.registered && result.auth) {
+        this.pendingSelection = null
         this.applyLogin(result.auth, 'wechat')
-        return true
+        return 'logged-in'
       }
-      return false
+      if (result.registered && result.ticket && result.accounts?.length) {
+        this.pendingSelection = { ticket: result.ticket, accounts: result.accounts }
+        return 'select'
+      }
+      this.pendingSelection = null
+      return 'unregistered'
+    },
+
+    /** 多账号选择：用待选票据换选定账号的令牌 */
+    async loginBySelection(accountKey: string) {
+      if (!this.pendingSelection) {
+        throw new Error('选择已过期，请重新登录')
+      }
+      const auth = await wechatSelect(this.pendingSelection.ticket, accountKey)
+      this.pendingSelection = null
+      this.applyLogin(auth, 'wechat')
+      return auth
+    },
+
+    /** 当前账号补绑微信：员工用密码登录后绑定，下次即可一键登录 */
+    async bindWechat() {
+      const code = await getWxLoginCode()
+      await wechatBind(code)
     },
 
     /** 企业端账号密码登录:复用管理后台账号,登录后立即拉一次 /auth/me 拿到角色、权限与端 */
@@ -100,6 +140,7 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         clearStoredAuthSession()
         this.userInfo = null
+        this.pendingSelection = null
       }
     },
 
@@ -110,6 +151,7 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         clearStoredAuthSession()
         this.userInfo = null
+        this.pendingSelection = null
       }
     },
   },
