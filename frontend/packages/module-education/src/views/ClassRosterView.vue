@@ -9,6 +9,9 @@
       <el-button v-permission="'education:class:write'" type="primary" @click="openDialog"
         >新增入班</el-button
       >
+      <el-button v-permission="'education:class:write'" :icon="Upload" @click="importVisible = true"
+        >批量分班</el-button
+      >
       <el-button :icon="Refresh" circle :loading="loading" @click="refreshAll" />
       <el-button @click="goClassProfile">班级档案</el-button>
       <span class="education-context-text">
@@ -188,13 +191,28 @@
       :institution-id="institutionId"
       :student-id="contactStudentId"
     />
+
+    <!-- 批量分班：一行 = 一次入班（入班即报名），已在班的行会跳过 -->
+    <XlsxImportDialog
+      v-model="importVisible"
+      title="批量分班"
+      intro="一行 = 一个学员加入一个班（入班即报名）。学员与班级都必须先存在：学员请先用「学员管理」页的「导入学员」建好。该学员已经在这个班里时会跳过（不算错误），重传整份文件不会整批失败。"
+      upload-tip="只支持模板格式的 xlsx，内容须在第一个工作表，单次不超过 500 行；同一班级编码在多个校区都存在时，校区编码列必填用来区分；来源渠道填字典启用条目的中文名；入班日期留空按今天"
+      :columns="classStudentImportColumns"
+      :download-template="downloadClassStudentImportTemplate"
+      :preview="previewClassStudentImport"
+      :commit="commitClassStudentImport"
+      created-label="新增入班"
+      created-hint="已在班的关系会跳过"
+      @imported="refreshAll"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Upload } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -214,6 +232,13 @@ import { classLabelOf } from '@cornerstone/module-education/composables/classLab
 import ClassSelect from './components/ClassSelect.vue'
 import StudentSelect from './components/StudentSelect.vue'
 import StudentParentDrawer from './components/StudentParentDrawer.vue'
+import XlsxImportDialog from './components/XlsxImportDialog.vue'
+import type { ImportColumn } from './components/import-columns'
+import {
+  commitClassStudentImport,
+  downloadClassStudentImportTemplate,
+  previewClassStudentImport,
+} from '@cornerstone/module-education/api/imports'
 import {
   createClassStudent,
   deleteClassStudent,
@@ -261,6 +286,17 @@ const tableLoading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const parentDrawerVisible = ref(false)
+/** 批量分班：预览表列与后端 cells 键一一对应 */
+const importVisible = ref(false)
+const classStudentImportColumns: ImportColumn[] = [
+  { key: 'classCode', label: '班级编码', width: 150 },
+  { key: 'campusCode', label: '校区编码', width: 110 },
+  { key: 'studentNo', label: '学号', width: 150 },
+  { key: 'studentName', label: '姓名', width: 110 },
+  { key: 'channel', label: '来源渠道', width: 120, dictType: 'enrollment_channel' },
+  { key: 'joinedAt', label: '入班日期', width: 120 },
+  { key: 'remark', label: '备注', width: 180 },
+]
 
 const form = reactive({
   classId: '' as string | null,

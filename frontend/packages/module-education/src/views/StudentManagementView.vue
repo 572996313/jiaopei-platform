@@ -12,6 +12,9 @@
         @click="openStudentDialog('create')"
         >新增学员</el-button
       >
+      <el-button v-permission="'education:profile:write'" :icon="Upload" @click="importVisible = true"
+        >导入学员</el-button
+      >
       <el-button :icon="Refresh" circle :loading="tableLoading" @click="refreshAll" />
       <el-button @click="goClassRoster">分班与名册</el-button>
       <span class="education-context-text">
@@ -222,13 +225,28 @@
       :institution-id="institutionId"
       :student-id="attendanceStudentId"
     />
+
+    <!-- 批量导入与教师导入同一套三步式：下载模板 → 校验预览 → 确认导入 -->
+    <XlsxImportDialog
+      v-model="importVisible"
+      title="批量导入学员档案"
+      intro="一行 = 一份学员档案，只建档、不创建登录账号。档案建在当前登录账号所属机构下；本机构已有同学号会跳过（不改资料）。学员档案是机构级的、没有校区列，校区由所在班级推导，分班请到「分班与名册」页。"
+      upload-tip="只支持模板格式的 xlsx，内容须在第一个工作表，单次不超过 500 行；性别与学员状态填字典启用条目的中文名（导出文件里就是中文，改完可直接回灌）；学号留空时按编号规则自动生成"
+      :columns="studentImportColumns"
+      :download-template="downloadStudentImportTemplate"
+      :preview="previewStudentImport"
+      :commit="commitStudentImport"
+      created-label="新建档案"
+      created-hint="学号留空的行已按编号规则生成"
+      @imported="refreshAll"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Upload } from '@element-plus/icons-vue'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
@@ -241,6 +259,13 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 import { rememberStudentOptions } from '@cornerstone/module-education/composables/studentLabels'
 import StudentParentDrawer from './components/StudentParentDrawer.vue'
 import StudentAttendanceDrawer from './components/StudentAttendanceDrawer.vue'
+import XlsxImportDialog from './components/XlsxImportDialog.vue'
+import type { ImportColumn } from './components/import-columns'
+import {
+  commitStudentImport,
+  downloadStudentImportTemplate,
+  previewStudentImport,
+} from '@cornerstone/module-education/api/imports'
 import {
   createStudent,
   deleteStudent,
@@ -261,6 +286,19 @@ const total = ref(0)
 const keyword = ref('')
 const tableLoading = ref(false)
 const pageError = ref('')
+/** 批量导入学员档案：预览表列与后端 cells 键一一对应 */
+const importVisible = ref(false)
+const studentImportColumns: ImportColumn[] = [
+  { key: 'studentNo', label: '学号', width: 150 },
+  { key: 'studentName', label: '姓名', width: 110 },
+  { key: 'gender', label: '性别', width: 80, dictType: 'gender' },
+  { key: 'birthday', label: '出生日期', width: 120 },
+  { key: 'guardianName', label: '监护人', width: 110 },
+  { key: 'guardianPhone', label: '监护人电话', width: 130 },
+  { key: 'status', label: '状态', width: 90, dictType: 'student_status' },
+  { key: 'enrolledAt', label: '入学日期', width: 120 },
+  { key: 'remark', label: '备注', width: 180 },
+]
 const studentTableRef = ref<{ clearSort: () => void } | null>(null)
 /** 表头排序走服务端：点表头回第一页重查，取消排序回到接口默认排序 */
 const studentSort = useTableSort({

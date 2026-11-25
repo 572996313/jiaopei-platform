@@ -12,6 +12,9 @@
         @click="openClassCreateDialog"
         >新增班级</el-button
       >
+      <el-button v-permission="'education:class:write'" :icon="Upload" @click="importVisible = true"
+        >导入班级</el-button
+      >
       <el-button @click="statsVisible = !statsVisible">
         统计
         <el-icon class="stats-toggle-icon" :class="{ 'is-open': statsVisible }"
@@ -619,6 +622,21 @@
         >
       </template>
     </el-dialog>
+
+    <!-- 批量导入班级主档：校区/学期/课程/班型/教师必须先存在，模板只解析编码 -->
+    <XlsxImportDialog
+      v-model="importVisible"
+      title="批量导入班级档案"
+      intro="一行 = 一个班级主档，建在当前登录账号所属机构下；同一校区下已存在同编码的班会跳过（不改资料），同校区重名会报错。本模板只建班级，不建校区/学期/课程/班型/教师，这些要先维护好。"
+      upload-tip="只支持模板格式的 xlsx，内容须在第一个工作表，单次不超过 500 行；班级编码留空时按编号规则自动生成；状态填 planning / active / inactive / closed（规划中 / 启用 / 停用 / 已结课），留空按 planning"
+      :columns="classImportColumns"
+      :download-template="downloadClassImportTemplate"
+      :preview="previewClassImport"
+      :commit="commitClassImport"
+      created-label="新建班级"
+      created-hint="班级编码留空的行已按编号规则生成"
+      @imported="refreshAll"
+    />
   </section>
 </template>
 
@@ -626,7 +644,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
-import { ArrowDown, Refresh } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh, Upload } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -667,6 +685,13 @@ import {
 } from '@cornerstone/module-education/composables/classLabels'
 import LessonTargetFields from './components/LessonTargetFields.vue'
 import ClassSelect from './components/ClassSelect.vue'
+import XlsxImportDialog from './components/XlsxImportDialog.vue'
+import type { ImportColumn } from './components/import-columns'
+import {
+  commitClassImport,
+  downloadClassImportTemplate,
+  previewClassImport,
+} from '@cornerstone/module-education/api/imports'
 
 interface ReminderItem {
   key: string
@@ -718,6 +743,22 @@ const classProfileFormError = ref('')
 const classCreateDialogVisible = ref(false)
 const classCreateSubmitting = ref(false)
 const classCreateFormError = ref('')
+/** 批量导入班级档案：预览表列与后端 cells 键一一对应 */
+const importVisible = ref(false)
+const classImportColumns: ImportColumn[] = [
+  { key: 'classCode', label: '班级编码', width: 150 },
+  { key: 'className', label: '班级名称', width: 150 },
+  { key: 'campusCode', label: '校区编码', width: 110 },
+  { key: 'termCode', label: '学期编码', width: 110 },
+  { key: 'courseCode', label: '课程编码', width: 110 },
+  { key: 'classTypeCode', label: '班型编码', width: 110 },
+  { key: 'teacherCode', label: '教师编码', width: 110 },
+  { key: 'capacityLimit', label: '容量', width: 80 },
+  { key: 'weeklyLessons', label: '每周节数', width: 90 },
+  { key: 'openedAt', label: '开班日期', width: 110 },
+  { key: 'status', label: '状态', width: 90, format: (value) => teachingClassStatusLabel(value) },
+  { key: 'remark', label: '备注', width: 160 },
+]
 
 const teacherFormRef = ref<FormInstance | null>(null)
 const classProfileFormRef = ref<FormInstance | null>(null)

@@ -1,9 +1,6 @@
 package com.cornerstone.module.education.service.impl;
 
-import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.cornerstone.core.auth.context.AuthContext;
-import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
@@ -18,15 +15,11 @@ import com.cornerstone.module.education.service.TeacherImportService;
 import com.cornerstone.module.education.service.TeacherService;
 import com.cornerstone.module.education.service.support.DictValueValidator;
 import com.cornerstone.module.education.service.support.TeacherImportTemplate;
+import com.cornerstone.module.education.service.support.XlsxImportSupport;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.service.support.CampusScopeGuard;
-import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -58,16 +51,11 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class TeacherImportServiceImpl implements TeacherImportService {
 
-    private static final int MAX_ROWS = 500;
     private static final int TEACHER_CODE_MAX = 64;
     private static final int TEACHER_NAME_MAX = 128;
     private static final int TITLE_MAX = 64;
     private static final int REMARK_MAX = 500;
     private static final Pattern PHONE = Pattern.compile("^1\\d{10}$");
-    /** Excel 把手机号/数字编码存成数值时，EasyExcel 会回科学计数法或带 .0 的形态，需要先还原成整串数字 */
-    private static final Pattern NUMERIC_FORM = Pattern.compile("^\\d+(\\.\\d*)?[Ee][-+]?\\d+$|^\\d+\\.0+$");
-    /** 入职日期容忍 2026-03-05 / 2026/3/5 / 2026.3.5：先把 . 和 / 归一成 -，再单次解析（可选段只匹配整串 "./-"，兜不住） */
-    private static final DateTimeFormatter HIRED_AT = DateTimeFormatter.ofPattern("yyyy-M-d");
 
     /** 字典条目的启用值，与教师状态无关 */
     private static final String ACTIVE = "active";
@@ -118,32 +106,14 @@ public class TeacherImportServiceImpl implements TeacherImportService {
 
     /** 归属机构只从登录态取；没绑机构的账号没有可写入的目标机构，直接拒绝而不是让他传参 */
     private Long requireInstitution() {
-        AuthenticatedUser current = AuthContext.requireUser();
-        if (current.orgId() == null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "当前登录账号未绑定机构，无法批量导入教师档案");
-        }
-        return current.orgId();
+        return XlsxImportSupport.requireInstitution("教师档案");
     }
 
     // ------------------------------------------------------------------ 解析
 
     private List<Plan> parse(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "请选择要导入的 xlsx 文件");
-        }
-        String filename = file.getOriginalFilename();
-        if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "只支持 xlsx 格式，请先下载模板填写");
-        }
-        List<TeacherImportRow> rows;
-        try (InputStream in = file.getInputStream()) {
-            rows = EasyExcel.read(in).head(TeacherImportRow.class).sheet().doReadSync();
-        } catch (IOException | RuntimeException exception) {
-            // 文件损坏、被加密、表头行缺失都汇到这里，给可操作的提示而不是 500
-            throw new BusinessException(ResultCode.BAD_REQUEST,
-                "文件解析失败：" + rootMessage(exception) + "。请确认使用系统模板且内容在第一个工作表");
-        }
         List<Plan> plans = new ArrayList<>();
+        List<TeacherImportRow> rows = XlsxImportSupport.readRows(file, TeacherImportRow.class);
         for (int index = 0; index < rows.size(); index++) {
             Plan plan = Plan.of(rows.get(index), index + 2);
             if (!plan.empty) {
@@ -154,9 +124,7 @@ public class TeacherImportServiceImpl implements TeacherImportService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "未读到有效数据行，请填写模板后重新上传");
         }
         normalizeDictColumns(plans);
-        if (plans.size() > MAX_ROWS) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "单次导入不超过 " + MAX_ROWS + " 行");
-        }
+        XlsxImportSupport.assertRowLimit(plans.size());
         return plans;
     }
 
@@ -169,15 +137,10 @@ public class TeacherImportServiceImpl implements TeacherImportService {
         Map<String, String> employmentValues = dictValueValidator.valueByLabel("employment_type");
         Map<String, String> statusValues = dictValueValidator.valueByLabel("teacher_status");
         for (Plan plan : plans) {
-            plan.gender = labelToValue(genderValues, plan.gender);
-            plan.employmentType = labelToValue(employmentValues, plan.employmentType);
-            plan.status = labelToValue(statusValues, plan.status);
+            plan.gender = XlsxImportSupport.labelToValue(genderValues, plan.gender);
+            plan.employmentType = XlsxImportSupport.labelToValue(employmentValues, plan.employmentType);
+            plan.status = XlsxImportSupport.labelToValue(statusValues, plan.status);
         }
-    }
-
-    /** 留空的字典列不参与翻译，也绝不进 Map.of 键位——不可变 Map 对 null 键直接抛 NPE */
-    private static String labelToValue(Map<String, String> labelToValue, String raw) {
-        return raw == null || raw.isBlank() ? raw : labelToValue.getOrDefault(raw.trim(), raw);
     }
 
     // ------------------------------------------------------------------ 校验
@@ -288,16 +251,8 @@ public class TeacherImportServiceImpl implements TeacherImportService {
     }
 
     private void checkHiredAt(Plan plan) {
-        if (plan.hiredAt == null) {
-            return;
-        }
-        try {
-            plan.hiredDate = LocalDate.parse(plan.hiredAt.replace('.', '-').replace('/', '-'), HIRED_AT);
-        } catch (DateTimeParseException exception) {
-            plan.errors.add("入职日期格式不对：" + plan.hiredAt + "，请按 2026-03-05 填写");
-            return;
-        }
-        if (plan.hiredDate.isAfter(LocalDate.now())) {
+        plan.hiredDate = XlsxImportSupport.parseDate(plan.hiredAt, "入职日期", plan.errors);
+        if (plan.hiredDate != null && plan.hiredDate.isAfter(LocalDate.now())) {
             plan.errors.add("入职日期不能晚于当前日期");
         }
     }
@@ -374,28 +329,9 @@ public class TeacherImportServiceImpl implements TeacherImportService {
 
     // ------------------------------------------------------------------ 工具
 
-    private String rootMessage(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null && current.getCause() != current) {
-            current = current.getCause();
-        }
-        String message = current.getMessage();
-        return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
-    }
-
     /** 取空白并把被 Excel 存成数值的串还原回数字文本；整串空白归 null */
     private static String text(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        if (NUMERIC_FORM.matcher(trimmed).matches()) {
-            return new BigDecimal(trimmed).toBigInteger().toString();
-        }
-        return trimmed;
+        return XlsxImportSupport.text(value);
     }
 
     /** 一行 Excel 在校验期间的全部中间结论：错误/提示累加、校区解析结果、同编码已有档案的 ID */
