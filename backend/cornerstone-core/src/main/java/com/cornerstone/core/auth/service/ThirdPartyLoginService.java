@@ -33,6 +33,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -59,6 +61,13 @@ public class ThirdPartyLoginService {
     private static final Duration SELECT_TICKET_TTL = Duration.ofMinutes(5);
 
     private static final String ACTIVE = "active";
+
+    /** 原子 GET+DEL：兼容 Redis 6.2 以下（没有 GETDEL 命令） */
+    private static final RedisScript<String> TAKE_SCRIPT = new DefaultRedisScript<>(
+        "local v = redis.call('GET', KEYS[1]) "
+            + "if v then redis.call('DEL', KEYS[1]) end "
+            + "return v",
+        String.class);
 
     private final AuthProviderRegistry providerRegistry;
     private final UserIdentityService userIdentityService;
@@ -415,9 +424,21 @@ public class ThirdPartyLoginService {
         return json == null ? null : read(json, type);
     }
 
-    /** 一次性消费：取出即删除，重放直接失效 */
+    /**
+     * 一次性消费：取出即删除，重放直接失效。
+     *
+     * <p>不用 {@code opsForValue().getAndDelete()}：它发的是 {@code GETDEL}，Redis 6.2 才有，
+     * 本地与部分现场跑的是更老的版本，会直接报 {@code ERR unknown command 'GETDEL'}。
+     * EVAL 从 2.6 起就有，脚本里 GET+DEL 仍然保证"取到即删"的原子性。</p>
+     */
     private <T> T take(String key, Class<T> type) {
-        String json = redisTemplate.opsForValue().getAndDelete(key);
+        String json;
+        try {
+            json = redisTemplate.execute(TAKE_SCRIPT, List.of(key));
+        } catch (Exception e) {
+            log.warn("第三方登录票据读取失败：{}", e.getMessage());
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "登录状态读取失败，请稍后重试");
+        }
         return json == null ? null : read(json, type);
     }
 
