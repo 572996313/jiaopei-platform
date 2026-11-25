@@ -7,6 +7,7 @@ import com.cornerstone.core.audit.domain.ActionType;
 import com.cornerstone.core.audit.domain.OperLogEntity;
 import com.cornerstone.core.audit.service.OperationLogRecorder;
 import com.cornerstone.core.auth.context.AuthContext;
+import com.cornerstone.core.auth.context.AuthLoginAttributes;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.auth.dto.LoginResponse;
 import com.cornerstone.core.common.security.JsonSensitiveProcessor;
@@ -113,6 +114,9 @@ public class OperateLogAspect {
             entity.setSuccess(failure == null);
             entity.setErrorMsg(failure == null ? null : truncate(failure.getMessage(), 1024));
             entity.setDurationMs(durationMs);
+            if (actionType == ActionType.LOGIN) {
+                entity.setLoginProvider(resolveLoginProvider(request));
+            }
 
             resolveOperator(entity, actionType, result);
             if (failure == null) {
@@ -178,6 +182,12 @@ public class OperateLogAspect {
             // 匿名操作(如小程序自助注册)统一占位
             entity.setUsername("system/anonymous");
         }
+    }
+
+    /** 登录渠道由登录接口写入请求属性；非登录接口没有该属性，留空。 */
+    private String resolveLoginProvider(HttpServletRequest request) {
+        Object provider = request.getAttribute(AuthLoginAttributes.PROVIDER);
+        return provider instanceof String value ? truncate(value, 64) : null;
     }
 
     /** 从返回值提取 LoginResponse:兼容直接返回与 ApiResponse 包装两种形态。 */

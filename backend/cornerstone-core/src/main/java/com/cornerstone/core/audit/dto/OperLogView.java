@@ -26,6 +26,9 @@ public record OperLogView(
     @Schema(description = "操作端口(admin=管理后台;业务模块可自行扩展,本项目小程序端为 student/parent)")
     String portal,
 
+    @Schema(description = "登录渠道(如 password/wechat_miniapp/linuxdo;非登录操作为空)")
+    String loginProvider,
+
     @Schema(description = "操作名称")
     String operation,
 

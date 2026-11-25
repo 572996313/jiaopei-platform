@@ -217,7 +217,8 @@ public class SystemUserServiceImpl implements SystemUserService {
         // 激活码绑定的是这个账号,FK 指向 sys_user_account,不先清掉删账号会被 1451 挡住
         invitationMapper.physicalDeleteByUserId(id);
         userRoleRelMapper.physicalDeleteByUserId(id);
-        // 业务域(学员/教师档案归属、微信绑定、校区偏好)由各自监听器清理,同事务、任一失败整体回滚
+        // 业务域(学员/教师档案归属、校区偏好)由各自监听器清理;第三方身份绑定由底座监听器清理。
+        // 同事务、任一失败整体回滚，且必须发生在物理删账号之前
         eventPublisher.publishEvent(new UserAccountDeregisteredEvent(id));
         // 物理删而非逻辑删:username 唯一键含 deleted,软删行会永久占住这个账号名
         userAccountMapper.physicalDeleteById(id);

@@ -40,12 +40,14 @@ class CornerstoneBaselineGuardTest {
     private static final String CODE_RULE_SCRIPT = "/cornerstone/migration/V108__create_sys_code_rule.sql";
     private static final String ROLE_DATA_SCOPE_SCRIPT = "/cornerstone/migration/V114__create_sys_role_data_scope.sql";
     private static final String FILE_SCRIPT = "/cornerstone/migration/V115__create_sys_file_table.sql";
+    private static final String AUTH_PROVIDER_SCRIPT =
+        "/cornerstone/migration/V122__create_auth_provider_and_user_identity.sql";
     private static final String SEED_SCRIPT = "/cornerstone/migration/V101__cornerstone_core_seed.sql";
     private static final String AUDIT_SCRIPT = "/cornerstone/audit-migration/V100__cornerstone_oper_log.sql";
 
     /** 基线结构脚本清单：V100 之后的底座增量表结构一律追加到这里，各守护自动覆盖。 */
     private static final List<String> SCHEMA_SCRIPTS = List.of(SCHEMA_SCRIPT, INVITATION_SCRIPT, CODE_RULE_SCRIPT,
-        ROLE_DATA_SCOPE_SCRIPT, FILE_SCRIPT);
+        ROLE_DATA_SCOPE_SCRIPT, FILE_SCRIPT, AUTH_PROVIDER_SCRIPT);
 
     @Test
     void flywayLocationsMustBindTheYamlListForm() {
@@ -73,6 +75,7 @@ class CornerstoneBaselineGuardTest {
         assertThat(read(CODE_RULE_SCRIPT)).as("core jar 必须自带编号规则增量结构脚本").contains("CREATE TABLE");
         assertThat(read(ROLE_DATA_SCOPE_SCRIPT)).as("core jar 必须自带角色数据范围结构脚本").contains("CREATE TABLE");
         assertThat(read(FILE_SCRIPT)).as("core jar 必须自带文件元数据结构脚本").contains("CREATE TABLE");
+        assertThat(read(AUTH_PROVIDER_SCRIPT)).as("core jar 必须自带第三方登录结构脚本").contains("CREATE TABLE");
         assertThat(read(SEED_SCRIPT)).as("core jar 必须自带底座种子脚本").contains("INSERT INTO");
         assertThat(read(AUDIT_SCRIPT)).as("core jar 必须自带日志库结构脚本").contains("CREATE TABLE");
     }

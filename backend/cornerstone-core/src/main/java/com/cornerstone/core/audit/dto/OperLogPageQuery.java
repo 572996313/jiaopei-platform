@@ -18,6 +18,9 @@ public class OperLogPageQuery extends PageQuery {
     @Schema(description = "操作端口(admin=管理后台;业务模块可自行扩展,本项目小程序端为 student/parent)")
     private String portal;
 
+    @Schema(description = "登录渠道(精确匹配,如 password/wechat_miniapp/linuxdo;仅登录记录有值)")
+    private String loginProvider;
+
     @Schema(description = "操作名称(模糊匹配,来自@Operation.summary)")
     private String operation;
 
@@ -52,6 +55,14 @@ public class OperLogPageQuery extends PageQuery {
 
     public void setPortal(String portal) {
         this.portal = portal;
+    }
+
+    public String getLoginProvider() {
+        return loginProvider;
+    }
+
+    public void setLoginProvider(String loginProvider) {
+        this.loginProvider = loginProvider;
     }
 
     public String getOperation() {

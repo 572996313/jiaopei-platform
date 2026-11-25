@@ -104,7 +104,7 @@ public class UserAccessTokenService {
      * 端归属:端是比角色高一级的维度,决定该用户看到哪一套功能清单(菜单树)。
      * 底座只认识 admin,具体归属交给各业务模块注册的 {@link PortalResolver}。
      */
-    private String resolvePortal(String registerSource, Set<String> roleCodes) {
+    public String resolvePortal(String registerSource, Set<String> roleCodes) {
         for (PortalResolver resolver : portalResolvers) {
             String portal = resolver.resolve(registerSource, roleCodes);
             if (portal != null && !portal.isBlank()) {

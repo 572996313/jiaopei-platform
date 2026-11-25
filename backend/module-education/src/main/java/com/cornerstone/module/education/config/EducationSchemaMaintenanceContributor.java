@@ -31,8 +31,6 @@ public class EducationSchemaMaintenanceContributor implements SchemaMaintenanceC
                 "家长联系人抽屉里维护"),
             new SchemaMaintenanceEntry("jp_user_student_rel", "学员管理", "/students",
                 "登录账号与学员档案的绑定关系"),
-            new SchemaMaintenanceEntry("jp_wechat_binding", "学员管理", "/students",
-                "微信 openid 与账号的绑定关系"),
             new SchemaMaintenanceEntry("jp_course", "课程管理", "/courses", "课程档案"),
             new SchemaMaintenanceEntry("jp_course_category", "课程管理", "/courses",
                 "课程分类，在课程页维护"),

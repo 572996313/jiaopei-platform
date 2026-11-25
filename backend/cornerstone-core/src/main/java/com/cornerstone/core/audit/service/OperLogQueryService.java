@@ -54,6 +54,9 @@ public class OperLogQueryService {
         if (notBlank(query.getPortal())) {
             wrapper.eq(OperLogEntity::getPortal, query.getPortal());
         }
+        if (notBlank(query.getLoginProvider())) {
+            wrapper.eq(OperLogEntity::getLoginProvider, query.getLoginProvider().trim());
+        }
         if (notBlank(query.getOperation())) {
             wrapper.like(OperLogEntity::getOperation, query.getOperation());
         }
@@ -85,6 +88,7 @@ public class OperLogQueryService {
             entity.getUsername(),
             entity.getOrgId(),
             entity.getPortal(),
+            entity.getLoginProvider(),
             entity.getOperation(),
             entity.getActionType(),
             entity.getMethod(),

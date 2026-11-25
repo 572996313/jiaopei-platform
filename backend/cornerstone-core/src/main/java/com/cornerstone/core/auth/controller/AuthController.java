@@ -1,5 +1,6 @@
 package com.cornerstone.core.auth.controller;
 
+import com.cornerstone.core.auth.context.AuthLoginAttributes;
 import com.cornerstone.core.auth.dto.AvatarView;
 import com.cornerstone.core.auth.dto.ChangePasswordRequest;
 import com.cornerstone.core.auth.dto.LoginPageView;
@@ -51,8 +52,11 @@ public class AuthController {
 
     @Operation(summary = "登录", description = "账号密码登录,返回 JWT 访问令牌")
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success("登录成功", authApplicationService.login(request));
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                            HttpServletRequest servletRequest) {
+        LoginResponse response = authApplicationService.login(request);
+        servletRequest.setAttribute(AuthLoginAttributes.PROVIDER, "password");
+        return ApiResponse.success("登录成功", response);
     }
 
     @Operation(summary = "获取登录页展示信息", description = "无需登录,返回配置在系统参数里的登录页提示语,空串表示不展示")
