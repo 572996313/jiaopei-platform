@@ -32,11 +32,20 @@
             <el-table-column label="类型" width="120">
               <template #default="{ row }">{{ typeLabel(row.providerType) }}</template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column label="状态" width="120">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
-                  {{ row.status === 'active' ? '启用' : '停用' }}
-                </el-tag>
+                <div class="provider-status">
+                  <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
+                    {{ row.status === 'active' ? '启用' : '停用' }}
+                  </el-tag>
+                  <el-tooltip
+                    v-if="!isPcLoginChannel(row.providerType)"
+                    :content="ledgerHint"
+                    placement="top"
+                  >
+                    <span class="provider-ledger">仅记录</span>
+                  </el-tooltip>
+                </div>
               </template>
             </el-table-column>
             <el-table-column label="Client ID" min-width="150" show-overflow-tooltip>
@@ -137,6 +146,16 @@
           </el-form-item>
         </div>
 
+        <el-alert
+          v-if="!isPcLoginChannel(form.providerType)"
+          type="info"
+          show-icon
+          :closable="false"
+          class="education-alert"
+          title="这个渠道没有 PC 网页端登录实现，状态只作台账"
+          description="启用 / 停用只影响「登录页第三方按钮」这一条链路。微信小程序登录由后端 wx.miniapp.appid/secret 控制，与本页状态无关；这行保持「停用」即可，点启用不会产生任何效果。"
+        />
+
         <template v-if="form.providerType === 'OAUTH2'">
           <el-divider content-position="left">OAuth2 端点与凭据</el-divider>
           <div class="provider-form-grid">
@@ -231,6 +250,17 @@
         </p>
       </div>
       <div class="guide-section">
+        <h4 class="guide-title">启用 / 停用影响什么?</h4>
+        <p class="guide-text">
+          只影响 PC 网页端：停用后登录页不显示该按钮，发起授权和申请绑定都会被拒；已绑定的账号不会被删除，
+          仍可在「个人信息 → 第三方账号」解绑；也不会踢掉已登录的会话。
+        </p>
+        <p class="guide-text">
+          微信小程序是另一条链路：登录走 wx.login + 后端 wx.miniapp.appid/secret，本页状态只是台账。
+          所以微信那行保持「停用」即可，启用或停用都不影响小程序。
+        </p>
+      </div>
+      <div class="guide-section">
         <h4 class="guide-title">密钥为什么是空的?</h4>
         <p class="guide-text">
           服务端加密保存密钥，编辑时只回显「已配置」，不把密文发到浏览器。留空保存表示保持原值；
@@ -300,6 +330,17 @@ const typeOptions = computed(() => {
   }
   return list
 })
+
+/**
+ * 服务端 /types 只返回已装配协议实现的类型，只有它们才可能出现在 PC 登录页。
+ * 微信小程序由教务模块直接处理，不在此列——状态对它只是台账。
+ */
+function isPcLoginChannel(type: string) {
+  return providerTypes.value.includes(type)
+}
+
+const ledgerHint =
+  '该类型没有 PC 网页端登录实现：启用 / 停用只改台账，不影响小程序微信登录（由后端 wx.miniapp 配置控制）'
 
 const secretPlaceholder = computed(() =>
   dialogMode.value === 'edit' && selected.value?.hasClientSecret
@@ -594,6 +635,19 @@ onMounted(async () => {
 
 .provider-muted {
   color: var(--text-secondary);
+}
+
+.provider-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.provider-ledger {
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px dashed var(--text-secondary);
+  cursor: help;
 }
 
 .provider-form-grid {
