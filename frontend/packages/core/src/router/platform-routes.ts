@@ -123,6 +123,11 @@ export const platformChildRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/system/DataSourceManagementView.vue'),
   },
   {
+    path: 'system/auth-providers',
+    name: 'system-auth-providers',
+    component: () => import('@cornerstone/core/views/system/AuthProviderManagementView.vue'),
+  },
+  {
     path: 'system/invitations',
     name: 'system-invitations',
     component: () => import('@cornerstone/core/views/system/InvitationManagementView.vue'),

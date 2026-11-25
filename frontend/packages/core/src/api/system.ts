@@ -1189,3 +1189,83 @@ export interface DocumentLineage {
 export function fetchDocumentLineage() {
   return requestGet<DocumentLineage>('/system/document-lineage')
 }
+
+// ==================== 第三方登录渠道配置 ====================
+
+export interface AuthProviderSummary {
+  id: string
+  providerCode: string
+  providerName: string
+  providerType: string
+  icon?: string | null
+  sortNo?: number | null
+  status: string
+  clientId?: string | null
+  /** 只告诉界面"密钥已配置"，密文不下发 */
+  hasClientSecret: boolean
+  authorizeUrl?: string | null
+  tokenUrl?: string | null
+  userinfoUrl?: string | null
+  scope?: string | null
+  tokenAuthMethod?: string | null
+  redirectUri?: string | null
+  extraConfig?: string | null
+  remark?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface AuthProviderPayload {
+  /** 仅新增时提交；编辑时后端忽略 */
+  providerCode?: string
+  providerName: string
+  providerType: string
+  icon?: string
+  sortNo?: number
+  status: string
+  clientId?: string
+  /** 留空表示保持原值 */
+  clientSecret?: string
+  authorizeUrl?: string
+  tokenUrl?: string
+  userinfoUrl?: string
+  scope?: string
+  tokenAuthMethod?: string
+  redirectUri?: string
+  extraConfig?: string
+  remark?: string
+}
+
+function normalizeAuthProvider(item: AuthProviderSummary): AuthProviderSummary {
+  return {
+    ...item,
+    id: String(item.id),
+  }
+}
+
+export function fetchAuthProviders() {
+  return requestGet<AuthProviderSummary[]>('/system/auth-providers').then((items) =>
+    items.map(normalizeAuthProvider)
+  )
+}
+
+/** 当前已装配协议实现的渠道类型，新增时只能选这些 */
+export function fetchAuthProviderTypes() {
+  return requestGet<string[]>('/system/auth-providers/types')
+}
+
+export function createAuthProvider(payload: AuthProviderPayload) {
+  return requestPost<AuthProviderSummary>('/system/auth-providers', payload).then(
+    normalizeAuthProvider
+  )
+}
+
+export function updateAuthProvider(id: string, payload: AuthProviderPayload) {
+  return requestPut<AuthProviderSummary>(`/system/auth-providers/${id}`, payload).then(
+    normalizeAuthProvider
+  )
+}
+
+export function deleteAuthProvider(id: string) {
+  return requestDelete<void>(`/system/auth-providers/${id}`)
+}
