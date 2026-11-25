@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -49,6 +50,11 @@ public class AuthProviderRegistry {
             .map(entity -> new AuthProviderView(
                 entity.getProviderCode(), entity.getProviderName(), entity.getIcon(), entity.getProviderType()))
             .toList();
+    }
+
+    /** 当前已装配的协议实现类型（管理端新增渠道时只允许这些类型） */
+    public Set<String> implementedTypes() {
+        return providersByType.keySet();
     }
 
     public ThirdPartyAuthProviderEntity requireEnabled(String providerCode) {

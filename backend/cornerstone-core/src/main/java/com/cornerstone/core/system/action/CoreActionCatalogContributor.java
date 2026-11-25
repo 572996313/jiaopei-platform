@@ -104,6 +104,14 @@ public class CoreActionCatalogContributor implements ActionCatalogContributor {
             linked("system_data_sources", "data-source-delete", "system_data_sources",
                 "system:data-source:manage", "删除数据源", "删除后引用它的下拉失效", 30),
 
+            // 第三方登录渠道配置
+            linked("system_auth_providers", "auth-provider-create", "system_auth_providers",
+                "system:auth-provider:manage", "新增渠道", "接入一个新的第三方登录入口", 10),
+            linked("system_auth_providers", "auth-provider-edit", "system_auth_providers",
+                "system:auth-provider:manage", "编辑渠道", "修改端点、密钥、字段映射与状态", 20),
+            linked("system_auth_providers", "auth-provider-delete", "system_auth_providers",
+                "system:auth-provider:manage", "删除渠道", "删除后该入口消失，仍有账号绑定时拒绝", 30),
+
             // 注册凭证
             linked("system_invitations", "invitation-create", "system_invitations",
                 "system:invitation:manage", "创建邀请码", "生成供新账号自助注册的邀请码", 10),
