@@ -1140,3 +1140,48 @@ export interface EndpointChain {
 export function fetchEndpointChains() {
   return requestGet<EndpointChain>('/system/endpoint-chains')
 }
+
+/* ------------------------------ 业务单据链路 ------------------------------ */
+
+export interface DocumentLineageNode {
+  code: string
+  name: string
+  moduleKey: string
+  primaryTable: string
+  relatedTables: string[]
+  pagePath?: string | null
+  permissionCode?: string | null
+  description?: string | null
+  confirmed: boolean
+  remark?: string | null
+  /** true = 模块显式登记的单据；false = 按数据字典补的全表节点 */
+  declared: boolean
+}
+
+export interface DocumentLineageEdge {
+  from: string
+  to: string
+  relation: string
+  linkFields: string[]
+  triggerLabel?: string | null
+  triggerEndpoint?: string | null
+  description?: string | null
+  confirmed: boolean
+  /** true = 模块显式声明的业务关系；false = 数据库外键自动推导 */
+  declared: boolean
+}
+
+export interface DocumentLineage {
+  generatedAt: string
+  note: string
+  documentCount: number
+  edgeCount: number
+  pendingCount: number
+  documents: DocumentLineageNode[]
+  edges: DocumentLineageEdge[]
+}
+
+/** 业务单据链路：各模块在代码里声明的生成/汇总/核销关系，不是运行记录 */
+export function fetchDocumentLineage() {
+  return requestGet<DocumentLineage>('/system/document-lineage')
+}

@@ -95,6 +95,11 @@ export const platformChildRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/system/EndpointChainView.vue'),
   },
   {
+    path: 'system/document-lineage',
+    name: 'system-document-lineage',
+    component: () => import('@cornerstone/core/views/system/DocumentLineageView.vue'),
+  },
+  {
     path: 'system/data-sources',
     name: 'system-data-sources',
     component: () => import('@cornerstone/core/views/system/DataSourceManagementView.vue'),

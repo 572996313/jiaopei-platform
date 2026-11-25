@@ -88,6 +88,7 @@
             </div>
             <div class="schema-entry">
               <el-button size="small" plain @click="viewEndpoints(selected.tableName)">看接口</el-button>
+              <el-button size="small" plain @click="viewLineage(selected.tableName)">看链路</el-button>
               <template v-if="selected.maintenance">
                 <el-button
                   v-if="selected.maintenance.path"
@@ -249,6 +250,11 @@ function goMaintenance(path?: string | null) {
 /** 带着表名跳到接口链路，直接看"哪些接口会碰这张表" */
 function viewEndpoints(tableName: string) {
   router.push({ path: '/system/endpoint-chain', query: { table: tableName } })
+}
+
+/** 带着表名跳到业务链路，看这张表承载的单据在上下游的位置 */
+function viewLineage(tableName: string) {
+  router.push({ path: '/system/document-lineage', query: { table: tableName } })
 }
 
 onMounted(() => {

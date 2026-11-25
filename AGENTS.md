@@ -709,6 +709,8 @@ grep -rlE "ENGINE=InnoDB" backend/app/src/main/resources/db/migration | xargs gr
 - `docs/miniapp.md`、`docs/list-config-guide.md`、`docs/config-contract.md`
 - `docs/底座数据字典与可维护性方案.md` — 实施/运维向：系统设置「数据字典」页（表/字段/注释/维护入口，内容全部运行时生成）、无代码维护边界与分期
 - `docs/接口链路与系统运作说明.md` — 实施/运维向：系统设置「接口链路」页（按钮→权限码→接口→控制器→服务→表）、声明依赖与执行记录的区别、样例验收与分期
+- `docs/新增字段操作手册.md` — 开发向：加字段的纵切流程（归属判断 → 迁移 → 实体/DTO → 前端 → 验收）、字段变更单与迁移门禁口径
+- `docs/业务单据链路.md` — 业务/实施向：系统设置「业务链路」页（所有表都有节点、未登记关系的标「仅表」、外键自动补引用、显式声明的生成/汇总/核销关系、触发入口）与收费域待业务确认的问题
 - `docs/操作留痕与敏感数据说明.md` — 审计与脱敏链路
 - `docs/生产部署说明.md`、`docker/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml.example` 模板 + 各服务器本地实例 `docker-compose.prod.yml`（gitignore）+ `deploy.sh`）
 - `docs/archive/` — 历史过程方案归档（首批建模、菜单重组、班级变动提示范围等），勿作为现行口径引用
