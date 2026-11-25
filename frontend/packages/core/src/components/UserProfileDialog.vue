@@ -83,6 +83,44 @@
       />
     </section>
 
+    <section class="profile-security">
+      <div class="profile-security-head">
+        <div>
+          <div class="profile-section-title">第三方账号</div>
+          <div class="profile-section-tip">
+            绑定后可用第三方账号一键登录；同一个第三方账号可绑定多个系统账号，登录时再选。
+          </div>
+        </div>
+      </div>
+      <div class="identity-list">
+        <div v-for="identity in identities" :key="identity.id" class="identity-row">
+          <div class="identity-meta">
+            <span class="identity-name">{{ identity.providerName }}</span>
+            <span class="identity-sub">
+              {{ identity.nickname || '-'
+              }}<template v-if="identity.lastLoginAt">
+                · 最近登录 {{ formatDateTime(identity.lastLoginAt) }}</template>
+            </span>
+          </div>
+          <el-button link type="danger" size="small" @click="unbindIdentity(identity)">
+            解除绑定
+          </el-button>
+        </div>
+        <div v-if="!identities.length" class="profile-muted">尚未绑定第三方账号</div>
+      </div>
+      <div v-if="bindableProviders.length" class="identity-actions">
+        <el-button
+          v-for="provider in bindableProviders"
+          :key="provider.code"
+          size="small"
+          :loading="bindingCode === provider.code"
+          @click="startBind(provider.code)"
+        >
+          绑定 {{ provider.name }}
+        </el-button>
+      </div>
+    </section>
+
     <template #footer>
       <el-button @click="visible = false">关闭</el-button>
     </template>
@@ -92,7 +130,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteMyAvatar, uploadMyAvatar } from '@cornerstone/core/api/auth'
+import {
+  createOauthBindTicket,
+  deleteMyAvatar,
+  fetchLoginProviders,
+  fetchMyIdentities,
+  oauthAuthorizeUrl,
+  unbindMyIdentity,
+  uploadMyAvatar,
+  type AuthProviderView,
+  type UserIdentityView,
+} from '@cornerstone/core/api/auth'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { AVATAR_MAX_BYTES, normalizeAvatarFile } from '@cornerstone/core/utils/avatar-image'
@@ -124,6 +172,9 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 const passwordOpen = ref(false)
 const previewUrl = ref('')
+const identities = ref<UserIdentityView[]>([])
+const bindableProviders = ref<AuthProviderView[]>([])
+const bindingCode = ref('')
 
 const roleLabels = computed(() => {
   const names = auth.currentUser?.roleNames
@@ -154,8 +205,51 @@ const dataScopeText = computed(() => {
 watch(visible, (open) => {
   if (open) {
     void refreshQuietly()
+    void loadIdentities()
   }
 })
+
+async function loadIdentities() {
+  try {
+    const [mine, providers] = await Promise.all([fetchMyIdentities(), fetchLoginProviders()])
+    identities.value = mine
+    const boundCodes = new Set(mine.map((item) => item.providerCode))
+    bindableProviders.value = providers.filter((provider) => !boundCodes.has(provider.code))
+  } catch {
+    // 第三方绑定只是面板的一段附加信息，拉取失败不影响头像/改密
+  }
+}
+
+/** 绑定要整页跳到渠道授权页，所以先换一次性票据；令牌不经过前端 */
+async function startBind(providerCode: string) {
+  bindingCode.value = providerCode
+  try {
+    const { ticket } = await createOauthBindTicket(providerCode)
+    window.location.href = oauthAuthorizeUrl(providerCode, ticket)
+  } catch (error) {
+    bindingCode.value = ''
+    ElMessage.error(error instanceof Error && error.message ? error.message : '发起绑定失败，请重试')
+  }
+}
+
+async function unbindIdentity(identity: UserIdentityView) {
+  try {
+    await ElMessageBox.confirm(
+      `解除与「${identity.providerName}」的绑定后，将不能再使用该账号一键登录。确定解除吗？`,
+      '解除绑定',
+      { type: 'warning', confirmButtonText: '解除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await unbindMyIdentity(identity.id)
+    ElMessage.success('已解除绑定')
+    await loadIdentities()
+  } catch (error) {
+    ElMessage.error(error instanceof Error && error.message ? error.message : '解除绑定失败，请重试')
+  }
+}
 
 function chooseFile() {
   fileInputRef.value?.click()
@@ -246,6 +340,7 @@ function clearPreview() {
 function resetTransient() {
   clearPreview()
   passwordOpen.value = false
+  bindingCode.value = ''
 }
 </script>
 
@@ -356,6 +451,47 @@ function resetTransient() {
   margin-top: 3px;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.identity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+}
+
+.identity-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.identity-name {
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.identity-sub {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .profile-file-input {

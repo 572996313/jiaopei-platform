@@ -386,6 +386,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   ArrowDown,
   Check,
@@ -423,6 +424,21 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const institutionStore = useInstitutionStore()
+
+// 第三方账号绑定完成会带回 ?identityBound=渠道；提示一次后从地址里清掉，刷新不再重复弹
+watch(
+  () => route.query.identityBound,
+  (value) => {
+    if (typeof value !== 'string' || !value) {
+      return
+    }
+    ElMessage.success('第三方账号已绑定')
+    const query = { ...route.query }
+    delete query.identityBound
+    router.replace({ path: route.path, query })
+  },
+  { immediate: true }
+)
 
 /** 顶栏胶囊只放得下一行：优先角色中文名，接口没给名称时回落角色码 */
 const roleSummary = computed(() => {

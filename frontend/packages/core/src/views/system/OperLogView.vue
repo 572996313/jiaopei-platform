@@ -39,6 +39,16 @@
           </el-select>
         </span>
         <span class="filter-bar-group">
+          <span class="filter-bar-group-label">登录渠道</span>
+          <el-input
+            v-model="query.loginProvider"
+            placeholder="password / wechat_miniapp"
+            clearable
+            style="width: 180px"
+            @keyup.enter="handleSearch"
+          />
+        </span>
+        <span class="filter-bar-group">
           <span class="filter-bar-group-label">状态</span>
           <el-select v-model="query.success" placeholder="全部" clearable style="width: 120px">
             <el-option label="成功" :value="true" />
@@ -113,6 +123,9 @@
               {{ actionTypeLabel(row.actionType) }}
             </template>
           </el-table-column>
+          <el-table-column prop="loginProvider" label="登录渠道" width="120">
+            <template #default="{ row }">{{ row.loginProvider || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="method" label="方法" width="80" sortable="custom" />
           <el-table-column
             prop="path"
@@ -172,6 +185,7 @@
         }}</el-descriptions-item>
         <el-descriptions-item label="操作人">{{ detail.username || '-' }}</el-descriptions-item>
         <el-descriptions-item label="端口">{{ portalLabel(detail.portal) }}</el-descriptions-item>
+        <el-descriptions-item label="登录渠道">{{ detail.loginProvider || '-' }}</el-descriptions-item>
         <el-descriptions-item label="请求方法">{{ detail.method || '-' }}</el-descriptions-item>
         <el-descriptions-item label="请求路径">{{ detail.path || '-' }}</el-descriptions-item>
         <el-descriptions-item label="客户端IP">{{ detail.clientIp || '-' }}</el-descriptions-item>
@@ -244,12 +258,14 @@ const query = reactive<{
   username: string
   actionType: string
   portal: string
+  loginProvider: string
   operation: string
   success: boolean | null
 }>({
   username: '',
   actionType: '',
   portal: '',
+  loginProvider: '',
   operation: '',
   success: null,
 })
@@ -285,6 +301,7 @@ function buildPageParams() {
     username: query.username.trim() || undefined,
     actionType: query.actionType || undefined,
     portal: query.portal || undefined,
+    loginProvider: query.loginProvider.trim() || undefined,
     operation: query.operation.trim() || undefined,
     success: query.success ?? undefined,
     beginTime: timeRange.value?.[0] || undefined,
@@ -316,6 +333,7 @@ function handleReset() {
   query.username = ''
   query.actionType = ''
   query.portal = ''
+  query.loginProvider = ''
   query.operation = ''
   query.success = null
   timeRange.value = null

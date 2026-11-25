@@ -769,6 +769,8 @@ export interface OperLogSummary {
   username?: string | null
   orgId?: string | null
   portal?: string | null
+  /** 登录渠道（password/wechat_miniapp/第三方渠道编码；非登录操作为空） */
+  loginProvider?: string | null
   operation?: string | null
   actionType?: string | null
   method?: string | null
@@ -786,6 +788,8 @@ export interface OperLogPageParams extends PageParams {
   username?: string
   actionType?: string
   portal?: string
+  /** 登录渠道精确匹配（password/wechat_miniapp/第三方渠道编码） */
+  loginProvider?: string
   operation?: string
   success?: boolean
   beginTime?: string

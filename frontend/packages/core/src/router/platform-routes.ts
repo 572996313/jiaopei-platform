@@ -30,6 +30,24 @@ export const publicRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/core/views/auth/ActivateView.vue'),
   },
   {
+    // 第三方登录回调：票据在 #ticket=… 里，只做换票，不渲染业务内容
+    path: '/oauth/callback',
+    name: 'oauth-callback',
+    meta: {
+      public: true,
+    },
+    component: () => import('@cornerstone/core/views/auth/OauthCallbackView.vue'),
+  },
+  {
+    // 同一第三方账号绑定多个系统账号时的选择页
+    path: '/oauth/select',
+    name: 'oauth-select',
+    meta: {
+      public: true,
+    },
+    component: () => import('@cornerstone/core/views/auth/OauthSelectView.vue'),
+  },
+  {
     path: '/change-password',
     name: 'change-password',
     meta: {

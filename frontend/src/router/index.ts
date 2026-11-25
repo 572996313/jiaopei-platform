@@ -33,7 +33,14 @@ router.beforeEach(async (to) => {
       if (auth.mustChangePassword) {
         return '/change-password'
       }
-      return typeof to.query.redirect === 'string' ? to.query.redirect : '/dashboard'
+      if (typeof to.query.redirect === 'string') {
+        return to.query.redirect
+      }
+      // 绑定第三方账号的回调落在 /login?identityBound=…，带着标记回工作台让布局层提示
+      if (typeof to.query.identityBound === 'string' && to.query.identityBound) {
+        return { path: '/dashboard', query: { identityBound: to.query.identityBound } }
+      }
+      return '/dashboard'
     }
     return true
   }

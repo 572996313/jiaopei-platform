@@ -32,6 +32,20 @@
       </el-button>
     </el-form>
 
+    <div v-if="providers.length" class="login-providers">
+      <div class="login-provider-divider"><span>或使用第三方账号</span></div>
+      <button
+        v-for="provider in providers"
+        :key="provider.code"
+        type="button"
+        class="login-provider-btn"
+        @click="startOauth(provider.code)"
+      >
+        <span class="login-provider-mark">{{ provider.name.slice(0, 1) }}</span>
+        <span>{{ provider.name }} 一键登录</span>
+      </button>
+    </div>
+
     <div class="login-alt-entries">
       <router-link to="/register">有邀请码？注册账号</router-link>
       <span class="login-alt-divider">|</span>
@@ -42,22 +56,43 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { fetchLoginPage } from '@cornerstone/core/api/auth'
+import {
+  fetchLoginPage,
+  fetchLoginProviders,
+  oauthAuthorizeUrl,
+  type AuthProviderView,
+} from '@cornerstone/core/api/auth'
 import LoginShell from '@cornerstone/core/components/LoginShell.vue'
 import { useBranding } from '@cornerstone/core/composables/use-branding'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 /** 登录表单标题来自系统参数 brand.login_form_title，与 LoginShell 读同一份请求结果 */
 const { loginFormTitle } = useBranding()
 
 const submitting = ref(false)
 const formError = ref('')
+/** 启用中的第三方登录渠道；为空时整块不出现，不占版式 */
+const providers = ref<AuthProviderView[]>([])
+
+/** 回调失败时后端只回错误码，文案在前端维护，便于统一改口吻 */
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: '已取消第三方授权',
+  state_expired: '登录请求已过期，请重新发起',
+  invalid_callback: '第三方登录回调参数不完整，请重试',
+  provider_unavailable: '该第三方登录渠道暂不可用',
+  not_bound: '该第三方账号尚未绑定系统账号，请先用账号密码登录后在个人信息中绑定',
+  account_disabled: '绑定的账号已被禁用，请联系管理员',
+  portal_not_allowed: '该账号请使用微信小程序登录',
+  identity_missing: '第三方账号信息不完整，请重试',
+  exchange_failed: '第三方登录失败，请稍后重试',
+}
 /** 提示语来自系统参数 auth.login.page_tip：底座不写死项目专属文案，取不到或为空就不展示 */
 const loginPageTip = ref('')
 const form = reactive({
@@ -76,12 +111,26 @@ const loginRules: FormRules = {
 }
 
 onMounted(async () => {
+  const oauthError = typeof route.query.oauthError === 'string' ? route.query.oauthError : ''
+  if (oauthError) {
+    formError.value = OAUTH_ERROR_MESSAGES[oauthError] || '第三方登录失败，请重试'
+  }
   try {
     loginPageTip.value = (await fetchLoginPage()).tip.trim()
   } catch {
     // 提示语是装饰性信息，接口不可用时保持不展示
   }
+  try {
+    providers.value = await fetchLoginProviders()
+  } catch {
+    // 第三方渠道拉取失败不影响账号密码登录
+  }
 })
+
+/** 浏览器整页跳转去渠道授权页；令牌不经过前端，回调后再用一次性票据换 */
+function startOauth(providerCode: string) {
+  window.location.href = oauthAuthorizeUrl(providerCode)
+}
 
 async function submitLogin() {
   // 校验失败时 el-form 已经在字段上标红并给出提示，这里不再补一条顶部总文案
@@ -154,5 +203,65 @@ async function submitLogin() {
 
 .login-alt-divider {
   color: var(--login-line);
+}
+
+.login-providers {
+  margin-top: 18px;
+}
+
+.login-provider-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--login-ink-dim);
+}
+
+.login-provider-divider::before,
+.login-provider-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--login-line);
+}
+
+.login-provider-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--login-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--login-ink-label);
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.login-provider-btn:hover {
+  border-color: var(--login-accent-line);
+  color: var(--login-accent);
+  background: color-mix(in srgb, var(--login-accent) 6%, transparent);
+}
+
+.login-provider-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--login-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>
