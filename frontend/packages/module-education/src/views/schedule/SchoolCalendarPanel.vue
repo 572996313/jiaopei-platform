@@ -149,7 +149,7 @@ import {
 import type { CampusSummary } from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
-import { toMessage } from './schedule-utils'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const ALL_CAMPUS_ID = '0'
 

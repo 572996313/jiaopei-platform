@@ -285,12 +285,12 @@ import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
-import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
-import SchedulePlanWizardDialog from './components/SchedulePlanWizardDialog.vue'
-import SchedulePlanListDialog from './components/SchedulePlanListDialog.vue'
-import ScheduleRuleListDialog from './components/ScheduleRuleListDialog.vue'
-import ScheduleRuleEditorDialog from './components/ScheduleRuleEditorDialog.vue'
-import ClassSelect from './components/ClassSelect.vue'
+import ScheduleLessonFormDialog from './ScheduleLessonFormDialog.vue'
+import SchedulePlanWizardDialog from './SchedulePlanWizardDialog.vue'
+import SchedulePlanListDialog from './SchedulePlanListDialog.vue'
+import ScheduleRuleListDialog from './ScheduleRuleListDialog.vue'
+import ScheduleRuleEditorDialog from './ScheduleRuleEditorDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
 import {
   compactTimeRange,
   formatTeacherIdsAs,
@@ -298,9 +298,9 @@ import {
   lessonStatusTagType,
   sortedLessons,
   timeSlotOptionLabel,
-  toMessage,
   weekdayLabel,
-} from './components/schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const institutionStore = useInstitutionStore()
 const auth = useAuthStore()

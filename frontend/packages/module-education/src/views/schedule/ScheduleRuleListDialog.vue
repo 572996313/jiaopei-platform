@@ -135,7 +135,11 @@ import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import SchoolCalendarPanel from './SchoolCalendarPanel.vue'
-import { timeSlotShortName, toMessage, weekdayLabel } from './schedule-utils'
+import {
+  timeSlotShortName,
+  weekdayLabel,
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const props = defineProps<{
   modelValue: boolean

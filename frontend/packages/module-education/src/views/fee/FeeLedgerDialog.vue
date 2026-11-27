@@ -196,8 +196,8 @@
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { computed, nextTick, reactive, ref } from 'vue'
-import ClassSelect from './ClassSelect.vue'
-import StudentSelect from './StudentSelect.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import StudentSelect from '../components/StudentSelect.vue'
 import {
   billingModeLabel,
   createFeeLedger,

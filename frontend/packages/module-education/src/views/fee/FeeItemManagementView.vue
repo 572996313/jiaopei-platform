@@ -148,7 +148,7 @@ import {
   updateFeeItem,
   type FeeItemRecord,
 } from '@cornerstone/module-education/api/fee'
-import FeePriceDialog from './components/FeePriceDialog.vue'
+import FeePriceDialog from './FeePriceDialog.vue'
 
 const institutionStore = useInstitutionStore()
 const auth = useAuthStore()

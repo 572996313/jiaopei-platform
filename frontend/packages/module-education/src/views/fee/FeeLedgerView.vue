@@ -189,10 +189,10 @@ import { toMessage } from '@cornerstone/core/utils/error'
 import { trimToUndefined } from '@cornerstone/core/utils/text'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
-import ClassSelect from './components/ClassSelect.vue'
-import FeeLedgerDialog from './components/FeeLedgerDialog.vue'
-import FeePaymentDialog from './components/FeePaymentDialog.vue'
-import FeeMonthlyDialog from './components/FeeMonthlyDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import FeeLedgerDialog from './FeeLedgerDialog.vue'
+import FeePaymentDialog from './FeePaymentDialog.vue'
+import FeeMonthlyDialog from './FeeMonthlyDialog.vue'
 import {
   deleteFeeLedger,
   exportFeeDetail,

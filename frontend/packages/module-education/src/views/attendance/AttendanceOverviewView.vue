@@ -292,9 +292,9 @@ import { ensureClassLabels } from '@cornerstone/module-education/composables/cla
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
-import ClassSelect from './components/ClassSelect.vue'
-import StudentSelect from './components/StudentSelect.vue'
-import AttendanceDialog from './components/AttendanceDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import StudentSelect from '../components/StudentSelect.vue'
+import AttendanceDialog from '../components/AttendanceDialog.vue'
 import {
   addDays,
   addMonths,
@@ -304,9 +304,9 @@ import {
   lessonStatusLabel,
   lessonStatusTagType,
   sortedLessons,
-  toMessage,
   todayValue,
-} from './components/schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 interface ClassAttendanceRow {
   classId: string

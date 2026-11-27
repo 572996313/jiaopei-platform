@@ -98,9 +98,9 @@ import {
   attendanceStatusLabel,
   attendanceStatusTagType,
   compactTimeRange,
-  toMessage,
   todayValue,
-} from './schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const props = withDefaults(
   defineProps<{

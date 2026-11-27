@@ -447,9 +447,9 @@ import { useLessonRelations } from '@cornerstone/module-education/composables/us
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
-import ClassSelect from './components/ClassSelect.vue'
-import AttendanceDialog from './components/AttendanceDialog.vue'
-import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import AttendanceDialog from '../components/AttendanceDialog.vue'
+import ScheduleLessonFormDialog from './ScheduleLessonFormDialog.vue'
 import {
   addDays,
   canCompleteLesson,
@@ -458,9 +458,9 @@ import {
   lessonStatusLabel,
   lessonStatusTagType,
   sortedLessons,
-  toMessage,
   todayValue,
-} from './components/schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 interface ScheduleReminderItem {
   key: string

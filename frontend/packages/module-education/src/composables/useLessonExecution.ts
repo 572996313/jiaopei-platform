@@ -3,12 +3,12 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import type { ScheduleLessonRecord } from '../api/education'
-import type { WeekLessonAction } from '../views/components/WeekTimetableGrid.vue'
 import {
   canCompleteLesson,
-  toMessage,
   updateLessonCompletion,
-} from '../views/components/schedule-utils'
+  type WeekLessonAction,
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 /** 执行变更弹窗模式：调课 / 停课 / 补课，与共享弹窗组件的契约一致 */
 type ExecutionMode = 'reschedule' | 'cancel' | 'makeup'

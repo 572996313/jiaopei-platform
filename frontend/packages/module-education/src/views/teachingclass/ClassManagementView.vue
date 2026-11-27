@@ -685,10 +685,10 @@ import {
   classLabelOf,
   rememberClassOptions,
 } from '@cornerstone/module-education/composables/classLabels'
-import LessonTargetFields from './components/LessonTargetFields.vue'
-import ClassSelect from './components/ClassSelect.vue'
-import XlsxImportDialog from './components/XlsxImportDialog.vue'
-import type { ImportColumn } from './components/import-columns'
+import LessonTargetFields from './LessonTargetFields.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import XlsxImportDialog from '../components/XlsxImportDialog.vue'
+import type { ImportColumn } from '../components/import-columns'
 import {
   commitClassImport,
   downloadClassImportTemplate,

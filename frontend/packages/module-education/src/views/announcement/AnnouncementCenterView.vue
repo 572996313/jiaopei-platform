@@ -380,7 +380,7 @@ import {
   type CampusSummary,
 } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
-import ClassMultiSelect from './components/ClassMultiSelect.vue'
+import ClassMultiSelect from '../components/ClassMultiSelect.vue'
 import {
   ANNOUNCEMENT_STATUS_OPTIONS,
   AUDIENCE_OPTIONS,

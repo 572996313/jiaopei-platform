@@ -1,13 +1,28 @@
-// 排课/执行相关页面的共享纯函数与轻量工具(排课管理页、课表与点名页、共享弹窗组件共用)
+// 排课/考勤共享的纯函数与轻量命令(排课管理、课表与点名、考勤总览及其弹窗共用)。
+// 刻意放在 views 之外：composables 也要用这些工具，留在 views/components 会形成 composables -> views 的反向依赖。
 import {
   fetchScheduleLesson,
   updateScheduleLesson,
   type ScheduleLessonRecord,
 } from '@cornerstone/module-education/api/education'
 
-// 错误文案与文本归一收口在 core 公共工具，这里只转出，供排课各弹窗沿用旧导入路径
-export { toMessage } from '@cornerstone/core/utils/error'
-export { trimToUndefined } from '@cornerstone/core/utils/text'
+/** 周/月/季课表网格的一列(一天) */
+export interface WeekGridDay {
+  date: string
+  title: string
+  isToday: boolean
+  /** 月/季视图里属于前后月(季)的补位日期，展示置灰 */
+  dimmed?: boolean
+}
+
+export type WeekLessonActionType =
+  'attendance' | 'complete' | 'reschedule' | 'cancel' | 'makeup' | 'edit'
+
+/** 课次格子上触发的动作，父页面接住后走各自的弹窗或接口 */
+export interface WeekLessonAction {
+  type: WeekLessonActionType
+  lesson: ScheduleLessonRecord
+}
 
 export function todayValue() {
   const now = new Date()

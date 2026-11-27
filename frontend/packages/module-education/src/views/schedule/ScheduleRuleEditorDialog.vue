@@ -130,10 +130,10 @@ import {
   type TeacherSummary,
 } from '@cornerstone/module-education/api/education'
 import type { ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
-import ClassSelect from './ClassSelect.vue'
+import ClassSelect from '../components/ClassSelect.vue'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
 import { ensureClassKnown } from '@cornerstone/module-education/composables/classLabels'
-import { toMessage } from './schedule-utils'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const props = defineProps<{
   modelValue: boolean

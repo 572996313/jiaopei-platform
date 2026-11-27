@@ -215,16 +215,16 @@ import {
   type ClassOption,
 } from '@cornerstone/module-education/api/education'
 import type { TermSummary, ClassroomSummary, TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
-import ClassSelect from './ClassSelect.vue'
+import ClassSelect from '../components/ClassSelect.vue'
 import SchedulePatternGrid from './SchedulePatternGrid.vue'
 import { ensureClassKnown } from '../../composables/classLabels'
 import {
   compactTimeRange,
   normalizeTeacherIds,
   timeSlotShortName,
-  toMessage,
   weekdayLabel,
-} from './schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const props = defineProps<{
   modelValue: boolean

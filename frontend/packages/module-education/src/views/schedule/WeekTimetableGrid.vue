@@ -190,25 +190,6 @@
   </div>
 </template>
 
-<script lang="ts">
-// 类型通过普通 script 块导出，供父组件复用
-export interface WeekGridDay {
-  date: string
-  title: string
-  isToday: boolean
-  /** 月/季视图里属于前后月（季）的补位日期，展示置灰 */
-  dimmed?: boolean
-}
-
-export type WeekLessonActionType =
-  'attendance' | 'complete' | 'reschedule' | 'cancel' | 'makeup' | 'edit'
-
-export interface WeekLessonAction {
-  type: WeekLessonActionType
-  lesson: ScheduleLessonRecord
-}
-</script>
-
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type {
@@ -219,7 +200,12 @@ import type {
   ClassroomSummary,
   TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
-import { weekdayFromDate } from './schedule-utils'
+import {
+  weekdayFromDate,
+  type WeekGridDay,
+  type WeekLessonAction,
+  type WeekLessonActionType,
+} from '@cornerstone/module-education/utils/schedule'
 
 interface TimeRow {
   key: string

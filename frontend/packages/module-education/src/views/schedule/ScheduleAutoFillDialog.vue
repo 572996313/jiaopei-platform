@@ -239,9 +239,13 @@ import {
 import { formatDateTime } from '@cornerstone/core/components/ConfigurableList/renderers'
 import { TABLE_STACK_MAX_HEIGHT, TABLE_VIEWPORT_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
-import { timeSlotShortName, toMessage, weekdayLabel } from './schedule-utils'
+import {
+  timeSlotShortName,
+  weekdayLabel,
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 import type { ClassScopeValue } from '@cornerstone/module-education/composables/useClassOptions'
-import ClassMultiSelect from './ClassMultiSelect.vue'
+import ClassMultiSelect from '../components/ClassMultiSelect.vue'
 
 const props = defineProps<{
   modelValue: boolean

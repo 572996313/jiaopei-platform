@@ -231,11 +231,11 @@ import {
   studentLabelOf,
 } from '@cornerstone/module-education/composables/studentLabels'
 import { classLabelOf } from '@cornerstone/module-education/composables/classLabels'
-import ClassSelect from './components/ClassSelect.vue'
-import StudentSelect from './components/StudentSelect.vue'
-import StudentParentDrawer from './components/StudentParentDrawer.vue'
-import XlsxImportDialog from './components/XlsxImportDialog.vue'
-import type { ImportColumn } from './components/import-columns'
+import ClassSelect from '../components/ClassSelect.vue'
+import StudentSelect from '../components/StudentSelect.vue'
+import StudentParentDrawer from '../components/StudentParentDrawer.vue'
+import XlsxImportDialog from '../components/XlsxImportDialog.vue'
+import type { ImportColumn } from '../components/import-columns'
 import {
   commitClassStudentImport,
   downloadClassStudentImportTemplate,

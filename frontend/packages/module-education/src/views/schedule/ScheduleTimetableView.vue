@@ -143,11 +143,11 @@ import { useLessonExecution } from '@cornerstone/module-education/composables/us
 import { useLessonRelations } from '@cornerstone/module-education/composables/useLessonRelations'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
-import WeekTimetableGrid from './components/WeekTimetableGrid.vue'
+import WeekTimetableGrid from './WeekTimetableGrid.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
-import ClassSelect from './components/ClassSelect.vue'
-import AttendanceDialog from './components/AttendanceDialog.vue'
-import ScheduleLessonFormDialog from './components/ScheduleLessonFormDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import AttendanceDialog from '../components/AttendanceDialog.vue'
+import ScheduleLessonFormDialog from './ScheduleLessonFormDialog.vue'
 import {
   addDays,
   addMonths,
@@ -158,11 +158,11 @@ import {
   lessonStatusTagType,
   rangeFor,
   sortedLessons,
-  toMessage,
   todayValue,
   weekdayFromDate,
   weekdayLabel,
-} from './components/schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()

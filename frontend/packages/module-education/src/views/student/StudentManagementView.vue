@@ -259,10 +259,10 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 import { toMessage } from '@cornerstone/core/utils/error'
 import { trimToUndefined } from '@cornerstone/core/utils/text'
 import { rememberStudentOptions } from '@cornerstone/module-education/composables/studentLabels'
-import StudentParentDrawer from './components/StudentParentDrawer.vue'
-import StudentAttendanceDrawer from './components/StudentAttendanceDrawer.vue'
-import XlsxImportDialog from './components/XlsxImportDialog.vue'
-import type { ImportColumn } from './components/import-columns'
+import StudentParentDrawer from '../components/StudentParentDrawer.vue'
+import StudentAttendanceDrawer from './StudentAttendanceDrawer.vue'
+import XlsxImportDialog from '../components/XlsxImportDialog.vue'
+import type { ImportColumn } from '../components/import-columns'
 import {
   commitStudentImport,
   downloadStudentImportTemplate,

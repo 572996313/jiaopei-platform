@@ -2,7 +2,9 @@ import { computed, ref, watch } from 'vue'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import type { ScheduleLessonRecord } from '../api/education'
 import { ensureClassLabels } from './classLabels'
-import { sortedLessons } from '../views/components/schedule-utils'
+import {
+  sortedLessons,
+} from '@cornerstone/module-education/utils/schedule'
 
 /**
  * 排课两页（课表与点名、课表总览）共用的停补关联解析。

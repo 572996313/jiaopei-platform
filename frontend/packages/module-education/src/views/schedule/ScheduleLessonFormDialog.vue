@@ -274,7 +274,7 @@ import {
   type TimeSlotSummary,
 } from '@cornerstone/module-organization/api/organization'
 import type { InstitutionSummary } from '@cornerstone/core/api/tenant'
-import ClassSelect from './ClassSelect.vue'
+import ClassSelect from '../components/ClassSelect.vue'
 import {
   compactTimeRange,
   conflictTypeLabel,
@@ -283,12 +283,12 @@ import {
   TIME_SLOT_SECTION_ORDER,
   timeSlotSectionOf,
   timeSlotShortName,
-  toMessage,
   todayValue,
-  trimToUndefined,
   weekdayFromDate,
   weekdayLabel,
-} from './schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 /**
  * 排课弹窗统一入口：

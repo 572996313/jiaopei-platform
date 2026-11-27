@@ -13,7 +13,7 @@ import {
   compactTimeRange,
   formatTeacherIdsAs,
   timeSlotOptionLabel,
-} from '../views/components/schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
 
 /**
  * 排课两页（课表与点名、课表总览）共用的名称反查与格式化。

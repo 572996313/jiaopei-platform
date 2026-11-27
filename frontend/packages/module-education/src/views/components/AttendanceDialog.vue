@@ -148,10 +148,10 @@ import {
   attendanceStatusLabel,
   attendanceStatusTagType,
   compactTimeRange,
-  toMessage,
-  trimToUndefined,
   updateLessonCompletion,
-} from './schedule-utils'
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 interface AttendanceEditorRow extends AttendanceLessonStudent {
   draftStatus: string

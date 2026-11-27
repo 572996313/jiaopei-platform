@@ -496,6 +496,10 @@ ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
 
 动手写页面前先读 `docs/前端页面开发手册.md`：那是本节的**执行细则**（元素落点表、反模式对照、四型页面骨架、新建一页装配清单、与配置化的差距），不新增口径、只回答"该写在哪一行、抄哪个页面"；与本节冲突一律以本节为准。
 
+- **教务 `views/` 按功能域分目录（2026-11-27）**：`frontend/packages/module-education/src/views/` 下是 `teacher` / `course` / `student` / `teachingclass` / `schedule` / `attendance` / `announcement` / `message` / `fee`，域目录名与后端功能域同名，将来拆 Maven 模块能一张表对上。**页面与"只服务本域"的弹窗都放自己域内**；**被多个域用的组件才留 `views/components/`**（`ClassSelect` / `ClassMultiSelect` / `StudentSelect` / `XlsxImportDialog` + `import-columns` / `StudentParentDrawer` / `AttendanceDialog`）。判据是消费方数量，不是名字像不像某个域：`LessonTargetFields` 只被班级页用就进了 `teachingclass/`，`AttendanceDialog` 被三个排课页共用就留在 `components/`。文件名一律不改（keep-alive 组件名与路由 chunk 名靠它）。
+- **`api/` `composables/` `utils/` 不许 import `views/`**：`utils/schedule.ts` 之所以从 `views/components/schedule-utils.ts` 搬到 `src/utils/`，就是因为 `useLessonExecution` 等 composable 要用它，留在 views 下会形成 `composables -> views` 的反向依赖。同理 `WeekLessonAction` / `WeekGridDay` 这类跨层类型也放 `utils/schedule.ts`，不要塞进 `.vue` 的普通 script 块再让 composable 反向引用。这两条与域间禁止横向引用都由 `frontend/eslint.config.js` 的 `layout/module-education-*` 规则强制，改布局时连规则一起改。
+  - 注意与 `docs/目录结构总览.md` 的**方案 C 重名但不同事**：那个 C 指"后端把 `module-education` 拆成独立 Maven 模块"（未做），这次只是前端 `views/` 物理重排，后端包结构没动。
+
 - API 层在 `frontend/packages/core/src/api/`：`http.ts`（axios 实例 + 大 ID 兜底）、`request.ts`（`unwrap` 解包 `ApiResponse.data`，非 success 抛 `ApiError`），按模块拆 `auth/tenant/system/...`；业务接口在各自 `frontend/packages/module-<name>/src/api/`（organization、education）。
 - 状态：Pinia，登录态持久化在 `localStorage` key `cornerstone.auth.session`（`utils/auth-session.ts`），`http.ts` 从该处取 `Authorization`；未登录时不带该头，没有构建期固定头的兜底（旧的 `VITE_API_AUTHORIZATION` 已删除）。
 - 路由 `router/index.ts`：`/login`、`/change-password` 公开；其余挂在 `AppLayout` 下；系统管理多 tab 复用 `SystemManagementView.vue`，靠 `meta.systemTab` 区分。

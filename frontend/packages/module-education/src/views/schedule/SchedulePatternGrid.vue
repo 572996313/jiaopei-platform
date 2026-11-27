@@ -52,7 +52,11 @@
 import { computed } from 'vue'
 import type { TimeSlotSummary } from '@cornerstone/module-organization/api/organization'
 import type { SchedulePlanSlotItem } from '@cornerstone/module-education/api/education'
-import { compactTimeRange, timeSlotShortName, weekdayLabel } from './schedule-utils'
+import {
+  compactTimeRange,
+  timeSlotShortName,
+  weekdayLabel,
+} from '@cornerstone/module-education/utils/schedule'
 
 interface PatternRow {
   key: string

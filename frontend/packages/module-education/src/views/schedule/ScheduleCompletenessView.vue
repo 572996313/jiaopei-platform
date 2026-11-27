@@ -217,9 +217,12 @@ import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import FilterBar from '@cornerstone/core/components/FilterBar.vue'
 import NoteHint from '@cornerstone/core/components/NoteHint.vue'
-import ScheduleAutoFillDialog from './components/ScheduleAutoFillDialog.vue'
-import ClassSelect from './components/ClassSelect.vue'
-import { toMessage, weekdayLabel } from './components/schedule-utils'
+import ScheduleAutoFillDialog from './ScheduleAutoFillDialog.vue'
+import ClassSelect from '../components/ClassSelect.vue'
+import {
+  weekdayLabel,
+} from '@cornerstone/module-education/utils/schedule'
+import { toMessage } from '@cornerstone/core/utils/error'
 
 const institutionStore = useInstitutionStore()
 const auth = useAuthStore()
