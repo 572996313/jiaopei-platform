@@ -3,7 +3,7 @@
     v-model:visible="panelOpen"
     placement="bottom-end"
     trigger="click"
-    :width="380"
+    :width="400"
     popper-class="announce-bell-popper"
   >
     <template #reference>
@@ -11,9 +11,9 @@
         type="button"
         class="banner-bell"
         :class="{ 'is-active': panelOpen }"
-        aria-label="公告通知"
+        aria-label="通知"
       >
-        <el-badge :value="unread" :max="99" :hidden="unread === 0" type="danger">
+        <el-badge :value="totalUnread" :max="99" :hidden="totalUnread === 0" type="danger">
           <el-icon><Bell /></el-icon>
         </el-badge>
         <span>通知</span>
@@ -23,6 +23,25 @@
     <div class="bell-panel">
       <div class="bell-head">
         <div class="bell-tabs">
+          <button
+            type="button"
+            :class="{ 'is-active': mode === 'announcement' }"
+            :aria-pressed="mode === 'announcement'"
+            @click="switchMode('announcement')"
+          >
+            公告{{ unread > 0 ? `（${unread}）` : '' }}
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': mode === 'event' }"
+            :aria-pressed="mode === 'event'"
+            @click="switchMode('event')"
+          >
+            事件{{ eventUnread > 0 ? `（${eventUnread}）` : '' }}
+          </button>
+        </div>
+
+        <div v-if="mode === 'announcement'" class="bell-tabs">
           <button
             type="button"
             :class="{ 'is-active': !unreadOnly }"
@@ -37,53 +56,108 @@
             :aria-pressed="unreadOnly"
             @click="switchTab(true)"
           >
-            未读{{ unread > 0 ? `（${unread}）` : '' }}
+            未读
           </button>
         </div>
+        <el-checkbox v-else v-model="eventUnreadOnly" size="small" @change="loadEvents(1)">
+          只看未读
+        </el-checkbox>
       </div>
 
       <div class="bell-scroll">
-        <div v-if="loading && items.length === 0" class="bell-tip">加载中…</div>
-        <div v-else-if="items.length === 0" class="bell-tip">
-          {{ unreadOnly ? '没有未读公告' : '暂时还没有收到公告' }}
-        </div>
-        <template v-else>
-          <section v-for="group in groups" :key="group.day" class="bell-group">
-            <h4 class="bell-day">{{ dayLabel(group.day) }}</h4>
-            <div class="bell-track">
-              <button
-                v-for="item in group.items"
-                :key="item.id"
-                type="button"
-                class="bell-item"
-                :class="{ 'is-read': !!item.readAt }"
-                @click="openItem(item)"
-              >
-                <span class="bell-item-dot" aria-hidden="true"></span>
-                <span class="bell-item-body">
-                  <span class="bell-item-title">{{ item.title }}</span>
-                  <span class="bell-item-meta">
-                    <span v-if="item.top" class="bell-tag is-top">置顶</span>
-                    <span class="bell-tag">{{ typeLabel(item.typeCode) }}</span>
-                    <span :class="item.readAt ? 'bell-read' : 'bell-unread'">
-                      {{ item.readAt ? `已读 ${shortTime(item.readAt)}` : '未读' }}
+        <template v-if="mode === 'announcement'">
+          <div v-if="loading && items.length === 0" class="bell-tip">加载中…</div>
+          <div v-else-if="items.length === 0" class="bell-tip">
+            {{ unreadOnly ? '没有未读公告' : '暂时还没有收到公告' }}
+          </div>
+          <template v-else>
+            <section v-for="group in groups" :key="group.day" class="bell-group">
+              <h4 class="bell-day">{{ dayLabel(group.day) }}</h4>
+              <div class="bell-track">
+                <button
+                  v-for="item in group.items"
+                  :key="item.id"
+                  type="button"
+                  class="bell-item"
+                  :class="{ 'is-read': !!item.readAt }"
+                  @click="openItem(item)"
+                >
+                  <span class="bell-item-dot" aria-hidden="true"></span>
+                  <span class="bell-item-body">
+                    <span class="bell-item-title">{{ item.title }}</span>
+                    <span class="bell-item-meta">
+                      <span v-if="item.top" class="bell-tag is-top">置顶</span>
+                      <span class="bell-tag">{{ typeLabel(item.typeCode) }}</span>
+                      <span :class="item.readAt ? 'bell-read' : 'bell-unread'">
+                        {{ item.readAt ? `已读 ${shortTime(item.readAt)}` : '未读' }}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span class="bell-item-time">{{ clockTime(item.publishedAt) }}</span>
-              </button>
-            </div>
-          </section>
-          <el-button
-            v-if="items.length < total"
-            class="bell-more"
-            link
-            :loading="loading"
-            @click="loadPage(page + 1)"
-          >
-            加载更早的公告（还有 {{ total - items.length }} 条）
-          </el-button>
-          <p v-else class="bell-foot">没有更多了</p>
+                  <span class="bell-item-time">{{ clockTime(item.publishedAt) }}</span>
+                </button>
+              </div>
+            </section>
+            <el-button
+              v-if="items.length < total"
+              class="bell-more"
+              link
+              :loading="loading"
+              @click="loadPage(page + 1)"
+            >
+              加载更早的公告（还有 {{ total - items.length }} 条）
+            </el-button>
+            <p v-else class="bell-foot">没有更多了</p>
+          </template>
+        </template>
+
+        <template v-else>
+          <div v-if="eventLoading && eventItems.length === 0" class="bell-tip">加载中…</div>
+          <div v-else-if="eventItems.length === 0" class="bell-tip">
+            {{ eventUnreadOnly ? '没有未读的未结束事件' : '当前没有未结束事件' }}
+          </div>
+          <template v-else>
+            <section v-for="group in eventGroups" :key="group.day" class="bell-group">
+              <h4 class="bell-day">{{ dayLabel(group.day) }}</h4>
+              <div class="bell-track">
+                <button
+                  v-for="item in group.items"
+                  :key="item.id"
+                  type="button"
+                  class="bell-item"
+                  :class="{ 'is-read': item.read }"
+                  @click="openEvent(item)"
+                >
+                  <span class="bell-item-dot" aria-hidden="true"></span>
+                  <span class="bell-item-body">
+                    <span class="bell-item-title">{{ item.title }}</span>
+                    <span class="bell-item-meta">
+                      <span class="bell-tag">{{ item.typeName || item.typeCode }}</span>
+                      <span class="bell-tag" :class="levelClass(item.level)">
+                        {{ levelLabel(item.level) }}
+                      </span>
+                      <span :class="item.read ? 'bell-read' : 'bell-unread'">
+                        {{ item.read ? '已读' : '未读' }}
+                      </span>
+                    </span>
+                  </span>
+                  <span class="bell-item-time">{{ clockTime(item.occurredAt) }}</span>
+                </button>
+              </div>
+            </section>
+            <el-button
+              v-if="eventItems.length < eventTotal"
+              class="bell-more"
+              link
+              :loading="eventLoading"
+              @click="loadEvents(eventPage + 1)"
+            >
+              加载更多事件（还有 {{ eventTotal - eventItems.length }} 条）
+            </el-button>
+            <p v-else class="bell-foot">没有更多了</p>
+          </template>
+          <div class="bell-foot-actions">
+            <el-button link type="primary" @click="goMessageCenter">打开事件中心</el-button>
+          </div>
         </template>
       </div>
     </div>
@@ -103,12 +177,41 @@
       <el-button @click="detailOpen = false">关闭</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="eventDetailOpen"
+    width="580px"
+    :title="eventDetail?.title || '事件详情'"
+    append-to-body
+  >
+    <div v-if="eventDetail" class="bell-detail">
+      <div class="bell-detail-meta">
+        <el-tag :type="levelTag(eventDetail.level)" size="small">
+          {{ levelLabel(eventDetail.level) }}
+        </el-tag>
+        <span class="bell-tag">{{ eventDetail.typeName || eventDetail.typeCode }}</span>
+        <span>{{ statusLabel(eventDetail.status) }}</span>
+        <span>· {{ formatTime(eventDetail.occurredAt) }}</span>
+      </div>
+      <div class="bell-detail-content">{{ eventDetail.body }}</div>
+      <div v-if="eventDetail.actionUrl">
+        <el-button type="primary" plain size="small" @click="goAction(eventDetail.actionUrl)">
+          打开关联页面
+        </el-button>
+      </div>
+    </div>
+    <template #footer>
+      <el-button @click="eventDetailOpen = false">关闭</el-button>
+      <el-button type="primary" @click="goMessageCenter">在事件中心查看</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import {
   fetchMyAnnouncements,
@@ -116,18 +219,28 @@ import {
   openMyAnnouncement,
   type MyAnnouncement,
 } from '@cornerstone/module-education/api/announcement'
+import {
+  MESSAGE_LEVEL_OPTIONS,
+  fetchMessageDetail,
+  fetchMessageUnreadCount,
+  fetchMyMessagePage,
+  type MessageEventRecord,
+} from '@cornerstone/module-education/api/message'
 
 /**
- * 顶栏公告铃铛：收件箱只认登录态（/mine/** 无权限码），所以这里不做 hasPermission 判断——
- * 没有公告中心读权限的教师同样该看到发给自己的公告。
- * 默认落在「全部」这条时间线上：点开即已读，若只列未读，随手一点公告就从面板里消失了。
+ * 顶栏通知铃铛：公告与事件两个时间线。
+ * 公告走 /mine/**（只认登录态）；事件走 /messages/mine（订阅收窄注意力，不是权限）。
+ * 角标合并两边的未读数，轮询只兜角标，点开面板时重拉当前列表。
  */
 const LIST_SIZE = 20
 const POLL_MS = 60_000
 
 const dictStore = useDictStore()
+const router = useRouter()
 
 const panelOpen = ref(false)
+const mode = ref<'announcement' | 'event'>('announcement')
+
 const detailOpen = ref(false)
 const detail = ref<MyAnnouncement | null>(null)
 const unread = ref(0)
@@ -137,13 +250,28 @@ const page = ref(1)
 const unreadOnly = ref(false)
 const loading = ref(false)
 
+const eventDetailOpen = ref(false)
+const eventDetail = ref<MessageEventRecord | null>(null)
+const eventUnread = ref(0)
+const eventItems = ref<MessageEventRecord[]>([])
+const eventTotal = ref(0)
+const eventPage = ref(1)
+const eventUnreadOnly = ref(true)
+const eventLoading = ref(false)
+
+const totalUnread = computed(() => unread.value + eventUnread.value)
+
 let timer: number | undefined
 
 onMounted(() => {
   void dictStore.ensureLoaded(['announcement_type'])
   void loadUnread()
+  void loadEventUnread()
   void loadPage(1)
-  timer = window.setInterval(loadUnread, POLL_MS)
+  timer = window.setInterval(() => {
+    void loadUnread()
+    void loadEventUnread()
+  }, POLL_MS)
 })
 
 onUnmounted(() => {
@@ -152,19 +280,37 @@ onUnmounted(() => {
   }
 })
 
-// 打开面板即重拉：轮询只兜住角标，点开时要拿到当下的收件箱而不是上一次的状态
 watch(panelOpen, (open) => {
   if (open) {
     void loadUnread()
-    void loadPage(1)
+    void loadEventUnread()
+    if (mode.value === 'announcement') {
+      void loadPage(1)
+    } else {
+      void loadEvents(1)
+    }
   }
 })
 
-/** 按天分组：接口已按置顶+发布时间倒序返回，这里只把同一天并到一段，不再重排 */
+/** 公告按天分组：接口已按置顶+发布时间倒序返回，这里只把同一天并到一段，不再重排 */
 const groups = computed(() => {
   const buckets = new Map<string, MyAnnouncement[]>()
   for (const item of items.value) {
     const day = dayKey(item.publishedAt)
+    const bucket = buckets.get(day)
+    if (bucket) {
+      bucket.push(item)
+    } else {
+      buckets.set(day, [item])
+    }
+  }
+  return [...buckets].map(([day, list]) => ({ day, items: list }))
+})
+
+const eventGroups = computed(() => {
+  const buckets = new Map<string, MessageEventRecord[]>()
+  for (const item of eventItems.value) {
+    const day = dayKey(item.occurredAt)
     const bucket = buckets.get(day)
     if (bucket) {
       bucket.push(item)
@@ -183,6 +329,14 @@ async function loadUnread() {
   }
 }
 
+async function loadEventUnread() {
+  try {
+    eventUnread.value = await fetchMessageUnreadCount()
+  } catch {
+    // 同上
+  }
+}
+
 async function loadPage(next: number) {
   loading.value = true
   try {
@@ -192,7 +346,6 @@ async function loadPage(next: number) {
     page.value = next
   } catch {
     if (next > 1) {
-      // 点「加载更早」是要反馈的动作，静默失败看起来像按钮坏了
       ElMessage.warning('加载更早的公告失败，请重试')
     } else {
       items.value = []
@@ -200,6 +353,40 @@ async function loadPage(next: number) {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function loadEvents(next: number) {
+  eventLoading.value = true
+  try {
+    const result = await fetchMyMessagePage({
+      page: next,
+      pageSize: LIST_SIZE,
+      openOnly: true,
+      unreadOnly: eventUnreadOnly.value ? true : undefined,
+    })
+    eventItems.value = next === 1 ? result.records : eventItems.value.concat(result.records)
+    eventTotal.value = result.total
+    eventPage.value = next
+  } catch {
+    if (next > 1) {
+      ElMessage.warning('加载更多事件失败，请重试')
+    } else {
+      eventItems.value = []
+      eventTotal.value = 0
+    }
+  } finally {
+    eventLoading.value = false
+  }
+}
+
+function switchMode(next: 'announcement' | 'event') {
+  if (mode.value === next) {
+    return
+  }
+  mode.value = next
+  if (next === 'event' && eventItems.value.length === 0) {
+    void loadEvents(1)
   }
 }
 
@@ -214,12 +401,10 @@ function switchTab(only: boolean) {
 async function openItem(received: MyAnnouncement) {
   panelOpen.value = false
   try {
-    // 这个请求同时就是"打读"动作，服务端只记首次已读时间
     const opened = await openMyAnnouncement(received.id)
     detail.value = opened
     detailOpen.value = true
     if (!received.readAt) {
-      // 已读状态回源数组改：模板里拿到的是 computed 解包后的只读投影，直接赋值过不了类型
       const row = items.value.find((item) => item.id === received.id)
       if (row) {
         row.readAt = opened.readAt
@@ -231,15 +416,80 @@ async function openItem(received: MyAnnouncement) {
       unread.value = Math.max(0, unread.value - 1)
     }
   } catch {
-    // 拉不到通常是面板停留期间公告被撤回：给结论并刷新，不把列表里的旧快照当详情展示
     ElMessage.warning('公告不存在或已撤回')
     void loadUnread()
     void loadPage(1)
   }
 }
 
+async function openEvent(received: MessageEventRecord) {
+  panelOpen.value = false
+  try {
+    const opened = await fetchMessageDetail(received.id)
+    eventDetail.value = opened.event
+    eventDetailOpen.value = true
+    if (!received.read) {
+      received.read = true
+      eventUnread.value = Math.max(0, eventUnread.value - 1)
+      if (eventUnreadOnly.value) {
+        eventItems.value = eventItems.value.filter((item) => item.id !== received.id)
+        eventTotal.value = Math.max(0, eventTotal.value - 1)
+      }
+    }
+  } catch (error) {
+    ElMessage.warning(error instanceof Error ? error.message : '事件不存在或已不可见')
+    void loadEventUnread()
+    void loadEvents(1)
+  }
+}
+
+function goMessageCenter() {
+  panelOpen.value = false
+  eventDetailOpen.value = false
+  void router.push('/messages')
+}
+
+function goAction(url?: string | null) {
+  if (!url) {
+    return
+  }
+  panelOpen.value = false
+  eventDetailOpen.value = false
+  void router.push(url)
+}
+
 function typeLabel(value?: string | null) {
   return dictStore.displayLabel('announcement_type', value)
+}
+
+function levelLabel(value?: string | null) {
+  return MESSAGE_LEVEL_OPTIONS.find((item) => item.value === value)?.label || value || '提示'
+}
+
+function levelTag(value?: string | null) {
+  return MESSAGE_LEVEL_OPTIONS.find((item) => item.value === value)?.tag || 'info'
+}
+
+function levelClass(value?: string | null) {
+  if (value === 'critical') {
+    return 'is-critical'
+  }
+  if (value === 'warning') {
+    return 'is-warning'
+  }
+  return ''
+}
+
+function statusLabel(value?: string | null) {
+  const map: Record<string, string> = {
+    active: '待处理',
+    open: '待处理',
+    in_progress: '处理中',
+    done: '已完成',
+    closed: '已关闭',
+    resolved: '已消解',
+  }
+  return map[value || ''] || value || '—'
 }
 
 /** 后端给的是 LocalDateTime 的 'YYYY-MM-DDTHH:mm:ss'，全部按本地日历切片处理，不做时区换算 */
@@ -329,6 +579,8 @@ function formatTime(value?: string | null) {
 .bell-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
 }
@@ -371,7 +623,6 @@ function formatTime(value?: string | null) {
   padding: 28px 14px;
   text-align: center;
   font-size: 12.5px;
-  /* 空态是一句要读的结论，不是占位符，用 muted 而不是 faint（亮档 faint 压白底只有 2.5） */
   color: var(--text-muted);
 }
 
@@ -381,7 +632,6 @@ function formatTime(value?: string | null) {
   z-index: 1;
   margin: 0;
   padding: 7px 14px 5px;
-  /* 弹层自己的底色：--card-bg 在夜档比 EP 的 popper 更深，粘性表头会露出色差 */
   background: var(--el-popover-bg-color);
   font-size: 11.5px;
   font-weight: 600;
@@ -389,7 +639,6 @@ function formatTime(value?: string | null) {
   color: var(--text-muted);
 }
 
-/* 时间线：竖线画在分组上，节点压在竖线上并用卡片色描边挖出来 */
 .bell-track {
   position: relative;
 }
@@ -474,7 +723,6 @@ function formatTime(value?: string | null) {
   color: var(--text-muted);
 }
 
-/* 未读不能只靠节点颜色表达，文字一并给出来 */
 .bell-unread {
   color: var(--accent);
 }
@@ -497,6 +745,16 @@ function formatTime(value?: string | null) {
   color: var(--soft-warn-ink);
 }
 
+.bell-tag.is-warning {
+  background: var(--soft-warn-bg);
+  color: var(--soft-warn-ink);
+}
+
+.bell-tag.is-critical {
+  background: var(--soft-danger-bg, rgba(245, 108, 108, 0.14));
+  color: var(--soft-danger-ink, #c45656);
+}
+
 .bell-more {
   display: flex;
   width: 100%;
@@ -511,6 +769,13 @@ function formatTime(value?: string | null) {
   text-align: center;
   font-size: 11.5px;
   color: var(--text-muted);
+}
+
+.bell-foot-actions {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+  border-top: 1px solid var(--line);
 }
 
 .bell-detail {

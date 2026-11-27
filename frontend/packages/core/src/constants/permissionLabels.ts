@@ -29,6 +29,7 @@ const basePermissionLabels: PermissionLabelItem[] = [
   { code: 'system:code-rule:manage', label: '编号规则维护', group: '系统管理' },
   { code: 'system:file:manage', label: '文件管理', group: '系统管理' },
   { code: 'system:file:upload', label: '文件上传', group: '系统管理' },
+  { code: 'system:message:manage', label: '事件目录与阅读台账', group: '系统管理' },
   { code: 'tenant:read', label: '机构资料查看', group: '机构(租户)' },
   { code: 'tenant:write', label: '机构资料维护', group: '机构(租户)' },
 ]

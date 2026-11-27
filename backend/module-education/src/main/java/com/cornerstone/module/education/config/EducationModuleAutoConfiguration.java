@@ -30,7 +30,11 @@ import org.springframework.context.annotation.FilterType;
         type = FilterType.CUSTOM,
         classes = AutoConfigurationExcludeFilter.class))
 @MapperScan(
-    basePackages = {"com.cornerstone.module.education.mapper", "com.cornerstone.module.education.fee.mapper"},
+    basePackages = {
+        "com.cornerstone.module.education.mapper",
+        "com.cornerstone.module.education.fee.mapper",
+        "com.cornerstone.module.education.message.mapper"
+    },
     sqlSessionFactoryRef = MybatisPlusConfig.PRIMARY_FACTORY,
     sqlSessionTemplateRef = MybatisPlusConfig.PRIMARY_SESSION)
 public class EducationModuleAutoConfiguration {

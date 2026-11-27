@@ -123,6 +123,10 @@ public class MybatisPlusConfig {
      * 业务库主 Flyway。引入日志库后 Spring Boot 主 Flyway 自动配置退避,
      * 这里显式声明并绑定主数据源。
      *
+     * <p>关闭占位符替换:业务迁移里会存事件模板原文({@code ${列名}}),
+     * Flyway 默认会把 {@code ${...}} 当迁移占位符并直接报错。仓库内没有任何迁移
+     * 依赖 Flyway 占位符,关掉后历史脚本行为不变;迁移里要写美元占位符时按原文存即可。</p>
+     *
      * <p>迁移目录由 {@code cornerstone.flyway.locations} 指定:存量脚本在 app 模块的
      * {@code classpath:db/migration},要用底座自带基线时追加 {@code classpath:cornerstone/migration},
      * 某模块要自带脚本时同样只需在配置里追加该 jar 内目录,不需要改这里的代码。
@@ -134,6 +138,7 @@ public class MybatisPlusConfig {
             .dataSource(primaryDataSource)
             .locations(cornerstoneProperties.getFlyway().getLocations().toArray(String[]::new))
             .baselineOnMigrate(true)
+            .placeholderReplacement(false)
             .load();
     }
 

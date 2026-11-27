@@ -44,8 +44,13 @@ class MigrationScriptGuardTest {
         "(?is)\\b(ADD|DROP|MODIFY)\\s+(COLUMN\\s+|INDEX\\s+)?IF\\s+(NOT\\s+)?EXISTS\\b");
     private static final Pattern CHARACTER_TYPE = Pattern.compile(
         "(?is)\\b(VARCHAR|CHAR|TEXT|TINYTEXT|MEDIUMTEXT|LONGTEXT|ENUM|SET)\\b");
+    /**
+     * 排序规则的两种合法写法都要认：表选项里的 {@code COLLATE=utf8mb4_unicode_ci}
+     * 与列定义里的 {@code COLLATE utf8mb4_unicode_ci}。早先只匹配空格写法，
+     * 表级显式排序规则（等号写法）会被误判成「只写了 CHARSET」。
+     */
     private static final Pattern UNICODE_COLLATE = Pattern.compile(
-        "(?is)\\bCOLLATE\\s+UTF8MB4_UNICODE_CI\\b");
+        "(?is)\\bCOLLATE\\s*=?\\s*UTF8MB4_UNICODE_CI\\b");
 
     @Test
     void newMigrationsMustFollowProductionRules() throws IOException {
@@ -107,6 +112,18 @@ class MigrationScriptGuardTest {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='测试表';
             """;
         assertThat(check(sql)).anyMatch(v -> v.contains("COLLATE=utf8mb4_unicode_ci"));
+    }
+
+    @Test
+    void createTableWithExplicitEqualsCollateIsAccepted() {
+        // 表级等号写法是 MySQL 的常规写法，字符列继承表排序规则，不应被误判
+        String sql = """
+            CREATE TABLE `t` (
+              `id` bigint NOT NULL COMMENT '主键ID',
+              `name` varchar(64) NOT NULL COMMENT '名称'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='测试表';
+            """;
+        assertThat(check(sql)).isEmpty();
     }
 
     @Test

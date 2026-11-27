@@ -74,6 +74,26 @@ export const educationRoutes: RouteRecordRaw[] = [
     component: () => import('@cornerstone/module-education/views/AnnouncementCenterView.vue'),
   },
   {
+    path: 'messages/subscriptions',
+    name: 'message-subscriptions',
+    component: () => import('@cornerstone/module-education/views/MessageSubscriptionView.vue'),
+  },
+  {
+    path: 'messages',
+    name: 'messages',
+    component: () => import('@cornerstone/module-education/views/MessageCenterView.vue'),
+  },
+  {
+    path: 'system/message-types',
+    name: 'system-message-types',
+    component: () => import('@cornerstone/module-education/views/MessageTypeManagementView.vue'),
+  },
+  {
+    path: 'system/message-ledger',
+    name: 'system-message-ledger',
+    component: () => import('@cornerstone/module-education/views/MessageLedgerView.vue'),
+  },
+  {
     path: 'fee-ledger',
     name: 'fee-ledger',
     component: () => import('@cornerstone/module-education/views/FeeLedgerView.vue'),
@@ -99,6 +119,8 @@ registerPermissionLabels([
   { code: 'education:fee:write', label: '收费台账与收款', group: '收费与财务' },
   { code: 'education:fee:config:write', label: '收费项目与价目', group: '收费与财务' },
   { code: 'announcement:write', label: '公告维护', group: '公告中心' },
+  { code: 'message:item:write', label: '事项维护', group: '消息与事项' },
+  { code: 'message:self:write', label: '个人订阅维护', group: '消息与事项' },
   { code: 'miniapp:access', label: '小程序端访问', group: '小程序端' },
 ])
 

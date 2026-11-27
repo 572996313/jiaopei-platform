@@ -423,6 +423,21 @@ ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
 - **一期只做补排，不改计划**：输入是完成度报表的 `cell.missing` + `cell.gaps`（未来 N 周窗口），输出填进课表，**不新建也不修改 `jp_schedule_plan`**——改计划等于让机器覆盖人工设定的周期，且撤销时分不清哪一格是机器改的。**同步跑完**，不起异步任务、不加 running 锁（一批几十节，在请求超时内跑完）；预览（`/preview`）与执行（`/run`）是两个接口、**各算一遍** `ScheduleGapPlanner`，所以操作员确认到执行之间若有别人插了一节课，以 `/run` 的结果为准。
 - **引擎与手工的约束分级不同**：教师周/日上限对手工排课只是提示（见本节开头），对引擎升格为**硬约束**（机器没有人"就知道这样不合适"的判断力，超了会静默铺满教师）；停排日反过来降为**兜底档**（打分罚分而不是禁止，否则假期内有缺口的班永远补不满）。缺口优先补在计划格子上，落不到格子的转"这一周任意空闲时段"（`free_cell`），所以补出来的课次日期对得上课时目标、节次可能与周期计划不同。
 
+## 站内事件流：配置化巡检 + 订阅（必填，V124）
+
+一套事件账本 `jp_msg_event` 承接所有「系统该提醒谁」的事：未点名、课时未完成、欠费，以及任务/反馈/问题这类人工事项。**产生事件时不筛人**（同机构内先都可见），**读取时才按可见性 + 个人订阅收窄**——订阅是注意力管理不是权限，漏勾选可以线下补，不做拦截。以后加事件只配数据，不写代码类。
+
+- **表**：`jp_msg_source`（只读视图白名单）、`jp_msg_event_type`（运维配置的事件目录）、`jp_msg_event`（事件账本，`uk(institution_id,type_code,dedupe_key,deleted)` 保证幂等）、`jp_msg_event_read`（按人一行已读）、`jp_msg_subscription`（订阅规则）、`jp_msg_event_log`（人工事项时间线）。
+- **三种产生方式**：`source_mode=scan` 由 `MessageEventScanJob` 按 `interval_minutes` 巡检视图；`manual` 由持 `message:item:write` 的人新建（任务/反馈/问题）；`POST /messages/{id}/notify` 生成 `manual_nudge` 提醒。**不为单个事件类型写 Java 类**，新业务形状才补只读视图。
+- **配置契约（零代码加事件）**：开发在迁移里建只读视图并在 `jp_msg_source` 登记，运维在「系统管理 → 事件类型」配 `condition_json`、标题/正文/深链/去重键模板、级别、可见端、巡检间隔即可。条件只允许 `[{column,op,value}]`（op = `eq/ne/gt/gte/lt/lte/contains/in`），模板只做 `${列名}` 纯文本替换，**不接受任意 SQL**。条件与模板引用的列在保存、巡检两个时点都会拿视图真实列校验，写错列名落 `last_error`，不静默出空文案。已登记视图：`v_msg_lesson_execution`（近 30 天课次点名及时性/完成度）、`v_msg_fee_ledger_unpaid`（应收 > 已收）。
+- **巡检安全线**：查询异常或候选行超过 `MessageViewQueryExecutor.MAX_ROWS=5000` 时**跳过自动消解**（否则没扫到的事件会被误标已解决）；只有查询完整的一轮才把本轮未命中的 `active` 事件置 `resolved`。失败原因必须能写回 `last_error`，所以 `scanType` 不加事务。
+- **状态两套口径**：系统事件 `active/resolved`，人工事项 `open/in_progress/done/closed`。未读角标只统计 `active/open/in_progress`；`MessageTypeRules.isResolvedStatus` 把 `resolved/done/closed/expired` 都算结束。已解决事件再次命中会重开并刷新 `occurred_at`、**物理清除该事件已读**（问题复发要重新计未读）；仍 active 的保留首次发生时间。保留期清理对已结束事件做**物理删除**（事件/已读/时间线一起）——唯一键含 `deleted`，逻辑删除的墓碑会在同一去重键第二次过期清理时撞键。
+- **可见性**：`visibility=internal/parent/student` 决定能否进家长/学生端（家长/学生只看到与绑定学员相关的事件），机构隔离一律取登录态。校区范围由系统参数 `message.event.campus-scope.enabled` 控制，**默认 false**；开启后受限角色按校区 Guard 收窄，管理端不受限。前端事件中心「全部/我的」= `stream` / `mine`，`mine` 在无订阅规则时**不收窄**（不设规则就是全看）。
+- **深链白名单**：`action_url` 只放行 `/schedule`、`/fee-ledger`、`/classes` 等本系统前缀（`MessageTypeRules.ACTION_PREFIXES`），渲染后不过白名单即置空，避免事件卡片变成开放跳转。
+- **权限与菜单**：读事件走登录态（菜单 27/28），写事项码 `message:item:write`（按钮 155）、订阅码 `message:self:write`（按钮 156）；事件目录与阅读台账（菜单 153/154）用 `system:message:manage`。**不新增业务读权限码**。
+- **Flyway 占位符**：V124 的模板种子含 `${列名}`，`MybatisPlusConfig.primaryFlyway` 已关闭 `placeholderReplacement`；**不要重新打开**（全仓迁移脚本都不使用 Flyway 占位符）。
+- **前端入口**：顶栏铃铛合并公告与事件角标（`AnnouncementBell.vue`，事件页签只拉 `openOnly + unreadOnly`），事件中心 `/messages`、订阅 `/messages/subscriptions`、目录 `/system/message-types`、阅读台账 `/system/message-ledger`。事件详情 GET 即打已读（服务端只记首次）。
+
 ## 枚举值 / 字典规范（必填，性别跨端不一致事故固化）
 
 判断标准：**取值可枚举、给用户选择、运维可能扩充**的字段（如性别），唯一事实源是系统字典 `sys_dict_type`/`sys_dict_item`，禁止各端各自硬编码取值或中文标签。**边界**：由代码逻辑判定的状态值（`status=active/disabled`、课次状态、`deleted` 等）**不入字典**——它们在代码里分支比对，进了字典就等于允许运维在页面上改掉判定逻辑依赖的值。
