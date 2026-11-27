@@ -287,6 +287,7 @@ import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
 import {
   createTimeSlot,
   deleteTimeSlot,
@@ -357,10 +358,6 @@ const filteredTimeSlots = computed(() => {
   }
   return timeSlots.value.filter((item) => String(item.templateId) === sourceFilter.value)
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function trimOrUndefined(value: string) {
   const normalized = value.trim()

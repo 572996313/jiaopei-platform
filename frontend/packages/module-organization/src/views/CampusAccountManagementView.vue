@@ -88,6 +88,7 @@ import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { fetchSystemUserPage, type SystemUserSummary } from '@cornerstone/core/api/system'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
 import {
   fetchCampusAccountPreferences,
   updateCampusAccountPreference,
@@ -119,10 +120,6 @@ const lookupLoading = ref(false)
 const tableLoading = ref(false)
 const candidateLoading = ref(false)
 const saving = ref(false)
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 async function loadPreferences() {
   if (!campusId.value) {

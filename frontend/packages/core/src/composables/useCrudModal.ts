@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormMode } from '@cornerstone/core/components/ConfigurableList/types'
+import { toMessage as defaultToMessage } from '@cornerstone/core/utils/error'
 
 /**
  * useCrudModal:弹窗式新增/编辑表单的「状态 + 提交流程」骨架(阶段 A 收口)。
@@ -53,11 +54,7 @@ export function useCrudModal(options: () => CrudModalOptions) {
 
   function toMessage(error: unknown, fallback: string): string {
     const t = getOpts().toMessage
-    return t
-      ? t(error, fallback)
-      : error instanceof Error && error.message
-        ? error.message
-        : fallback
+    return t ? t(error, fallback) : defaultToMessage(error, fallback)
   }
 
   /** 把配置文案里的 {name} 替换为资源名(缺省回退传入文案本身) */

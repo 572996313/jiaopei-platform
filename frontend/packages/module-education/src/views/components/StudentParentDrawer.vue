@@ -159,6 +159,8 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { TABLE_STACK_MAX_HEIGHT } from '@cornerstone/core/utils/table-view'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 import { studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
 import {
   createStudentParent,
@@ -215,15 +217,6 @@ const parentRules: FormRules = {
 const contactLabel = computed(() =>
   props.studentId ? studentLabelOf(props.studentId) : '未选择学员'
 )
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function relationLabel(value?: string | null) {
   return dictStore.displayLabel('parent_relation', value)

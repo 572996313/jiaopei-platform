@@ -167,6 +167,7 @@ import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
 import { fetchCampuses, type CampusSummary } from '@cornerstone/module-organization/api/organization'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import ClassMultiSelect from '../components/ClassMultiSelect.vue'
@@ -255,10 +256,6 @@ watch(
     }
   }
 )
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function typeLabel(value?: string | null) {
   return dictStore.displayLabel('announcement_type', value)

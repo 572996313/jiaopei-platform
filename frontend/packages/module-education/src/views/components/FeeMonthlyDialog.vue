@@ -272,6 +272,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { toMessage } from '@cornerstone/core/utils/error'
 import {
   billingModeLabel,
   fetchFeeAttendance,
@@ -339,10 +340,6 @@ const busy = computed(
     revertingAll.value ||
     revertingKey.value !== ''
 )
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function sameNumber(left?: number | null, right?: number | null) {
   if ((left === null || left === undefined) && (right === null || right === undefined)) {

@@ -12,6 +12,7 @@ import { useDataSourceStore } from '@cornerstone/core/stores/dataSource'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import { useTableSort } from '@cornerstone/core/composables/use-table-sort'
+import { toMessage } from '@cornerstone/core/utils/error'
 import {
   ConfigurableCell,
   collectDictTypes,
@@ -74,10 +75,6 @@ const sort = useTableSort({
 
 // 竞态守卫:快速切换查询/翻页时丢弃过期响应
 let fetchToken = 0
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function parseConfig(summary: ListConfigSummary): ListPageConfig {
   let columns: unknown

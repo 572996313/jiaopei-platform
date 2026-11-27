@@ -273,6 +273,8 @@ import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { tableViewportHeight } from '@cornerstone/core/utils/table-view'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 import {
   createCourse,
   createCourseCategory,
@@ -371,15 +373,6 @@ const courseForm = reactive({
   status: 'active',
   remark: '',
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function statusTagType(value?: string | null) {
   return value === 'active' ? 'success' : 'info'

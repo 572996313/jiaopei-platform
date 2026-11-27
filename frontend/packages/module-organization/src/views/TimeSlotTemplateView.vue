@@ -165,6 +165,7 @@ import {
 } from '@cornerstone/module-organization/api/organization'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import TimeSlotConfigForm from './components/TimeSlotConfigForm.vue'
 import TimeSlotGridEditor from './components/TimeSlotGridEditor.vue'
@@ -211,10 +212,6 @@ const filteredTemplates = computed(() => {
 const selectedTemplate = computed(
   () => templates.value.find((item) => item.id === selectedTemplateId.value) || null
 )
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function campusText(id?: string | null) {
   return id ? educationScope.campusName(id) : '机构级'

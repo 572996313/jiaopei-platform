@@ -210,6 +210,8 @@ import {
 } from '@cornerstone/module-education/api/fee'
 import type { ClassOption } from '@cornerstone/module-education/api/education'
 import type { TermSummary } from '@cornerstone/module-organization/api/organization'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 interface ItemRow {
   feeItemId: string
@@ -275,15 +277,6 @@ const addableFeeItems = computed(() => {
     (item) => item.status !== 'disabled' && !used.has(String(item.id))
   )
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function feeItemName(id: string) {
   const item = feeItemMap.value.get(String(id))

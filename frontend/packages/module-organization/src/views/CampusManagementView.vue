@@ -294,6 +294,8 @@ import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useEducationScopeStore } from '@cornerstone/module-organization/stores/educationScope'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import CodeInput from '@cornerstone/core/components/CodeInput.vue'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const router = useRouter()
 const institutionStore = useInstitutionStore()
@@ -379,15 +381,6 @@ const termForm = reactive({
   // 新建学期是「马上要排课收费的」：默认草稿会让它在下拉里看着像个未完成品
   status: 'active',
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function campusTypeLabel(value?: string | null) {
   return dictStore.displayLabel('campus_type', value)

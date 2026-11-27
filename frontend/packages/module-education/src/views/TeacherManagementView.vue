@@ -289,6 +289,8 @@ import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import CodeInput from '@cornerstone/core/components/CodeInput.vue'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 
 const institutionStore = useInstitutionStore()
 const scopeStore = useEducationScopeStore()
@@ -365,15 +367,6 @@ const form = reactive({
   maxDailyLessons: null as number | null,
   remark: '',
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function formatInstitution(id?: string | null) {
   return institutionStore.currentInstitutionName || (id ? `机构 #${id}` : '未选择')

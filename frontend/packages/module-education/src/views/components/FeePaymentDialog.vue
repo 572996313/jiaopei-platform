@@ -153,6 +153,8 @@ import { computed, nextTick, reactive, ref } from 'vue'
 import DictSelect from '@cornerstone/core/components/DictSelect.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 import {
   createFeePayment,
   deleteFeePayment,
@@ -236,15 +238,6 @@ function todayValue() {
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60000
   return new Date(now.getTime() - offset).toISOString().slice(0, 10)
-}
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
 }
 
 function itemName(ledgerItemId: string) {

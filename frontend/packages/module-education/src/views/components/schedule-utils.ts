@@ -5,6 +5,10 @@ import {
   type ScheduleLessonRecord,
 } from '@cornerstone/module-education/api/education'
 
+// 错误文案与文本归一收口在 core 公共工具，这里只转出，供排课各弹窗沿用旧导入路径
+export { toMessage } from '@cornerstone/core/utils/error'
+export { trimToUndefined } from '@cornerstone/core/utils/text'
+
 export function todayValue() {
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60000
@@ -100,13 +104,6 @@ export function compactDateLabel(value?: string | null) {
     return '未命名'
   }
   return value.length >= 10 ? value.slice(5) : value
-}
-
-// 文本归一收口在 core 公共工具:可清空控件(el-select 等)清空后是 undefined,不是空串
-export { trimToUndefined } from '@cornerstone/core/utils/text'
-
-export function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
 }
 
 export function normalizeTeacherIds(values?: Array<string | number> | null) {

@@ -11,12 +11,8 @@ import type { DictItemSummary } from '@cornerstone/core/api/system'
  * 页面卸载不清空,避免在菜单/字典/角色/用户页之间切换时反复请求。
  */
 
-export function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-// 文本归一收口在 core 公共工具里：可清空控件（el-select 等）清空后是 undefined，
-// 本文件不再单独维护一份签名只收 string 的实现
+// 错误文案与文本归一都收口在 core 公共工具，本文件只转出，不再各写一份
+export { toMessage } from '@cornerstone/core/utils/error'
 export { trimToUndefined } from '@cornerstone/core/utils/text'
 
 export function parseCustomPermissionCodes(raw: string) {

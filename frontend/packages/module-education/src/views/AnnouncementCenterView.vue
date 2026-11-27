@@ -374,6 +374,7 @@ import AnnouncementWxacodeDialog from '@cornerstone/module-education/views/annou
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useDictStore } from '@cornerstone/core/stores/dict'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
 import {
   fetchCampuses,
   type CampusSummary,
@@ -482,10 +483,6 @@ watch(
 )
 
 const formTitle = computed(() => (editingId.value ? '编辑公告草稿' : '新建公告'))
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function formatTime(value?: string | null) {
   return value ? value.replace('T', ' ').slice(0, 16) : '—'

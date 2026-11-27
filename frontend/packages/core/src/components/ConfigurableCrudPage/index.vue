@@ -59,6 +59,7 @@ import ConfigurableList from '@cornerstone/core/components/ConfigurableList/inde
 import ConfigurableForm from '@cornerstone/core/components/ConfigurableForm/index.vue'
 import { useListConfigStore } from '@cornerstone/core/stores/listConfig'
 import { useCrudModal } from '@cornerstone/core/composables/useCrudModal'
+import { toMessage as defaultToMessage } from '@cornerstone/core/utils/error'
 import type {
   ActionHandler,
   FormFieldConfig,
@@ -90,11 +91,7 @@ const config = ref<CrudPageConfig | null>(null)
 
 function toMessage(error: unknown, fallback: string): string {
   const custom = props.crud?.toMessage
-  return custom
-    ? custom(error, fallback)
-    : error instanceof Error && error.message
-      ? error.message
-      : fallback
+  return custom ? custom(error, fallback) : defaultToMessage(error, fallback)
 }
 
 async function reload() {

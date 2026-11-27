@@ -250,6 +250,8 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import ClassSelect from './ClassSelect.vue'
 import StudentSelect from './StudentSelect.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 import { classLabelOf, ensureClassLabels } from '@cornerstone/module-education/composables/classLabels'
 import { ensureStudentLabels, studentLabelOf } from '@cornerstone/module-education/composables/studentLabels'
 import {
@@ -421,15 +423,6 @@ const formTitle = computed(() => {
 })
 
 const formScopeLevel = computed(() => scopeLevel(form))
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 /** 0 与空同义：都是「不限」，所以只认非 0 的维度 */
 function activeDimension(value?: string | number | null) {

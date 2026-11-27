@@ -137,6 +137,8 @@ import TableFillBox from '@cornerstone/core/components/TableFillBox.vue'
 import CodeInput from '@cornerstone/core/components/CodeInput.vue'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
+import { toMessage } from '@cornerstone/core/utils/error'
+import { trimToUndefined } from '@cornerstone/core/utils/text'
 import { useEducationScope } from '@cornerstone/module-education/composables/useEducationScope'
 import {
   billingModeLabel,
@@ -182,15 +184,6 @@ const form = reactive({
   status: 'active',
   remark: '',
 })
-
-function toMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
-function trimToUndefined(value: string) {
-  const normalized = value.trim()
-  return normalized ? normalized : undefined
-}
 
 function resetForm() {
   form.itemCode = ''
