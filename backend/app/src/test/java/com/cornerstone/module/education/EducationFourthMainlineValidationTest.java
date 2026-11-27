@@ -1,29 +1,37 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.service.SystemDictService;
+import com.cornerstone.core.tenant.domain.InstitutionEntity;
+import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.module.education.attendance.dto.AttendanceBatchItemRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceCreateRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonBatchSaveRequest;
+import com.cornerstone.module.education.attendance.service.impl.AttendanceServiceImpl;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.service.support.DictValueValidator;
-import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
-import com.cornerstone.module.education.dto.AttendanceCreateRequest;
-import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
-import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
-import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
-import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
-import com.cornerstone.module.education.service.impl.ClassStudentServiceImpl;
-import com.cornerstone.core.tenant.domain.InstitutionEntity;
-import com.cornerstone.core.tenant.mapper.InstitutionMapper;
+import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.support.DictValueValidator;
+import com.cornerstone.module.education.teachingclass.dto.ClassStudentCreateRequest;
+import com.cornerstone.module.education.teachingclass.service.impl.ClassStudentServiceImpl;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -31,20 +39,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class EducationFourthMainlineValidationTest {

@@ -7,12 +7,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.MiniappStudentFeeView;
 import com.cornerstone.module.education.fee.domain.entity.FeeItemEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerItemEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeeMonthlyEntity;
 import com.cornerstone.module.education.fee.domain.entity.FeePaymentEntity;
+import com.cornerstone.module.education.fee.dto.MiniappStudentFeeView;
 import com.cornerstone.module.education.fee.mapper.FeeItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeLedgerItemMapper;
 import com.cornerstone.module.education.fee.mapper.FeeLedgerMapper;

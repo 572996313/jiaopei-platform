@@ -19,21 +19,21 @@ import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
+import com.cornerstone.module.education.announcement.dto.AnnouncementRecipientPreview;
+import com.cornerstone.module.education.announcement.dto.AnnouncementTemplateUpsertRequest;
+import com.cornerstone.module.education.announcement.dto.AnnouncementTemplateView;
+import com.cornerstone.module.education.announcement.dto.AnnouncementUpsertRequest;
+import com.cornerstone.module.education.announcement.dto.AnnouncementView;
+import com.cornerstone.module.education.announcement.dto.MyAnnouncementView;
+import com.cornerstone.module.education.announcement.service.impl.AnnouncementServiceImpl;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementEntity;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementReceiverEntity;
 import com.cornerstone.module.education.domain.entity.MsgAnnouncementTemplateEntity;
-import com.cornerstone.module.education.dto.AnnouncementRecipientPreview;
-import com.cornerstone.module.education.dto.AnnouncementTemplateUpsertRequest;
-import com.cornerstone.module.education.dto.AnnouncementTemplateView;
-import com.cornerstone.module.education.dto.AnnouncementUpsertRequest;
-import com.cornerstone.module.education.dto.AnnouncementView;
-import com.cornerstone.module.education.dto.MyAnnouncementView;
 import com.cornerstone.module.education.mapper.MsgAnnouncementMapper;
 import com.cornerstone.module.education.mapper.MsgAnnouncementReceiverMapper;
 import com.cornerstone.module.education.mapper.MsgAnnouncementTemplateMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
-import com.cornerstone.module.education.service.impl.AnnouncementServiceImpl;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.support.DictValueValidator;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import java.util.List;
 import java.util.Set;
@@ -281,7 +281,7 @@ class AnnouncementServiceImplTest {
             java.util.Map.<String, Object>of("announcementId", 1L, "readCount", 4L)));
         when(userAccountMapper.selectBatchIds(any())).thenReturn(List.of(account(1L, "校长")));
 
-        PageResult<AnnouncementView> page = service.pageAnnouncements(new com.cornerstone.module.education.dto.AnnouncementPageQuery());
+        PageResult<AnnouncementView> page = service.pageAnnouncements(new com.cornerstone.module.education.announcement.dto.AnnouncementPageQuery());
 
         verify(receiverMapper, org.mockito.Mockito.times(1)).selectMaps(any());
         assertEquals(4, page.records().get(0).readCount());

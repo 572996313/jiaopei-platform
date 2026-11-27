@@ -1,5 +1,15 @@
 package com.cornerstone.module.education;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.cornerstone.core.auth.aspect.PermissionGuardAspect;
 import com.cornerstone.core.auth.security.RestAccessDeniedHandler;
 import com.cornerstone.core.auth.security.RestAuthenticationEntryPoint;
@@ -9,24 +19,24 @@ import com.cornerstone.core.common.web.ApiResponseAdvice;
 import com.cornerstone.core.common.web.GlobalExceptionHandler;
 import com.cornerstone.core.common.web.TraceIdFilter;
 import com.cornerstone.core.config.SecurityConfig;
-import com.cornerstone.module.education.controller.AttendanceController;
-import com.cornerstone.module.education.controller.ClassStudentController;
-import com.cornerstone.module.education.controller.ScheduleLessonController;
+import com.cornerstone.module.education.attendance.controller.AttendanceController;
+import com.cornerstone.module.education.attendance.dto.AttendanceBatchItemRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceCreateRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonInfoView;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonPageView;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonStudentView;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonSummaryView;
+import com.cornerstone.module.education.attendance.service.AttendanceService;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
-import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
-import com.cornerstone.module.education.dto.AttendanceCreateRequest;
-import com.cornerstone.module.education.dto.AttendanceLessonInfoView;
-import com.cornerstone.module.education.dto.AttendanceLessonPageView;
-import com.cornerstone.module.education.dto.AttendanceLessonStudentView;
-import com.cornerstone.module.education.dto.AttendanceLessonSummaryView;
-import com.cornerstone.module.education.dto.ClassStudentCreateRequest;
-import com.cornerstone.module.education.dto.ScheduleConflictCheckResponse;
-import com.cornerstone.module.education.dto.ScheduleLessonRequest;
-import com.cornerstone.module.education.dto.ScheduleLessonView;
-import com.cornerstone.module.education.service.AttendanceService;
-import com.cornerstone.module.education.service.ClassStudentService;
-import com.cornerstone.module.education.service.ScheduleLessonService;
+import com.cornerstone.module.education.schedule.controller.ScheduleLessonController;
+import com.cornerstone.module.education.schedule.dto.ScheduleConflictCheckResponse;
+import com.cornerstone.module.education.schedule.dto.ScheduleLessonRequest;
+import com.cornerstone.module.education.schedule.dto.ScheduleLessonView;
+import com.cornerstone.module.education.schedule.service.ScheduleLessonService;
+import com.cornerstone.module.education.teachingclass.controller.ClassStudentController;
+import com.cornerstone.module.education.teachingclass.dto.ClassStudentCreateRequest;
+import com.cornerstone.module.education.teachingclass.service.ClassStudentService;
 import com.cornerstone.support.WebMvcSecurityTestConfig;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -39,16 +49,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {
     ClassStudentController.class,
@@ -203,7 +203,7 @@ class EducationFourthMainlineApiCompatibilityWebTest {
             .andExpect(jsonPath("$.message").value("课次点名已保存"))
             .andExpect(jsonPath("$.data.lesson.lessonId").value(300))
             .andExpect(jsonPath("$.data.students[0].studentId").value(10));
-        verify(attendanceService).saveLessonAttendance(new com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest(
+        verify(attendanceService).saveLessonAttendance(new com.cornerstone.module.education.attendance.dto.AttendanceLessonBatchSaveRequest(
             300L,
             List.of(new AttendanceBatchItemRequest(10L, "late", "manual", "traffic"))
         ));

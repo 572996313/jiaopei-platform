@@ -1,5 +1,12 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.module.education.fee.domain.entity.FeeLedgerEntity;
@@ -20,7 +27,7 @@ import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.StudentParentMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.support.DictValueValidator;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
 import java.math.BigDecimal;
@@ -32,13 +39,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * 收款单号在「删除 → 重建同号 → 再删」下的防线。

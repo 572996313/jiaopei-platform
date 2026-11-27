@@ -10,7 +10,12 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
 /**
- * 教务模块（教师/学员/班级/课程/报名/排课/考勤/小程序）自动装配。
+ * 教务模块（教师/学员/班级/课程/排课/考勤/公告/收费/消息/小程序）自动装配。
+ *
+ * <p>包结构按功能域分（`teacher` / `student` / `teachingclass` / `course` / `schedule` /
+ * `attendance` / `announcement` / `miniapp` / `fee` / `message`），共享的实体与 Mapper 留顶层。
+ * 因此 {@code @ComponentScan} 只需扫根包，而 {@code @MapperScan} 要列出三个 Mapper 包：
+ * 顶层的共享 Mapper，以及 `fee` / `message` 两个自成分域、实体与 Mapper 留在域内的。</p>
  *
  * <p>开关：{@code cornerstone.modules.enabled.education}，缺省视为开启。关闭后本包内
  * Controller/Service/Mapper/事件监听都不注册，对应接口 404。</p>

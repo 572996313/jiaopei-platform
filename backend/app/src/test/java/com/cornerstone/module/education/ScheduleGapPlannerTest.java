@@ -1,5 +1,12 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -8,17 +15,17 @@ import com.cornerstone.module.education.domain.entity.SchedulePlanEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.ScheduleAutoPlacement;
-import com.cornerstone.module.education.dto.ScheduleAutoStrategy;
-import com.cornerstone.module.education.dto.ScheduleCompletenessResponse;
-import com.cornerstone.module.education.dto.ScheduleSlotCell;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.SchedulePlanMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
-import com.cornerstone.module.education.service.SchoolCalendarService;
-import com.cornerstone.module.education.service.support.ScheduleGapPlanner;
-import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoPlacement;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoStrategy;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessResponse;
+import com.cornerstone.module.education.schedule.dto.ScheduleSlotCell;
+import com.cornerstone.module.education.schedule.service.SchoolCalendarService;
+import com.cornerstone.module.education.schedule.support.ScheduleGapPlanner;
+import com.cornerstone.module.education.schedule.support.ScheduleRuleSupport;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -32,13 +39,6 @@ import java.util.Map;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * 缺口补排的决策口径：占用按教师分桶、停排日只作兜底档、教师周上限与每日上限是硬约束、

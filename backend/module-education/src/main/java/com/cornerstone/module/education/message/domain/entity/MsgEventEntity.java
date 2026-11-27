@@ -5,10 +5,9 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cornerstone.core.common.model.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import java.time.LocalDateTime;
 
 /**
  * 事件账本：一次发生/成立一行。

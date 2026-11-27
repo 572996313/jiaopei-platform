@@ -1,5 +1,15 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -8,13 +18,13 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.SchedulePlanEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.ScheduleCompletenessQuery;
-import com.cornerstone.module.education.dto.ScheduleCompletenessResponse;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.SchedulePlanMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
-import com.cornerstone.module.education.service.impl.ScheduleCompletenessServiceImpl;
-import com.cornerstone.module.education.service.support.SchedulePlanExpander;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessQuery;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessResponse;
+import com.cornerstone.module.education.schedule.service.impl.ScheduleCompletenessServiceImpl;
+import com.cornerstone.module.education.schedule.support.SchedulePlanExpander;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.TermMapper;
@@ -27,16 +37,6 @@ import java.util.List;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * 排课完成度汇总口径：应排来自计划展开，实排按「日期#时段」键匹配，

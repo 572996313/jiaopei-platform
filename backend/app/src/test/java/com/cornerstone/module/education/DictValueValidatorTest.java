@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.system.dto.DictItemView;
 import com.cornerstone.core.system.service.SystemDictService;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.support.DictValueValidator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;

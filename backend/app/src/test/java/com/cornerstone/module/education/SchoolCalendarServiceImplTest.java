@@ -1,5 +1,18 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -7,9 +20,9 @@ import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.module.education.domain.entity.SchoolCalendarDayEntity;
-import com.cornerstone.module.education.dto.SchoolCalendarRequest;
 import com.cornerstone.module.education.mapper.SchoolCalendarDayMapper;
-import com.cornerstone.module.education.service.impl.SchoolCalendarServiceImpl;
+import com.cornerstone.module.education.schedule.dto.SchoolCalendarRequest;
+import com.cornerstone.module.education.schedule.service.impl.SchoolCalendarServiceImpl;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import java.time.LocalDate;
@@ -25,19 +38,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * 校区日历（停排日）：读取范围只认「机构级(0) + 本校区」，同一天两处都登记时以范围更窄的校区级为准；

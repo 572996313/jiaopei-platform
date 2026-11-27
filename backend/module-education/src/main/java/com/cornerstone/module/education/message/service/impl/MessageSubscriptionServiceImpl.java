@@ -26,9 +26,9 @@ import com.cornerstone.module.education.message.dto.MessageSubscriptionUpdateReq
 import com.cornerstone.module.education.message.dto.MessageSubscriptionView;
 import com.cornerstone.module.education.message.mapper.MsgEventTypeMapper;
 import com.cornerstone.module.education.message.mapper.MsgSubscriptionMapper;
-import com.cornerstone.module.education.message.support.MessageTypeRules;
 import com.cornerstone.module.education.message.service.MessageSubscriptionService;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.message.support.MessageTypeRules;
+import com.cornerstone.module.education.support.DictValueValidator;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.service.support.CampusScopeGuard;

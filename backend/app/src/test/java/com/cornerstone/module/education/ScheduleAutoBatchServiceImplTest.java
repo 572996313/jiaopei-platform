@@ -1,5 +1,15 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -10,25 +20,25 @@ import com.cornerstone.module.education.domain.entity.ScheduleAutoBatchEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.ScheduleAutoBatchRequest;
-import com.cornerstone.module.education.dto.ScheduleAutoFailure;
-import com.cornerstone.module.education.dto.ScheduleAutoPlanResponse;
-import com.cornerstone.module.education.dto.ScheduleAutoPlacement;
-import com.cornerstone.module.education.dto.ScheduleAutoRollbackResponse;
-import com.cornerstone.module.education.dto.ScheduleAutoStrategy;
-import com.cornerstone.module.education.dto.ScheduleCompletenessResponse;
 import com.cornerstone.module.education.mapper.ScheduleAutoBatchMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
-import com.cornerstone.module.education.service.ScheduleCompletenessService;
-import com.cornerstone.module.education.service.impl.ScheduleAutoBatchServiceImpl;
-import com.cornerstone.module.education.service.support.ScheduleGapPlanner;
-import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
+import com.cornerstone.module.education.mapper.TeachingClassMapper;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoBatchRequest;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoFailure;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoPlacement;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoPlanResponse;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoRollbackResponse;
+import com.cornerstone.module.education.schedule.dto.ScheduleAutoStrategy;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessResponse;
+import com.cornerstone.module.education.schedule.service.ScheduleCompletenessService;
+import com.cornerstone.module.education.schedule.service.impl.ScheduleAutoBatchServiceImpl;
+import com.cornerstone.module.education.schedule.support.ScheduleGapPlanner;
+import com.cornerstone.module.education.schedule.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.domain.entity.TermEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
 import com.cornerstone.module.organization.mapper.TermMapper;
-import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -42,16 +52,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * 补排批次的编排口径：机构归属先于一切查询、一节没排上就不留批次行、撤销只动"还没上"的课次。

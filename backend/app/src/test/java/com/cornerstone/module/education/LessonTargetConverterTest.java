@@ -1,13 +1,13 @@
 package com.cornerstone.module.education;
 
-import com.cornerstone.core.common.exception.BusinessException;
-import com.cornerstone.module.education.service.support.LessonTargetConverter;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.teachingclass.support.LessonTargetConverter;
+import org.junit.jupiter.api.Test;
 
 /**
  * 班级课时目标的录入口径换算：按月填的原值要能折算成报表用的每周节数，

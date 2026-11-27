@@ -1,5 +1,15 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.cornerstone.core.auth.aspect.PermissionGuardAspect;
 import com.cornerstone.core.auth.security.RestAccessDeniedHandler;
 import com.cornerstone.core.auth.security.RestAuthenticationEntryPoint;
@@ -11,10 +21,10 @@ import com.cornerstone.core.common.web.ApiResponseAdvice;
 import com.cornerstone.core.common.web.GlobalExceptionHandler;
 import com.cornerstone.core.common.web.TraceIdFilter;
 import com.cornerstone.core.config.SecurityConfig;
-import com.cornerstone.module.education.controller.ScheduleCompletenessController;
-import com.cornerstone.module.education.dto.ScheduleCompletenessQuery;
-import com.cornerstone.module.education.dto.ScheduleCompletenessResponse;
-import com.cornerstone.module.education.service.ScheduleCompletenessService;
+import com.cornerstone.module.education.schedule.controller.ScheduleCompletenessController;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessQuery;
+import com.cornerstone.module.education.schedule.dto.ScheduleCompletenessResponse;
+import com.cornerstone.module.education.schedule.service.ScheduleCompletenessService;
 import com.cornerstone.support.WebMvcSecurityTestConfig;
 import java.time.LocalDate;
 import java.util.List;
@@ -25,16 +35,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ScheduleCompletenessController.class)
 @Import({

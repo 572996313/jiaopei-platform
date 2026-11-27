@@ -1,6 +1,6 @@
 package com.cornerstone.module.education.fee.service;
 
-import com.cornerstone.module.education.dto.MiniappStudentFeeView;
+import com.cornerstone.module.education.fee.dto.MiniappStudentFeeView;
 
 /**
  * 家长端只读费用查询。

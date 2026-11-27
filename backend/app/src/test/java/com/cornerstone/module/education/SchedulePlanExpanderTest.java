@@ -1,13 +1,13 @@
 package com.cornerstone.module.education;
 
-import com.cornerstone.module.education.dto.ScheduleSlotCell;
-import com.cornerstone.module.education.service.support.SchedulePlanExpander;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import com.cornerstone.module.education.schedule.dto.ScheduleSlotCell;
+import com.cornerstone.module.education.schedule.support.SchedulePlanExpander;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SchedulePlanExpanderTest {
 

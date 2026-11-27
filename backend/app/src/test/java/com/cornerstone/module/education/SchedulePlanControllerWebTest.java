@@ -1,21 +1,31 @@
 package com.cornerstone.module.education;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.cornerstone.core.auth.aspect.PermissionGuardAspect;
 import com.cornerstone.core.auth.security.RestAccessDeniedHandler;
 import com.cornerstone.core.auth.security.RestAuthenticationEntryPoint;
 import com.cornerstone.core.auth.security.StubAuthenticationFilter;
 import com.cornerstone.core.auth.service.PermissionService;
-import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.common.api.ResultCode;
+import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.common.web.ApiResponseAdvice;
 import com.cornerstone.core.common.web.GlobalExceptionHandler;
 import com.cornerstone.core.common.web.TraceIdFilter;
 import com.cornerstone.core.config.SecurityConfig;
-import com.cornerstone.module.education.controller.SchedulePlanController;
-import com.cornerstone.module.education.dto.SchedulePlanCommitResponse;
-import com.cornerstone.module.education.dto.SchedulePlanPreviewResponse;
-import com.cornerstone.module.education.dto.SchedulePlanView;
-import com.cornerstone.module.education.service.SchedulePlanService;
+import com.cornerstone.module.education.schedule.controller.SchedulePlanController;
+import com.cornerstone.module.education.schedule.dto.SchedulePlanCommitResponse;
+import com.cornerstone.module.education.schedule.dto.SchedulePlanPreviewResponse;
+import com.cornerstone.module.education.schedule.dto.SchedulePlanView;
+import com.cornerstone.module.education.schedule.service.SchedulePlanService;
 import com.cornerstone.support.WebMvcSecurityTestConfig;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,16 +36,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SchedulePlanController.class)
 @Import({
@@ -136,7 +136,7 @@ class SchedulePlanControllerWebTest {
         given(permissionService.hasPermission(any(), anyString())).willReturn(true);
         given(schedulePlanService.updatePlan(anyLong(), any())).willReturn(new SchedulePlanView(
             900L, 1L, 10L, 20L, 100L, 300L, List.of(400L),
-            List.of(new com.cornerstone.module.education.dto.ScheduleSlotCell(2, 500L)),
+            List.of(new com.cornerstone.module.education.schedule.dto.ScheduleSlotCell(2, 500L)),
             "every_week", LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30),
             List.of(), "active", null, null));
 

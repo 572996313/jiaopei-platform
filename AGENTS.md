@@ -42,7 +42,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 | --- | --- | --- | --- | --- |
 | `cornerstone-core/` | `cornerstone-core` | `com.cornerstone.core.*` | 底座：`auth` / `system` / `common` / `config` / `tenant` / `audit` / `file`（通用文件上传/元数据/下载/孤儿清理）+ 全部第三方 starter | 不依赖任何业务模块 |
 | `module-organization/` | `module-organization` | `com.cornerstone.module.organization.*` | 业务：校区/教室/学期/时间段 | → core |
-| `module-education/` | `module-education` | `com.cornerstone.module.education.*` | 业务：教师/学员/班级/排课/考勤/小程序 | → core、→ organization |
+| `module-education/` | `module-education` | `com.cornerstone.module.education.*` | 业务：教师/学员/班级/课程/排课/考勤/公告/收费/消息/小程序，**包按功能域分**（见「模块划分与持久化」） | → core、→ organization |
 | `app/` | `jiaopei-platform-backend` | `com.cornerstone`（仅主类 `CornerstoneApplication`） | 组装启动：主类、`application.yml`、Flyway 迁移、全量测试、`spring-boot-maven-plugin` | → 上面三块 |
 
 - **包根即模块身份**：底座类只能在 `com.cornerstone.core.*`，业务模块在 `com.cornerstone.module.<name>.*`；`ArchitectureRulesTest` 的包白名单按此约束，新增顶层包要同步。artifactId、jar 名、数据库库名、容器与镜像名**保持 jiaopei 不变**（那是本项目的部署标识，不属于底座身份）。表前缀属另一码事：底座表 `sys_`、业务表 `jp_`，阶段五-0b 已把底座四张表从 `jp_` 改到 `sys_`。
@@ -246,8 +246,14 @@ pnpm dev:h5            # H5 调试
 
 ## 模块划分与持久化
 
-- 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，七个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit` / `file`（通用文件能力）；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/变动通知/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
-- 模块内子包：`controller / service(+impl) / repository(仅 org/edu 有) / mapper / domain(entity) / dto`。简单 CRUD 走 mapper。
+- 包结构（阶段四起）：底座在 `com.cornerstone.core.*`，七个顶层包 `auth` / `system` / `common` / `config` / `tenant`（机构=租户）/ `audit` / `file`（通用文件能力）；业务在 `com.cornerstone.module.*`，`organization`（校区/教室/学期/时间段）→ `module-organization`、`education`（教师/学员/班级/课程/报名/排课/考勤/公告/收费/消息/小程序）→ `module-education`；`app` 只放主类 `com.cornerstone.CornerstoneApplication`。
+- 模块内子包（2026-11-27 起 `module-education` 改为**功能域优先**）：`<功能域>/controller / service(+impl) / dto / support`，功能域是 `teacher` / `student` / `teachingclass`（班级·名册·分班·主讲·变动通知）/ `course`（课程·分类·班型）/ `schedule`（排课·课次·校历·补排·完成度·节次引用）/ `attendance` / `announcement` / `miniapp` / `fee` / `message`。**共享层留顶层**：`domain/entity`（22 个实体）、`mapper`（22 个 Mapper）、`config`、`listener`、`support`（Xlsx 导入、校区范围、字典校验）、`dto`（只放跨域共用的 `XlsxImportResult` / `XlsxImportRowView`）、`repository`（仅 package-info）。`fee/` 与 `message/` 的实体与 Mapper 留在各自域内。
+  - 为什么实体与 Mapper 留顶层：功能域之间存在 `attendance ↔ schedule`（点名查课次、节次引用清理查考勤）、`teachingclass ↔ student`（学员查所属班级、班级查名册）、`support ↔ teachingclass`（校区范围经班级推导）三个环，**全部经过实体/Mapper**。实体与 Mapper 留顶层当共享数据层，功能域这一层就没有环；真要拆 Maven 模块时，这三个环必须先拆掉（跨模块循环编译不过）。
+  - 新增类按功能域放：写收费放 `fee/`、写消息放 `message/`、写排课放 `schedule/`。**顶层已不存在 `controller` 与 `service` 包**，只剩共享层；不要为了图省事新建它们。
+  - `fee/` 与 `message/` 原本就自成分域，本次只把内部子包补成同一套 `controller / service(+impl) / dto / support / domain/entity / mapper`，并补上缺失的 `package-info`。
+  - 每个包都带 `package-info.java`（`@NonNullApi`），新增包照抄一份，否则空指针告警语义会与其余包不一致。`fee/` 与 `message/` 的 `domain/entity`、`mapper` 仍在各自域内（它们不参与那三个环）。
+  - `module-organization` 仍是分层式（`controller / service / dto / domain / mapper`），它只有 5 个聚合根、规模不到需要分域的程度，不要为了"一致"去拆。
+- 模块内通用约定（两类模块都适用）：`repository` 仅 org/edu 有（当前只有 `package-info`，实体查询全部走 mapper）；简单 CRUD 走 mapper。
 - `CornerstoneProperties.modules.*-enabled` 自阶段二C 起是**真开关**（`@ConditionalOnProperty` 落在各模块 `XxxModuleAutoConfiguration` 上），见「模块装配与开关」。
 - 实体继承 `BaseEntity`：雪花 `Long` id（`IdType.ASSIGN_ID`）、审计字段、`deleted`（`@TableLogic`）。建表 `deleted` 默认 0。
 - Mapper 扫描按模块各自声明：core 的 `MybatisPlusConfig` 扫 `auth`/`system`/`tenant`/`file` 四个 mapper 包，`AuditDataSourceConfig` 单独扫 `audit.mapper`（日志库），各业务模块在自己的 `XxxModuleAutoConfiguration` 上 `@MapperScan` 本模块 mapper 包（`sqlSessionFactoryRef` 都指到 `primarySqlSessionFactory`）。新模块不需要改 core。XML 位置 `classpath*:/mapper/**/*.xml`（当前 `app/src/main/resources/mapper/` 为空，全部走 `BaseMapper`）；分页用 `PaginationInnerInterceptor`（MySQL 方言）。
@@ -446,7 +452,7 @@ ALTER TABLE `jp_xxx` DROP INDEX `uk_jp_xxx_code`;
 2. **新增枚举字段必须五处同步**，缺一即视为未完成：
    - `app/` 迁移种入字典类型+条目（参照 V51）；
    - DB 列 COMMENT 与 DTO `@Schema` 写成「字典(类型码:值=含义)」格式并带 `allowableValues`（参照 gender 字段现状）；
-   - 后端写入路径按字典校验，字典外取值 `BAD_REQUEST` 并在消息里列允许值（各业务模块各持一份通用 `DictValueValidator`，按 `(字典类型码, 字段中文名, 值)` 调用，参照 `module-education`/`module-organization` 的 `service/support/DictValueValidator`；下沉到 `cornerstone-core` 会把业务字典类型带进底座，不允许）；
+   - 后端写入路径按字典校验，字典外取值 `BAD_REQUEST` 并在消息里列允许值（各业务模块各持一份通用 `DictValueValidator`，按 `(字典类型码, 字段中文名, 值)` 调用，参照 `module-education` 的 `support/DictValueValidator`、`module-organization` 的 `service/support/DictValueValidator`；下沉到 `cornerstone-core` 会把业务字典类型带进底座，不允许）；
    - PC 表单用 `DictSelect`（指定 `type-code`），列表/详情回显统一用 `dictStore.displayLabel(类型码, 值)`（core 的 dict store 提供：命中取 `item_name`，未命中回显原始值）。**表单默认值一律留空**，不把 `item_value` 预置进前端（条目被停用/删除时表单会提交无效值），需要默认值由后端取库默认（参照 `employment_type`/`teacher_role`/`campus_type`/`room_type` 的 create 分支）；
    - 小程序用 `GET /api/system/dicts/options?typeCodes=<码>` 拉选项（该接口登录即可访问，无需新增端点），参照 `miniapp/src/api/miniapp.ts` 的 `fetchGenderOptions()`。
 3. **`item_value` 不允许原地改**（已上生产的同迁移脚本禁改规矩）：需要改名/换值时新增 `V<n+1>` 归一存量数据（UPDATE + 列注释），与代码同批发布。

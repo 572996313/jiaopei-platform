@@ -1,5 +1,17 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -13,9 +25,6 @@ import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.StudentEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.ScheduleConflictCheckRequest;
-import com.cornerstone.module.education.dto.ScheduleLessonPageQuery;
-import com.cornerstone.module.education.dto.ScheduleLessonRequest;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleRuleMapper;
@@ -23,10 +32,13 @@ import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
 import com.cornerstone.module.education.mapper.TeachingClassMapper;
-import com.cornerstone.module.education.service.SchoolCalendarService;
-import com.cornerstone.module.education.service.impl.ScheduleLessonServiceImpl;
-import com.cornerstone.module.education.service.support.ScheduleRuleSupport;
-import com.cornerstone.module.education.service.support.ScheduleTeacherLock;
+import com.cornerstone.module.education.schedule.dto.ScheduleConflictCheckRequest;
+import com.cornerstone.module.education.schedule.dto.ScheduleLessonPageQuery;
+import com.cornerstone.module.education.schedule.dto.ScheduleLessonRequest;
+import com.cornerstone.module.education.schedule.service.SchoolCalendarService;
+import com.cornerstone.module.education.schedule.service.impl.ScheduleLessonServiceImpl;
+import com.cornerstone.module.education.schedule.support.ScheduleRuleSupport;
+import com.cornerstone.module.education.schedule.support.ScheduleTeacherLock;
 import com.cornerstone.module.organization.domain.entity.ClassroomEntity;
 import com.cornerstone.module.organization.domain.entity.TimeSlotEntity;
 import com.cornerstone.module.organization.mapper.ClassroomMapper;
@@ -45,18 +57,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ScheduleLessonServiceImplTest {
 

@@ -1,27 +1,36 @@
 package com.cornerstone.module.education;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cornerstone.core.auth.context.AuthenticatedUser;
 import com.cornerstone.core.common.api.ResultCode;
 import com.cornerstone.core.common.exception.BusinessException;
+import com.cornerstone.module.education.attendance.dto.AttendanceBatchItemRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonBatchSaveRequest;
+import com.cornerstone.module.education.attendance.dto.AttendanceLessonPageView;
+import com.cornerstone.module.education.attendance.service.impl.AttendanceServiceImpl;
 import com.cornerstone.module.education.domain.entity.AttendanceEntity;
 import com.cornerstone.module.education.domain.entity.ClassStudentEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleLessonEntity;
 import com.cornerstone.module.education.domain.entity.ScheduleTeacherRelEntity;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
 import com.cornerstone.module.education.domain.entity.TeachingClassEntity;
-import com.cornerstone.module.education.dto.AttendanceBatchItemRequest;
-import com.cornerstone.module.education.dto.AttendanceLessonBatchSaveRequest;
-import com.cornerstone.module.education.dto.AttendanceLessonPageView;
 import com.cornerstone.module.education.mapper.AttendanceMapper;
 import com.cornerstone.module.education.mapper.ClassStudentMapper;
 import com.cornerstone.module.education.mapper.ScheduleLessonMapper;
 import com.cornerstone.module.education.mapper.ScheduleTeacherRelMapper;
 import com.cornerstone.module.education.mapper.StudentMapper;
-import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import com.cornerstone.module.education.mapper.TeacherMapper;
-import com.cornerstone.module.education.service.impl.AttendanceServiceImpl;
+import com.cornerstone.module.education.mapper.TeachingClassMapper;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,15 +42,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * 课次点名的存盘口径，重点是"留空即撤销点名"这条分支。

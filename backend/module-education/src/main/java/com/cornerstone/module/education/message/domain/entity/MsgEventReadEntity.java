@@ -3,10 +3,9 @@ package com.cornerstone.module.education.message.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cornerstone.core.common.model.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import java.time.LocalDateTime;
 
 /**
  * 事件已读：按人一行，一个人读了不影响别人。

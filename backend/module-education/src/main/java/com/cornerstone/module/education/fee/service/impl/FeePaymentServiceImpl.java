@@ -15,7 +15,7 @@ import com.cornerstone.module.education.fee.mapper.FeeLedgerMapper;
 import com.cornerstone.module.education.fee.mapper.FeePaymentMapper;
 import com.cornerstone.module.education.fee.service.FeePaymentService;
 import com.cornerstone.module.education.fee.support.FeeBillingEngine;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.support.DictValueValidator;
 import com.cornerstone.module.organization.service.support.CampusScopeGuard;
 import com.cornerstone.module.organization.service.support.InstitutionScopeGuard;
 import java.time.format.DateTimeFormatter;

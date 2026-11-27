@@ -1,6 +1,5 @@
 package com.cornerstone.module.education;
 
-import com.cornerstone.support.CodeRuleTestSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,12 +13,13 @@ import com.cornerstone.core.common.exception.BusinessException;
 import com.cornerstone.core.tenant.domain.InstitutionEntity;
 import com.cornerstone.core.tenant.mapper.InstitutionMapper;
 import com.cornerstone.module.education.domain.entity.TeacherEntity;
-import com.cornerstone.module.education.dto.TeacherPageQuery;
 import com.cornerstone.module.education.mapper.TeacherMapper;
-import com.cornerstone.module.education.service.impl.TeacherServiceImpl;
-import com.cornerstone.module.education.service.support.DictValueValidator;
+import com.cornerstone.module.education.support.DictValueValidator;
+import com.cornerstone.module.education.teacher.dto.TeacherPageQuery;
+import com.cornerstone.module.education.teacher.service.impl.TeacherServiceImpl;
 import com.cornerstone.module.organization.domain.entity.CampusEntity;
 import com.cornerstone.module.organization.mapper.CampusMapper;
+import com.cornerstone.support.CodeRuleTestSupport;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.LocalDate;
