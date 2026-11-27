@@ -1,6 +1,8 @@
 # frontend
 frontend/node_modules/
 frontend/dist/
+# 测试运行产物（.last-run.json 一类），跑测试就会重建
+frontend/test-results/
 
 # backend（Maven 多模块：聚合工程与各子模块的构建产物）
 backend/target/
@@ -23,6 +25,8 @@ Thumbs.db
 .env
 .env.*
 /backend/.gitignore
+# Copilot Java 升级扩展在 backend/ 下自动生成的 hooks（删了开 IDE 会重建）
+/backend/.github/
 /.tmp-edge-profile/**
 /.tmp-chrome-schedule-walk/**
 /.kilo/**
@@ -44,5 +48,4 @@ docker/deploy.log
 /.zcode/
 gui-test-screenshots/
 /.zcode/
-/data/files/1/2026/11/1a76693d-c814-4b5a-bf17-5d9e984d3611.jpg
-/data/files/1/2026/11/2b9ee9f3-b66e-4de3-b869-1771c393b16e.png
+/data/

@@ -729,5 +729,5 @@ grep -rlE "ENGINE=InnoDB" backend/app/src/main/resources/db/migration | xargs gr
 - `docs/新增字段操作手册.md` — 开发向：加字段的纵切流程（归属判断 → 迁移 → 实体/DTO → 前端 → 验收）、字段变更单与迁移门禁口径
 - `docs/业务单据链路.md` — 业务/实施向：系统设置「业务链路」页（所有表都有节点、未登记关系的标「仅表」、外键自动补引用、显式声明的生成/汇总/核销关系、触发入口）与收费域待业务确认的问题
 - `docs/操作留痕与敏感数据说明.md` — 审计与脱敏链路
-- `docs/生产部署说明.md`、`docker/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml.example` 模板 + 各服务器本地实例 `docker-compose.prod.yml`（gitignore）+ `deploy.sh`）
+- `docs/生产部署说明.md`、`docs/生产环境MySQL重建与安全加固方案.md`、`docker/prod.env.example` — 生产部署（`docker-compose.prod.yml.example` 模板 + 各服务器本地实例 `docker-compose.prod.yml`（gitignore）+ `deploy.sh`）
 - `docs/archive/` — 历史过程方案归档（首批建模、菜单重组、班级变动提示范围等），勿作为现行口径引用
