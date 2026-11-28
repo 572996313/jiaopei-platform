@@ -487,7 +487,7 @@ const listConfigForm = reactive({
   resourceCode: '',
   resourceName: '',
   endpoint: '',
-  pageSize: 10,
+  pageSize: 20,
   status: 'active',
   remark: '',
 })
@@ -972,7 +972,7 @@ function openCreateListConfigDialog() {
   listConfigForm.resourceCode = ''
   listConfigForm.resourceName = ''
   listConfigForm.endpoint = ''
-  listConfigForm.pageSize = 10
+  listConfigForm.pageSize = 20
   listConfigForm.status = 'active'
   listConfigForm.remark = ''
   activeEditTab.value = 'columns'
@@ -991,7 +991,7 @@ function openEditListConfigDialog(row: ListConfigSummary) {
   listConfigForm.resourceCode = row.resourceCode
   listConfigForm.resourceName = row.resourceName
   listConfigForm.endpoint = row.endpoint
-  listConfigForm.pageSize = row.pageSize ?? 10
+  listConfigForm.pageSize = row.pageSize ?? 20
   listConfigForm.status = row.status || 'active'
   listConfigForm.remark = row.remark || ''
   activeEditTab.value = 'columns'
@@ -1016,7 +1016,7 @@ function copyFromExisting() {
   }
   listConfigForm.resourceName = source.resourceName
   listConfigForm.endpoint = source.endpoint
-  listConfigForm.pageSize = source.pageSize ?? 10
+  listConfigForm.pageSize = source.pageSize ?? 20
   listConfigForm.status = source.status || 'active'
   listConfigForm.remark = source.remark || ''
   loadFormStateFromKeys(

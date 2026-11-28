@@ -222,14 +222,20 @@ body {
 /* 导航栏:浅色玻璃列,深色只留给横幅那一条 */
 .app-nav {
   /*
-   * backdrop-filter 让本列自成层叠上下文,.rail-popover 的 z-index 只在这列内部生效。
-   * 不给本列一个高于内容区的档位,浮层伸到内容区上方时会被后面的页签(.app-tab 是
-   * position: relative)按 DOM 顺序压在下面。30 高于内容区所有元素、低于横幅(40)。
+   * backdrop-filter 让本列自成层叠上下文。给本列一个高于内容区的档位：
+   * 内容区里 .app-tab 等元素是 position: relative，同层时按 DOM 顺序会把这层玻璃压在下面。
+   * 30 高于内容区所有元素、低于横幅(40)。
    */
   position: relative;
   z-index: 30;
   display: flex;
   flex-direction: column;
+  /*
+   * 必须显式写 0：它是 .shell-body 网格的直接子项，网格项默认 min-height:auto，
+   * 常用/收藏一多这一列就按内容长高、溢出视口，`overflow-y:auto` 的 .rail-nav 永远轮不到滚动，
+   * 列底的「全部功能」会被顶出屏幕。
+   */
+  min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--nav-bg);
   backdrop-filter: blur(14px);
@@ -244,7 +250,6 @@ body {
 .app-nav.is-rail {
   align-items: center;
   padding: 14px 0;
-  /* 二级浮层要伸到内容区上方,不能被列自己裁掉 */
   overflow: visible;
 }
 
@@ -585,12 +590,15 @@ body {
   gap: 8px;
 }
 
-/* 超宽屏下内容限宽居中,标题/内容保持同一轴线 */
+/*
+ * 内容区满出血(2026-11-28):不再给内容设 1680 限宽,宽度全部交给页面。
+ * 1680 在 1920 屏上两侧各让出约 78px、2K 屏更多,工作台、课表与点名这类页面
+ * 右侧常年空一条;客户口径是"把所有的都贴住"。
+ * 需要收窄的内容由页面在自己的内容块上收(如 TimeSlotConfigForm 的 880px),
+ * 外壳不再统一限宽。
+ */
 .app-main > * {
   width: 100%;
-  max-width: 1680px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .app-main {
@@ -601,9 +609,11 @@ body {
   /*
    * 内容区与导航列、横幅直接拼合：不留外圈缝、不画自己的边框和圆角。
    * 页签以下就是一块整白底，宽度和高度全部让给内容，不再像浮在页面上的卡片。
+   * 左右留白 2026-11-28 由 16 收到 8：全站内容要贴住两侧（见上面 .app-main > * 的注释），
+   * 8px 只是不让表格竖线与导航分隔线粘成一条重线。
    */
   margin: 0;
-  padding: 10px 16px 12px;
+  padding: 10px 8px 12px;
   border: 0;
   border-radius: 0;
   background: var(--card-bg);
@@ -661,6 +671,14 @@ body {
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
+  /*
+   * 固定宽度，不随页名长短伸缩：关闭 × 因此排在每颗胶囊右端的同一列上。
+   * 页签等宽等距，关掉一个后后面的整体左移一格，下一颗 × 恰好滑到同一横坐标——
+   * 落点不动，可以在原地连续关闭；不再出现每颗 × 落在不同位置、要重新瞄准。
+   * 120px 按常态的四个字/五个字页名定：五个字放得下，六个字以上走省略号，
+   * 个别长页名不该把整排页签撑开。十个页签在 1440 屏也装得下。
+   */
+  width: 120px;
   height: 28px;
   padding: 0 8px 0 12px;
   border: 1px solid var(--border);
@@ -691,7 +709,6 @@ body {
   border-color: transparent;
   background: var(--tab-active-bg);
   color: var(--tab-active-ink);
-  font-weight: 600;
 }
 
 .app-tab.is-active:hover {
@@ -699,22 +716,29 @@ body {
 }
 
 .app-tab-label {
-  max-width: 140px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 页签内操作:悬停或激活时才露出,免得整排页签看着全是按钮 */
+/*
+ * 页签内操作:常显但弱化,悬停该页签时加深。
+ * 以前是 opacity:0(悬停才出现),鼠标移到哪颗、哪颗才"长出"一颗 ×;
+ * 关掉一个后指针落到下一颗上又冒一颗,客户描述为"× 跳来跳去"。
+ * 常显后每颗 × 都在固定位置,点之前就能看见、能瞄准。
+ */
 .app-tab-action {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 4px;
   font-size: 12px;
-  opacity: 0;
+  opacity: 0.4;
   transition:
     opacity 0.15s,
     background-color 0.15s;
@@ -722,7 +746,7 @@ body {
 
 .app-tab:hover .app-tab-action,
 .app-tab.is-active .app-tab-action {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .app-tab-action:hover {
@@ -817,6 +841,22 @@ body {
   border-radius: 50%;
   background: var(--accent);
   vertical-align: middle;
+}
+
+/* 窄栏图标右键菜单：第一行是页面名（只读），下面一条收藏动作 */
+.rail-context-menu {
+  width: 168px;
+}
+
+.rail-context-title {
+  padding: 4px 10px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-history-empty {
@@ -2436,12 +2476,33 @@ body.is-dialog-resizing * {
 
 .rail-nav {
   width: 100%;
+  /* 撑满整列，把「全部功能」的 .rail-tail 顶到列底 */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* 常用 + 收藏多到一屏放不下时整列滚动，列底入口始终钉在外面 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
 }
 
-/* 分组分隔:每组前插一条短横线 */
+/*
+ * 列底常驻入口「全部功能」。它在滚动区（.rail-nav）之外、作为 .app-nav 的第二个子元素：
+ * 常用/收藏再多，滚动的是上面那截，这一颗始终可见。
+ * 顶部一条分隔线把它和业务入口隔开，读起来是"页面 / 更多"而不是某一个分组。
+ */
+.rail-tail {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* 常用 / 收藏两段的分隔短横线 */
 .rail-group-gap {
   width: 22px;
   height: 1px;
@@ -2455,14 +2516,16 @@ body.is-dialog-resizing * {
   gap: 4px;
   width: 100%;
   align-items: center;
+  /* 列变成 flex:1 撑满后，图标格不许被压扁：宁可溢出，也不缩成一条线 */
+  flex-shrink: 0;
 }
 
-/* 单个图标单元:包含触发按钮 + 右侧浮层 */
-.rail-cell {
-  position: relative;
-  width: 100%;
-  display: flex;
-  justify-content: center;
+/* 窄栏里的段落小标题（常用 / 收藏）。68px 宽，只放得下两个字，字号压到 10px */
+.rail-section-label {
+  padding: 6px 0 2px;
+  color: var(--nav-ink-dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 .rail-trigger {
@@ -2510,96 +2573,70 @@ body.is-dialog-resizing * {
   background: var(--brand-gold-deep);
 }
 
-/* 点击钉住浮层时,触发图标保持高亮 */
-.rail-trigger.is-pinned {
+/* 收藏段末尾的「＋」：还没有收藏时就是"从全部功能里挑"的入口 */
+.rail-trigger.rail-add {
+  border: 1px dashed var(--border);
+  color: var(--text-faint);
+}
+
+.rail-trigger.rail-add:hover {
+  border-color: var(--accent);
   color: var(--accent);
-  background: var(--nav-tint);
+  background: var(--hover-bg);
 }
 
 /*
-  右侧浮层:二级页清单,悬停/钉住时显示。
-  定位基准是导航列本身(.app-nav 的 backdrop-filter 就是它的包含块),不是单个图标格:
-  跟着格子走时,栏底的分组会把面板 hangs 到视口外,而列顶对齐后任何分组都完整可见。
-*/
-.rail-popover {
-  /*
-   * fixed 而不是 absolute:浮层要伸到内容区上方,不能被任何一列的 overflow 裁掉。
-   * 包含块是 .app-nav(backdrop-filter 造的),所以 top 由 AppLayout 量出被悬停那一格
-   * 相对本列顶部的偏移,通过 --rail-pop-top 传进来;量不到时回落列顶 14px。
-   */
-  position: fixed;
-  top: var(--rail-pop-top, 14px);
-  left: calc(100% + 8px);
-  z-index: 60;
-  width: 208px;
-  max-height: calc(100% - var(--rail-pop-top, 14px) - 14px);
-  overflow-y: auto;
-  padding: 10px 6px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--card-bg);
-  color: var(--nav-ink);
-  box-shadow: var(--pop-shadow);
-}
-
-.rail-pop-head {
+ * 收藏段的拖拽容器：只做命中区和插入线，不改变图标本身的 44px 尺寸与居中。
+ * 插入线画在这一层而不是 .rail-trigger 上——选中态的左侧金条已经占用了 ::before。
+ */
+.rail-drag-item {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 10px 8px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 6px;
+  justify-content: center;
+  width: 100%;
 }
 
-.rail-pop-group {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--nav-ink-dim);
+/* 被拖起来的那一格淡出，让"正在搬的是哪个"一眼可见；落点由插入线指示 */
+.rail-drag-item.is-dragging {
+  opacity: 0.35;
 }
 
-.rail-pop-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+.rail-drag-item.is-drop-before::before,
+.rail-drag-item.is-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  z-index: 1;
 }
 
-/* 窄栏浮层内的二级目录小标题 */
-.rail-pop-subgroup-title {
-  padding: 8px 10px 2px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--nav-ink-dim);
+.rail-drag-item.is-drop-before::before {
+  top: -3px;
 }
 
-.rail-pop-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  font-size: 13px;
-  color: var(--nav-ink);
-  text-decoration: none;
-  transition:
-    background 0.12s,
-    color 0.12s;
+.rail-drag-item.is-drop-after::after {
+  bottom: -3px;
 }
 
-.rail-pop-item:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
+/*
+ * 窄栏悬停名称。popper 被 teleport 到 body，只能写成全局类（不是 scoped）。
+ * 比 Element Plus 默认 tooltip 更紧凑一点：它只承担一件事——"这颗图标是哪个页面"。
+ * 阴影用轻量小投影，不要 --pop-shadow（那是给整块浮层面板的，套在 20px 高的标签上像蒙了层雾）。
+ */
+.rail-tip.el-popper {
+  padding: 4px 9px;
+  border-color: var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px -6px rgba(20, 33, 61, 0.3);
 }
 
-.rail-pop-item.is-active {
-  background: var(--nav-tint);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.rail-pop-icon {
-  font-size: 15px;
-  flex-shrink: 0;
+.rail-tip .el-popper__arrow::before {
+  border-color: var(--border);
 }
 
 /* 顶栏下拉:「导航模式」分组与勾选 */

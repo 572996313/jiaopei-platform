@@ -61,7 +61,7 @@ const loading = ref(false)
 const rows = ref<Record<string, any>[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const queryModel = reactive<Record<string, string>>({})
 const tableRef = ref<{ clearSort: () => void } | null>(null)
 /** 表头排序(单列、服务端):空 sortField 表示走接口默认排序 */
@@ -118,7 +118,7 @@ async function loadConfig() {
     const summary = await listConfigStore.getOf(props.resourceCode)
     const parsed = parseConfig(summary)
     config.value = parsed
-    pageSize.value = parsed.pageSize && parsed.pageSize > 0 ? parsed.pageSize : 10
+    pageSize.value = parsed.pageSize && parsed.pageSize > 0 ? parsed.pageSize : 20
     page.value = 1
     sort.resetSort()
     initQueryModel(parsed)
@@ -498,7 +498,7 @@ defineExpose({
         v-model:page-size="pageSize"
         class="configurable-list-pagination"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="onPageChange"
         @size-change="onSizeChange"

@@ -107,7 +107,7 @@
         v-model:page-size="rosterPageSize"
         class="panel-pagination"
         :total="rosterTotal"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="loadRosterPage"
         @size-change="handleRosterPageSizeChange"

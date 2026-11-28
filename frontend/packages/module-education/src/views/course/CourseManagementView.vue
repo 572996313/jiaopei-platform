@@ -133,7 +133,7 @@
         v-model:page-size="coursePageSize"
         class="panel-pagination"
         :total="courseTotal"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next"
         @current-change="loadCourses"
         @size-change="handleCourseSizeChange"
@@ -315,7 +315,7 @@ const courseTableRef = ref()
 
 // 分页状态:课程列表服务端分页
 const coursePage = ref(1)
-const coursePageSize = ref(10)
+const coursePageSize = ref(20)
 const courseTotal = ref(0)
 const courseKeyword = ref('')
 

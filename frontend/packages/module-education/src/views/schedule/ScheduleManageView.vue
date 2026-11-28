@@ -168,7 +168,7 @@
         v-model:page-size="lessonPageSize"
         class="panel-pagination"
         :total="lessonTotal"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="refreshLessons"
         @size-change="handleLessonSizeChange"
@@ -327,7 +327,7 @@ const lessonDate = ref<string | null>(null)
 
 const lessons = ref<ScheduleLessonRecord[]>([])
 const lessonPage = ref(1)
-const lessonPageSize = ref(10)
+const lessonPageSize = ref(20)
 const lessonTotal = ref(0)
 
 /** 表头排序(服务端):无序时回到后端的日期+开始时间默认排序 */

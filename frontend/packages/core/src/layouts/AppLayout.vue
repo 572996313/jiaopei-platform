@@ -162,79 +162,111 @@
         </nav>
       </aside>
 
-      <!-- ============ 图标导航(窄模式 / rail) ============ -->
+      <!--
+        图标导航(窄模式 / rail)：只放「常用 + 收藏」，不再铺全部分组。
+        常用是最近点过的页面（位置进去就固定，不随点击重排），收藏是在「全部功能」面板里点星加进来的，
+        收藏项可以上下拖动调整顺序。
+        每一项都是可直达的叶子页面，**悬停只弹一个页面名**（不弹二级页清单）：
+        不少菜单没配图标、图标长得一样，名字是唯一的辨识手段，所以用 0 延迟的 tooltip 而不是
+        浏览器原生 title（原生要悬停一秒才出，客户等不到）。系统里还有什么，走列底那颗「全部功能」。
+      -->
       <aside v-else class="app-nav is-rail">
-        <nav class="rail-nav">
-          <template v-for="(group, groupIndex) in navRailGroups" :key="group.key">
-            <div v-if="groupIndex > 0" class="rail-group-gap" />
-            <div class="rail-group-items">
-              <div
-                v-for="item in group.items"
-                :key="item.key"
-                class="rail-cell"
-                @mouseenter="openRail(item, $event)"
-                @mouseleave="scheduleCloseRail()"
+        <nav class="rail-nav" @scroll.passive="railMenu = null">
+          <div v-if="recentRailPages.length" class="rail-group-items">
+            <div class="rail-section-label">常用</div>
+            <el-tooltip
+              v-for="page in recentRailPages"
+              :key="page.to"
+              v-bind="RAIL_TIP"
+              :content="page.label"
+            >
+              <RouterLink
+                :to="page.to"
+                class="rail-trigger"
+                :class="{ 'is-active': isPagePathActive(page.to) }"
+                :aria-label="page.label"
+                @contextmenu.prevent="openRailMenu($event, page, 'recent')"
+              >
+                <el-icon class="rail-icon"><component :is="page.icon || Document" /></el-icon>
+              </RouterLink>
+            </el-tooltip>
+          </div>
+
+          <div v-if="recentRailPages.length" class="rail-group-gap" />
+
+          <div class="rail-group-items">
+            <div class="rail-section-label">收藏</div>
+            <!--
+              收藏项可上下拖动排序。外层只负责拖拽命中区和插入线，里面仍然是原来的直达链接：
+              锚点显式 draggable="false"，否则浏览器原生的"拖链接"会抢走手势，拖出来是一个网址
+              而不是这颗图标。拖动中把 tooltip 关掉，免得名称标签跟着插入线一起闪。
+            -->
+            <div
+              v-for="(page, index) in favoriteRailPages"
+              :key="page.to"
+              class="rail-drag-item"
+              :class="{
+                'is-dragging': dragFavoriteIndex === index,
+                'is-drop-before': dropFavoriteIndex === index,
+                'is-drop-after':
+                  index === favoriteRailPages.length - 1 &&
+                  dropFavoriteIndex === favoriteRailPages.length,
+              }"
+              draggable="true"
+              @dragstart="onFavoriteDragStart(index, $event)"
+              @dragover.prevent="onFavoriteDragOver(index, $event)"
+              @drop.prevent="onFavoriteDrop"
+              @dragend="onFavoriteDragEnd"
+            >
+              <el-tooltip
+                v-bind="RAIL_TIP"
+                :content="page.label"
+                :disabled="dragFavoriteIndex !== null"
               >
                 <RouterLink
-                  v-if="!item.children.length"
-                  :to="item.to"
+                  :to="page.to"
                   class="rail-trigger"
-                  :class="{ 'is-active': isNavItemActive(item) }"
-                  :title="item.label"
+                  :class="{ 'is-active': isPagePathActive(page.to) }"
+                  :aria-label="page.label"
+                  draggable="false"
+                  @contextmenu.prevent="openRailMenu($event, page, 'favorite')"
                 >
-                  <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
+                  <el-icon class="rail-icon"><component :is="page.icon || Document" /></el-icon>
                 </RouterLink>
-                <button
-                  v-else
-                  type="button"
-                  class="rail-trigger"
-                  :class="{
-                    'is-active': isNavItemActive(item),
-                    'is-pinned': pinnedRailKey === item.key,
-                  }"
-                  :title="item.label"
-                  @click="toggleRailPin(item, $event)"
-                >
-                  <el-icon class="rail-icon"><component :is="item.icon" /></el-icon>
-                </button>
-
-                <div
-                  v-if="item.children.length && activeRailPopoverKey === item.key"
-                  class="rail-popover"
-                  :style="{ '--rail-pop-top': railPopoverTop + 'px' }"
-                  @mouseenter="cancelCloseRail()"
-                  @mouseleave="scheduleCloseRail()"
-                >
-                  <div class="rail-pop-head">
-                    <span v-if="group.label !== item.label" class="rail-pop-group">
-                      {{ group.label }}
-                    </span>
-                    <span class="rail-pop-title">{{ item.label }}</span>
-                  </div>
-                  <template v-for="(child, idx) in item.children" :key="child.key">
-                    <div
-                      v-if="child.groupLabel && child.groupLabel !== prevRailGroupLabel(item, idx)"
-                      class="rail-pop-subgroup-title"
-                    >
-                      {{ child.groupLabel }}
-                    </div>
-                    <RouterLink
-                      :to="child.to"
-                      class="rail-pop-item"
-                      :class="{ 'is-active': isChildActive(child) }"
-                      @click="handleRailChildClick"
-                    >
-                      <el-icon v-if="child.icon" class="rail-pop-icon"
-                        ><component :is="child.icon"
-                      /></el-icon>
-                      <span>{{ child.label }}</span>
-                    </RouterLink>
-                  </template>
-                </div>
-              </div>
+              </el-tooltip>
             </div>
-          </template>
+            <el-tooltip
+              v-bind="RAIL_TIP"
+              :content="favoriteRailPages.length ? '管理收藏' : '还没有收藏，点这里挑页面'"
+            >
+              <button
+                type="button"
+                class="rail-trigger rail-add"
+                aria-label="管理收藏"
+                @click="allPagesOpen = true"
+              >
+                <el-icon class="rail-icon"><Plus /></el-icon>
+              </button>
+            </el-tooltip>
+          </div>
         </nav>
+
+        <!--
+          列底的「全部功能」：左侧不再铺全部分组，这里是"看全貌"的唯一入口。
+          钉在滚动区之外，常用/收藏再多也不会把它挤出屏幕。
+        -->
+        <div class="rail-tail">
+          <el-tooltip v-bind="RAIL_TIP" content="全部功能">
+            <button
+              type="button"
+              class="rail-trigger"
+              aria-label="全部功能"
+              @click="allPagesOpen = true"
+            >
+              <el-icon class="rail-icon"><Grid /></el-icon>
+            </button>
+          </el-tooltip>
+        </div>
       </aside>
 
       <div class="app-main">
@@ -352,6 +384,40 @@
       <div v-if="!tabs.history.length" class="app-history-empty">还没有访问记录</div>
     </div>
 
+    <!-- ============ 窄栏图标右键菜单：常用里收藏、收藏里取消/上移/下移 ============ -->
+    <div
+      v-if="railMenu"
+      class="tab-context-menu rail-context-menu"
+      :style="{ left: `${railMenu.x}px`, top: `${railMenu.y}px` }"
+    >
+      <div class="rail-context-title">{{ railMenu.page.label }}</div>
+      <button type="button" class="tab-context-item" @click="runRailMenuAction">
+        {{ railMenuActionLabel }}
+      </button>
+      <!--
+        收藏可拖动排序，这里补一条不依赖拖拽的路径：触控板不好拖、键盘用户用不了拖拽。
+        菜单不自动关，连点可以一格一格挪。
+      -->
+      <template v-if="railMenu.kind === 'favorite'">
+        <button
+          type="button"
+          class="tab-context-item"
+          :disabled="railFavoriteIndex <= 0"
+          @click="moveRailFavorite(-1)"
+        >
+          上移
+        </button>
+        <button
+          type="button"
+          class="tab-context-item"
+          :disabled="railFavoriteIndex < 0 || railFavoriteIndex >= favoriteRailPages.length - 1"
+          @click="moveRailFavorite(1)"
+        >
+          下移
+        </button>
+      </template>
+    </div>
+
     <!-- ============ 菜单偏好设置 ============ -->
     <el-dialog v-model="menuPreferencesVisible" title="菜单偏好" width="460px">
       <p class="menu-pref-tip">偏好仅保存在当前浏览器，不随账号同步。</p>
@@ -365,14 +431,6 @@
           <el-radio value="manual">手动：仅点击展开，不自动展开</el-radio>
         </el-radio-group>
       </div>
-      <div class="menu-pref-group">
-        <div class="menu-pref-label">浮层行为（图标导航）</div>
-        <el-radio-group v-model="menuPreferences.railPopover" class="menu-pref-options">
-          <el-radio value="pin-outside">悬停展开，点击钉住，点击其他区域收起</el-radio>
-          <el-radio value="hover">仅悬停展开，移出即收起</el-radio>
-          <el-radio value="pin">悬停展开，点击钉住后常开</el-radio>
-        </el-radio-group>
-      </div>
       <template #footer>
         <el-button @click="menuPreferencesVisible = false">关闭</el-button>
       </template>
@@ -380,6 +438,9 @@
 
     <!-- ============ 个人信息：常用资料 + 换头像 + 快捷改密 ============ -->
     <UserProfileDialog v-model="profileDialogVisible" />
+
+    <!-- ============ 全部功能：可拖可缩的大面板，收藏也在这里点 ============ -->
+    <AllPagesDialog v-model="allPagesOpen" />
   </div>
 </template>
 
@@ -391,23 +452,33 @@ import {
   ArrowDown,
   Check,
   Close,
+  Document,
   Grid,
   Monitor,
   Moon,
+  Plus,
   Search,
   Sunny,
 } from '@element-plus/icons-vue'
-import NavSearchPalette, { type SearchablePage } from './NavSearchPalette.vue'
+import AllPagesDialog from './AllPagesDialog.vue'
+import NavSearchPalette from './NavSearchPalette.vue'
 import UserAvatar from '@cornerstone/core/components/UserAvatar.vue'
 import UserProfileDialog from '@cornerstone/core/components/UserProfileDialog.vue'
 import {
   contributedBannerActions,
   contributedBannerChips,
-  contributedNavItems,
-  type NavItemDefinition,
 } from '@cornerstone/core/extension/module-extensions'
 import { useBranding } from '@cornerstone/core/composables/use-branding'
+import { useFavoritePages } from '@cornerstone/core/composables/use-favorites'
 import { useTheme, type ThemeMode } from '@cornerstone/core/composables/use-theme'
+import {
+  findMenuNode,
+  pathMatchesPrefix,
+  useNavModel,
+  type SearchablePage,
+  type SidebarChildDefinition,
+  type SidebarDefinition,
+} from '@cornerstone/core/composables/use-nav-model'
 import { useAuthStore } from '@cornerstone/core/stores/auth'
 import { useInstitutionStore } from '@cornerstone/core/stores/institution'
 import {
@@ -417,8 +488,6 @@ import {
   type TabCloseMode,
   type VisitedPage,
 } from '@cornerstone/core/stores/tabs'
-import type { SystemMenuTreeNode } from '@cornerstone/core/api/system'
-import { resolveMenuIcon } from '@cornerstone/core/constants/menuIcons'
 
 const route = useRoute()
 const router = useRouter()
@@ -470,16 +539,13 @@ const THEME_ICONS: Record<ThemeMode, Component> = {
 
 /** 宽栏组展开策略:classic=路由命中强制展开(旧行为),smart=自动展开当前组+可收起+开一收其余+点侧栏外自动收起,manual=纯手动点击展开 */
 type GroupExpandMode = 'classic' | 'smart' | 'manual'
-/** 窄栏浮层行为:hover=悬停展开移出即收,pin-outside=点击钉住且点外部收起(默认),pin=点击钉住常开(旧行为) */
-type RailPopoverMode = 'hover' | 'pin-outside' | 'pin'
 
 interface MenuPreferences {
   groupExpand: GroupExpandMode
-  railPopover: RailPopoverMode
 }
 
 const MENU_PREFS_STORAGE_KEY = 'cornerstone-menu-preferences'
-const defaultMenuPreferences: MenuPreferences = { groupExpand: 'smart', railPopover: 'pin-outside' }
+const defaultMenuPreferences: MenuPreferences = { groupExpand: 'smart' }
 
 function pickValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback
@@ -499,11 +565,6 @@ function readStoredMenuPreferences(): MenuPreferences {
         ['classic', 'smart', 'manual'] as const,
         defaultMenuPreferences.groupExpand
       ),
-      railPopover: pickValue(
-        stored.railPopover,
-        ['hover', 'pin-outside', 'pin'] as const,
-        defaultMenuPreferences.railPopover
-      ),
     }
   } catch {
     return { ...defaultMenuPreferences }
@@ -514,6 +575,8 @@ const menuPreferences = ref<MenuPreferences>(readStoredMenuPreferences())
 const menuPreferencesVisible = ref(false)
 const profileDialogVisible = ref(false)
 const searchOpen = ref(false)
+/** 「全部功能」大面板：左侧窄栏看全貌的唯一入口，也是收藏页面的地方 */
+const allPagesOpen = ref(false)
 
 /** 顶栏业务入口：现算而不是加载时取快照，登记晚于外壳挂载也要出现 */
 const bannerActions = computed(() => contributedBannerActions())
@@ -530,232 +593,21 @@ watch(
 
 /** ================= 导航数据模型(宽窄两态共用) ================= */
 
-interface SidebarChildDefinition {
-  key: string
-  to: string
-  label: string
-  title: string
-  prefixes: string[]
-  icon?: Component
-  /** 所属二级目录名(空=直属顶层目录);用于侧边栏分组小标题 */
-  groupLabel?: string
-}
-
-/** 顶层导航项结构由扩展点定义，业务模块经 registerNavItems 登记，底座不写死业务路由 */
-type SidebarDefinition = NavItemDefinition
-
-/** 后端菜单节点 → 侧边栏子项结构(名称/顺序/图标来自 sys_menu,可后台配置) */
-function adaptMenuChildren(nodes: SystemMenuTreeNode[], groupLabel = ''): SidebarChildDefinition[] {
-  const flat: SidebarChildDefinition[] = []
-  const walk = (list: SystemMenuTreeNode[], currentGroup: string) => {
-    for (const node of list) {
-      // 目录(catalog)本身不作为可点击子项,但需下钻收集其下的页面菜单,并记录分组名
-      if (node.menuType === 'catalog') {
-        walk(node.children || [], node.menuName)
-      } else if (node.menuType === 'menu' && node.path) {
-        flat.push({
-          key: node.menuCode,
-          to: node.path as string,
-          label: node.menuName,
-          title: node.menuName,
-          prefixes: [node.path as string],
-          icon: resolveMenuIcon(node.icon),
-          groupLabel: currentGroup,
-        })
-      }
-    }
-  }
-  walk(nodes, groupLabel)
-  return flat
-}
-
-/** 当前用户菜单树里 code 对应的节点(含目录与菜单) */
-function findMenuNode(
-  items: SystemMenuTreeNode[] | undefined,
-  code: string
-): SystemMenuTreeNode | null {
-  for (const item of items || []) {
-    if (item.menuCode === code) {
-      return item
-    }
-    const found = findMenuNode(item.children, code)
-    if (found) {
-      return found
-    }
-  }
-  return null
-}
-
 /**
- * 计算某菜单项应展示的子项。
- * - 配置化目录(system):子项直接来自后端菜单树(角色已授权 + 按 sortNo 排序),目录未授权则无子项;
- * - 其余顶层项无子项。
+ * 菜单树 → 分组 → 页面的推导整体收在 `composables/use-nav-model.ts`。
+ * 「全部功能」面板(AllPagesDialog)、Ctrl+K 搜索、窄栏的常用/收藏渲染的都是同一份数据——
+ * 各算一遍就会出现"目录里有的页面侧边栏没有、或者顺序不一致"，那正是前端第二份导航事实源的老毛病。
  */
-function resolveVisibleChildren(item: SidebarDefinition): SidebarChildDefinition[] {
-  if (item.menuCatalogCode) {
-    const catalog = findMenuNode(auth.currentMenus, item.menuCatalogCode)
-    if (!catalog) {
-      return []
-    }
-    return adaptMenuChildren(catalog.children || [])
-  }
-  return []
-}
-
-function hasVisibleChild(item: SidebarDefinition) {
-  return resolveVisibleChildren(item).length > 0
-}
-
-/**
- * 顶层导航段：**一个 `sys_menu` 顶层节点 = 侧边栏一组（一个图标）**。
- * 组名取 `menu_name`、组间顺序取 `sort_no`、图标取 `icon`、组内页面与顺序取子节点，
- * 全部来自当前用户已授权的菜单树——客户在「导航编排」页改完刷新即生效，不用改代码。
- * 之前这套顺序写死在各模块 `registerNavItems` 的 `groupOrder` 里，客户调 `sort_no` 界面不动。
- */
-
-/** 目录没配图标的回落：窄栏里一个图标都看不见，等于这一组消失了 */
-const FALLBACK_GROUP_ICON = Grid
-
-/** 收集一个顶层节点下所有可点页面的路径（含子目录里的），用作整组的高亮前缀 */
-function collectPagePaths(nodes: SystemMenuTreeNode[]): string[] {
-  const paths: string[] = []
-  for (const node of nodes) {
-    if (node.menuType === 'menu' && node.path) {
-      paths.push(node.path)
-    }
-    if (node.children?.length) {
-      paths.push(...collectPagePaths(node.children))
-    }
-  }
-  return paths
-}
-
-const menuDrivenDefinitions = computed<SidebarDefinition[]>(() => {
-  // 登记项的图标只作为"菜单节点没配图"时的回落，顺序与名称一概不从代码取
-  const contributed = contributedNavItems()
-  const list: SidebarDefinition[] = []
-  for (const node of auth.currentMenus || []) {
-    if (node.menuType === 'button' || !node.menuCode) {
-      continue
-    }
-    const groupKey = `menu:${node.menuCode}`
-    const pagePaths = collectPagePaths(node.children || [])
-    if (node.menuType === 'catalog') {
-      // 空目录不渲染：窄栏会出现一个点开没有内容的图标
-      if (!pagePaths.length) {
-        continue
-      }
-      list.push({
-        key: groupKey,
-        to: pagePaths[0],
-        label: node.menuName,
-        title: node.menuName,
-        icon:
-          resolveMenuIcon(node.icon) ??
-          contributed.find((item) => item.menuCatalogCode === node.menuCode)?.icon ??
-          FALLBACK_GROUP_ICON,
-        group: groupKey,
-        groupLabel: node.menuName,
-        groupOrder: node.sortNo ?? 100,
-        prefixes: pagePaths,
-        menuCatalogCode: node.menuCode,
-      })
-      continue
-    }
-    if (!node.path) {
-      continue
-    }
-    list.push({
-      key: groupKey,
-      to: node.path,
-      label: node.menuName,
-      title: node.menuName,
-      icon:
-        resolveMenuIcon(node.icon) ??
-        contributed.find((item) => item.menuCode === node.menuCode)?.icon ??
-        FALLBACK_GROUP_ICON,
-      group: groupKey,
-      groupLabel: node.menuName,
-      groupOrder: node.sortNo ?? 100,
-      prefixes: [node.path],
-      menuCode: node.menuCode,
-    })
-  }
-  return list
-})
-
-/**
- * 代码登记的入口：只留"没有菜单节点承载"的那些（工作台这类落地页，全站必进、不对应权限）。
- * **凡登记时写了 `menuCode`/`menuCatalogCode` 的，一律由上面那份菜单树自己出现**——
- * 同一个入口两处出现会在窄栏画两颗一样的图标，而"节点没授权"正是要它不出现。
- */
-const registeredDefinitions = computed(() =>
-  contributedNavItems().filter((item) => !item.menuCode && !item.menuCatalogCode)
-)
-
-const sidebarDefinitions = computed(() => [
-  ...menuDrivenDefinitions.value,
-  ...registeredDefinitions.value,
-])
-
-/** 配置化目录/单页入口的显示名优先取菜单树中的 menuName(后台可改名),树未就绪回退静态 label */
-function displayLabel(item: SidebarDefinition): string {
-  const code = item.menuCatalogCode ?? item.menuCode
-  if (code) {
-    const node = findMenuNode(auth.currentMenus, code)
-    if (node?.menuName) {
-      return node.menuName
-    }
-  }
-  return item.label
-}
-
-/**
- * 「一个 `sys_menu` 目录自成一组」时（业务导航的常态：组名就取自目录节点名），
- * 完整导航不再渲染组标题——否则标题与下面那颗可展开的目录按钮同名、各占一行。
- * 窄栏浮层早有同一条判断（rail-pop 的 v-if），这里补齐宽栏。
- */
-function isGroupTitleRedundant(group: { label: string; items: SidebarDefinition[] }): boolean {
-  return group.items.length === 1 && displayLabel(group.items[0]) === group.label
-}
-
-const navItems = computed(() => {
-  return sidebarDefinitions.value.filter((item) => {
-    // 单页入口：菜单节点没授给当前角色就不出现（后端照样拦，但别留一个点进去整页 403 的入口）
-    if (item.menuCode) {
-      return findMenuNode(auth.currentMenus, item.menuCode) !== null
-    }
-    if (item.alwaysVisible) {
-      return true
-    }
-    // 其余顶层项(当前仅系统目录):至少有一个可见子项才显示
-    return hasVisibleChild(item)
-  })
-})
-
-/** 分组由导航项自带的 group/groupLabel/groupOrder 推导，没有可见导航项的组不出现 */
-const navGroups = computed(() => {
-  const buckets: Array<{
-    key: string
-    label: string
-    order: number
-    items: SidebarDefinition[]
-  }> = []
-  for (const item of navItems.value) {
-    let bucket = buckets.find((entry) => entry.key === item.group)
-    if (!bucket) {
-      bucket = {
-        key: item.group,
-        label: item.groupLabel,
-        order: item.groupOrder ?? 100,
-        items: [],
-      }
-      buckets.push(bucket)
-    }
-    bucket.items.push(item)
-  }
-  return buckets.sort((a, b) => a.order - b.order)
-})
+const {
+  sidebarDefinitions,
+  navGroups,
+  searchablePages,
+  pageByPath,
+  resolveVisibleChildren,
+  hasVisibleChild,
+  displayLabel,
+  isGroupTitleRedundant,
+} = useNavModel()
 
 /** ================= 横幅上下文(当前页在导航里的位置) ================= */
 
@@ -791,58 +643,12 @@ const pageTitle = computed(
     currentPageTrail.value.label ||
     tabs.tabs.find((tab) => tab.path === route.path)?.label ||
     titleOfPath(route.path) ||
+    // 不在菜单树里的固定页自带 meta.title，别让它显示成产品名
+    (route.meta.title as string | undefined) ||
     brandName.value
 )
 
-/** 窄栏把二级页收进悬停浮层,搜索面板就是它的平铺目录:直达项与目录子页都在内 */
-const searchablePages = computed<SearchablePage[]>(() => {
-  const list: SearchablePage[] = []
-  const seen = new Set<string>()
-  for (const group of navGroups.value) {
-    for (const item of group.items) {
-      const parent = displayLabel(item)
-      const children = resolveVisibleChildren(item)
-      if (!children.length) {
-        if (!seen.has(item.to)) {
-          seen.add(item.to)
-          list.push({
-            label: parent,
-            groupLabel: group.label,
-            parentLabel: '',
-            to: item.to,
-            icon: item.icon,
-          })
-        }
-        continue
-      }
-      for (const child of children) {
-        if (seen.has(child.to)) {
-          continue
-        }
-        seen.add(child.to)
-        list.push({
-          label: child.label,
-          groupLabel: group.label,
-          parentLabel: parent,
-          to: child.to,
-          icon: child.icon,
-        })
-      }
-    }
-  }
-  return list
-})
-
 /** ================= 当前页匹配(页签标题 / 高亮) ================= */
-
-/**
- * 前缀按**路径段**匹配：`/schedule` 命中 `/schedule` 与 `/schedule/xxx`，
- * 但不命中 `/schedule-completeness`——否则完成度页的横幅标题、导航高亮和页签
- * 都会被排课页抢走，出现两个同名页签。
- */
-function pathMatchesPrefix(path: string, prefix: string) {
-  return path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`)
-}
 
 /**
  * 路径 → 菜单节点标题(子项优先于父项)。菜单树还没就绪时返回 null,
@@ -883,7 +689,8 @@ watch(
     const page = {
       path: route.path,
       fullPath: route.fullPath,
-      label: titleOfPath(route.path) || '',
+      // 不在菜单树里的固定页用路由自带的标题，否则页签显示成空白路径
+      label: titleOfPath(route.path) || (route.meta.title as string | undefined) || '',
     }
     tabs.open(page)
     tabs.rememberVisit(page)
@@ -1147,14 +954,6 @@ function prevGroupLabel(item: SidebarDefinition, idx: number) {
   return resolveVisibleChildren(item)[idx - 1]?.groupLabel ?? ''
 }
 
-/** 窄栏浮层分组小标题判定(item.children 已是扁平数组) */
-function prevRailGroupLabel(item: RailItem, idx: number) {
-  if (idx === 0) {
-    return ''
-  }
-  return item.children[idx - 1]?.groupLabel ?? ''
-}
-
 /** ================= 导航模式(完整 / 图标窄栏) ================= */
 
 const NAV_MODE_STORAGE_KEY = 'cornerstone-nav-mode'
@@ -1178,112 +977,236 @@ function setNavMode(mode: NavMode) {
 }
 
 /**
- * 窄栏数据:分组 → 目录项。目录项统一带 children(空数组表示无子页的直达项)。
+ * 窄栏的 常用 + 收藏。
+ *
+ * - 常用：最近点过的页面（`stores/tabs.ts` 的 history 决定谁进谁出），**位置进去就固定**，
+ *   不按最后访问时间重排；
+ * - 收藏：在「全部功能」面板里点星加进来的，新的追加在末尾，可上下拖动排序。
+ *
+ * 两边都只存路径，名称与图标从 `pageByPath` 实时取——菜单改名、换图标就跟着变；
+ * 查不到（授权被收回、页面下线）就不渲染。收藏优先：同一页同时在这两段里时只留在收藏段，
+ * 免得窄栏里挂两颗一样的图标。
  */
-interface RailItem {
-  key: string
-  label: string
-  icon: Component
-  to: string
-  prefixes: string[]
-  children: SidebarChildDefinition[]
+const MAX_RECENT_RAIL_PAGES = 6
+
+/**
+ * 窄栏悬停名称的统一参数。用 Element Plus tooltip 而不是原生 `title`：
+ * - `showAfter: 0`：原生 title 要悬停约一秒才冒出来，客户等不到；图标没配或长得一样时，
+ *   名字是唯一的辨识手段，必须"放上去就看见"；
+ * - `hideAfter: 0`：相邻图标之间移动时不让上一条继续悬着，避免两个标签同时出现；
+ * - `enterable: false`：它只是一个名称标签，不该能移进去停留。
+ */
+const RAIL_TIP = {
+  placement: 'right' as const,
+  effect: 'light' as const,
+  popperClass: 'rail-tip',
+  showAfter: 0,
+  hideAfter: 0,
+  enterable: false,
 }
 
-const navRailGroups = computed(() => {
-  return navGroups.value.map((group) => ({
-    key: group.key,
-    label: group.label,
-    items: group.items.map<RailItem>((item) => ({
-      key: item.key,
-      label: displayLabel(item),
-      icon: item.icon,
-      to: item.to,
-      prefixes: item.prefixes,
-      children: visibleChildren(item),
-    })),
-  }))
-})
+const { favoritePaths, toggleFavorite, moveFavorite } = useFavoritePages()
 
-/** 窄栏浮层状态:hover 打开、点击可钉住;移出图标+浮层后延迟收起 */
-const hoveredRailKey = ref<string | null>(null)
-const pinnedRailKey = ref<string | null>(null)
-const railCloseTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-/** 浮层的纵向起点(相对导航列顶部),跟着被悬停的那一格走,不是钉在列顶 */
-const railPopoverTop = ref(14)
-/** 起点收到此列底部之上至少留出的浮层高度,再靠 max-height 截断 */
-const RAIL_POPOVER_MIN_ROOM = 180
+/**
+ * 常用栏的位置存本机：只存"图标按什么顺序排"，名称与图标仍从菜单树实时取。
+ * 换账号后成员按新的浏览历史重算，旧顺序里查不到的路径自然被丢掉。
+ */
+const RECENT_ORDER_STORAGE_KEY = 'cornerstone-rail-recent-order'
 
-function measureRailPopoverTop(trigger: HTMLElement | null | undefined) {
-  const nav = trigger?.closest('.app-nav')
-  if (!nav || !trigger) {
-    return
+function readStoredRecentOrder(): string[] {
+  if (typeof window === 'undefined') {
+    return []
   }
-  const navBox = nav.getBoundingClientRect()
-  const offset = trigger.getBoundingClientRect().top - navBox.top
-  railPopoverTop.value = Math.max(14, Math.min(offset, navBox.height - RAIL_POPOVER_MIN_ROOM))
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(RECENT_ORDER_STORAGE_KEY) || '[]')
+    return Array.isArray(stored)
+      ? stored.filter((item): item is string => typeof item === 'string')
+      : []
+  } catch {
+    return []
+  }
 }
 
-const activeRailPopoverKey = computed(() => {
-  // 悬停优先于钉住：钉住某组后再移到别的入口，浮层必须换成当前那一格，
-  // 否则会停在上一组的内容上（位置已跟着鼠标走、标题却是旧的）。
-  return hoveredRailKey.value ?? pinnedRailKey.value
+const recentOrder = ref<string[]>(readStoredRecentOrder())
+
+/**
+ * 常用的成员：最近点过的几个页面（去掉已收藏的，同一页只在收藏段出现一次）。
+ * **谁进谁出**照旧按最近访问算——最久没点的那个让位给新页面。
+ */
+const recentMembers = computed<SearchablePage[]>(() => {
+  const favoriteSet = new Set(favoritePaths.value)
+  const pages: SearchablePage[] = []
+  for (const item of tabs.history) {
+    if (pages.length >= MAX_RECENT_RAIL_PAGES) {
+      break
+    }
+    if (favoriteSet.has(item.path)) {
+      continue
+    }
+    const page = pageByPath.value.get(item.path)
+    if (page) {
+      pages.push(page)
+    }
+  }
+  return pages
 })
 
 /**
- * 浮层换宿主时要重量起点：钉住的那组在鼠标移出后重新接管显示，
- * 此时没有 mouseenter 可量，沿用上一次悬停的偏移会让浮层停在别的格子上。
+ * 常用栏的位置一旦定下就不再动：新进列表的排在末尾，其余保持原位。
+ *
+ * 以前直接按"最后访问时间"排，每点一个页面整列就重排一次——鼠标底下那颗图标刚认熟就换了
+ * 位置，客户的原话是"跳来跳去看不懂"。位置稳定比"最近的在最上面"重要得多：
+ * 频繁用的页面靠"不会被挤出去"留在常用里，而不是靠往上跳。
  */
-watch(activeRailPopoverKey, async () => {
-  await nextTick()
-  const cell = document.querySelector('.rail-popover')?.closest('.rail-cell') as HTMLElement | null
-  measureRailPopoverTop(cell)
+const recentRailPages = computed<SearchablePage[]>(() => {
+  const members = recentMembers.value
+  const byPath = new Map(members.map((page) => [page.to, page]))
+  const ordered: SearchablePage[] = []
+  for (const path of recentOrder.value) {
+    const page = byPath.get(path)
+    if (page) {
+      ordered.push(page)
+    }
+  }
+  const placed = new Set(ordered.map((page) => page.to))
+  for (const page of members) {
+    if (!placed.has(page.to)) {
+      ordered.push(page)
+    }
+  }
+  return ordered
 })
 
-function openRail(item: RailItem, event: MouseEvent) {
-  cancelCloseRail()
-  measureRailPopoverTop(event.currentTarget as HTMLElement)
-  hoveredRailKey.value = item.key
-}
+// 把算出来的顺序写回本机：只在成员真的增删时写，日常导航不碰存储
+watch(
+  recentRailPages,
+  (pages) => {
+    const next = pages.map((page) => page.to)
+    const changed =
+      next.length !== recentOrder.value.length ||
+      next.some((path, index) => path !== recentOrder.value[index])
+    if (changed) {
+      recentOrder.value = next
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(RECENT_ORDER_STORAGE_KEY, JSON.stringify(next))
+      }
+    }
+  },
+  { immediate: true }
+)
 
-function cancelCloseRail() {
-  if (railCloseTimer.value) {
-    clearTimeout(railCloseTimer.value)
-    railCloseTimer.value = null
+const favoriteRailPages = computed<SearchablePage[]>(() =>
+  favoritePaths.value
+    .map((path) => pageByPath.value.get(path))
+    .filter((page): page is SearchablePage => Boolean(page))
+)
+
+/**
+ * 收藏拖动排序。目标是"插到哪一格之前"，不是两两交换——交换在长列表里对不准，
+ * 插入线能直接看见落点。`dropFavoriteIndex` 取 0..length，等于 length 表示落到最后。
+ * 拖动结束浏览器不会再补发 click（指针移动过的话），所以不会误打开页面。
+ */
+const dragFavoriteIndex = ref<number | null>(null)
+const dropFavoriteIndex = ref<number | null>(null)
+
+function onFavoriteDragStart(index: number, event: DragEvent) {
+  dragFavoriteIndex.value = index
+  dropFavoriteIndex.value = null
+  // Firefox 必须往 dataTransfer 里放点东西拖拽才会真正开始
+  event.dataTransfer?.setData('text/plain', favoriteRailPages.value[index]?.to ?? '')
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
   }
 }
 
-function scheduleCloseRail() {
-  cancelCloseRail()
-  railCloseTimer.value = setTimeout(() => {
-    hoveredRailKey.value = null
-    railCloseTimer.value = null
-  }, 200)
-}
-
-function toggleRailPin(item: RailItem, event: MouseEvent) {
-  if (!item.children.length) {
-    hoveredRailKey.value = null
+/** 指针在目标图标上半区就插到它前面，下半区就插到它后面 */
+function onFavoriteDragOver(index: number, event: DragEvent) {
+  if (dragFavoriteIndex.value === null) {
     return
   }
-  measureRailPopoverTop(event.currentTarget as HTMLElement)
-  // hover 模式:浮层只跟随鼠标,点击不钉住
-  if (menuPreferences.value.railPopover === 'hover') {
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const next = event.clientY > box.top + box.height / 2 ? index + 1 : index
+  // 落回原位（自己前面/后面）不算移动：不画插入线，免得指向一个松手什么都不变的位置
+  dropFavoriteIndex.value =
+    next === dragFavoriteIndex.value || next === dragFavoriteIndex.value + 1 ? null : next
+}
+
+function onFavoriteDrop() {
+  if (dragFavoriteIndex.value === null || dropFavoriteIndex.value === null) {
     return
   }
-  if (pinnedRailKey.value === item.key) {
-    pinnedRailKey.value = null
-  } else {
-    pinnedRailKey.value = item.key
-    hoveredRailKey.value = null
+  moveFavorite(dragFavoriteIndex.value, dropFavoriteIndex.value)
+  dragFavoriteIndex.value = null
+  dropFavoriteIndex.value = null
+}
+
+/** 拖到列表外松手、或按 Esc 取消：清掉拖拽态，插入线不能留在那 */
+function onFavoriteDragEnd() {
+  dragFavoriteIndex.value = null
+  dropFavoriteIndex.value = null
+}
+
+/** 页面级高亮：`/schedule` 命中 `/schedule` 与 `/schedule/xxx`，但不会串到 `/schedule-xxx` */
+function isPagePathActive(path: string) {
+  return pathMatchesPrefix(route.path, path)
+}
+
+/**
+ * 窄栏图标的右键菜单：在「常用」里右键收藏、在「收藏」里右键取消收藏。
+ *
+ * 为什么用右键而不是"拖到收藏区"：68px 宽的列里拖拽既难瞄准又和点击打开抢手势，
+ * 而且拖拽没有键盘路径；右键菜单是这个后台既有的一套交互（页签、最近查看都用它），
+ * 客户不用重新学。发现成本靠「全部功能」面板顶部那句提示补上。
+ */
+/** 与 `.rail-context-menu` 的 width 保持一致，钳制右边界时按它算 */
+const RAIL_MENU_WIDTH = 168
+
+const railMenu = ref<{
+  x: number
+  y: number
+  page: SearchablePage
+  kind: 'recent' | 'favorite'
+} | null>(null)
+
+function openRailMenu(event: MouseEvent, page: SearchablePage, kind: 'recent' | 'favorite') {
+  railMenu.value = {
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - RAIL_MENU_WIDTH - 8)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 96)),
+    page,
+    kind,
   }
 }
 
-function handleRailChildClick() {
-  // 选定目的地即解除钉住，否则鼠标移出导航栏后旧组的浮层会重新盖在新页面上
-  pinnedRailKey.value = null
+/** 菜单里那一条动作的文案：常用里是收藏，收藏里是取消 */
+const railMenuActionLabel = computed(() =>
+  railMenu.value?.kind === 'favorite' ? '取消收藏' : '收进收藏'
+)
+
+/** 右键的收藏项当前排在第几位：按路径实时算，拖动过、或别处删过收藏也能跟上 */
+const railFavoriteIndex = computed(() =>
+  railMenu.value?.kind === 'favorite'
+    ? favoriteRailPages.value.findIndex((page) => page.to === railMenu.value?.page.to)
+    : -1
+)
+
+/** 菜单里的上移/下移：`to` 是插入位，往下挪一档等于插到下一项的后面 */
+function moveRailFavorite(offset: -1 | 1) {
+  const index = railFavoriteIndex.value
+  if (index < 0) {
+    return
+  }
+  moveFavorite(index, offset < 0 ? index - 1 : index + 2)
 }
 
-/** 点击侧边栏之外的区域:收起钉住的窄栏浮层(pin-outside)、smart 模式下展开的组,以及页签右键菜单 */
+function runRailMenuAction() {
+  if (!railMenu.value) {
+    return
+  }
+  toggleFavorite(railMenu.value.page.to)
+  railMenu.value = null
+}
+
+/** 点击侧边栏之外的区域:收起 smart 模式下展开的组,以及页签右键菜单 */
 function handleDocumentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null
   if (tabMenu.value && !target?.closest('.tab-context-menu')) {
@@ -1293,14 +1216,11 @@ function handleDocumentClick(event: MouseEvent) {
   if (historyMenu.value && !target?.closest('.app-history-menu, .app-tab-history')) {
     historyMenu.value = null
   }
-  const insideNav = !!target?.closest('.app-nav')
-  if (
-    pinnedRailKey.value &&
-    menuPreferences.value.railPopover === 'pin-outside' &&
-    !insideNav
-  ) {
-    pinnedRailKey.value = null
+  // 窄栏图标的右键菜单：点菜单本身要能执行动作，点别处才收起
+  if (railMenu.value && !target?.closest('.rail-context-menu')) {
+    railMenu.value = null
   }
+  const insideNav = !!target?.closest('.app-nav')
   if (menuPreferences.value.groupExpand === 'smart' && !insideNav && openGroups.value.size) {
     openGroups.value = new Set()
   }
@@ -1310,10 +1230,11 @@ function handleDocumentKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     tabMenu.value = null
     historyMenu.value = null
+    railMenu.value = null
     searchOpen.value = false
     return
   }
-  // Ctrl/⌘+K:窄栏的二级页藏在悬停浮层里,键盘直达是它的兜底入口
+  // Ctrl/⌘+K：不打开「全部功能」面板也能直接跳页，习惯键盘的人不必点两次
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     tabMenu.value = null

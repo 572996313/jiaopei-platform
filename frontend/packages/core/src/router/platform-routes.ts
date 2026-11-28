@@ -59,6 +59,13 @@ export const publicRoutes: RouteRecordRaw[] = [
 
 export const platformChildRoutes: RouteRecordRaw[] = [
   {
+    // 已删除的「全部功能」整页路由，改成了悬浮面板（layouts/AllPagesDialog.vue）。
+    // 留着这条重定向是为了旧书签、旧页签和旧浏览记录：指过来时落到首页，而不是空白内容区。
+    // 不写死 /dashboard——落地页属于壳工程，core 只回到根路由由壳决定去哪。
+    path: 'all-pages',
+    redirect: '/',
+  },
+  {
     path: 'system',
     redirect: '/system/users',
   },

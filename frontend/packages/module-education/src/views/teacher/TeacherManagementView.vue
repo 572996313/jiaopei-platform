@@ -154,7 +154,7 @@
         v-model:page-size="teacherPageSize"
         class="panel-pagination"
         :total="teacherTotal"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="loadTeachers"
         @size-change="handleTeacherSizeChange"
@@ -305,7 +305,7 @@ const teachers = ref<TeacherSummary[]>([])
 
 // 分页状态:教师列表服务端分页
 const teacherPage = ref(1)
-const teacherPageSize = ref(10)
+const teacherPageSize = ref(20)
 const teacherTotal = ref(0)
 const teacherKeyword = ref('')
 const teacherTableRef = ref<{ clearSort: () => void } | null>(null)

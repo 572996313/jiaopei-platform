@@ -18,7 +18,7 @@ public class PasswordValidatorImpl implements PasswordValidator {
     @Override
     public void validate(String password) {
         if (!meetsRequirements(password)) {
-            String level = systemConfigService.getConfigValue("auth.password.strength_level", "medium");
+            String level = systemConfigService.getConfigValue("auth.password.strength_level", "simple");
             throw new BusinessException(ResultCode.VALIDATION_ERROR,
                 "密码强度未达到「" + strengthLevelName(level) + "」等级要求");
         }
@@ -39,14 +39,15 @@ public class PasswordValidatorImpl implements PasswordValidator {
             return false;
         }
 
-        Integer minLength = systemConfigService.getIntConfig("auth.password.min_length", 8);
+        // 兜底值与库里的默认口径保持一致（教培 V125 / 底座 V124：simple、最小 6 位）
+        Integer minLength = systemConfigService.getIntConfig("auth.password.min_length", 6);
         Integer maxLength = systemConfigService.getIntConfig("auth.password.max_length", 128);
 
         if (password.length() < minLength || password.length() > maxLength) {
             return false;
         }
 
-        String level = systemConfigService.getConfigValue("auth.password.strength_level", "medium");
+        String level = systemConfigService.getConfigValue("auth.password.strength_level", "simple");
 
         return switch (level) {
             case "simple" -> true;

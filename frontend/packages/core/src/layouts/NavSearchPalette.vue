@@ -41,19 +41,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type Component } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import type { ElInput } from 'element-plus'
+import {
+  matchesPageKeyword,
+  type SearchablePage,
+} from '@cornerstone/core/composables/use-nav-model'
 
-/** 一个可跳转的页面入口:label 是页名,trail 是它在导航里的来路(分组 / 顶层目录) */
-export interface SearchablePage {
-  label: string
-  groupLabel: string
-  parentLabel: string
-  to: string
-  icon?: Component
-}
+/** 页面入口的形状与匹配口径都在 composables/use-nav-model 里，本组件只负责渲染与键盘操作 */
+export type { SearchablePage }
 
 const props = defineProps<{ modelValue: boolean; items: SearchablePage[] }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -64,16 +62,9 @@ const cursor = ref(0)
 const inputRef = ref<InstanceType<typeof ElInput> | null>(null)
 
 /** 空格分隔的多关键词全部命中才算命中,顺序无关("排课 批量" 能找到 "批量排课") */
-const matched = computed(() => {
-  const terms = keyword.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  if (!terms.length) {
-    return props.items
-  }
-  return props.items.filter((item) => {
-    const haystack = `${item.label} ${item.groupLabel} ${item.parentLabel} ${item.to}`.toLowerCase()
-    return terms.every((term) => haystack.includes(term))
-  })
-})
+const matched = computed(() =>
+  props.items.filter((item) => matchesPageKeyword(item, keyword.value))
+)
 
 function trailOf(item: SearchablePage) {
   // 顶层项自己就是组名时(系统设置)只留一处,免得读成"系统设置 / 系统设置"

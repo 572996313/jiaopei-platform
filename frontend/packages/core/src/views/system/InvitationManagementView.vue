@@ -131,7 +131,7 @@
         :total="total"
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         @current-change="reload()"
         @size-change="reload(1)"
       />

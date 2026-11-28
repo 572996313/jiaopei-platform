@@ -119,7 +119,7 @@
         v-model:page-size="pageSize"
         class="panel-pagination"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="loadStudents"
         @size-change="handleSizeChange"

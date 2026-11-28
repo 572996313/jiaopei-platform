@@ -145,7 +145,7 @@
         v-model:page-size="pageSize"
         class="panel-pagination"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="loadAnnouncements"
         @size-change="search"
@@ -411,7 +411,7 @@ const canWrite = computed(() => auth.hasPermission('announcement:write'))
 const records = ref<AnnouncementRecord[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const loading = ref(false)
 const pageError = ref('')
 const tableRef = ref<{ clearSort: () => void } | null>(null)
